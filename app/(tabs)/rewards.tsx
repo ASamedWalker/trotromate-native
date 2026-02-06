@@ -3,9 +3,9 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   useColorScheme,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Trophy, Star, Flame, Target, Medal, ChevronRight } from 'lucide-react-native'
 
 // Levels definition

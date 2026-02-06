@@ -2,9 +2,9 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   useColorScheme,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { TrendingUp, Users, AlertTriangle, Camera } from 'lucide-react-native'
 

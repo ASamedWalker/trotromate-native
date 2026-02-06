@@ -5,10 +5,10 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
   useColorScheme,
   ActivityIndicator,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Search, MapPin, TrendingUp, Clock, Heart } from 'lucide-react-native'
 
