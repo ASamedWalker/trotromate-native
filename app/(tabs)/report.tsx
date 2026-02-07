@@ -3,10 +3,14 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
+  StyleSheet,
+  ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { TrendingUp, Users, AlertTriangle, Camera } from 'lucide-react-native'
+import { TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
+import { c, themed, font } from '@/lib/theme'
+import { useApp } from '@/lib/contexts/AppContext'
 
 const REPORT_TYPES = [
   {
@@ -14,9 +18,9 @@ const REPORT_TYPES = [
     title: 'Report Fare',
     description: 'Share the fare you paid on a route',
     icon: TrendingUp,
-    color: '#f59e0b',
-    bgColor: 'bg-amber-500',
-    lightBg: 'bg-amber-50',
+    color: c.amber500,
+    bgColor: c.amber500,
+    lightBg: c.amber50,
     points: 10,
     route: '/report/fare',
   },
@@ -25,9 +29,9 @@ const REPORT_TYPES = [
     title: 'Queue Status',
     description: 'Report wait times at trotro stations',
     icon: Users,
-    color: '#8b5cf6',
-    bgColor: 'bg-violet-500',
-    lightBg: 'bg-violet-50',
+    color: c.violet500,
+    bgColor: c.violet500,
+    lightBg: c.violet50,
     points: 5,
     route: '/report/queue',
   },
@@ -36,9 +40,9 @@ const REPORT_TYPES = [
     title: 'Incident Report',
     description: 'Report traffic, accidents, or police checks',
     icon: AlertTriangle,
-    color: '#ef4444',
-    bgColor: 'bg-red-500',
-    lightBg: 'bg-red-50',
+    color: c.red500,
+    bgColor: c.red500,
+    lightBg: '#fef2f2',
     points: 15,
     route: '/report/incident',
   },
@@ -47,11 +51,22 @@ const REPORT_TYPES = [
     title: 'Trotro Tales',
     description: 'Share photos from your journey',
     icon: Camera,
-    color: '#ec4899',
-    bgColor: 'bg-pink-500',
-    lightBg: 'bg-pink-50',
+    color: c.pink500,
+    bgColor: c.pink500,
+    lightBg: '#fdf2f8',
     points: 15,
     route: '/report/photo',
+  },
+  {
+    id: 'train',
+    title: 'Report Train',
+    description: 'Report schedules, crowding, or fares',
+    icon: TrainFront,
+    color: '#0ea5e9',
+    bgColor: '#0ea5e9',
+    lightBg: '#f0f9ff',
+    points: 10,
+    route: '/report/train',
   },
 ]
 
@@ -59,92 +74,126 @@ export default function ReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
+  const s = styles(isDark)
+  const { profile } = useApp()
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-stone-950' : 'bg-stone-50'}`}>
-      <View className="px-5 pt-12 pb-4">
-        <Text className={`text-2xl font-bold mb-2 ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-          Contribute
-        </Text>
-        <Text className={`text-base ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-          Help fellow commuters and earn points
-        </Text>
-      </View>
+    <SafeAreaView style={s.container}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Contribute</Text>
+          <Text style={s.headerSub}>Help fellow commuters and earn points</Text>
+        </View>
 
-      <View className="px-5 py-4 space-y-4">
-        {REPORT_TYPES.map((type) => {
-          const Icon = type.icon
-          return (
-            <TouchableOpacity
-              key={type.id}
-              activeOpacity={0.7}
-              onPress={() => router.push(type.route as any)}
-              className={`p-5 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}
-              style={{ marginBottom: 16 }}
-            >
-              <View className="flex-row items-start">
-                <View
-                  className={`w-14 h-14 rounded-2xl items-center justify-center ${type.bgColor}`}
-                  style={{ shadowColor: type.color, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
-                >
-                  <Icon size={28} color="#ffffff" />
-                </View>
-
-                <View className="flex-1 ml-4">
-                  <View className="flex-row items-center justify-between">
-                    <Text className={`text-lg font-semibold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                      {type.title}
-                    </Text>
-                    <View className={`px-2.5 py-1 rounded-full ${isDark ? 'bg-stone-800' : type.lightBg}`}>
-                      <Text style={{ color: type.color }} className="text-xs font-semibold">
-                        +{type.points} pts
-                      </Text>
-                    </View>
+        <View style={s.cardsContainer}>
+          {REPORT_TYPES.map((type) => {
+            const Icon = type.icon
+            return (
+              <TouchableOpacity
+                key={type.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(type.route as any)}
+                style={s.card}
+              >
+                <View style={s.cardRow}>
+                  <View
+                    style={[
+                      s.iconBox,
+                      {
+                        backgroundColor: type.bgColor,
+                        shadowColor: type.color,
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 4 },
+                      },
+                    ]}
+                  >
+                    <Icon size={28} color={c.white} />
                   </View>
-                  <Text className={`text-sm mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    {type.description}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )
-        })}
-      </View>
 
-      {/* Stats Banner */}
-      <View className="mx-5 mt-4">
-        <View className={`p-5 rounded-2xl ${isDark ? 'bg-amber-900/30' : 'bg-amber-50'}`}>
-          <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-            Your Contribution Stats
-          </Text>
-          <View className="flex-row justify-between">
-            <View className="items-center">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                0
-              </Text>
-              <Text className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Reports
-              </Text>
-            </View>
-            <View className="items-center">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                0
-              </Text>
-              <Text className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Points
-              </Text>
-            </View>
-            <View className="items-center">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                0
-              </Text>
-              <Text className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Day Streak
-              </Text>
+                  <View style={s.cardContent}>
+                    <View style={s.cardTitleRow}>
+                      <Text style={s.cardTitle}>{type.title}</Text>
+                      <View style={[s.pointsBadge, { backgroundColor: isDark ? c.stone800 : type.lightBg }]}>
+                        <Text style={[s.pointsText, { color: type.color }]}>+{type.points} pts</Text>
+                      </View>
+                    </View>
+                    <Text style={s.cardDescription}>{type.description}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Stats Banner */}
+        <View style={s.statsContainer}>
+          <View style={s.statsBanner}>
+            <Text style={s.statsTitle}>Your Contribution Stats</Text>
+            <View style={s.statsRow}>
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{profile?.total_reports ?? 0}</Text>
+                <Text style={s.statLabel}>Reports</Text>
+              </View>
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{profile?.total_points ?? 0}</Text>
+                <Text style={s.statLabel}>Points</Text>
+              </View>
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{profile?.current_streak ?? 0}</Text>
+                <Text style={s.statLabel}>Day Streak</Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
+}
+
+const styles = (isDark: boolean) => {
+  const t = themed(isDark)
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, marginBottom: 8, color: t.text },
+    headerSub: { fontSize: 16, color: t.textSecondary },
+    cardsContainer: { paddingHorizontal: 20, paddingTop: 16 },
+    card: {
+      padding: 20,
+      borderRadius: 16,
+      backgroundColor: t.card,
+      marginBottom: 16,
+    },
+    cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    iconBox: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardContent: { flex: 1, marginLeft: 16 },
+    cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cardTitle: { fontSize: 18, fontFamily: font.semibold, color: t.text },
+    pointsBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    pointsText: { fontSize: 12, fontFamily: font.semibold },
+    cardDescription: { fontSize: 14, marginTop: 4, color: t.textSecondary },
+    statsContainer: { marginHorizontal: 20, marginTop: 8, marginBottom: 20 },
+    statsBanner: {
+      padding: 20,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(120, 53, 15, 0.3)' : c.amber50,
+    },
+    statsTitle: {
+      fontSize: 18,
+      fontFamily: font.semibold,
+      marginBottom: 12,
+      color: isDark ? c.amber400 : c.amber700,
+    },
+    statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    statItem: { alignItems: 'center' },
+    statValue: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    statLabel: { fontSize: 12, color: t.textSecondary },
+  })
 }

@@ -9,20 +9,28 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Coins, MapPin, Navigation, Check } from 'lucide-react-native'
+import { c, themed, font } from '@/lib/theme'
+import { useSubmitFareReport } from '@/lib/hooks/useReports'
+import { useApp } from '@/lib/contexts/AppContext'
 
 export default function FareReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
+  const t = themed(isDark)
+  const s = getStyles(isDark)
+
+  const { deviceId, refreshProfile, setLastReward } = useApp()
+  const { submit, isSubmitting } = useSubmitFareReport(deviceId)
 
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [fare, setFare] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {
     if (!from.trim() || !to.trim() || !fare.trim()) {
@@ -36,110 +44,99 @@ export default function FareReportScreen() {
       return
     }
 
-    setIsSubmitting(true)
-
-    // TODO: Submit to Supabase
-    setTimeout(() => {
-      setIsSubmitting(false)
-      Alert.alert(
-        'Thank You!',
-        'Your fare report has been submitted. +10 points earned!',
-        [{ text: 'OK', onPress: () => router.back() }]
-      )
-    }, 1000)
+    const result = await submit(from.trim(), to.trim(), fareValue)
+    if (result) {
+      await refreshProfile()
+      setLastReward(result)
+      router.back()
+    } else {
+      Alert.alert('Error', 'Failed to submit report. Please try again.')
+    }
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-stone-950' : 'bg-stone-50'}`} edges={['bottom']}>
+    <SafeAreaView style={s.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
+        <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
           {/* Header Card */}
-          <View className="bg-amber-500 p-5 rounded-3xl mb-6">
-            <View className="flex-row items-center">
-              <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center mr-3">
-                <Coins size={24} color="#ffffff" />
+          <View style={s.headerCard}>
+            <View style={s.headerRow}>
+              <View style={s.headerIcon}>
+                <Coins size={24} color={c.white} />
               </View>
-              <View className="flex-1">
-                <Text className="text-white text-lg font-bold">Report a Fare</Text>
-                <Text className="text-white/80 text-sm">Help others know the current price</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.headerTitle}>Report a Fare</Text>
+                <Text style={s.headerSub}>Help others know the current price</Text>
               </View>
-              <View className="bg-white/20 px-3 py-1.5 rounded-full">
-                <Text className="text-white text-xs font-semibold">+10 pts</Text>
+              <View style={s.pointsBadge}>
+                <Text style={s.pointsText}>+10 pts</Text>
               </View>
             </View>
           </View>
 
           {/* Form */}
-          <View className={`p-5 rounded-3xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
+          <View style={s.formCard}>
             {/* From */}
-            <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
-              From
-            </Text>
-            <View className={`flex-row items-center rounded-2xl px-4 py-3.5 mb-4 ${isDark ? 'bg-stone-800' : 'bg-stone-100'}`}>
-              <MapPin size={20} color="#f59e0b" />
+            <Text style={s.label}>From</Text>
+            <View style={s.inputBox}>
+              <MapPin size={20} color={c.amber500} />
               <TextInput
                 value={from}
                 onChangeText={setFrom}
                 placeholder="e.g. Circle"
-                placeholderTextColor={isDark ? '#a8a29e' : '#78716c'}
-                className={`flex-1 ml-3 text-base ${isDark ? 'text-stone-100' : 'text-stone-900'}`}
+                placeholderTextColor={t.textSecondary}
+                style={s.input}
               />
             </View>
 
             {/* To */}
-            <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
-              To
-            </Text>
-            <View className={`flex-row items-center rounded-2xl px-4 py-3.5 mb-4 ${isDark ? 'bg-stone-800' : 'bg-stone-100'}`}>
-              <Navigation size={20} color="#10b981" />
+            <Text style={s.label}>To</Text>
+            <View style={s.inputBox}>
+              <Navigation size={20} color={c.emerald500} />
               <TextInput
                 value={to}
                 onChangeText={setTo}
                 placeholder="e.g. Madina"
-                placeholderTextColor={isDark ? '#a8a29e' : '#78716c'}
-                className={`flex-1 ml-3 text-base ${isDark ? 'text-stone-100' : 'text-stone-900'}`}
+                placeholderTextColor={t.textSecondary}
+                style={s.input}
               />
             </View>
 
             {/* Fare */}
-            <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
-              Fare (GH₵)
-            </Text>
-            <View className={`flex-row items-center rounded-2xl px-4 py-3.5 mb-6 ${isDark ? 'bg-stone-800' : 'bg-stone-100'}`}>
-              <Text className="text-amber-500 font-bold text-lg">₵</Text>
+            <Text style={s.label}>Fare (GH₵)</Text>
+            <View style={[s.inputBox, { marginBottom: 24 }]}>
+              <Text style={s.cediSign}>₵</Text>
               <TextInput
                 value={fare}
                 onChangeText={setFare}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
-                placeholderTextColor={isDark ? '#a8a29e' : '#78716c'}
-                className={`flex-1 ml-3 text-xl font-semibold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}
+                placeholderTextColor={t.textSecondary}
+                style={s.fareInput}
               />
             </View>
 
             {/* Quick Fares */}
-            <Text className={`text-xs mb-3 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-              Quick select:
-            </Text>
-            <View className="flex-row flex-wrap gap-2 mb-6">
+            <Text style={s.quickLabel}>Quick select:</Text>
+            <View style={s.quickGrid}>
               {['2.00', '3.00', '3.50', '4.00', '5.00', '6.00', '7.00', '8.00'].map((amount) => (
                 <TouchableOpacity
                   key={amount}
                   onPress={() => setFare(amount)}
-                  className={`px-4 py-2 rounded-xl ${
-                    fare === amount
-                      ? 'bg-amber-500'
-                      : isDark ? 'bg-stone-800' : 'bg-stone-100'
-                  }`}
+                  style={[
+                    s.quickBtn,
+                    fare === amount ? s.quickBtnActive : s.quickBtnInactive,
+                  ]}
                 >
-                  <Text className={`text-sm font-medium ${
-                    fare === amount
-                      ? 'text-white'
-                      : isDark ? 'text-stone-300' : 'text-stone-600'
-                  }`}>
+                  <Text
+                    style={[
+                      s.quickBtnText,
+                      fare === amount ? s.quickBtnTextActive : s.quickBtnTextInactive,
+                    ]}
+                  >
                     ₵{amount}
                   </Text>
                 </TouchableOpacity>
@@ -151,18 +148,88 @@ export default function FareReportScreen() {
               onPress={handleSubmit}
               disabled={isSubmitting}
               activeOpacity={0.8}
-              className={`flex-row items-center justify-center py-4 rounded-2xl ${
-                isSubmitting ? 'bg-stone-400' : 'bg-amber-500'
-              }`}
+              style={[s.submitBtn, isSubmitting && s.submitBtnDisabled]}
             >
-              <Check size={20} color="#ffffff" />
-              <Text className="ml-2 text-white font-semibold text-base">
+              <Check size={20} color={c.white} />
+              <Text style={s.submitText}>
                 {isSubmitting ? 'Submitting...' : 'Submit Report'}
               </Text>
             </TouchableOpacity>
           </View>
+
+          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
+}
+
+const getStyles = (isDark: boolean) => {
+  const t = themed(isDark)
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+    headerCard: {
+      backgroundColor: c.amber500,
+      padding: 20,
+      borderRadius: 24,
+      marginBottom: 24,
+    },
+    headerRow: { flexDirection: 'row', alignItems: 'center' },
+    headerIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    headerTitle: { color: c.white, fontSize: 18, fontFamily: font.bold },
+    headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
+    pointsBadge: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    pointsText: { color: c.white, fontSize: 12, fontFamily: font.semibold },
+    formCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
+    label: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      marginBottom: 8,
+      color: isDark ? c.stone300 : c.stone600,
+    },
+    inputBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      marginBottom: 16,
+      backgroundColor: t.cardAlt,
+    },
+    input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
+    cediSign: { color: c.amber500, fontFamily: font.bold, fontSize: 18 },
+    fareInput: { flex: 1, marginLeft: 12, fontSize: 20, fontFamily: font.semibold, color: t.text },
+    quickLabel: { fontSize: 12, marginBottom: 12, color: t.textSecondary },
+    quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+    quickBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+    quickBtnActive: { backgroundColor: c.amber500 },
+    quickBtnInactive: { backgroundColor: t.cardAlt },
+    quickBtnText: { fontSize: 14, fontFamily: font.medium },
+    quickBtnTextActive: { color: c.white },
+    quickBtnTextInactive: { color: isDark ? c.stone300 : c.stone600 },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      borderRadius: 16,
+      backgroundColor: c.amber500,
+    },
+    submitBtnDisabled: { backgroundColor: c.stone400 },
+    submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
+  })
 }

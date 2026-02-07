@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -7,116 +7,77 @@ import {
   FlatList,
   useColorScheme,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Search, MapPin, TrendingUp, Clock, Heart } from 'lucide-react-native'
-
-interface Route {
-  id: string
-  from: string
-  to: string
-  fare: number
-  lastUpdated: string
-  reportCount: number
-}
-
-// Mock data - will be replaced with Supabase query
-const MOCK_ROUTES: Route[] = [
-  { id: '1', from: 'Circle', to: 'Madina', fare: 5.0, lastUpdated: '2h ago', reportCount: 45 },
-  { id: '2', from: 'Tema Station', to: 'Accra Mall', fare: 4.0, lastUpdated: '1h ago', reportCount: 32 },
-  { id: '3', from: 'Kaneshie', to: 'Lapaz', fare: 3.5, lastUpdated: '30m ago', reportCount: 28 },
-  { id: '4', from: 'Osu', to: 'Airport', fare: 6.0, lastUpdated: '3h ago', reportCount: 19 },
-  { id: '5', from: 'Achimota', to: 'Legon', fare: 4.5, lastUpdated: '1h ago', reportCount: 37 },
-  { id: '6', from: 'Nima', to: 'Kwame Nkrumah Circle', fare: 3.0, lastUpdated: '45m ago', reportCount: 22 },
-]
+import { Search, MapPin, TrendingUp, Clock, Heart, ChevronLeft } from 'lucide-react-native'
+import { c, themed, font } from '@/lib/theme'
+import { useRoutes } from '@/lib/hooks/useRoutes'
+import { useFavorites } from '@/lib/hooks/useFavorites'
+import { timeAgo } from '@/lib/utils/time'
+import type { RouteWithStats } from '@/lib/types'
 
 export default function RoutesScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ from?: string; to?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
+  const t = themed(isDark)
+  const s = styles(isDark)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [favorites, setFavorites] = useState<string[]>([])
+  const { routes, isLoading } = useRoutes(params.from, params.to)
+  const { isFavorite, toggleFavorite } = useFavorites()
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      let filtered = MOCK_ROUTES
-
-      // Apply search params if present
-      if (params.from || params.to) {
-        filtered = MOCK_ROUTES.filter((route) => {
-          const matchFrom = !params.from || route.from.toLowerCase().includes(params.from.toLowerCase())
-          const matchTo = !params.to || route.to.toLowerCase().includes(params.to.toLowerCase())
-          return matchFrom && matchTo
-        })
-      }
-
-      setRoutes(filtered)
-      setIsLoading(false)
-    }, 500)
-  }, [params.from, params.to])
-
-  // Filter by search query
   const filteredRoutes = routes.filter((route) => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
-      route.from.toLowerCase().includes(query) ||
-      route.to.toLowerCase().includes(query)
+      route.from_location.toLowerCase().includes(query) ||
+      route.to_location.toLowerCase().includes(query)
     )
   })
 
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-    )
-  }
-
-  const renderRoute = ({ item }: { item: Route }) => {
-    const isFavorite = favorites.includes(item.id)
+  const renderRoute = ({ item }: { item: RouteWithStats }) => {
+    const fav = isFavorite(item.id)
+    const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
+    const reportCount = item.fare_stats?.report_count ?? 0
+    const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
 
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => router.push(`/routes/${item.id}`)}
-        className={`flex-row items-center p-4 rounded-2xl mb-3 ${isDark ? 'bg-stone-900' : 'bg-white'}`}
+        onPress={() => router.push({ pathname: '/routes/[id]', params: { id: item.id } })}
+        style={s.routeCard}
       >
-        <View className="w-12 h-12 rounded-xl bg-amber-100 items-center justify-center mr-3">
-          <MapPin size={24} color="#f59e0b" />
+        <View style={s.routeIcon}>
+          <MapPin size={24} color={c.amber500} />
         </View>
 
-        <View className="flex-1">
-          <Text className={`font-semibold text-base ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-            {item.from} → {item.to}
+        <View style={s.routeInfo}>
+          <Text style={s.routeName}>
+            {item.from_location} → {item.to_location}
           </Text>
-          <View className="flex-row items-center mt-1">
-            <Clock size={12} color={isDark ? '#a8a29e' : '#78716c'} />
-            <Text className={`text-xs ml-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-              {item.lastUpdated}
-            </Text>
-            <Text className={`text-xs ml-3 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-              {item.reportCount} reports
+          <View style={s.routeMeta}>
+            <Clock size={12} color={t.textSecondary} />
+            <Text style={s.routeMetaText}>{lastUpdated}</Text>
+            <Text style={[s.routeMetaText, { marginLeft: 12 }]}>
+              {reportCount} reports
             </Text>
           </View>
         </View>
 
-        <View className="items-end">
-          <Text className="text-amber-500 font-bold text-lg">
-            ₵{item.fare.toFixed(2)}
-          </Text>
+        <View style={s.routeRight}>
+          <Text style={s.routeFare}>₵{displayFare.toFixed(2)}</Text>
           <TouchableOpacity
-            onPress={() => toggleFavorite(item.id)}
-            className="mt-1"
+            onPress={() => toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location })}
+            style={{ marginTop: 4 }}
           >
             <Heart
               size={18}
-              color={isFavorite ? '#ef4444' : isDark ? '#57534e' : '#a8a29e'}
-              fill={isFavorite ? '#ef4444' : 'transparent'}
+              color={fav ? c.red500 : t.textTertiary}
+              fill={fav ? c.red500 : 'transparent'}
             />
           </TouchableOpacity>
         </View>
@@ -125,43 +86,41 @@ export default function RoutesScreen() {
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-stone-950' : 'bg-stone-50'}`}>
+    <SafeAreaView style={s.container}>
       {/* Header */}
-      <View className="px-5 pt-12 pb-4">
-        <Text className={`text-2xl font-bold mb-4 ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-          Routes
-        </Text>
+      <View style={s.header}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
+            <ChevronLeft size={24} color={t.text} />
+          </TouchableOpacity>
+          <Text style={[s.headerTitle, { marginBottom: 0 }]}>Routes</Text>
+        </View>
 
-        {/* Search Input */}
-        <View className={`flex-row items-center rounded-2xl px-4 py-3 ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-          <Search size={20} color={isDark ? '#a8a29e' : '#78716c'} />
+        <View style={s.searchBox}>
+          <Search size={20} color={t.textSecondary} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search routes..."
-            placeholderTextColor={isDark ? '#a8a29e' : '#78716c'}
-            className={`flex-1 ml-3 text-base ${isDark ? 'text-stone-100' : 'text-stone-900'}`}
+            placeholderTextColor={t.textSecondary}
+            style={s.searchInput}
           />
         </View>
 
-        {/* Active filters */}
         {(params.from || params.to) && (
-          <View className="flex-row items-center mt-3">
-            <TrendingUp size={14} color="#f59e0b" />
-            <Text className={`text-sm ml-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+          <View style={s.filterRow}>
+            <TrendingUp size={14} color={c.amber500} />
+            <Text style={s.filterText}>
               Showing: {params.from || 'Any'} → {params.to || 'Any'}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Routes List */}
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#f59e0b" />
-          <Text className={`mt-3 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-            Finding routes...
-          </Text>
+        <View style={s.loadingContainer}>
+          <ActivityIndicator size="large" color={c.amber500} />
+          <Text style={s.loadingText}>Finding routes...</Text>
         </View>
       ) : (
         <FlatList
@@ -171,18 +130,62 @@ export default function RoutesScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View className="items-center py-12">
-              <MapPin size={48} color={isDark ? '#57534e' : '#a8a29e'} />
-              <Text className={`text-lg font-semibold mt-4 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                No routes found
-              </Text>
-              <Text className={`text-sm mt-1 ${isDark ? 'text-stone-500' : 'text-stone-400'}`}>
-                Try a different search
-              </Text>
+            <View style={s.emptyContainer}>
+              <MapPin size={48} color={t.textTertiary} />
+              <Text style={s.emptyTitle}>No routes found</Text>
+              <Text style={s.emptySubtitle}>Try a different search</Text>
             </View>
           }
         />
       )}
     </SafeAreaView>
   )
+}
+
+const styles = (isDark: boolean) => {
+  const t = themed(isDark)
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, marginBottom: 16, color: t.text },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.card,
+    },
+    searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
+    filterRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+    filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
+    routeCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 16,
+      marginBottom: 12,
+      backgroundColor: t.card,
+    },
+    routeIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: c.amber100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    routeInfo: { flex: 1 },
+    routeName: { fontFamily: font.semibold, fontSize: 16, color: t.text },
+    routeMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    routeMetaText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
+    routeRight: { alignItems: 'flex-end' },
+    routeFare: { color: c.amber500, fontFamily: font.bold, fontSize: 18 },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    loadingText: { marginTop: 12, color: t.textSecondary },
+    emptyContainer: { alignItems: 'center', paddingVertical: 48 },
+    emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
+    emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },
+  })
 }

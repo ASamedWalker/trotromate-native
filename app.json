@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TrotroMate",
-    "slug": "trotromate",
+    "name": "Troski",
+    "slug": "troski",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "trotromate",
+    "scheme": "troski",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.trotromate.app"
+      "bundleIdentifier": "com.troski.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#f59e0b"
       },
-      "package": "com.trotromate.app",
+      "package": "com.troski.app",
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -32,7 +32,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

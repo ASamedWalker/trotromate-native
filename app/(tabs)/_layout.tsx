@@ -1,14 +1,16 @@
 import React from 'react'
+import { Platform } from 'react-native'
 import { Tabs } from 'expo-router'
-import { useColorScheme, View } from 'react-native'
-import { Home, MapPin, PlusCircle, Trophy } from 'lucide-react-native'
+import { useColorScheme } from 'react-native'
+import { Home, MapPin, Camera, Trophy, Zap } from 'lucide-react-native'
+import { font } from '@/lib/theme'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 
-  const activeColor = '#f59e0b' // amber-500
-  const inactiveColor = isDark ? '#a8a29e' : '#78716c' // stone-400/500
+  const activeColor = '#f59e0b'
+  const inactiveColor = isDark ? '#a8a29e' : '#78716c'
   const backgroundColor = isDark ? '#1c1917' : '#ffffff'
   const borderColor = isDark ? '#292524' : '#e7e5e3'
 
@@ -21,13 +23,13 @@ export default function TabLayout() {
           backgroundColor,
           borderTopColor: borderColor,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'ios' ? 88 : 72,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 14,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: 10,
+          fontFamily: font.semibold,
         },
         headerShown: false,
       }}
@@ -37,11 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Home
-              size={24}
-              color={color}
-              strokeWidth={focused ? 2.5 : 2}
-            />
+            <Home size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -50,26 +48,16 @@ export default function TabLayout() {
         options={{
           title: 'Routes',
           tabBarIcon: ({ color, focused }) => (
-            <MapPin
-              size={24}
-              color={color}
-              strokeWidth={focused ? 2.5 : 2}
-            />
+            <MapPin size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
       <Tabs.Screen
-        name="report"
+        name="tales"
         options={{
-          title: 'Report',
+          title: 'Tales',
           tabBarIcon: ({ color, focused }) => (
-            <View className="relative">
-              <PlusCircle
-                size={24}
-                color={color}
-                strokeWidth={focused ? 2.5 : 2}
-              />
-            </View>
+            <Camera size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -78,14 +66,22 @@ export default function TabLayout() {
         options={{
           title: 'Rewards',
           tabBarIcon: ({ color, focused }) => (
-            <Trophy
-              size={24}
-              color={color}
-              strokeWidth={focused ? 2.5 : 2}
-            />
+            <Trophy size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          title: 'Activity',
+          tabBarIcon: ({ color, focused }) => (
+            <Zap size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+          ),
+        }}
+      />
+      {/* Hidden tabs — still navigable but not shown in tab bar */}
+      <Tabs.Screen name="report" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   )
 }

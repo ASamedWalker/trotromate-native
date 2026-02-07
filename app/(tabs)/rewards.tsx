@@ -1,231 +1,379 @@
+import { useState } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   useColorScheme,
+  StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Trophy, Star, Flame, Target, Medal, ChevronRight } from 'lucide-react-native'
+import { Star, Flame, Target, Medal, ChevronRight, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
+import { c, themed, font } from '@/lib/theme'
+import { useApp } from '@/lib/contexts/AppContext'
+import { useLeaderboard } from '@/lib/hooks/useRewards'
+import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
 
-// Levels definition
-const LEVELS = [
-  { name: 'Passenger', minPoints: 0, icon: '🚶', color: '#78716c' },
-  { name: 'Regular', minPoints: 50, icon: '🚌', color: '#3b82f6' },
-  { name: 'Local Expert', minPoints: 200, icon: '📍', color: '#8b5cf6' },
-  { name: 'Troski Legend', minPoints: 500, icon: '🏆', color: '#f59e0b' },
-]
+const LEVEL_LIST = LEVEL_ORDER.map((slug) => LEVELS[slug])
 
 export default function RewardsScreen() {
+  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
+  const t = themed(isDark)
+  const s = getStyles(isDark)
+  const { profile, rank, deviceId } = useApp()
+  const { entries: leaderboard } = useLeaderboard(deviceId)
+  const [showEarnInfo, setShowEarnInfo] = useState(false)
 
-  // Mock user stats - will come from context/API
-  const userStats = {
-    points: 0,
-    level: 'Passenger',
-    streak: 0,
-    totalReports: 0,
-    rank: '--',
-  }
+  const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
+  const progress = calculateProgress(profile?.total_points ?? 0, profile?.current_level ?? 'passenger')
+  const nextLevel = progress ? LEVEL_LIST.find((l) => l.min_points > (profile?.total_points ?? 0)) : null
 
-  const currentLevelIndex = LEVELS.findIndex((l) => l.name === userStats.level)
-  const nextLevel = LEVELS[currentLevelIndex + 1]
-  const progressToNext = nextLevel
-    ? Math.min((userStats.points / nextLevel.minPoints) * 100, 100)
-    : 100
+  const points = profile?.total_points ?? 0
+  const streak = profile?.current_streak ?? 0
+  const totalReports = profile?.total_reports ?? 0
+  const userRank = rank ?? '--'
+  const progressToNext = progress?.progressPercent ?? 100
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-stone-950' : 'bg-stone-50'}`}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={s.container}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="px-5 pt-12 pb-4">
-          <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-            Rewards
-          </Text>
+        <View style={s.header}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
+              <ChevronLeft size={24} color={t.text} />
+            </TouchableOpacity>
+            <Text style={s.headerTitle}>Rewards</Text>
+          </View>
         </View>
 
-        {/* Profile Card */}
-        <View className="px-5 mb-6">
-          <View className={`p-5 rounded-3xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-            <View className="flex-row items-center mb-4">
-              <View className="w-16 h-16 rounded-full bg-amber-500 items-center justify-center">
-                <Text className="text-3xl">{LEVELS[currentLevelIndex]?.icon || '🚶'}</Text>
+        {/* Profile Card — with stats merged in */}
+        <View style={s.section}>
+          <View style={s.profileCard}>
+            <View style={s.profileRow}>
+              <View style={s.levelCircle}>
+                <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
               </View>
-              <View className="ml-4 flex-1">
-                <Text className={`text-xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                  {userStats.level}
-                </Text>
-                <Text className={`text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  {userStats.points} total points
-                </Text>
+              <View style={s.profileInfo}>
+                <Text style={s.levelName}>{levelInfo.name}</Text>
+                <Text style={s.levelPoints}>{points} total points</Text>
               </View>
             </View>
 
-            {/* Progress to next level */}
+            {/* Progress bar */}
             {nextLevel && (
-              <View>
-                <View className="flex-row justify-between mb-2">
-                  <Text className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Progress to {nextLevel.name}
-                  </Text>
-                  <Text className={`text-xs font-medium ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
-                    {userStats.points}/{nextLevel.minPoints}
+              <View style={{ marginTop: 16 }}>
+                <View style={s.progressLabelRow}>
+                  <Text style={s.progressLabel}>Progress to {nextLevel.name}</Text>
+                  <Text style={s.progressValue}>
+                    {points}/{nextLevel.min_points}
                   </Text>
                 </View>
-                <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-stone-800' : 'bg-stone-200'}`}>
-                  <View
-                    className="h-full rounded-full bg-amber-500"
-                    style={{ width: `${progressToNext}%` }}
-                  />
+                <View style={s.progressBarBg}>
+                  <View style={[s.progressBarFill, { width: `${progressToNext}%` }]} />
                 </View>
               </View>
             )}
-          </View>
-        </View>
 
-        {/* Stats Grid */}
-        <View className="px-5 mb-6">
-          <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-            Your Stats
-          </Text>
-          <View className="flex-row flex-wrap gap-3">
-            <View className={`flex-1 min-w-[45%] p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-              <View className="flex-row items-center mb-2">
-                <Star size={18} color="#f59e0b" />
-                <Text className={`ml-2 text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Points
-                </Text>
+            {/* Inline stats row */}
+            <View style={s.inlineStats}>
+              <View style={s.inlineStat}>
+                <Flame size={14} color="#ef4444" />
+                <Text style={s.inlineStatValue}>{streak}</Text>
+                <Text style={s.inlineStatLabel}>Streak</Text>
               </View>
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                {userStats.points}
-              </Text>
-            </View>
-
-            <View className={`flex-1 min-w-[45%] p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-              <View className="flex-row items-center mb-2">
-                <Flame size={18} color="#ef4444" />
-                <Text className={`ml-2 text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Streak
-                </Text>
+              <View style={s.inlineStatDivider} />
+              <View style={s.inlineStat}>
+                <Target size={14} color={c.violet500} />
+                <Text style={s.inlineStatValue}>{totalReports}</Text>
+                <Text style={s.inlineStatLabel}>Reports</Text>
               </View>
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                {userStats.streak} days
-              </Text>
-            </View>
-
-            <View className={`flex-1 min-w-[45%] p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-              <View className="flex-row items-center mb-2">
-                <Target size={18} color="#8b5cf6" />
-                <Text className={`ml-2 text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Reports
-                </Text>
+              <View style={s.inlineStatDivider} />
+              <View style={s.inlineStat}>
+                <Medal size={14} color={c.emerald500} />
+                <Text style={s.inlineStatValue}>#{userRank}</Text>
+                <Text style={s.inlineStatLabel}>Rank</Text>
               </View>
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                {userStats.totalReports}
-              </Text>
-            </View>
-
-            <View className={`flex-1 min-w-[45%] p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-              <View className="flex-row items-center mb-2">
-                <Medal size={18} color="#10b981" />
-                <Text className={`ml-2 text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Rank
-                </Text>
-              </View>
-              <Text className={`text-2xl font-bold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-                #{userStats.rank}
-              </Text>
             </View>
           </View>
         </View>
 
-        {/* Leaderboard Preview */}
-        <View className="px-5 mb-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className={`text-lg font-semibold ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-              Weekly Leaderboard
-            </Text>
-            <TouchableOpacity className="flex-row items-center">
-              <Text className="text-amber-500 text-sm font-medium">See all</Text>
-              <ChevronRight size={16} color="#f59e0b" />
+        {/* Leaderboard */}
+        <View style={s.section}>
+          <View style={s.sectionTitleRow}>
+            <Text style={s.sectionTitle}>Weekly Leaderboard</Text>
+            <TouchableOpacity onPress={() => router.push('/leaderboard' as any)} style={s.seeAllBtn}>
+              <Text style={s.seeAllText}>See all</Text>
+              <ChevronRight size={16} color={c.amber500} />
             </TouchableOpacity>
           </View>
 
-          <View className={`p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-            {/* Podium */}
-            <View className="flex-row items-end justify-center py-4">
-              {/* 2nd Place */}
-              <View className="items-center mx-2">
-                <View className="w-12 h-12 rounded-full bg-stone-300 items-center justify-center mb-2">
-                  <Text className="text-xl">🥈</Text>
+          {leaderboard.length === 0 ? (
+            <View style={s.emptyLeaderboard}>
+              <Medal size={32} color={t.textTertiary} />
+              <Text style={s.emptyLeaderboardText}>
+                Start contributing to see the leaderboard!
+              </Text>
+            </View>
+          ) : (
+            <View style={s.leaderboardCard}>
+              <View style={s.podiumRow}>
+                {/* 2nd Place */}
+                <View style={s.podiumItem}>
+                  <View style={[s.podiumAvatar, { backgroundColor: c.stone300 }]}>
+                    <Text style={s.podiumEmojiMd}>🥈</Text>
+                  </View>
+                  <View style={[s.podiumBar, s.podiumBar2nd]}>
+                    <Text style={s.podiumBarText}>
+                      {leaderboard[1]?.display_name?.split(' ')[0] ?? '--'}
+                    </Text>
+                  </View>
                 </View>
-                <View className={`w-16 h-20 rounded-t-lg ${isDark ? 'bg-stone-700' : 'bg-stone-200'} items-center justify-center`}>
-                  <Text className={`text-xs font-medium ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
-                    --
-                  </Text>
-                </View>
-              </View>
 
-              {/* 1st Place */}
-              <View className="items-center mx-2">
-                <View className="w-14 h-14 rounded-full bg-amber-400 items-center justify-center mb-2">
-                  <Text className="text-2xl">🥇</Text>
+                {/* 1st Place */}
+                <View style={s.podiumItem}>
+                  <View style={[s.podiumAvatarLg, { backgroundColor: c.amber400 }]}>
+                    <Text style={s.podiumEmojiLg}>🥇</Text>
+                  </View>
+                  <View style={[s.podiumBar, s.podiumBar1st]}>
+                    <Text style={s.podiumBarTextWhite}>
+                      {leaderboard[0]?.display_name?.split(' ')[0] ?? '--'}
+                    </Text>
+                  </View>
                 </View>
-                <View className={`w-16 h-28 rounded-t-lg bg-amber-500 items-center justify-center`}>
-                  <Text className="text-xs font-medium text-white">
-                    --
-                  </Text>
-                </View>
-              </View>
 
-              {/* 3rd Place */}
-              <View className="items-center mx-2">
-                <View className="w-12 h-12 rounded-full bg-amber-700 items-center justify-center mb-2">
-                  <Text className="text-xl">🥉</Text>
-                </View>
-                <View className={`w-16 h-16 rounded-t-lg ${isDark ? 'bg-amber-900/50' : 'bg-amber-100'} items-center justify-center`}>
-                  <Text className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-                    --
-                  </Text>
+                {/* 3rd Place */}
+                <View style={s.podiumItem}>
+                  <View style={[s.podiumAvatar, { backgroundColor: c.amber700 }]}>
+                    <Text style={s.podiumEmojiMd}>🥉</Text>
+                  </View>
+                  <View style={[s.podiumBar, s.podiumBar3rd]}>
+                    <Text style={s.podiumBarText3rd}>
+                      {leaderboard[2]?.display_name?.split(' ')[0] ?? '--'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
-
-            <Text className={`text-center text-sm ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-              Start contributing to see the leaderboard!
-            </Text>
-          </View>
+          )}
         </View>
 
-        {/* How to Earn */}
-        <View className="px-5 mb-8">
-          <Text className={`text-lg font-semibold mb-3 ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>
-            How to Earn Points
-          </Text>
-          <View className={`p-4 rounded-2xl ${isDark ? 'bg-stone-900' : 'bg-white'}`}>
-            {[
-              { action: 'Report a fare', points: '+10 pts' },
-              { action: 'Report queue status', points: '+5 pts' },
-              { action: 'Report incident', points: '+15 pts' },
-              { action: 'Daily check-in', points: '+2 pts' },
-              { action: '7-day streak bonus', points: '+10 pts' },
-            ].map((item, index) => (
-              <View
-                key={index}
-                className={`flex-row justify-between py-3 ${
-                  index < 4 ? `border-b ${isDark ? 'border-stone-800' : 'border-stone-100'}` : ''
-                }`}
-              >
-                <Text className={isDark ? 'text-stone-300' : 'text-stone-700'}>
-                  {item.action}
-                </Text>
-                <Text className="text-amber-500 font-semibold">{item.points}</Text>
-              </View>
-            ))}
-          </View>
+        {/* How to Earn — collapsible */}
+        <View style={[s.section, { marginBottom: 32 }]}>
+          <TouchableOpacity
+            onPress={() => setShowEarnInfo(!showEarnInfo)}
+            activeOpacity={0.7}
+            style={s.earnToggle}
+          >
+            <Star size={16} color={c.amber500} />
+            <Text style={s.earnToggleText}>How to Earn Points</Text>
+            {showEarnInfo ? (
+              <ChevronUp size={18} color={t.textSecondary} />
+            ) : (
+              <ChevronDown size={18} color={t.textSecondary} />
+            )}
+          </TouchableOpacity>
+
+          {showEarnInfo && (
+            <View style={s.earnCard}>
+              {[
+                { action: 'Report a fare', points: '+10' },
+                { action: 'Report queue status', points: '+5' },
+                { action: 'Report incident', points: '+15' },
+                { action: 'Report train', points: '+10' },
+                { action: 'Daily check-in', points: '+2' },
+                { action: '7-day streak bonus', points: '+10' },
+              ].map((item, index, arr) => (
+                <View
+                  key={index}
+                  style={[s.earnRow, index < arr.length - 1 && s.earnRowBorder]}
+                >
+                  <Text style={s.earnAction}>{item.action}</Text>
+                  <Text style={s.earnPoints}>{item.points}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
   )
+}
+
+const getStyles = (isDark: boolean) => {
+  const t = themed(isDark)
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    section: { paddingHorizontal: 20, marginBottom: 24 },
+    sectionTitle: { fontSize: 18, fontFamily: font.semibold, marginBottom: 12, color: t.text },
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+
+    // Profile card
+    profileCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
+    profileRow: { flexDirection: 'row', alignItems: 'center' },
+    levelCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: c.amber500,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    levelEmoji: { fontSize: 28 },
+    profileInfo: { marginLeft: 16, flex: 1 },
+    levelName: { fontSize: 20, fontFamily: font.bold, color: t.text },
+    levelPoints: { fontSize: 14, color: t.textSecondary },
+    progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    progressLabel: { fontSize: 12, color: t.textSecondary },
+    progressValue: { fontSize: 12, fontFamily: font.medium, color: isDark ? c.stone300 : c.stone600 },
+    progressBarBg: {
+      height: 8,
+      borderRadius: 4,
+      overflow: 'hidden',
+      backgroundColor: isDark ? c.stone800 : c.stone200,
+    },
+    progressBarFill: { height: '100%', borderRadius: 4, backgroundColor: c.amber500 },
+
+    // Inline stats
+    inlineStats: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 18,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? c.stone800 : c.stone200,
+    },
+    inlineStat: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 2,
+    },
+    inlineStatValue: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: t.text,
+      marginTop: 2,
+    },
+    inlineStatLabel: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
+    inlineStatDivider: {
+      width: 1,
+      height: 32,
+      backgroundColor: isDark ? c.stone800 : c.stone200,
+    },
+
+    // Leaderboard
+    seeAllBtn: { flexDirection: 'row', alignItems: 'center' },
+    seeAllText: { color: c.amber500, fontSize: 14, fontFamily: font.medium },
+    leaderboardCard: { padding: 16, borderRadius: 16, backgroundColor: t.card },
+    emptyLeaderboard: {
+      padding: 24,
+      borderRadius: 16,
+      backgroundColor: t.card,
+      alignItems: 'center',
+      gap: 8,
+    },
+    emptyLeaderboardText: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+    },
+    podiumRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingVertical: 16,
+    },
+    podiumItem: { alignItems: 'center', marginHorizontal: 8 },
+    podiumAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    podiumAvatarLg: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    podiumEmojiMd: { fontSize: 20 },
+    podiumEmojiLg: { fontSize: 24 },
+    podiumBar: {
+      width: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
+    },
+    podiumBar1st: { height: 112, backgroundColor: c.amber500 },
+    podiumBar2nd: { height: 80, backgroundColor: isDark ? c.stone700 : c.stone200 },
+    podiumBar3rd: {
+      height: 64,
+      backgroundColor: isDark ? 'rgba(120, 53, 15, 0.5)' : c.amber100,
+    },
+    podiumBarText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? c.stone300 : c.stone600,
+    },
+    podiumBarTextWhite: { fontSize: 12, fontFamily: font.medium, color: c.white },
+    podiumBarText3rd: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? c.amber400 : c.amber700,
+    },
+
+    // How to earn — collapsible
+    earnToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: t.card,
+      padding: 14,
+      borderRadius: 16,
+      gap: 8,
+    },
+    earnToggleText: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+    earnCard: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      backgroundColor: t.card,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+      marginTop: -8,
+    },
+    earnRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+    },
+    earnRowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? c.stone800 : c.stone200,
+    },
+    earnAction: { fontSize: 14, color: isDark ? c.stone300 : c.stone700 },
+    earnPoints: { fontSize: 14, color: c.amber500, fontFamily: font.semibold },
+  })
 }

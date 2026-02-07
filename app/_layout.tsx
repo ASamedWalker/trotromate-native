@@ -1,11 +1,27 @@
+import { QueryClientProvider } from '@tanstack/react-query'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  Poppins_800ExtraBold,
+  Poppins_900Black,
+} from '@expo-google-fonts/poppins'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect } from 'react'
-import { useColorScheme } from 'react-native'
+import { useState, useEffect } from 'react'
+import { useColorScheme, Appearance } from 'react-native'
 import 'react-native-reanimated'
+import { AppProvider, useApp } from '@/lib/contexts/AppContext'
+import { queryClient } from '@/lib/query-client'
+import { useOnboarding } from '@/lib/hooks/useOnboarding'
+import { usePreferences } from '@/lib/hooks/usePreferences'
+import OnboardingFlow from '@/components/OnboardingFlow'
+import ConfettiCelebration from '@/components/ConfettiCelebration'
+import TroskiSplash from '@/components/TroskiSplash'
 
 import '../global.css'
 
@@ -15,19 +31,17 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 }
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync()
 
-// Custom theme matching TrotroMate brand
 const TrotroLightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#f59e0b', // amber-500
-    background: '#fafaf9', // stone-50
+    primary: '#f59e0b',
+    background: '#fafaf9',
     card: '#ffffff',
-    text: '#1c1917', // stone-900
-    border: '#e7e5e3', // stone-200
+    text: '#1c1917',
+    border: '#e7e5e3',
     notification: '#f59e0b',
   },
 }
@@ -36,33 +50,36 @@ const TrotroDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#f59e0b', // amber-500
-    background: '#0c0a09', // stone-950
-    card: '#1c1917', // stone-900
-    text: '#fafaf9', // stone-50
-    border: '#292524', // stone-800
+    primary: '#f59e0b',
+    background: '#0c0a09',
+    card: '#1c1917',
+    text: '#fafaf9',
+    border: '#292524',
     notification: '#f59e0b',
   },
 }
 
-export default function RootLayout() {
+function AppInner() {
   const colorScheme = useColorScheme()
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  })
+  const { lastReward, clearLastReward } = useApp()
+  const { showOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding()
+  const { prefs, isLoaded: prefsLoaded } = usePreferences()
+  const [showSplash, setShowSplash] = useState(true)
 
+  // Apply stored theme preference
   useEffect(() => {
-    if (error) throw error
-  }, [error])
+    if (!prefsLoaded) return
+    Appearance.setColorScheme(prefs.theme === 'system' ? null : prefs.theme)
+  }, [prefsLoaded, prefs.theme])
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync()
-    }
-  }, [loaded])
+  if (showSplash) {
+    return <TroskiSplash onFinish={() => setShowSplash(false)} />
+  }
 
-  if (!loaded) {
-    return null
+  if (onboardingLoading) return null
+
+  if (showOnboarding) {
+    return <OnboardingFlow onComplete={completeOnboarding} />
   }
 
   return (
@@ -73,6 +90,7 @@ export default function RootLayout() {
           name="routes/[id]"
           options={{
             title: 'Route Details',
+            headerBackTitle: 'Routes',
             headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#f59e0b',
           }}
@@ -95,8 +113,94 @@ export default function RootLayout() {
             headerTintColor: '#f59e0b',
           }}
         />
+        <Stack.Screen
+          name="report/incident"
+          options={{
+            title: 'Incident Report',
+            presentation: 'modal',
+            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
+            headerTintColor: '#ef4444',
+          }}
+        />
+        <Stack.Screen
+          name="report/photo"
+          options={{
+            title: 'Trotro Tales',
+            presentation: 'modal',
+            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
+            headerTintColor: '#ec4899',
+          }}
+        />
+        <Stack.Screen
+          name="report/train"
+          options={{
+            title: 'Train Report',
+            presentation: 'modal',
+            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
+            headerTintColor: '#0ea5e9',
+          }}
+        />
+        <Stack.Screen
+          name="train/index"
+          options={{
+            title: 'Train Lines',
+            headerBackTitle: 'Home',
+            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
+            headerTintColor: '#0ea5e9',
+          }}
+        />
+        <Stack.Screen
+          name="train/[lineId]"
+          options={{
+            title: 'Line Details',
+            headerBackTitle: 'Lines',
+            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
+            headerTintColor: '#0ea5e9',
+          }}
+        />
+        <Stack.Screen name="settings/index" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/edit-name" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
+        <Stack.Screen name="terms" options={{ headerShown: false }} />
+        <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
+      <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>
+  )
+}
+
+export default function RootLayout() {
+  const [loaded, error] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
+    Poppins_900Black,
+  })
+
+  useEffect(() => {
+    if (error) throw error
+  }, [error])
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync()
+    }
+  }, [loaded])
+
+  if (!loaded) {
+    return null
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <AppInner />
+      </AppProvider>
+    </QueryClientProvider>
   )
 }
