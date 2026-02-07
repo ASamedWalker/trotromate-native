@@ -32,6 +32,7 @@ import OfflineBanner from '@/components/OfflineBanner'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
 import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 
 /* ── helpers ─────────────────────────────────────────── */
 
@@ -107,6 +108,7 @@ export default function HomeScreen() {
 
   const { profile } = useApp()
   const { routes: popularRoutes, isLoading, refetch: refetchRoutes } = usePopularRoutes()
+  useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
   const [refreshing, setRefreshing] = useState(false)
   const [exploreOpen, setExploreOpen] = useState(true)

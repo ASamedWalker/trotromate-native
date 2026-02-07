@@ -21,6 +21,7 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import CommentSheet from '@/components/CommentSheet'
 import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import type { TalePost } from '@/lib/types'
 
 function getDisplayName(post: TalePost): string {
@@ -125,6 +126,7 @@ export default function TalesScreen() {
   const { deviceId } = useApp()
   const { posts, isLoading, isRefreshing, hasMore, likedIds, refresh, loadMore, toggleLike } =
     useTalesFeed(deviceId)
+  useRefreshOnFocus([['tales', deviceId]])
   const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)

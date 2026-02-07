@@ -19,6 +19,7 @@ import { timeAgo } from '@/lib/utils/time'
 import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 
 export default function RoutesScreen() {
   const router = useRouter()
@@ -30,6 +31,7 @@ export default function RoutesScreen() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const { routes, isLoading, refetch } = useRoutes(params.from, params.to)
+  useRefreshOnFocus([['routes', params.from, params.to]])
   const [refreshing, setRefreshing] = useState(false)
   const { isFavorite, toggleFavorite } = useFavorites()
   const haptics = useHaptics()

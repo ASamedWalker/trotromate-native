@@ -15,6 +15,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard } from '@/lib/hooks/useRewards'
 import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 
 const LEVEL_LIST = LEVEL_ORDER.map((slug) => LEVELS[slug])
 
@@ -26,6 +27,7 @@ export default function RewardsScreen() {
   const s = getStyles(isDark)
   const { profile, rank, deviceId, refreshProfile } = useApp()
   const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
+  useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
   const [showEarnInfo, setShowEarnInfo] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 

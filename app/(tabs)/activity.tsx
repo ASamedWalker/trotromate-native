@@ -19,6 +19,7 @@ import { useActivity } from '@/lib/hooks/useActivity'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActivityItem } from '@/lib/services/activity'
 import { SkeletonActivityItem } from '@/components/Skeleton'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 
 const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = {
   fare: { icon: TrendingUp, color: c.amber500 },
@@ -177,6 +178,7 @@ export default function ActivityScreen() {
     loadMore,
     dismissItem,
   } = useActivity()
+  useRefreshOnFocus([['activity']])
 
   const sections = groupByDate(items)
 
