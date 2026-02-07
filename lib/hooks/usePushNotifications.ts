@@ -50,8 +50,13 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     })
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync()
-  return tokenData.data
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync()
+    return tokenData.data
+  } catch (e: any) {
+    console.warn('Could not get push token (EAS project ID may not be configured):', e.message)
+    return null
+  }
 }
 
 async function savePushToken(deviceId: string, token: string): Promise<void> {

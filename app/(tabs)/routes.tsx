@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   useColorScheme,
-  ActivityIndicator,
+  RefreshControl,
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -17,6 +17,8 @@ import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
 import type { RouteWithStats } from '@/lib/types'
+import { SkeletonRouteCard } from '@/components/Skeleton'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 
 export default function RoutesScreen() {
   const router = useRouter()
@@ -27,8 +29,10 @@ export default function RoutesScreen() {
   const s = styles(isDark)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const { routes, isLoading } = useRoutes(params.from, params.to)
+  const { routes, isLoading, refetch } = useRoutes(params.from, params.to)
+  const [refreshing, setRefreshing] = useState(false)
   const { isFavorite, toggleFavorite } = useFavorites()
+  const haptics = useHaptics()
 
   const filteredRoutes = routes.filter((route) => {
     if (!searchQuery) return true
@@ -71,7 +75,7 @@ export default function RoutesScreen() {
         <View style={s.routeRight}>
           <Text style={s.routeFare}>₵{displayFare.toFixed(2)}</Text>
           <TouchableOpacity
-            onPress={() => toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location })}
+            onPress={() => { haptics.light(); toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location }) }}
             style={{ marginTop: 4 }}
           >
             <Heart
@@ -118,9 +122,11 @@ export default function RoutesScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.loadingContainer}>
-          <ActivityIndicator size="large" color={c.amber500} />
-          <Text style={s.loadingText}>Finding routes...</Text>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <SkeletonRouteCard isDark={isDark} />
+          <SkeletonRouteCard isDark={isDark} />
+          <SkeletonRouteCard isDark={isDark} />
+          <SkeletonRouteCard isDark={isDark} />
         </View>
       ) : (
         <FlatList
@@ -129,6 +135,14 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => { setRefreshing(true); await refetch(); setRefreshing(false) }}
+              tintColor={c.amber500}
+              colors={[c.amber500]}
+            />
+          }
           ListEmptyComponent={
             <View style={s.emptyContainer}>
               <MapPin size={48} color={t.textTertiary} />

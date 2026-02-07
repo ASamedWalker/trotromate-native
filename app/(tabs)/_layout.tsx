@@ -2,7 +2,7 @@ import React from 'react'
 import { Platform } from 'react-native'
 import { Tabs } from 'expo-router'
 import { useColorScheme } from 'react-native'
-import { Home, MapPin, Camera, Trophy, Zap } from 'lucide-react-native'
+import { Home, MapPin, Camera, Trophy, ReceiptText } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 
 export default function TabLayout() {
@@ -75,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Activity',
           tabBarIcon: ({ color, focused }) => (
-            <Zap size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <ReceiptText size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />

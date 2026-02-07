@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   useColorScheme,
   StyleSheet,
 } from 'react-native'
@@ -23,9 +24,16 @@ export default function RewardsScreen() {
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
   const s = getStyles(isDark)
-  const { profile, rank, deviceId } = useApp()
-  const { entries: leaderboard } = useLeaderboard(deviceId)
+  const { profile, rank, deviceId, refreshProfile } = useApp()
+  const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   const [showEarnInfo, setShowEarnInfo] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const onRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([refreshProfile(), refetchLeaderboard()])
+    setRefreshing(false)
+  }
 
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
   const progress = calculateProgress(profile?.total_points ?? 0, profile?.current_level ?? 'passenger')
@@ -39,7 +47,18 @@ export default function RewardsScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={c.amber500}
+            colors={[c.amber500]}
+          />
+        }
+      >
         {/* Header */}
         <View style={s.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

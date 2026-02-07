@@ -21,7 +21,7 @@ import {
 } from 'lucide-react-native'
 import { themed, font } from '@/lib/theme'
 import { useTrainLines } from '@/lib/hooks/useTrain'
-import { timeAgo } from '@/lib/utils/time'
+import { timeAgo, getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
 import type { TrainLineWithStats } from '@/lib/types'
 
@@ -73,10 +73,10 @@ type DepartureInfo =
   | { type: 'no-service' }
 
 function computeDeparture(schedules: TrainSchedule[]): DepartureInfo {
-  const now = new Date()
-  const day = now.getDay()
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
-  const currentSeconds = now.getSeconds()
+  const ghana = getGhanaTime()
+  const day = ghana.day
+  const currentMinutes = ghana.hours * 60 + ghana.minutes
+  const currentSeconds = ghana.seconds
   const totalSeconds = currentMinutes * 60 + currentSeconds
 
   if (day === 0) return { type: 'no-service' }
@@ -174,10 +174,10 @@ export default function TrainLinesScreen() {
 
   const { lines, isLoading, refetch } = useTrainLines()
 
-  // Live clock — ticks every second
-  const [now, setNow] = useState(new Date())
+  // Live clock — ticks every second (Ghana time)
+  const [tick, setTick] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -190,13 +190,10 @@ export default function TrainLinesScreen() {
   const departure = useMemo(() => {
     if (!scheduleCode) return null
     return computeDeparture(TRAIN_SCHEDULES[scheduleCode])
-  }, [scheduleCode, now])
+  }, [scheduleCode, tick])
 
-  const currentTime = useMemo(
-    () => now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [now]
-  )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const currentTime = useMemo(() => formatGhanaTime(), [tick])
 
   const renderLine = useCallback(
     (item: TrainLineWithStats) => (

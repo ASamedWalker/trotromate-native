@@ -23,6 +23,7 @@ import {
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitIncidentReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 
 const LOCATIONS = [
   { name: 'Circle', area: 'Accra' },
@@ -85,6 +86,7 @@ export default function IncidentReportScreen() {
   const s = getStyles(isDark)
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
+  const haptics = useHaptics()
   const { submit, isSubmitting } = useSubmitIncidentReport(deviceId)
 
   const [step, setStep] = useState(1)
@@ -111,6 +113,7 @@ export default function IncidentReportScreen() {
 
     const result = await submit(location.trim(), selectedType)
     if (result) {
+      haptics.success()
       await refreshProfile()
       setLastReward(result)
       router.back()

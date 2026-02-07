@@ -23,6 +23,7 @@ import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
+import AppErrorBoundary from '@/components/AppErrorBoundary'
 
 import '../global.css'
 
@@ -201,10 +202,12 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <AppInner />
-      </AppProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AppProvider>
+          <AppInner />
+        </AppProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   )
 }

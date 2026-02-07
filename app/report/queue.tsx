@@ -15,6 +15,7 @@ import { Users, MapPin, Check, Clock } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 
 const QUEUE_LEVELS = [
   { id: 'empty', label: 'Empty', emoji: '😊', description: 'No queue, board immediately', color: c.emerald500 },
@@ -31,6 +32,7 @@ export default function QueueReportScreen() {
   const s = getStyles(isDark)
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
+  const haptics = useHaptics()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
 
   const [station, setStation] = useState('')
@@ -44,6 +46,7 @@ export default function QueueReportScreen() {
 
     const result = await submit(station.trim(), selectedLevel)
     if (result) {
+      haptics.success()
       await refreshProfile()
       setLastReward(result)
       router.back()

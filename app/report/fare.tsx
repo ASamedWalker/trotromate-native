@@ -17,6 +17,7 @@ import { Coins, MapPin, Navigation, Check } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 
 export default function FareReportScreen() {
   const router = useRouter()
@@ -26,6 +27,7 @@ export default function FareReportScreen() {
   const s = getStyles(isDark)
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
+  const haptics = useHaptics()
   const { submit, isSubmitting } = useSubmitFareReport(deviceId)
 
   const [from, setFrom] = useState('')
@@ -46,6 +48,7 @@ export default function FareReportScreen() {
 
     const result = await submit(from.trim(), to.trim(), fareValue)
     if (result) {
+      haptics.success()
       await refreshProfile()
       setLastReward(result)
       router.back()

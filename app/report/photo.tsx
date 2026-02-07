@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { Camera, Image as ImageIcon, MapPin, X, Send } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useSubmitTale } from '@/lib/hooks/useTales'
 
 const LOCATIONS = [
@@ -34,6 +35,7 @@ export default function TrotroTalesPostScreen() {
   const s = getStyles(isDark)
 
   const { deviceId, profile, setLastReward, refreshProfile } = useApp()
+  const haptics = useHaptics()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
 
   const [imageUri, setImageUri] = useState<string | null>(null)
@@ -96,6 +98,7 @@ export default function TrotroTalesPostScreen() {
     })
 
     if (reward) {
+      haptics.success()
       setLastReward(reward)
       refreshProfile()
       Alert.alert(

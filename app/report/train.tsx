@@ -31,6 +31,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useSubmitTrainReport } from '@/lib/hooks/useTrain'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 import { fetchTrainLineDetail } from '@/lib/services/train'
 import type { TrainStation, TrainLine } from '@/lib/types'
 
@@ -61,6 +62,7 @@ export default function TrainReportScreen() {
   const s = getStyles(isDark)
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
+  const haptics = useHaptics()
   const { submit, isSubmitting } = useSubmitTrainReport(deviceId)
   const { lines, isLoading: linesLoading } = useTrainLines()
 
@@ -129,6 +131,7 @@ export default function TrainReportScreen() {
     })
 
     if (result) {
+      haptics.success()
       await refreshProfile()
       setLastReward(result)
       router.back()

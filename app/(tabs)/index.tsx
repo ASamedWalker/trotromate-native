@@ -30,13 +30,15 @@ import PopularRoutesScroller from '@/components/PopularRoutesScroller'
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
+import { getGhanaTime } from '@/lib/utils/time'
+import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
 
 /* ── helpers ─────────────────────────────────────────── */
 
 function getGreeting(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
+  const { hours } = getGhanaTime()
+  if (hours < 12) return 'Good morning'
+  if (hours < 17) return 'Good afternoon'
   return 'Good evening'
 }
 
@@ -51,10 +53,10 @@ type NextTrainInfo =
   | { status: 'done' }
 
 function getNextTrain(): NextTrainInfo {
-  const now = new Date()
-  if (now.getDay() === 0) return { status: 'done' }
+  const ghana = getGhanaTime()
+  if (ghana.day === 0) return { status: 'done' }
 
-  const mins = now.getHours() * 60 + now.getMinutes()
+  const mins = ghana.hours * 60 + ghana.minutes
   const schedules = TRAIN_SCHEDULES['TMA'] ?? []
 
   for (const sch of schedules) {
@@ -178,6 +180,16 @@ export default function HomeScreen() {
           <Search size={18} color={c.amber500} />
           <Text style={s.searchText}>Where are you going?</Text>
         </TouchableOpacity>
+
+        {/* ── Promo Banner ── */}
+        <PromoBanner
+          promos={DEFAULT_PROMOS}
+          onPromoPress={(promo) => {
+            if (promo.id === 'train') router.push('/train' as any)
+            else if (promo.id === 'tales') router.push('/(tabs)/tales' as any)
+            else if (promo.id === 'welcome') router.push('/(tabs)/report' as any)
+          }}
+        />
 
         {/* ── Next Train Widget ── */}
         {nextTrain.status !== 'done' && (

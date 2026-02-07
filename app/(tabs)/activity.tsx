@@ -18,6 +18,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useActivity } from '@/lib/hooks/useActivity'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActivityItem } from '@/lib/services/activity'
+import { SkeletonActivityItem } from '@/components/Skeleton'
 
 const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = {
   fare: { icon: TrendingUp, color: c.amber500 },
@@ -225,8 +226,12 @@ export default function ActivityScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.centered}>
-          <ActivityIndicator size="large" color={c.amber500} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <SkeletonActivityItem isDark={isDark} />
+          <SkeletonActivityItem isDark={isDark} />
+          <SkeletonActivityItem isDark={isDark} />
+          <SkeletonActivityItem isDark={isDark} />
+          <SkeletonActivityItem isDark={isDark} />
         </View>
       ) : items.length === 0 ? (
         <View style={s.centered}>

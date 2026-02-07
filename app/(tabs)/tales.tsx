@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
-  Image,
   useColorScheme,
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft } from 'lucide-react-native'
@@ -19,6 +19,8 @@ import { useTalesFeed } from '@/lib/hooks/useTales'
 import { timeAgo } from '@/lib/utils/time'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import CommentSheet from '@/components/CommentSheet'
+import { SkeletonTaleCard } from '@/components/Skeleton'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 import type { TalePost } from '@/lib/types'
 
 function getDisplayName(post: TalePost): string {
@@ -73,7 +75,7 @@ function TaleCard({
       </View>
 
       {/* Image */}
-      <Image source={{ uri: post.image_url }} style={s.image} resizeMode="cover" />
+      <Image source={{ uri: post.image_url }} style={s.image} contentFit="cover" transition={300} />
 
       {/* Actions */}
       <View style={s.actions}>
@@ -123,15 +125,21 @@ export default function TalesScreen() {
   const { deviceId } = useApp()
   const { posts, isLoading, isRefreshing, hasMore, likedIds, refresh, loadMore, toggleLike } =
     useTalesFeed(deviceId)
+  const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
+
+  const handleLike = (id: string) => {
+    haptics.light()
+    toggleLike(id)
+  }
 
   const renderItem = ({ item }: { item: TalePost }) => (
     <TaleCard
       post={item}
       isDark={isDark}
       isLiked={likedIds.has(item.id)}
-      onLike={() => toggleLike(item.id)}
+      onLike={() => handleLike(item.id)}
       onComment={() => setCommentPostId(item.id)}
     />
   )
@@ -156,8 +164,10 @@ export default function TalesScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.centered}>
-          <ActivityIndicator size="large" color={c.amber500} />
+        <View style={{ paddingTop: 12 }}>
+          <SkeletonTaleCard isDark={isDark} />
+          <SkeletonTaleCard isDark={isDark} />
+          <SkeletonTaleCard isDark={isDark} />
         </View>
       ) : posts.length === 0 ? (
         <View style={s.centered}>
