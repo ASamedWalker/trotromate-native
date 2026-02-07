@@ -6,6 +6,7 @@ import type {
   EarnedBadge,
   RewardResult,
   LeaderboardEntry,
+  PointsHistoryEntry,
   LevelSlug,
   ReportType,
 } from '@/lib/types'
@@ -350,4 +351,34 @@ export async function fetchLeaderboard(
   }
 
   return { entries, userRank }
+}
+
+// Fetch all available badges
+export async function fetchAllBadges(): Promise<Badge[]> {
+  const { data, error } = await supabase
+    .from('badges')
+    .select('*')
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return []
+  return data
+}
+
+// Fetch points history for a contributor
+export async function fetchPointsHistory(
+  deviceId: string,
+  limit = 20
+): Promise<PointsHistoryEntry[]> {
+  const profile = await getOrCreateProfile(deviceId)
+  if (!profile) return []
+
+  const { data, error } = await supabase
+    .from('points_history')
+    .select('*')
+    .eq('contributor_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+  return data
 }

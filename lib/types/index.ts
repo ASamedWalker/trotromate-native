@@ -136,6 +136,17 @@ export interface LeaderboardEntry {
   badge_count: number
 }
 
+export interface PointsHistoryEntry {
+  id: string
+  contributor_id: string
+  report_id?: string
+  report_type?: string
+  points: number
+  reason: string
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
 // === Train/Rail Module ===
 
 export type {

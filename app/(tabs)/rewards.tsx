@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -6,18 +6,55 @@ import {
   ScrollView,
   RefreshControl,
   useColorScheme,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Star, Flame, Target, Medal, ChevronRight, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react-native'
+import {
+  Star,
+  Flame,
+  Target,
+  Medal,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  TrendingUp,
+  Lock,
+} from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { useLeaderboard } from '@/lib/hooks/useRewards'
+import { useLeaderboard, useAllBadges, usePointsHistory } from '@/lib/hooks/useRewards'
 import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import { timeAgo } from '@/lib/utils/time'
+import type { Badge, EarnedBadge } from '@/lib/types'
 
 const LEVEL_LIST = LEVEL_ORDER.map((slug) => LEVELS[slug])
+
+type TabKey = 'badges' | 'history' | 'top'
+
+const BADGE_COLORS: Record<string, string> = {
+  amber: '#f59e0b',
+  emerald: '#10b981',
+  violet: '#8b5cf6',
+  orange: '#f97316',
+  blue: '#3b82f6',
+  red: '#ef4444',
+  pink: '#ec4899',
+}
+
+const REASON_LABELS: Record<string, string> = {
+  fare_report: 'Fare Report',
+  queue_report: 'Queue Report',
+  incident_report: 'Incident Report',
+  train_report: 'Train Report',
+  tale_report: 'Tale Shared',
+  badge_bonus: 'Badge Bonus',
+  streak_bonus: 'Streak Bonus',
+}
 
 export default function RewardsScreen() {
   const router = useRouter()
@@ -25,17 +62,21 @@ export default function RewardsScreen() {
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
   const s = getStyles(isDark)
-  const { profile, rank, deviceId, refreshProfile } = useApp()
+  const { profile, badges: earnedBadges, rank, deviceId, refreshProfile } = useApp()
   const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
-  useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
+  const { badges: allBadges } = useAllBadges()
+  const { entries: history, isLoading: historyLoading } = usePointsHistory(deviceId)
+  useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId], ['badges'], ['history', deviceId]])
+
+  const [activeTab, setActiveTab] = useState<TabKey>('badges')
   const [showEarnInfo, setShowEarnInfo] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await Promise.all([refreshProfile(), refetchLeaderboard()])
     setRefreshing(false)
-  }
+  }, [refreshProfile, refetchLeaderboard])
 
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
   const progress = calculateProgress(profile?.total_points ?? 0, profile?.current_level ?? 'passenger')
@@ -46,6 +87,9 @@ export default function RewardsScreen() {
   const totalReports = profile?.total_reports ?? 0
   const userRank = rank ?? '--'
   const progressToNext = progress?.progressPercent ?? 100
+  const earnedBadgeIds = new Set((earnedBadges || []).map((b: EarnedBadge) => b.id))
+  const earnedCount = earnedBadgeIds.size
+  const totalBadgeCount = allBadges.length
 
   return (
     <SafeAreaView style={s.container}>
@@ -71,7 +115,7 @@ export default function RewardsScreen() {
           </View>
         </View>
 
-        {/* Profile Card — with stats merged in */}
+        {/* Profile Card */}
         <View style={s.section}>
           <View style={s.profileCard}>
             <View style={s.profileRow}>
@@ -122,64 +166,188 @@ export default function RewardsScreen() {
           </View>
         </View>
 
-        {/* Leaderboard */}
+        {/* Tabs */}
         <View style={s.section}>
-          <View style={s.sectionTitleRow}>
-            <Text style={s.sectionTitle}>Weekly Leaderboard</Text>
-            <TouchableOpacity onPress={() => router.push('/leaderboard' as any)} style={s.seeAllBtn}>
-              <Text style={s.seeAllText}>See all</Text>
-              <ChevronRight size={16} color={c.amber500} />
-            </TouchableOpacity>
+          <View style={s.tabRow}>
+            {([
+              { key: 'badges' as TabKey, label: `Badges (${earnedCount}/${totalBadgeCount})` },
+              { key: 'history' as TabKey, label: 'History' },
+              { key: 'top' as TabKey, label: 'Top' },
+            ]).map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.7}
+                style={[s.tab, activeTab === tab.key && s.tabActive]}
+              >
+                <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {leaderboard.length === 0 ? (
-            <View style={s.emptyLeaderboard}>
-              <Medal size={32} color={t.textTertiary} />
-              <Text style={s.emptyLeaderboardText}>
-                Start contributing to see the leaderboard!
-              </Text>
-            </View>
-          ) : (
-            <View style={s.leaderboardCard}>
-              <View style={s.podiumRow}>
-                {/* 2nd Place */}
-                <View style={s.podiumItem}>
-                  <View style={[s.podiumAvatar, { backgroundColor: c.stone300 }]}>
-                    <Text style={s.podiumEmojiMd}>🥈</Text>
+          {/* Tab Content */}
+          <View style={s.tabContent}>
+            {activeTab === 'badges' && (
+              <View>
+                <Text style={s.tabContentTitle}>Badge Collection</Text>
+                {allBadges.length === 0 ? (
+                  <View style={s.emptyState}>
+                    <Star size={32} color={t.textTertiary} />
+                    <Text style={s.emptyText}>No badges available yet</Text>
                   </View>
-                  <View style={[s.podiumBar, s.podiumBar2nd]}>
-                    <Text style={s.podiumBarText}>
-                      {leaderboard[1]?.display_name?.split(' ')[0] ?? '--'}
-                    </Text>
+                ) : (
+                  <View style={s.badgeGrid}>
+                    {allBadges.map((badge: Badge) => {
+                      const earned = earnedBadgeIds.has(badge.id)
+                      const badgeColor = BADGE_COLORS[badge.color] ?? c.amber500
+                      return (
+                        <View key={badge.id} style={[s.badgeItem, !earned && s.badgeItemLocked]}>
+                          <View style={[s.badgeIcon, { backgroundColor: earned ? `${badgeColor}20` : isDark ? c.stone800 : c.stone200 }]}>
+                            {earned ? (
+                              <Star size={20} color={badgeColor} />
+                            ) : (
+                              <Lock size={16} color={t.textTertiary} />
+                            )}
+                          </View>
+                          <Text style={[s.badgeName, !earned && { color: t.textTertiary }]} numberOfLines={1}>
+                            {badge.name}
+                          </Text>
+                          <Text style={s.badgeDesc} numberOfLines={2}>
+                            {badge.description}
+                          </Text>
+                          {badge.points_bonus > 0 && (
+                            <Text style={[s.badgeBonus, { color: earned ? c.amber500 : t.textTertiary }]}>
+                              +{badge.points_bonus} pts
+                            </Text>
+                          )}
+                        </View>
+                      )
+                    })}
                   </View>
-                </View>
-
-                {/* 1st Place */}
-                <View style={s.podiumItem}>
-                  <View style={[s.podiumAvatarLg, { backgroundColor: c.amber400 }]}>
-                    <Text style={s.podiumEmojiLg}>🥇</Text>
-                  </View>
-                  <View style={[s.podiumBar, s.podiumBar1st]}>
-                    <Text style={s.podiumBarTextWhite}>
-                      {leaderboard[0]?.display_name?.split(' ')[0] ?? '--'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* 3rd Place */}
-                <View style={s.podiumItem}>
-                  <View style={[s.podiumAvatar, { backgroundColor: c.amber700 }]}>
-                    <Text style={s.podiumEmojiMd}>🥉</Text>
-                  </View>
-                  <View style={[s.podiumBar, s.podiumBar3rd]}>
-                    <Text style={s.podiumBarText3rd}>
-                      {leaderboard[2]?.display_name?.split(' ')[0] ?? '--'}
-                    </Text>
-                  </View>
-                </View>
+                )}
               </View>
-            </View>
-          )}
+            )}
+
+            {activeTab === 'history' && (
+              <View>
+                <Text style={s.tabContentTitle}>Recent Activity</Text>
+                {historyLoading ? (
+                  <ActivityIndicator size="small" color={c.amber500} style={{ marginVertical: 32 }} />
+                ) : history.length === 0 ? (
+                  <View style={s.emptyState}>
+                    <Clock size={32} color={t.textTertiary} />
+                    <Text style={s.emptyText}>No activity yet</Text>
+                    <Text style={s.emptySubText}>Submit reports to earn points!</Text>
+                  </View>
+                ) : (
+                  <View>
+                    {history.map((entry, index) => (
+                      <View
+                        key={entry.id}
+                        style={[s.historyRow, index < history.length - 1 && s.historyRowBorder]}
+                      >
+                        <View style={s.historyIcon}>
+                          <Star size={16} color={c.amber500} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.historyReason}>
+                            {REASON_LABELS[entry.reason] ?? entry.reason}
+                          </Text>
+                          <Text style={s.historyTime}>{timeAgo(entry.created_at)}</Text>
+                        </View>
+                        <Text style={s.historyPoints}>+{entry.points}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {activeTab === 'top' && (
+              <View>
+                <View style={s.sectionTitleRow}>
+                  <Text style={s.tabContentTitle}>Weekly Top Contributors</Text>
+                  <TouchableOpacity onPress={() => router.push('/leaderboard' as any)} style={s.seeAllBtn}>
+                    <Text style={s.seeAllText}>See all</Text>
+                    <ChevronRight size={16} color={c.amber500} />
+                  </TouchableOpacity>
+                </View>
+                {leaderboard.length === 0 ? (
+                  <View style={s.emptyState}>
+                    <TrendingUp size={32} color={t.textTertiary} />
+                    <Text style={s.emptyText}>No activity this week</Text>
+                  </View>
+                ) : (
+                  <View>
+                    {/* Podium */}
+                    <View style={s.podiumRow}>
+                      {/* 2nd Place */}
+                      <View style={s.podiumItem}>
+                        <View style={[s.podiumAvatar, { backgroundColor: c.stone300 }]}>
+                          <Text style={s.podiumEmojiMd}>🥈</Text>
+                        </View>
+                        <View style={[s.podiumBar, s.podiumBar2nd]}>
+                          <Text style={s.podiumBarText}>
+                            {leaderboard[1]?.display_name?.split(' ')[0] ?? '--'}
+                          </Text>
+                        </View>
+                      </View>
+                      {/* 1st Place */}
+                      <View style={s.podiumItem}>
+                        <View style={[s.podiumAvatarLg, { backgroundColor: c.amber400 }]}>
+                          <Text style={s.podiumEmojiLg}>🥇</Text>
+                        </View>
+                        <View style={[s.podiumBar, s.podiumBar1st]}>
+                          <Text style={s.podiumBarTextWhite}>
+                            {leaderboard[0]?.display_name?.split(' ')[0] ?? '--'}
+                          </Text>
+                        </View>
+                      </View>
+                      {/* 3rd Place */}
+                      <View style={s.podiumItem}>
+                        <View style={[s.podiumAvatar, { backgroundColor: c.amber700 }]}>
+                          <Text style={s.podiumEmojiMd}>🥉</Text>
+                        </View>
+                        <View style={[s.podiumBar, s.podiumBar3rd]}>
+                          <Text style={s.podiumBarText3rd}>
+                            {leaderboard[2]?.display_name?.split(' ')[0] ?? '--'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* List below podium */}
+                    {leaderboard.slice(3, 10).map((entry) => (
+                      <View
+                        key={entry.id}
+                        style={[
+                          s.leaderboardRow,
+                          entry.device_id === deviceId && s.leaderboardRowHighlight,
+                        ]}
+                      >
+                        <View style={s.leaderboardRank}>
+                          <Text style={s.leaderboardRankText}>{entry.rank}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.leaderboardName} numberOfLines={1}>
+                            {entry.display_name}
+                            {entry.device_id === deviceId ? ' (You)' : ''}
+                          </Text>
+                          <Text style={s.leaderboardMeta}>{entry.badge_count} badges</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={s.leaderboardPts}>{entry.weekly_points} pts</Text>
+                          <Text style={s.leaderboardMeta}>this week</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* How to Earn — collapsible */}
@@ -205,8 +373,8 @@ export default function RewardsScreen() {
                 { action: 'Report queue status', points: '+5' },
                 { action: 'Report incident', points: '+15' },
                 { action: 'Report train', points: '+10' },
-                { action: 'Daily check-in', points: '+2' },
-                { action: '7-day streak bonus', points: '+10' },
+                { action: 'Share a tale', points: '+8' },
+                { action: '7-day streak bonus', points: '+5' },
               ].map((item, index, arr) => (
                 <View
                   key={index}
@@ -231,7 +399,6 @@ const getStyles = (isDark: boolean) => {
     header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     section: { paddingHorizontal: 20, marginBottom: 24 },
-    sectionTitle: { fontSize: 18, fontFamily: font.semibold, marginBottom: 12, color: t.text },
     sectionTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -274,44 +441,73 @@ const getStyles = (isDark: boolean) => {
       borderTopWidth: 1,
       borderTopColor: isDark ? c.stone800 : c.stone200,
     },
-    inlineStat: {
+    inlineStat: { flex: 1, alignItems: 'center', gap: 2 },
+    inlineStatValue: { fontSize: 18, fontFamily: font.bold, color: t.text, marginTop: 2 },
+    inlineStatLabel: { fontSize: 11, fontFamily: font.medium, color: t.textSecondary },
+    inlineStatDivider: { width: 1, height: 32, backgroundColor: isDark ? c.stone800 : c.stone200 },
+
+    // Tabs
+    tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    tab: {
       flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      backgroundColor: t.card,
       alignItems: 'center',
-      gap: 2,
     },
-    inlineStatValue: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: t.text,
-      marginTop: 2,
+    tabActive: { backgroundColor: c.amber500 },
+    tabText: { fontSize: 13, fontFamily: font.medium, color: isDark ? c.stone400 : c.stone600 },
+    tabTextActive: { color: c.white, fontFamily: font.semibold },
+    tabContent: { padding: 16, borderRadius: 20, backgroundColor: t.card },
+    tabContentTitle: { fontSize: 16, fontFamily: font.semibold, color: t.text, marginBottom: 14 },
+
+    // Badges
+    badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    badgeItem: {
+      width: '30%' as any,
+      alignItems: 'center',
+      padding: 10,
+      borderRadius: 14,
+      backgroundColor: isDark ? c.stone800 : c.stone100,
     },
-    inlineStatLabel: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: t.textSecondary,
+    badgeItemLocked: { opacity: 0.5 },
+    badgeIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
     },
-    inlineStatDivider: {
-      width: 1,
+    badgeName: { fontSize: 12, fontFamily: font.semibold, color: t.text, textAlign: 'center' },
+    badgeDesc: { fontSize: 10, color: t.textSecondary, textAlign: 'center', marginTop: 2 },
+    badgeBonus: { fontSize: 10, fontFamily: font.semibold, marginTop: 4 },
+
+    // History
+    historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+    historyRowBorder: { borderBottomWidth: 1, borderBottomColor: isDark ? c.stone800 : c.stone100 },
+    historyIcon: {
+      width: 32,
       height: 32,
-      backgroundColor: isDark ? c.stone800 : c.stone200,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : c.amber100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
     },
+    historyReason: { fontSize: 14, fontFamily: font.medium, color: t.text },
+    historyTime: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
+    historyPoints: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
+
+    // Empty state
+    emptyState: { alignItems: 'center', paddingVertical: 32 },
+    emptyText: { fontSize: 14, color: t.textSecondary, marginTop: 8 },
+    emptySubText: { fontSize: 12, color: t.textTertiary, marginTop: 4 },
 
     // Leaderboard
     seeAllBtn: { flexDirection: 'row', alignItems: 'center' },
     seeAllText: { color: c.amber500, fontSize: 14, fontFamily: font.medium },
-    leaderboardCard: { padding: 16, borderRadius: 16, backgroundColor: t.card },
-    emptyLeaderboard: {
-      padding: 24,
-      borderRadius: 16,
-      backgroundColor: t.card,
-      alignItems: 'center',
-      gap: 8,
-    },
-    emptyLeaderboardText: {
-      fontSize: 14,
-      color: t.textSecondary,
-      textAlign: 'center',
-    },
     podiumRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -350,17 +546,32 @@ const getStyles = (isDark: boolean) => {
       height: 64,
       backgroundColor: isDark ? 'rgba(120, 53, 15, 0.5)' : c.amber100,
     },
-    podiumBarText: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: isDark ? c.stone300 : c.stone600,
-    },
+    podiumBarText: { fontSize: 12, fontFamily: font.medium, color: isDark ? c.stone300 : c.stone600 },
     podiumBarTextWhite: { fontSize: 12, fontFamily: font.medium, color: c.white },
-    podiumBarText3rd: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: isDark ? c.amber400 : c.amber700,
+    podiumBarText3rd: { fontSize: 12, fontFamily: font.medium, color: isDark ? c.amber400 : c.amber700 },
+    leaderboardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      gap: 10,
     },
+    leaderboardRowHighlight: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : c.amber100,
+    },
+    leaderboardRank: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? c.stone700 : c.stone200,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    leaderboardRankText: { fontSize: 13, fontFamily: font.bold, color: isDark ? c.stone300 : c.stone600 },
+    leaderboardName: { fontSize: 14, fontFamily: font.medium, color: t.text },
+    leaderboardMeta: { fontSize: 12, color: t.textSecondary, marginTop: 1 },
+    leaderboardPts: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
 
     // How to earn — collapsible
     earnToggle: {
@@ -371,12 +582,7 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 16,
       gap: 8,
     },
-    earnToggleText: {
-      flex: 1,
-      fontSize: 15,
-      fontFamily: font.semibold,
-      color: t.text,
-    },
+    earnToggleText: { flex: 1, fontSize: 15, fontFamily: font.semibold, color: t.text },
     earnCard: {
       paddingHorizontal: 16,
       paddingBottom: 8,
@@ -385,15 +591,8 @@ const getStyles = (isDark: boolean) => {
       borderBottomRightRadius: 16,
       marginTop: -8,
     },
-    earnRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: 10,
-    },
-    earnRowBorder: {
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? c.stone800 : c.stone200,
-    },
+    earnRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
+    earnRowBorder: { borderBottomWidth: 1, borderBottomColor: isDark ? c.stone800 : c.stone200 },
     earnAction: { fontSize: 14, color: isDark ? c.stone300 : c.stone700 },
     earnPoints: { fontSize: 14, color: c.amber500, fontFamily: font.semibold },
   })

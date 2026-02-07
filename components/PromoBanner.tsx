@@ -10,10 +10,12 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { X, ChevronRight } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { c, font } from '@/lib/theme'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
-const BANNER_WIDTH = SCREEN_WIDTH - 40 // 20px margin each side
+const HORIZONTAL_PADDING = 20
+const BANNER_GAP = 12
+const BANNER_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING * 2
 const BANNER_HEIGHT = 140
 
 export interface PromoBannerItem {
@@ -164,11 +166,11 @@ export default function PromoBanner({
         renderItem={renderPromo}
         keyExtractor={(item) => item.id}
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
-        snapToInterval={BANNER_WIDTH + 12}
+        snapToInterval={BANNER_WIDTH + BANNER_GAP}
+        snapToAlignment="start"
         decelerationRate="fast"
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+        contentContainerStyle={{ paddingHorizontal: HORIZONTAL_PADDING, gap: BANNER_GAP }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
       />
