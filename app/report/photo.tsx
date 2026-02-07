@@ -18,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { Camera, Image as ImageIcon, MapPin, X, Send } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { supabase } from '@/lib/supabase/client'
+import { useSubmitTale } from '@/lib/hooks/useTales'
 
 const LOCATIONS = [
   'Circle', 'Madina', 'Lapaz', 'Achimota', 'Kaneshie',
@@ -33,12 +33,12 @@ export default function TrotroTalesPostScreen() {
   const t = themed(isDark)
   const s = getStyles(isDark)
 
-  const { deviceId, profile } = useApp()
+  const { deviceId, profile, setLastReward, refreshProfile } = useApp()
+  const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
 
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
@@ -88,56 +88,23 @@ export default function TrotroTalesPostScreen() {
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      // Upload image to Supabase storage
-      const fileName = `${deviceId}-${Date.now()}.jpg`
-      const response = await fetch(imageUri)
-      const blob = await response.blob()
+    const reward = await submitTale({
+      imageUri,
+      caption,
+      location,
+      displayName: profile?.display_name ?? null,
+    })
 
-      const { error: uploadError } = await supabase.storage
-        .from('tale-images')
-        .upload(fileName, blob, { contentType: 'image/jpeg' })
-
-      let imageUrl = ''
-      if (uploadError) {
-        // Use a placeholder if upload fails (storage bucket may not exist)
-        console.warn('Image upload failed, using placeholder:', uploadError.message)
-        imageUrl = `https://placehold.co/600x450/f59e0b/white?text=Troski+Tale`
-      } else {
-        const { data: urlData } = supabase.storage
-          .from('tale-images')
-          .getPublicUrl(fileName)
-        imageUrl = urlData.publicUrl
-      }
-
-      // Insert tale post
-      const { error: insertError } = await supabase.from('tale_posts').insert({
-        device_id: deviceId,
-        display_name: profile?.display_name ?? null,
-        is_anonymous: false,
-        image_url: imageUrl,
-        caption: caption.trim() || null,
-        post_type: 'tale',
-        location_name: location.trim(),
-      })
-
-      if (insertError) {
-        console.error('Error posting tale:', insertError)
-        Alert.alert('Error', 'Failed to post your tale. Please try again.')
-        return
-      }
-
+    if (reward) {
+      setLastReward(reward)
+      refreshProfile()
       Alert.alert(
-        'Tale Posted!',
+        'Tale Posted! +' + reward.points_awarded + ' pts',
         'Your Trotro Tale has been shared with the community.',
         [{ text: 'OK', onPress: () => router.back() }]
       )
-    } catch (err) {
-      console.error('Error posting tale:', err)
-      Alert.alert('Error', 'Something went wrong. Please try again.')
-    } finally {
-      setIsSubmitting(false)
+    } else {
+      Alert.alert('Error', 'Failed to post your tale. Please try again.')
     }
   }
 

@@ -19,6 +19,7 @@ import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { queryClient } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { usePreferences } from '@/lib/hooks/usePreferences'
+import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
@@ -61,10 +62,13 @@ const TrotroDarkTheme = {
 
 function AppInner() {
   const colorScheme = useColorScheme()
-  const { lastReward, clearLastReward } = useApp()
+  const { deviceId, lastReward, clearLastReward } = useApp()
   const { showOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding()
   const { prefs, isLoaded: prefsLoaded } = usePreferences()
   const [showSplash, setShowSplash] = useState(true)
+
+  // Register for push notifications
+  usePushNotifications(deviceId, prefs.pushNotifications)
 
   // Apply stored theme preference
   useEffect(() => {

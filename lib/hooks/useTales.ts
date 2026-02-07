@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchTales, likeTale, unlikeTale } from '@/lib/services/tales'
-import type { TalePost } from '@/lib/types'
+import { fetchTales, likeTale, unlikeTale, submitTale } from '@/lib/services/tales'
+import { awardPointsForReport } from '@/lib/services/rewards'
+import type { TalePost, TalePostType, RewardResult } from '@/lib/types'
 
 export function useTalesFeed(deviceId: string | null) {
   const queryClient = useQueryClient()
@@ -98,4 +99,60 @@ export function useTalesFeed(deviceId: string | null) {
     loadMore,
     toggleLike,
   }
+}
+
+export function useSubmitTale(deviceId: string | null) {
+  const queryClient = useQueryClient()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = useCallback(
+    async (params: {
+      imageUri: string
+      caption: string
+      location: string
+      displayName: string | null
+      postType?: TalePostType
+    }): Promise<RewardResult | null> => {
+      if (!deviceId) {
+        setError('Device not ready')
+        return null
+      }
+      setIsSubmitting(true)
+      setError(null)
+      try {
+        const result = await submitTale({
+          deviceId,
+          displayName: params.displayName,
+          imageUri: params.imageUri,
+          caption: params.caption,
+          location: params.location,
+          postType: params.postType,
+        })
+        if (!result) {
+          setError('Failed to post tale')
+          return null
+        }
+        // Award points
+        const reward = await awardPointsForReport({
+          deviceId,
+          reportType: 'tale',
+          reportId: result.postId,
+        })
+        // Invalidate tales feed cache so it refreshes
+        queryClient.invalidateQueries({ queryKey: ['tales'] })
+        queryClient.invalidateQueries({ queryKey: ['activity'] })
+        queryClient.invalidateQueries({ queryKey: ['profile'] })
+        return reward
+      } catch {
+        setError('Failed to post tale')
+        return null
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [deviceId, queryClient]
+  )
+
+  return { submit, isSubmitting, error }
 }

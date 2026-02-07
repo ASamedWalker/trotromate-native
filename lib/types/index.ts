@@ -65,7 +65,7 @@ export interface RouteWithStats extends Route {
 
 // === Rewards System ===
 
-export type ReportType = 'fare' | 'queue' | 'incident' | 'train'
+export type ReportType = 'fare' | 'queue' | 'incident' | 'train' | 'tale'
 export type LevelSlug = 'passenger' | 'regular' | 'local_expert' | 'troski_legend'
 
 export interface LevelInfo {

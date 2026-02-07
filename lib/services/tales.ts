@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { TalePost } from '@/lib/types'
+import type { TalePost, TalePostType } from '@/lib/types'
 
 export async function fetchTales(params: {
   limit?: number
@@ -58,4 +58,62 @@ export async function unlikeTale(postId: string, deviceId: string): Promise<bool
     return false
   }
   return true
+}
+
+export async function submitTale(params: {
+  deviceId: string
+  displayName: string | null
+  imageUri: string
+  caption: string
+  location: string
+  postType?: TalePostType
+}): Promise<{ postId: string } | null> {
+  const { deviceId, displayName, imageUri, caption, location, postType = 'tale' } = params
+
+  try {
+    // Upload image to Supabase storage
+    const fileName = `${deviceId}-${Date.now()}.jpg`
+    const response = await fetch(imageUri)
+    const blob = await response.blob()
+
+    const { error: uploadError } = await supabase.storage
+      .from('tale-images')
+      .upload(fileName, blob, { contentType: 'image/jpeg' })
+
+    let imageUrl = ''
+    if (uploadError) {
+      console.warn('Image upload failed, using placeholder:', uploadError.message)
+      imageUrl = `https://placehold.co/600x450/f59e0b/white?text=Troski+Tale`
+    } else {
+      const { data: urlData } = supabase.storage
+        .from('tale-images')
+        .getPublicUrl(fileName)
+      imageUrl = urlData.publicUrl
+    }
+
+    // Insert tale post
+    const { data, error: insertError } = await supabase
+      .from('tale_posts')
+      .insert({
+        device_id: deviceId,
+        display_name: displayName,
+        is_anonymous: false,
+        image_url: imageUrl,
+        caption: caption.trim() || null,
+        post_type: postType,
+        location_name: location.trim(),
+      })
+      .select('id')
+      .single()
+
+    if (insertError) {
+      console.error('Error posting tale:', insertError)
+      return null
+    }
+
+    return { postId: data.id }
+  } catch (err) {
+    console.error('Error submitting tale:', err)
+    return null
+  }
 }

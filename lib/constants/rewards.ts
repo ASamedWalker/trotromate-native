@@ -5,6 +5,7 @@ export const REPORT_POINTS: Record<ReportType, number> = {
   queue: 5,
   incident: 15,
   train: 10,
+  tale: 8,
 }
 
 export const STREAK_CONFIG = {

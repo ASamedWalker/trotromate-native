@@ -28,6 +28,7 @@ import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import PopularRoutesScroller from '@/components/PopularRoutesScroller'
 import ReportFAB from '@/components/ReportFAB'
+import OfflineBanner from '@/components/OfflineBanner'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 
 /* ── helpers ─────────────────────────────────────────── */
@@ -122,6 +123,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={s.container}>
+      <OfflineBanner />
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
