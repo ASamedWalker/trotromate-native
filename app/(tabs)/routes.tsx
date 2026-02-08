@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -8,10 +8,22 @@ import {
   useColorScheme,
   RefreshControl,
   StyleSheet,
+  Share,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Search, MapPin, TrendingUp, Clock, Heart, ChevronLeft } from 'lucide-react-native'
+import {
+  Search,
+  MapPin,
+  Clock,
+  Heart,
+  ChevronLeft,
+  Bell,
+  BellOff,
+  Share2,
+  X,
+} from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -20,6 +32,9 @@ import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import { useRouteAlerts } from '@/lib/hooks/useRouteAlerts'
+
+type Tab = 'all' | 'popular' | 'saved'
 
 export default function RoutesScreen() {
   const router = useRouter()
@@ -27,26 +42,75 @@ export default function RoutesScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
-  const s = styles(isDark)
+  const s = getStyles(isDark)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<Tab>('all')
   const { routes, isLoading, refetch } = useRoutes(params.from, params.to)
   useRefreshOnFocus([['routes', params.from, params.to]])
   const [refreshing, setRefreshing] = useState(false)
-  const { isFavorite, toggleFavorite } = useFavorites()
+  const { favorites, isFavorite, toggleFavorite } = useFavorites()
+  const { isAlerted, toggleAlert } = useRouteAlerts()
   const haptics = useHaptics()
 
-  const filteredRoutes = routes.filter((route) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      route.from_location.toLowerCase().includes(query) ||
-      route.to_location.toLowerCase().includes(query)
-    )
-  })
+  const filteredRoutes = useMemo(() => {
+    let result = routes
+
+    // Tab filter
+    if (activeTab === 'popular') {
+      result = result.filter((r) => r.is_popular)
+    } else if (activeTab === 'saved') {
+      const favIds = new Set(favorites.map((f) => f.id))
+      result = result.filter((r) => favIds.has(r.id))
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(
+        (r) =>
+          r.from_location.toLowerCase().includes(query) ||
+          r.to_location.toLowerCase().includes(query)
+      )
+    }
+
+    return result
+  }, [routes, activeTab, searchQuery, favorites])
+
+  const handleShare = async (route: RouteWithStats) => {
+    haptics.light()
+    try {
+      const fare = route.fare_stats?.avg_reported_fare ?? route.official_fare
+      await Share.share({
+        message: `Check the fare from ${route.from_location} to ${route.to_location} - ₵${fare.toFixed(2)} on Troski! 🚐`,
+      })
+    } catch {
+      // User cancelled share
+    }
+  }
+
+  const handleAlert = (route: RouteWithStats) => {
+    haptics.light()
+    const alerted = isAlerted(route.id)
+    toggleAlert(route.id)
+    if (!alerted) {
+      Alert.alert(
+        'Fare Alert On',
+        `You'll be notified when the fare for ${route.from_location} → ${route.to_location} changes.`,
+        [{ text: 'OK' }]
+      )
+    }
+  }
+
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: 'all', label: 'All', count: routes.length },
+    { key: 'popular', label: 'Popular', count: routes.filter((r) => r.is_popular).length },
+    { key: 'saved', label: 'Saved', count: favorites.length },
+  ]
 
   const renderRoute = ({ item }: { item: RouteWithStats }) => {
     const fav = isFavorite(item.id)
+    const alerted = isAlerted(item.id)
     const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
     const reportCount = item.fare_stats?.report_count ?? 0
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
@@ -62,7 +126,7 @@ export default function RoutesScreen() {
         </View>
 
         <View style={s.routeInfo}>
-          <Text style={s.routeName}>
+          <Text style={s.routeName} numberOfLines={1}>
             {item.from_location} → {item.to_location}
           </Text>
           <View style={s.routeMeta}>
@@ -76,16 +140,37 @@ export default function RoutesScreen() {
 
         <View style={s.routeRight}>
           <Text style={s.routeFare}>₵{displayFare.toFixed(2)}</Text>
-          <TouchableOpacity
-            onPress={() => { haptics.light(); toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location }) }}
-            style={{ marginTop: 4 }}
-          >
-            <Heart
-              size={18}
-              color={fav ? c.red500 : t.textTertiary}
-              fill={fav ? c.red500 : 'transparent'}
-            />
-          </TouchableOpacity>
+          <View style={s.actionRow}>
+            <TouchableOpacity
+              onPress={() => handleAlert(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {alerted ? (
+                <Bell size={16} color={c.amber500} fill={c.amber500} />
+              ) : (
+                <BellOff size={16} color={t.textTertiary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleShare(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Share2 size={16} color={t.textTertiary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light()
+                toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location })
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Heart
+                size={16}
+                color={fav ? c.red500 : t.textTertiary}
+                fill={fav ? c.red500 : 'transparent'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     )
@@ -95,11 +180,12 @@ export default function RoutesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
+        <View style={s.headerRow}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
             <ChevronLeft size={24} color={t.text} />
           </TouchableOpacity>
-          <Text style={[s.headerTitle, { marginBottom: 0 }]}>Routes</Text>
+          <Text style={s.headerTitle}>Routes</Text>
+          <View style={{ width: 32 }} />
         </View>
 
         <View style={s.searchBox}>
@@ -111,11 +197,42 @@ export default function RoutesScreen() {
             placeholderTextColor={t.textSecondary}
             style={s.searchInput}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <X size={18} color={t.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Tabs */}
+        <View style={s.tabRow}>
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => { haptics.light(); setActiveTab(tab.key) }}
+                activeOpacity={0.7}
+                style={[s.tab, active && s.tabActive]}
+              >
+                <Text style={[s.tabLabel, active && s.tabLabelActive]}>
+                  {tab.label}
+                </Text>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <View style={[s.tabBadge, active && s.tabBadgeActive]}>
+                    <Text style={[s.tabBadgeText, active && s.tabBadgeTextActive]}>
+                      {tab.count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         {(params.from || params.to) && (
           <View style={s.filterRow}>
-            <TrendingUp size={14} color={c.amber500} />
+            <MapPin size={14} color={c.amber500} />
             <Text style={s.filterText}>
               Showing: {params.from || 'Any'} → {params.to || 'Any'}
             </Text>
@@ -148,8 +265,15 @@ export default function RoutesScreen() {
           ListEmptyComponent={
             <View style={s.emptyContainer}>
               <MapPin size={48} color={t.textTertiary} />
-              <Text style={s.emptyTitle}>No routes found</Text>
-              <Text style={s.emptySubtitle}>Try a different search</Text>
+              <Text style={s.emptyTitle}>
+                {activeTab === 'saved' ? 'No saved routes' : 'No routes found'}
+              </Text>
+              <Text style={s.emptySubtitle}>
+                {activeTab === 'saved'
+                  ? 'Tap the heart icon on any route to save it'
+                  : 'Try a different search'
+                }
+              </Text>
             </View>
           }
         />
@@ -158,12 +282,18 @@ export default function RoutesScreen() {
   )
 }
 
-const styles = (isDark: boolean) => {
+const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, marginBottom: 16, color: t.text },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     searchBox: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -172,7 +302,52 @@ const styles = (isDark: boolean) => {
       paddingVertical: 12,
       backgroundColor: t.card,
     },
-    searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
+    searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
+    tabRow: {
+      flexDirection: 'row',
+      marginTop: 16,
+      gap: 8,
+    },
+    tab: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: t.card,
+      gap: 6,
+    },
+    tabActive: {
+      backgroundColor: c.amber500,
+    },
+    tabLabel: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: t.textSecondary,
+    },
+    tabLabelActive: {
+      color: c.white,
+    },
+    tabBadge: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+    },
+    tabBadgeActive: {
+      backgroundColor: 'rgba(255,255,255,0.25)',
+    },
+    tabBadgeText: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: t.textSecondary,
+    },
+    tabBadgeTextActive: {
+      color: c.white,
+    },
     filterRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
     filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
     routeCard: {
@@ -193,13 +368,17 @@ const styles = (isDark: boolean) => {
       marginRight: 12,
     },
     routeInfo: { flex: 1 },
-    routeName: { fontFamily: font.semibold, fontSize: 16, color: t.text },
+    routeName: { fontFamily: font.semibold, fontSize: 15, color: t.text },
     routeMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
     routeMetaText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
-    routeRight: { alignItems: 'flex-end' },
+    routeRight: { alignItems: 'flex-end', marginLeft: 8 },
     routeFare: { color: c.amber500, fontFamily: font.bold, fontSize: 18 },
-    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    loadingText: { marginTop: 12, color: t.textSecondary },
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      gap: 12,
+    },
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
     emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },

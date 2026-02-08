@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useState, useEffect } from 'react'
 import { useColorScheme, Appearance } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { queryClient } from '@/lib/query-client'
@@ -202,12 +203,14 @@ export default function RootLayout() {
   }
 
   return (
-    <AppErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <AppProvider>
-          <AppInner />
-        </AppProvider>
-      </QueryClientProvider>
-    </AppErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <AppProvider>
+            <AppInner />
+          </AppProvider>
+        </QueryClientProvider>
+      </AppErrorBoundary>
+    </GestureHandlerRootView>
   )
 }

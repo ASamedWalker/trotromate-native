@@ -150,12 +150,10 @@ export default function TalesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
-            <ChevronLeft size={24} color={t.text} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Trotro Tales</Text>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
+          <ChevronLeft size={24} color={t.text} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Trotro Tales</Text>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}
           style={s.newBtn}

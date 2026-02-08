@@ -81,8 +81,8 @@ export default function ReportScreen() {
     <SafeAreaView style={s.container}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={s.header}>
-          <Text style={s.headerTitle}>Contribute</Text>
-          <Text style={s.headerSub}>Help fellow commuters and earn points</Text>
+          <Text style={[s.headerTitle, { textAlign: 'center' }]}>Contribute</Text>
+          <Text style={[s.headerSub, { textAlign: 'center' }]}>Help fellow commuters and earn points</Text>
         </View>
 
         <View style={s.cardsContainer}>

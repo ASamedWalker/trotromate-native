@@ -6,16 +6,14 @@ import {
   FlatList,
   useColorScheme,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { X, ChevronRight } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 
-const SCREEN_WIDTH = Dimensions.get('window').width
 const HORIZONTAL_PADDING = 20
 const BANNER_GAP = 12
-const BANNER_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING * 2
 const BANNER_HEIGHT = 140
 
 export interface PromoBannerItem {
@@ -70,6 +68,8 @@ export default function PromoBanner({
 }: Props) {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
+  const { width: screenWidth } = useWindowDimensions()
+  const bannerWidth = screenWidth - HORIZONTAL_PADDING * 2
   const [activeIndex, setActiveIndex] = useState(0)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const flatListRef = useRef<FlatList>(null)
@@ -116,7 +116,7 @@ export default function PromoBanner({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => onPromoPress?.(item)}
-        style={[s.banner, { width: BANNER_WIDTH, backgroundColor: item.bgColor }]}
+        style={[s.banner, { width: bannerWidth, backgroundColor: item.bgColor }]}
       >
         {/* Dismiss button */}
         <TouchableOpacity
@@ -167,9 +167,10 @@ export default function PromoBanner({
         keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={BANNER_WIDTH + BANNER_GAP}
+        snapToInterval={bannerWidth + BANNER_GAP}
         snapToAlignment="start"
         decelerationRate="fast"
+        overScrollMode="never"
         contentContainerStyle={{ paddingHorizontal: HORIZONTAL_PADDING, gap: BANNER_GAP }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}

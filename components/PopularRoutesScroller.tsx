@@ -2,10 +2,10 @@ import { useEffect, useRef } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
   Animated,
   StyleSheet,
 } from 'react-native'
+import { TouchableOpacity } from 'react-native-gesture-handler'
 import { Navigation, Zap, TrendingUp, Users } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'

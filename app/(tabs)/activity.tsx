@@ -219,12 +219,11 @@ export default function ActivityScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
-            <ChevronLeft size={24} color={t.text} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Activity</Text>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
+          <ChevronLeft size={24} color={t.text} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Activity</Text>
+        <View style={{ width: 32 }} />
       </View>
 
       {isLoading ? (
@@ -305,8 +304,8 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text, textAlign: 'center' },
     sectionHeader: {
       paddingVertical: 8,
       paddingHorizontal: 4,

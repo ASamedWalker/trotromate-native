@@ -107,12 +107,11 @@ export default function RewardsScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginRight: 8, padding: 4 }}>
-              <ChevronLeft size={24} color={t.text} />
-            </TouchableOpacity>
-            <Text style={s.headerTitle}>Rewards</Text>
-          </View>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
+            <ChevronLeft size={24} color={t.text} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Rewards</Text>
+          <View style={{ width: 32 }} />
         </View>
 
         {/* Profile Card */}
@@ -396,7 +395,7 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     section: { paddingHorizontal: 20, marginBottom: 24 },
     sectionTitleRow: {

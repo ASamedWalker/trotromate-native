@@ -35,7 +35,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         <View style={s.header}>
-          <Text style={s.headerTitle}>Profile</Text>
+          <Text style={[s.headerTitle, { textAlign: 'center' }]}>Profile</Text>
         </View>
 
         {/* Avatar Card */}
