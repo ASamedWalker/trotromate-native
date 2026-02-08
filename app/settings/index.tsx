@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import {
   ChevronLeft,
   ChevronRight,
@@ -92,7 +92,7 @@ export default function SettingsScreen() {
           <Text style={s.sectionLabel}>Profile</Text>
           <View style={s.card}>
             <TouchableOpacity
-              onPress={() => router.push('/settings/edit-name' as any)}
+              onPress={() => router.push('/settings/edit-name' as Href)}
               activeOpacity={0.7}
               style={s.profileRow}
             >
@@ -179,7 +179,7 @@ export default function SettingsScreen() {
           <Text style={s.sectionLabel}>About</Text>
           <View style={s.card}>
             <TouchableOpacity
-              onPress={() => router.push('/terms' as any)}
+              onPress={() => router.push('/terms' as Href)}
               activeOpacity={0.7}
               style={s.linkRow}
             >
@@ -189,7 +189,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
             <View style={s.divider} />
             <TouchableOpacity
-              onPress={() => router.push('/privacy' as any)}
+              onPress={() => router.push('/privacy' as Href)}
               activeOpacity={0.7}
               style={s.linkRow}
             >

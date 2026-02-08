@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Lock,
 } from 'lucide-react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard, useAllBadges, usePointsHistory } from '@/lib/hooks/useRewards'
@@ -269,7 +269,7 @@ export default function RewardsScreen() {
               <View>
                 <View style={s.sectionTitleRow}>
                   <Text style={s.tabContentTitle}>Weekly Top Contributors</Text>
-                  <TouchableOpacity onPress={() => router.push('/leaderboard' as any)} style={s.seeAllBtn}>
+                  <TouchableOpacity onPress={() => router.push('/leaderboard' as Href)} style={s.seeAllBtn}>
                     <Text style={s.seeAllText}>See all</Text>
                     <ChevronRight size={16} color={c.amber500} />
                   </TouchableOpacity>
@@ -465,7 +465,7 @@ const getStyles = (isDark: boolean) => {
     // Badges
     badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     badgeItem: {
-      width: '30%' as any,
+      width: '30%',
       alignItems: 'center',
       padding: 10,
       borderRadius: 14,

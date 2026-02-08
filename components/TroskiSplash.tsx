@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   logoImage: {
-    width: '100%' as any,
-    height: '100%' as any,
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 38,

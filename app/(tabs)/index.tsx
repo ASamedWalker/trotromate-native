@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import {
   Search,
   ChevronRight,
@@ -165,7 +165,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile' as any)}
+            onPress={() => router.push('/(tabs)/profile' as Href)}
             activeOpacity={0.7}
             style={s.avatar}
           >
@@ -187,16 +187,16 @@ export default function HomeScreen() {
         <PromoBanner
           promos={DEFAULT_PROMOS}
           onPromoPress={(promo) => {
-            if (promo.id === 'train') router.push('/train' as any)
-            else if (promo.id === 'tales') router.push('/(tabs)/tales' as any)
-            else if (promo.id === 'welcome') router.push('/(tabs)/report' as any)
+            if (promo.id === 'train') router.push('/train' as Href)
+            else if (promo.id === 'tales') router.push('/(tabs)/tales' as Href)
+            else if (promo.id === 'welcome') router.push('/(tabs)/report' as Href)
           }}
         />
 
         {/* ── Next Train Widget ── */}
         {nextTrain.status !== 'done' && (
           <TouchableOpacity
-            onPress={() => router.push('/train' as any)}
+            onPress={() => router.push('/train' as Href)}
             activeOpacity={0.8}
             style={s.trainWidget}
           >
@@ -264,7 +264,7 @@ export default function HomeScreen() {
 
           {exploreOpen && <View style={s.exploreRow}>
             <TouchableOpacity
-              onPress={() => router.push('/train' as any)}
+              onPress={() => router.push('/train' as Href)}
               activeOpacity={0.8}
               style={s.exploreCard}
             >
@@ -288,7 +288,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/report' as any)}
+              onPress={() => router.push('/(tabs)/report' as Href)}
               activeOpacity={0.8}
               style={s.exploreCard}
             >

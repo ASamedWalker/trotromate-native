@@ -3,6 +3,7 @@
     "name": "Troski",
     "slug": "troski",
     "version": "1.0.0",
+    "description": "Know your trotro fare, beat the queue. Community-powered transit updates for Ghana.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "troski",
@@ -15,7 +16,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.troski.app"
+      "bundleIdentifier": "com.troski.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos for Trotro Tales to share with the community.",
+        "NSPhotoLibraryUsageDescription": "Select photos from your library for Trotro Tales.",
+        "NSPhotoLibraryAddUsageDescription": "Save photos to your library."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +29,13 @@
         "backgroundColor": "#f59e0b"
       },
       "package": "com.troski.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,15 +45,32 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Select photos from your library for Trotro Tales.",
+          "cameraPermission": "Take photos for Trotro Tales to share with the community."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#f59e0b"
+        }
+      ],
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
-      }
-    }
+        "projectId": "d62638cb-9c06-4aac-8e00-cbf7598ed47f"
+      },
+      "router": {}
+    },
+    "owner": "swalker01"
   }
 }

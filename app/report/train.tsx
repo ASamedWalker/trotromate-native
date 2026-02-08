@@ -934,9 +934,9 @@ const getStyles = (isDark: boolean) => {
       gap: 10,
     },
     crowdCard: {
-      width: '48%' as any,
+      width: '48%',
       flexGrow: 1,
-      flexBasis: '46%' as any,
+      flexBasis: '46%',
       alignItems: 'center',
       paddingVertical: 18,
       paddingHorizontal: 10,

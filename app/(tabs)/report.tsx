@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -92,7 +92,7 @@ export default function ReportScreen() {
               <TouchableOpacity
                 key={type.id}
                 activeOpacity={0.7}
-                onPress={() => router.push(type.route as any)}
+                onPress={() => router.push(type.route as Href)}
                 style={s.card}
               >
                 <View style={s.cardRow}>

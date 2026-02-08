@@ -9,7 +9,7 @@ import {
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 
@@ -88,7 +88,7 @@ export default function ReportFAB() {
 
   const handleSelect = (route: string) => {
     setIsOpen(false)
-    router.push(route as any)
+    router.push(route as Href)
   }
 
   return (

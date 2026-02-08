@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { Settings, Bell, Shield, HelpCircle, ChevronRight } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -24,11 +24,11 @@ export default function ProfileScreen() {
   const { unreadCount } = useNotifications(deviceId)
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
 
-  const menuItems = [
-    { icon: Bell, label: 'Notifications', onPress: () => router.push('/notifications' as any), badge: unreadCount },
-    { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as any) },
-    { icon: Shield, label: 'Privacy', onPress: () => router.push('/privacy' as any) },
-    { icon: HelpCircle, label: 'Help & Support', onPress: () => router.push('/terms' as any) },
+  const menuItems: Array<{ icon: typeof Bell; label: string; onPress: () => void; badge?: number }> = [
+    { icon: Bell, label: 'Notifications', onPress: () => router.push('/notifications' as Href), badge: unreadCount },
+    { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as Href) },
+    { icon: Shield, label: 'Privacy', onPress: () => router.push('/privacy' as Href) },
+    { icon: HelpCircle, label: 'Help & Support', onPress: () => router.push('/terms' as Href) },
   ]
 
   return (
@@ -80,9 +80,9 @@ export default function ProfileScreen() {
               >
                 <Icon size={20} color={isDark ? '#a8a29e' : '#78716c'} />
                 <Text style={s.menuLabel}>{item.label}</Text>
-                {(item as any).badge > 0 && (
+                {item.badge != null && item.badge > 0 && (
                   <View style={s.badge}>
-                    <Text style={s.badgeText}>{(item as any).badge}</Text>
+                    <Text style={s.badgeText}>{item.badge}</Text>
                   </View>
                 )}
                 <ChevronRight size={18} color={isDark ? '#57534e' : '#a8a29e'} />

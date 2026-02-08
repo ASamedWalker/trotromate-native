@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  type DimensionValue,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -353,13 +354,13 @@ export default function TrainLinesScreen() {
                     <View
                       style={[
                         s.progressFill,
-                        { width: `${Math.min(departure.progress * 100, 100)}%` as any },
+                        { width: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
                       ]}
                     />
                     <View
                       style={[
                         s.progressDot,
-                        { left: `${Math.min(departure.progress * 100, 100)}%` as any },
+                        { left: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
                       ]}
                     />
                   </View>

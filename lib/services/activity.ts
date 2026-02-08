@@ -1,5 +1,21 @@
 import { supabase } from '@/lib/supabase/client'
 
+interface FareReportRow {
+  id: string
+  route_id: string
+  reported_fare: number
+  reported_at: string
+  routes: { from_location: string; to_location: string } | null
+}
+
+interface TrainReportRow {
+  id: string
+  report_type: string
+  reported_at: string
+  train_stations: { name: string } | null
+  train_lines: { name: string } | null
+}
+
 export interface ActivityItem {
   id: string
   type: 'fare' | 'queue' | 'incident' | 'tale' | 'train'
@@ -67,7 +83,7 @@ export async function fetchRecentActivity(
 
   if (fareRes.data) {
     for (const r of fareRes.data) {
-      const route = (r as any).routes
+      const route = (r as unknown as FareReportRow).routes
       items.push({
         id: `fare-${r.id}`,
         type: 'fare',
@@ -128,8 +144,8 @@ export async function fetchRecentActivity(
       delay: 'Delay Report',
     }
     for (const r of trainRes.data) {
-      const station = (r as any).train_stations
-      const line = (r as any).train_lines
+      const station = (r as unknown as TrainReportRow).train_stations
+      const line = (r as unknown as TrainReportRow).train_lines
       items.push({
         id: `train-${r.id}`,
         type: 'train',

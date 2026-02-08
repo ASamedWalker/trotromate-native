@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase/client'
 
+interface FareReportWithRoute {
+  id: string
+  route_id: string
+  reported_fare: number
+  reported_at: string
+  routes: { from_location: string; to_location: string } | null
+}
+
 export type NotificationType =
   | 'fare_drop'
   | 'queue_alert'
@@ -45,7 +53,7 @@ export async function fetchNotifications(
         for (const fare of recentFares) {
           const stat = fareStats.find((s) => s.route_id === fare.route_id)
           if (stat && fare.reported_fare < stat.avg_reported_fare * 0.85) {
-            const route = (fare as any).routes
+            const route = (fare as unknown as FareReportWithRoute).routes
             notifications.push({
               id: `fare-drop-${fare.id}`,
               type: 'fare_drop',

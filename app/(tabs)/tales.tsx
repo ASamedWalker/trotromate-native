@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -157,7 +157,7 @@ export default function TalesScreen() {
           <Text style={s.headerTitle}>Trotro Tales</Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push('/report/photo' as any)}
+          onPress={() => router.push('/report/photo' as Href)}
           style={s.newBtn}
           activeOpacity={0.7}
         >
@@ -177,7 +177,7 @@ export default function TalesScreen() {
           <Text style={s.emptyTitle}>No tales yet</Text>
           <Text style={s.emptySub}>Be the first to share a Trotro Tale!</Text>
           <TouchableOpacity
-            onPress={() => router.push('/report/photo' as any)}
+            onPress={() => router.push('/report/photo' as Href)}
             style={s.emptyBtn}
             activeOpacity={0.8}
           >
