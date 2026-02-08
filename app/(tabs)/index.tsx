@@ -51,28 +51,38 @@ function parseTimeToMinutes(t: string): number {
 type NextTrainInfo =
   | { status: 'upcoming'; label: string; time: string; from: string; to: string; minsLeft: number }
   | { status: 'in-transit'; label: string; from: string; to: string; arrival: string }
-  | { status: 'done' }
+  | { status: 'done-today'; nextDay: string; nextTime: string; from: string; to: string }
+  | { status: 'no-service'; nextDay: string; nextTime: string; from: string; to: string }
 
 function getNextTrain(): NextTrainInfo {
   const ghana = getGhanaTime()
-  if (ghana.day === 0) return { status: 'done' }
+  const schedules = TRAIN_SCHEDULES['TMA'] ?? []
+  const firstSchedule = schedules[0]
+  const firstStop = firstSchedule?.stops[0]
+  const lastStop = firstSchedule?.stops[firstSchedule.stops.length - 1]
+  const nextTime = firstStop?.depart ?? '06:00'
+  const from = firstStop?.station ?? 'Community 1'
+  const to = lastStop?.station ?? 'Accra Central'
+
+  if (ghana.day === 0) {
+    return { status: 'no-service', nextDay: 'Monday', nextTime, from, to }
+  }
 
   const mins = ghana.hours * 60 + ghana.minutes
-  const schedules = TRAIN_SCHEDULES['TMA'] ?? []
 
   for (const sch of schedules) {
-    const firstStop = sch.stops[0]
-    const lastStop = sch.stops[sch.stops.length - 1]
-    const departMin = parseTimeToMinutes(firstStop.depart ?? firstStop.arrive ?? '00:00')
-    const arriveMin = parseTimeToMinutes(lastStop.arrive ?? lastStop.depart ?? '23:59')
+    const fStop = sch.stops[0]
+    const lStop = sch.stops[sch.stops.length - 1]
+    const departMin = parseTimeToMinutes(fStop.depart ?? fStop.arrive ?? '00:00')
+    const arriveMin = parseTimeToMinutes(lStop.arrive ?? lStop.depart ?? '23:59')
 
     if (mins < departMin) {
       return {
         status: 'upcoming',
         label: sch.label,
-        time: firstStop.depart ?? '',
-        from: firstStop.station,
-        to: lastStop.station,
+        time: fStop.depart ?? '',
+        from: fStop.station,
+        to: lStop.station,
         minsLeft: departMin - mins,
       }
     }
@@ -81,14 +91,15 @@ function getNextTrain(): NextTrainInfo {
       return {
         status: 'in-transit',
         label: sch.label,
-        from: firstStop.station,
-        to: lastStop.station,
-        arrival: lastStop.arrive ?? '',
+        from: fStop.station,
+        to: lStop.station,
+        arrival: lStop.arrive ?? '',
       }
     }
   }
 
-  return { status: 'done' }
+  const nextDay = ghana.day === 6 ? 'Monday' : 'tomorrow'
+  return { status: 'done-today', nextDay, nextTime, from, to }
 }
 
 function formatMinsLeft(mins: number): string {
@@ -194,40 +205,54 @@ export default function HomeScreen() {
         />
 
         {/* ── Next Train Widget ── */}
-        {nextTrain.status !== 'done' && (
-          <TouchableOpacity
-            onPress={() => router.push('/train' as Href)}
-            activeOpacity={0.8}
-            style={s.trainWidget}
-          >
-            <View style={s.trainWidgetIcon}>
-              <TrainFront size={18} color={c.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              {nextTrain.status === 'upcoming' ? (
-                <>
-                  <Text style={s.trainWidgetTitle}>
-                    Next train in {formatMinsLeft(nextTrain.minsLeft)}
-                  </Text>
-                  <Text style={s.trainWidgetSub}>
-                    {nextTrain.from} → {nextTrain.to} · Departs {nextTrain.time}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={s.transitRow}>
-                    <Text style={s.trainWidgetTitle}>Train in transit</Text>
-                    <View style={s.liveDot} />
-                  </View>
-                  <Text style={s.trainWidgetSub}>
-                    {nextTrain.from} → {nextTrain.to} · Arrives {nextTrain.arrival}
-                  </Text>
-                </>
-              )}
-            </View>
-            <ChevronRight size={16} color="#38bdf8" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={() => router.push('/train' as Href)}
+          activeOpacity={0.8}
+          style={s.trainWidget}
+        >
+          <View style={s.trainWidgetIcon}>
+            <TrainFront size={18} color={c.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            {nextTrain.status === 'upcoming' ? (
+              <>
+                <Text style={s.trainWidgetTitle}>
+                  Next train in {formatMinsLeft(nextTrain.minsLeft)}
+                </Text>
+                <Text style={s.trainWidgetSub}>
+                  {nextTrain.from} → {nextTrain.to} · Departs {nextTrain.time}
+                </Text>
+              </>
+            ) : nextTrain.status === 'in-transit' ? (
+              <>
+                <View style={s.transitRow}>
+                  <Text style={s.trainWidgetTitle}>Train in transit</Text>
+                  <View style={s.liveDot} />
+                </View>
+                <Text style={s.trainWidgetSub}>
+                  {nextTrain.from} → {nextTrain.to} · Arrives {nextTrain.arrival}
+                </Text>
+              </>
+            ) : nextTrain.status === 'no-service' ? (
+              <>
+                <Text style={s.trainWidgetTitle}>No service today</Text>
+                <Text style={s.trainWidgetSub}>
+                  {nextTrain.from} → {nextTrain.to} · Resumes {nextTrain.nextDay} {nextTrain.nextTime}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={s.trainWidgetTitle}>
+                  Next train {nextTrain.nextDay} at {nextTrain.nextTime}
+                </Text>
+                <Text style={s.trainWidgetSub}>
+                  {nextTrain.from} → {nextTrain.to}
+                </Text>
+              </>
+            )}
+          </View>
+          <ChevronRight size={16} color="#38bdf8" />
+        </TouchableOpacity>
 
         <View style={s.content}>
           {/* ── Popular Routes ── */}
