@@ -31,55 +31,22 @@ const SLIDES: OnboardingSlide[] = [
     title: 'Welcome to\nTroski',
     subtitle: 'Your trotro companion',
     description:
-      'Never get cheated on fares again. Know the right price before you board.',
+      'Fares, queues, train times, and community reports \u2014 all in one place. Let\u2019s go!',
     icon: MapPin,
     gradientColors: ['#f59e0b', '#f97316', '#ef4444'],
     accentColor: '#fbbf24',
-    features: ['Real-time fares', 'Community-verified'],
-  },
-  {
-    id: 'fares',
-    title: 'Know Your\nFare',
-    subtitle: 'Real-time prices',
-    description:
-      'Check accurate fares for any route. Community-verified prices updated daily.',
-    icon: Coins,
-    gradientColors: ['#10b981', '#14b8a6', '#06b6d4'],
-    accentColor: '#34d399',
-    features: ['Real-time', 'Updated daily'],
-  },
-  {
-    id: 'tales',
-    title: 'Trotro\nTales',
-    subtitle: 'Share your journey',
-    description:
-      "Post photos, check queues, and see what's happening across Accra right now.",
-    icon: Camera,
-    gradientColors: ['#ec4899', '#f43f5e', '#ef4444'],
-    accentColor: '#f472b6',
-    features: ['Share photos', 'Community feed'],
-  },
-  {
-    id: 'rewards',
-    title: 'Earn\nRewards',
-    subtitle: 'Level up as you contribute',
-    description:
-      'Report fares, share tales, and earn points. Unlock badges and climb the leaderboard.',
-    icon: Trophy,
-    gradientColors: ['#8b5cf6', '#a855f7', '#d946ef'],
-    accentColor: '#a78bfa',
-    features: ['Earn points', 'Unlock badges'],
+    features: ['Fares', 'Tales', 'Rewards', 'Live updates'],
   },
   {
     id: 'activity',
-    title: 'Stay\nUpdated',
-    subtitle: 'Never miss out',
+    title: 'Stay in\nthe Loop',
+    subtitle: 'One last thing',
     description:
-      'Get alerts for fare changes, traffic updates, and community reports on your routes.',
+      'Get alerts when fares change or traffic builds up on your routes.',
     icon: Zap,
     gradientColors: ['#3b82f6', '#6366f1', '#8b5cf6'],
     accentColor: '#60a5fa',
-    features: ['Live updates', 'Route alerts'],
+    features: ['Fare changes', 'Traffic alerts'],
   },
 ]
 
@@ -130,10 +97,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           <Icon size={52} color={c.white} strokeWidth={1.5} />
         </View>
 
-        {/* Title — large, multi-line, Poppins ExtraBold */}
+        {/* Title */}
         <Text style={styles.title}>{item.title}</Text>
 
-        {/* Subtitle — accent-colored */}
+        {/* Subtitle */}
         <Text style={[styles.subtitle, { color: item.accentColor }]}>{item.subtitle}</Text>
 
         {/* Description */}
@@ -172,7 +139,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         bounces={false}
       />
 
-      {/* Bottom controls - overlaid on the gradient */}
+      {/* Bottom controls */}
       <View style={styles.bottom}>
         {/* Dots */}
         <View style={styles.dotsRow}>
@@ -196,7 +163,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           style={styles.nextBtn}
         >
           <Text style={[styles.nextText, { color: currentSlide.gradientColors[0] }]}>
-            {isLast ? 'Get Started' : 'Next'}
+            {isLast ? "Let's Go!" : 'Next'}
           </Text>
           {!isLast && <ChevronRight size={20} color={currentSlide.gradientColors[0]} />}
         </TouchableOpacity>
@@ -214,13 +181,15 @@ const styles = StyleSheet.create({
     top: 60,
     right: 24,
     zIndex: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   skipText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 15,
+    fontFamily: 'Poppins_700Bold',
     letterSpacing: 0.5,
   },
   slide: {
@@ -294,7 +263,9 @@ const styles = StyleSheet.create({
   },
   featureRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
   },
   featureBadge: {
     paddingHorizontal: 18,
