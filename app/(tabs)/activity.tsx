@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Animated,
-  PanResponder,
   LayoutAnimation,
   Platform,
   UIManager,
   StyleSheet,
 } from 'react-native'
+import { Swipeable } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { TrendingUp, Users, AlertTriangle, Camera, Zap, Trash2, TrainFront, ChevronLeft } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
@@ -36,8 +36,6 @@ const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
-
-const SWIPE_THRESHOLD = -80
 
 // ─── Date grouping ─────────────────────────────────────────
 
@@ -82,65 +80,59 @@ function SwipeableRow({
   isDark: boolean
   onDismiss: (id: string) => void
 }) {
-  const translateX = useRef(new Animated.Value(0)).current
+  const swipeableRef = useRef<Swipeable>(null)
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
-      onPanResponderMove: (_, gs) => {
-        if (gs.dx < 0) translateX.setValue(gs.dx)
-      },
-      onPanResponderRelease: (_, gs) => {
-        if (gs.dx < SWIPE_THRESHOLD) {
-          // Slide off screen using native driver (smooth on iOS)
-          Animated.timing(translateX, {
-            toValue: -400,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            // LayoutAnimation handles the row collapse smoothly
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            onDismiss(item.id)
-          })
-        } else {
-          // Snap back
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            friction: 8,
-          }).start()
-        }
-      },
-    })
-  ).current
+  const handleDelete = useCallback(() => {
+    swipeableRef.current?.close()
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    onDismiss(item.id)
+  }, [onDismiss, item.id])
+
+  const renderRightActions = useCallback(
+    (_progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>) => {
+      const scale = dragX.interpolate({
+        inputRange: [-100, -50, 0],
+        outputRange: [1, 0.8, 0],
+        extrapolate: 'clamp',
+      })
+      return (
+        <TouchableOpacity
+          onPress={handleDelete}
+          activeOpacity={0.8}
+          style={swipeStyles.deleteAction}
+        >
+          <Animated.View style={[swipeStyles.deleteContent, { transform: [{ scale }] }]}>
+            <Trash2 size={20} color={c.white} />
+            <Text style={swipeStyles.deleteText}>Delete</Text>
+          </Animated.View>
+        </TouchableOpacity>
+      )
+    },
+    [handleDelete]
+  )
 
   const t = themed(isDark)
   const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.fare
   const Icon = config.icon
 
   return (
-    <View style={{ overflow: 'hidden' }}>
-      {/* Red delete background */}
-      <View style={swipeStyles.deleteBackground}>
-        <Trash2 size={20} color={c.white} />
-        <Text style={swipeStyles.deleteText}>Delete</Text>
-      </View>
-
-      {/* Foreground card */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[
-          {
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 14,
-            borderRadius: 16,
-            marginBottom: 10,
-            backgroundColor: t.card,
-            transform: [{ translateX }],
-          },
-        ]}
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      rightThreshold={80}
+      onSwipeableOpen={handleDelete}
+      overshootRight={false}
+      friction={2}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 14,
+          borderRadius: 16,
+          marginBottom: 10,
+          backgroundColor: t.card,
+        }}
       >
         <View style={[swipeStyles.iconBox, { backgroundColor: `${config.color}20` }]}>
           <Icon size={20} color={config.color} />
@@ -150,8 +142,8 @@ function SwipeableRow({
           <Text style={[swipeStyles.subtitle, { color: t.textSecondary }]}>{item.subtitle}</Text>
         </View>
         <Text style={[swipeStyles.time, { color: t.textTertiary }]}>{timeAgo(item.timestamp)}</Text>
-      </Animated.View>
-    </View>
+      </View>
+    </Swipeable>
   )
 }
 
@@ -267,21 +259,24 @@ export default function ActivityScreen() {
 // ─── Styles ────────────────────────────────────────────────
 
 const swipeStyles = StyleSheet.create({
-  deleteBackground: {
-    ...StyleSheet.absoluteFillObject,
+  deleteAction: {
     backgroundColor: '#ef4444',
     borderRadius: 16,
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingRight: 20,
+    width: 90,
     marginBottom: 10,
+    marginLeft: -4,
+  },
+  deleteContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteText: {
     color: c.white,
     fontFamily: font.semibold,
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: 12,
+    marginTop: 4,
   },
   iconBox: {
     width: 42,

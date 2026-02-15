@@ -7,6 +7,7 @@ import {
   useColorScheme,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
   StyleSheet,
 } from 'react-native'
 import { Image } from 'expo-image'
@@ -264,10 +265,10 @@ const cardStyles = (isDark: boolean) => {
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
     imageFallback: {
-      width: '100%',
-      aspectRatio: 4 / 3,
-      alignItems: 'center',
-      justifyContent: 'center',
+      // Explicit height — iOS doesn't compute height from width + aspectRatio on Views
+      height: (Dimensions.get('window').width - 32) * 3 / 4,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
       backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : '#fffbeb',
     },
     fallbackText: {
