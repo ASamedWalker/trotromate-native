@@ -42,6 +42,7 @@ function TaleCard({
   onLike: () => void
   onComment: () => void
 }) {
+  const [imageError, setImageError] = useState(false)
   const t = themed(isDark)
   const s = cardStyles(isDark)
 
@@ -76,7 +77,20 @@ function TaleCard({
       </View>
 
       {/* Image */}
-      <Image source={{ uri: post.image_url }} style={s.image} contentFit="cover" transition={300} />
+      {imageError ? (
+        <View style={s.imageFallback}>
+          <Camera size={32} color={c.amber500} />
+          <Text style={s.fallbackText}>Troski Tales</Text>
+        </View>
+      ) : (
+        <Image
+          source={{ uri: post.image_url }}
+          style={s.image}
+          contentFit="cover"
+          transition={300}
+          onError={() => setImageError(true)}
+        />
+      )}
 
       {/* Actions */}
       <View style={s.actions}>
@@ -153,7 +167,7 @@ export default function TalesScreen() {
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
           <ChevronLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Trotro Tales</Text>
+        <Text style={s.headerTitle}>Troski Tales</Text>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}
           style={s.newBtn}
@@ -249,6 +263,19 @@ const cardStyles = (isDark: boolean) => {
     captionText: { fontSize: 14, color: t.text },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
+    imageFallback: {
+      width: '100%',
+      aspectRatio: 4 / 3,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : '#fffbeb',
+    },
+    fallbackText: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: isDark ? c.amber500 : '#b45309',
+      marginTop: 8,
+    },
   })
 }
 

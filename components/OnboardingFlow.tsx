@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   Dimensions,
   FlatList,
   StyleSheet,
+  Animated,
   type ViewToken,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { MapPin, Coins, Camera, Trophy, Zap, ChevronRight } from 'lucide-react-native'
+import { MapPin, Bell, ChevronRight } from 'lucide-react-native'
 import { c } from '@/lib/theme'
 
 const { width } = Dimensions.get('window')
@@ -23,6 +24,37 @@ interface OnboardingSlide {
   gradientColors: [string, string, string]
   accentColor: string
   features: string[]
+}
+
+// Animated bell that rocks back and forth like the PWA onboarding
+function AnimatedBellIcon() {
+  const rotation = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const ring = Animated.sequence([
+      Animated.timing(rotation, { toValue: -8, duration: 75, useNativeDriver: true }),
+      Animated.timing(rotation, { toValue: 8, duration: 75, useNativeDriver: true }),
+      Animated.timing(rotation, { toValue: -8, duration: 75, useNativeDriver: true }),
+      Animated.timing(rotation, { toValue: 8, duration: 75, useNativeDriver: true }),
+      Animated.timing(rotation, { toValue: 0, duration: 75, useNativeDriver: true }),
+    ])
+    const animation = Animated.loop(
+      Animated.sequence([ring, Animated.delay(2500)])
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [rotation])
+
+  const spin = rotation.interpolate({
+    inputRange: [-10, 10],
+    outputRange: ['-10deg', '10deg'],
+  })
+
+  return (
+    <Animated.View style={{ transform: [{ rotate: spin }] }}>
+      <Bell size={52} color={c.white} strokeWidth={1.5} />
+    </Animated.View>
+  )
 }
 
 const SLIDES: OnboardingSlide[] = [
@@ -43,7 +75,7 @@ const SLIDES: OnboardingSlide[] = [
     subtitle: 'One last thing',
     description:
       'Get alerts when fares change or traffic builds up on your routes.',
-    icon: Zap,
+    icon: Bell,
     gradientColors: ['#3b82f6', '#6366f1', '#8b5cf6'],
     accentColor: '#60a5fa',
     features: ['Fare changes', 'Traffic alerts'],
@@ -94,7 +126,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
         {/* Icon */}
         <View style={styles.iconCircle}>
-          <Icon size={52} color={c.white} strokeWidth={1.5} />
+          {item.id === 'activity' ? (
+            <AnimatedBellIcon />
+          ) : (
+            <Icon size={52} color={c.white} strokeWidth={1.5} />
+          )}
         </View>
 
         {/* Title */}
