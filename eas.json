@@ -13,20 +13,22 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-apple-team-id"
+        "appleId": "samedwalker50@gmail.com",
+        "ascAppId": "6758959524",
+        "appleTeamId": "6NVKXYM5TK"
       },
       "android": {
         "serviceAccountKeyPath": "./google-services.json",

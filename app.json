@@ -20,7 +20,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Take photos for Trotro Tales to share with the community.",
         "NSPhotoLibraryUsageDescription": "Select photos from your library for Trotro Tales.",
-        "NSPhotoLibraryAddUsageDescription": "Save photos to your library."
+        "NSPhotoLibraryAddUsageDescription": "Save photos to your library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,7 +35,13 @@
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -71,6 +78,12 @@
       },
       "router": {}
     },
-    "owner": "swalker01"
+    "owner": "swalker01",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d62638cb-9c06-4aac-8e00-cbf7598ed47f"
+    }
   }
 }
