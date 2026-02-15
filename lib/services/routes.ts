@@ -16,10 +16,21 @@ export async function fetchRoutes(from?: string, to?: string): Promise<RouteWith
 
   const { data: fareStats } = await supabase.from('route_fare_stats').select('*')
 
-  return routes.map((route: Route) => ({
+  const routesWithStats = routes.map((route: Route) => ({
     ...route,
     fare_stats: fareStats?.find((fs: RouteFareStats) => fs.route_id === route.id) || null,
   }))
+
+  // Sort: recently reported first, then popular, then alphabetical
+  routesWithStats.sort((a, b) => {
+    const aTime = a.fare_stats?.last_report_at ? new Date(a.fare_stats.last_report_at).getTime() : 0
+    const bTime = b.fare_stats?.last_report_at ? new Date(b.fare_stats.last_report_at).getTime() : 0
+    if (bTime !== aTime) return bTime - aTime
+    if (a.is_popular !== b.is_popular) return a.is_popular ? -1 : 1
+    return a.from_location.localeCompare(b.from_location)
+  })
+
+  return routesWithStats
 }
 
 export async function fetchPopularRoutes(): Promise<RouteWithStats[]> {
