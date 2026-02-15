@@ -43,7 +43,6 @@ function TaleCard({
   onLike: () => void
   onComment: () => void
 }) {
-  const [imageError, setImageError] = useState(false)
   const t = themed(isDark)
   const s = cardStyles(isDark)
 
@@ -77,21 +76,21 @@ function TaleCard({
         </View>
       </View>
 
-      {/* Image */}
-      {imageError || !post.image_url ? (
+      {/* Image — fallback always rendered behind, image covers it when loaded */}
+      <View style={s.imageContainer}>
         <View style={s.imageFallback}>
           <Camera size={32} color={c.amber500} />
           <Text style={s.fallbackText}>Troski Tales</Text>
         </View>
-      ) : (
-        <Image
-          source={{ uri: post.image_url }}
-          style={s.image}
-          contentFit="cover"
-          transition={300}
-          onError={() => setImageError(true)}
-        />
-      )}
+        {post.image_url ? (
+          <Image
+            source={{ uri: post.image_url }}
+            style={s.imageOverlay}
+            contentFit="cover"
+            transition={300}
+          />
+        ) : null}
+      </View>
 
       {/* Actions */}
       <View style={s.actions}>
@@ -245,7 +244,12 @@ const cardStyles = (isDark: boolean) => {
     typeEmoji: { fontSize: 14, marginLeft: 6 },
     location: { fontSize: 12, color: t.textTertiary, marginLeft: 4 },
     timeText: { fontSize: 12, color: t.textTertiary },
-    image: { width: '100%', aspectRatio: 4 / 3 },
+    imageContainer: {
+      height: (Dimensions.get('window').width - 32) * 3 / 4,
+    },
+    imageOverlay: {
+      ...StyleSheet.absoluteFillObject,
+    },
     actions: {
       flexDirection: 'row',
       paddingHorizontal: 14,
@@ -265,11 +269,10 @@ const cardStyles = (isDark: boolean) => {
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
     imageFallback: {
-      // Explicit height — iOS doesn't compute height from width + aspectRatio on Views
-      height: (Dimensions.get('window').width - 32) * 3 / 4,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : '#fffbeb',
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#1f1710' : '#fff7ed',
     },
     fallbackText: {
       fontSize: 14,
