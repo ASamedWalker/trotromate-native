@@ -76,21 +76,20 @@ function TaleCard({
         </View>
       </View>
 
-      {/* Image — fallback always rendered behind, image covers it when loaded */}
-      <View style={s.imageContainer}>
+      {/* Image */}
+      {post.image_url ? (
+        <Image
+          source={{ uri: post.image_url }}
+          style={s.image}
+          contentFit="cover"
+          transition={300}
+        />
+      ) : (
         <View style={s.imageFallback}>
           <Camera size={32} color={c.amber500} />
           <Text style={s.fallbackText}>Troski Tales</Text>
         </View>
-        {post.image_url ? (
-          <Image
-            source={{ uri: post.image_url }}
-            style={s.imageOverlay}
-            contentFit="cover"
-            transition={300}
-          />
-        ) : null}
-      </View>
+      )}
 
       {/* Actions */}
       <View style={s.actions}>
@@ -244,11 +243,8 @@ const cardStyles = (isDark: boolean) => {
     typeEmoji: { fontSize: 14, marginLeft: 6 },
     location: { fontSize: 12, color: t.textTertiary, marginLeft: 4 },
     timeText: { fontSize: 12, color: t.textTertiary },
-    imageContainer: {
+    image: {
       height: (Dimensions.get('window').width - 32) * 3 / 4,
-    },
-    imageOverlay: {
-      ...StyleSheet.absoluteFillObject,
     },
     actions: {
       flexDirection: 'row',
@@ -269,9 +265,9 @@ const cardStyles = (isDark: boolean) => {
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
     imageFallback: {
-      ...StyleSheet.absoluteFillObject,
-      alignItems: 'center',
-      justifyContent: 'center',
+      height: (Dimensions.get('window').width - 32) * 3 / 4,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
       backgroundColor: isDark ? '#1f1710' : '#fff7ed',
     },
     fallbackText: {
