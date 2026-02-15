@@ -9,6 +9,9 @@ import {
   RefreshControl,
   Animated,
   PanResponder,
+  LayoutAnimation,
+  Platform,
+  UIManager,
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -27,6 +30,11 @@ const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = 
   incident: { icon: AlertTriangle, color: c.red500 },
   tale: { icon: Camera, color: c.pink500 },
   train: { icon: TrainFront, color: '#0ea5e9' },
+}
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 const SWIPE_THRESHOLD = -80
@@ -75,8 +83,6 @@ function SwipeableRow({
   onDismiss: (id: string) => void
 }) {
   const translateX = useRef(new Animated.Value(0)).current
-  const rowHeight = useRef(new Animated.Value(78)).current
-  const rowOpacity = useRef(new Animated.Value(1)).current
 
   const panResponder = useRef(
     PanResponder.create({
@@ -87,31 +93,21 @@ function SwipeableRow({
       },
       onPanResponderRelease: (_, gs) => {
         if (gs.dx < SWIPE_THRESHOLD) {
-          // Animate off screen, then collapse height
-          Animated.sequence([
-            Animated.timing(translateX, {
-              toValue: -400,
-              duration: 200,
-              useNativeDriver: false,
-            }),
-            Animated.parallel([
-              Animated.timing(rowHeight, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: false,
-              }),
-              Animated.timing(rowOpacity, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: false,
-              }),
-            ]),
-          ]).start(() => onDismiss(item.id))
+          // Slide off screen using native driver (smooth on iOS)
+          Animated.timing(translateX, {
+            toValue: -400,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            // LayoutAnimation handles the row collapse smoothly
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            onDismiss(item.id)
+          })
         } else {
           // Snap back
           Animated.spring(translateX, {
             toValue: 0,
-            useNativeDriver: false,
+            useNativeDriver: true,
             friction: 8,
           }).start()
         }
@@ -124,7 +120,7 @@ function SwipeableRow({
   const Icon = config.icon
 
   return (
-    <Animated.View style={{ height: rowHeight, opacity: rowOpacity, overflow: 'hidden' }}>
+    <View style={{ overflow: 'hidden' }}>
       {/* Red delete background */}
       <View style={swipeStyles.deleteBackground}>
         <Trash2 size={20} color={c.white} />
@@ -155,7 +151,7 @@ function SwipeableRow({
         </View>
         <Text style={[swipeStyles.time, { color: t.textTertiary }]}>{timeAgo(item.timestamp)}</Text>
       </Animated.View>
-    </Animated.View>
+    </View>
   )
 }
 

@@ -77,7 +77,7 @@ function TaleCard({
       </View>
 
       {/* Image */}
-      {imageError ? (
+      {imageError || !post.image_url ? (
         <View style={s.imageFallback}>
           <Camera size={32} color={c.amber500} />
           <Text style={s.fallbackText}>Troski Tales</Text>
