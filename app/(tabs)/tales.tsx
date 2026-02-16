@@ -76,7 +76,7 @@ function TaleCard({
         </View>
       </View>
 
-      {/* Image */}
+      {/* Image — only render if post has one */}
       {post.image_url ? (
         <Image
           source={{ uri: post.image_url }}
@@ -84,12 +84,7 @@ function TaleCard({
           contentFit="cover"
           transition={300}
         />
-      ) : (
-        <View style={s.imageFallback}>
-          <Camera size={32} color={c.amber500} />
-          <Text style={s.fallbackText}>Troski Tales</Text>
-        </View>
-      )}
+      ) : null}
 
       {/* Actions */}
       <View style={s.actions}>
@@ -264,18 +259,6 @@ const cardStyles = (isDark: boolean) => {
     captionText: { fontSize: 14, color: t.text },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
-    imageFallback: {
-      height: (Dimensions.get('window').width - 32) * 3 / 4,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: isDark ? '#1f1710' : '#fff7ed',
-    },
-    fallbackText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: isDark ? c.amber500 : '#b45309',
-      marginTop: 8,
-    },
   })
 }
 
