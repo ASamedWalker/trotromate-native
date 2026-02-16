@@ -84,20 +84,20 @@ function TaleCard({
           deviceId={post.device_id}
           size={40}
         />
-        <View style={{ flex: 1, marginLeft: 10 }}>
+        <View style={{ flex: 1, marginLeft: 10, marginRight: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={s.name}>{displayName}</Text>
+            <Text style={s.name} numberOfLines={1}>{displayName}</Text>
             <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MapPin size={12} color={t.textTertiary} />
-            <Text style={s.location}>{post.location_name}</Text>
+            <Text style={s.location} numberOfLines={1}>{post.location_name}</Text>
             <Text style={s.timeText}> · {timeAgo(post.created_at)}</Text>
           </View>
         </View>
 
         {/* 3-dot menu (all posts) */}
-        <View>
+        <View style={{ flexShrink: 0 }}>
           <TouchableOpacity
             onPress={() => setShowMenu(!showMenu)}
             activeOpacity={0.7}
@@ -309,9 +309,9 @@ const cardStyles = (isDark: boolean) => {
       alignItems: 'center',
       padding: 14,
     },
-    name: { fontFamily: font.semibold, fontSize: 14, color: t.text },
+    name: { fontFamily: font.semibold, fontSize: 14, color: t.text, flexShrink: 1 },
     typeEmoji: { fontSize: 14, marginLeft: 6 },
-    location: { fontSize: 12, color: t.textTertiary, marginLeft: 4 },
+    location: { fontSize: 12, color: t.textTertiary, marginLeft: 4, flexShrink: 1 },
     timeText: { fontSize: 12, color: t.textTertiary },
     image: {
       height: (Dimensions.get('window').width - 32) * 3 / 4,
