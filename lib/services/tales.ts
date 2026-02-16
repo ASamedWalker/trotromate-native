@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system'
 import { supabase } from '@/lib/supabase/client'
 import type { TalePost, TalePostType } from '@/lib/types'
 
@@ -87,12 +88,12 @@ export async function submitTale(params: {
   try {
     // Upload image to Supabase storage
     const fileName = `${deviceId}-${Date.now()}.jpg`
-    const response = await fetch(imageUri)
-    const blob = await response.blob()
+    const file = new File(imageUri)
+    const arrayBuffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabase.storage
       .from('tale-images')
-      .upload(fileName, blob, { contentType: 'image/jpeg' })
+      .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' })
 
     let imageUrl = ''
     if (uploadError) {

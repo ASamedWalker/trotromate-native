@@ -14,7 +14,7 @@ import {
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, MoreHorizontal, Trash2 } from 'lucide-react-native'
+import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, MoreHorizontal, Trash2, Flag } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -39,6 +39,7 @@ function TaleCard({
   onLike,
   onComment,
   onDelete,
+  onReport,
 }: {
   post: TalePost
   isDark: boolean
@@ -47,6 +48,7 @@ function TaleCard({
   onLike: () => void
   onComment: () => void
   onDelete?: () => void
+  onReport: () => void
 }) {
   const t = themed(isDark)
   const s = cardStyles(isDark)
@@ -67,6 +69,11 @@ function TaleCard({
       { text: 'Delete', style: 'destructive', onPress: onDelete },
     ])
   }, [onDelete])
+
+  const handleReport = useCallback(() => {
+    setShowMenu(false)
+    onReport()
+  }, [onReport])
 
   return (
     <View style={s.card}>
@@ -89,25 +96,33 @@ function TaleCard({
           </View>
         </View>
 
-        {/* 3-dot menu (own posts only) */}
-        {isOwn && (
-          <View>
-            <TouchableOpacity
-              onPress={() => setShowMenu(!showMenu)}
-              activeOpacity={0.7}
-              style={s.menuBtn}
-            >
-              <MoreHorizontal size={20} color={t.textTertiary} />
-            </TouchableOpacity>
+        {/* 3-dot menu (all posts) */}
+        <View>
+          <TouchableOpacity
+            onPress={() => setShowMenu(!showMenu)}
+            activeOpacity={0.7}
+            style={s.menuBtn}
+          >
+            <MoreHorizontal size={20} color={t.textTertiary} />
+          </TouchableOpacity>
 
-            {showMenu && (
-              <>
+          {showMenu && (
+            <>
+              <TouchableOpacity
+                style={s.menuOverlay}
+                activeOpacity={1}
+                onPress={() => setShowMenu(false)}
+              />
+              <View style={s.menuDropdown}>
                 <TouchableOpacity
-                  style={s.menuOverlay}
-                  activeOpacity={1}
-                  onPress={() => setShowMenu(false)}
-                />
-                <View style={s.menuDropdown}>
+                  onPress={handleReport}
+                  activeOpacity={0.7}
+                  style={s.menuItem}
+                >
+                  <Flag size={16} color={t.textSecondary} />
+                  <Text style={s.menuItemText}>Report</Text>
+                </TouchableOpacity>
+                {isOwn && onDelete && (
                   <TouchableOpacity
                     onPress={handleDelete}
                     activeOpacity={0.7}
@@ -116,11 +131,11 @@ function TaleCard({
                     <Trash2 size={16} color={c.red500} />
                     <Text style={s.menuItemTextDanger}>Delete</Text>
                   </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        )}
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Image — only render if post has one */}
@@ -191,6 +206,16 @@ export default function TalesScreen() {
     toggleLike(id)
   }
 
+  const handleReport = (postId: string) => {
+    Alert.alert('Report Tale', 'Are you sure you want to report this tale as inappropriate?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Report', style: 'destructive', onPress: () => {
+        // TODO: send report to backend
+        Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+      }},
+    ])
+  }
+
   const renderItem = ({ item }: { item: TalePost }) => (
     <TaleCard
       post={item}
@@ -200,6 +225,7 @@ export default function TalesScreen() {
       onLike={() => handleLike(item.id)}
       onComment={() => setCommentPostId(item.id)}
       onDelete={() => deletePost(item.id)}
+      onReport={() => handleReport(item.id)}
     />
   )
 
@@ -346,6 +372,11 @@ const cardStyles = (isDark: boolean) => {
       gap: 10,
       paddingHorizontal: 14,
       paddingVertical: 10,
+    },
+    menuItemText: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: t.text,
     },
     menuItemTextDanger: {
       fontSize: 14,
