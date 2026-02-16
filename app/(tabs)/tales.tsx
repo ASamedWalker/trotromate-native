@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   FlatList,
   useColorScheme,
   ActivityIndicator,
@@ -14,7 +15,7 @@ import {
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, MoreHorizontal, Trash2, Flag } from 'lucide-react-native'
+import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -84,7 +85,7 @@ function TaleCard({
           deviceId={post.device_id}
           size={40}
         />
-        <View style={{ flex: 1, marginLeft: 10 }}>
+        <View style={{ flex: 1, marginLeft: 10, marginRight: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
             <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
@@ -96,47 +97,45 @@ function TaleCard({
           </View>
         </View>
 
-        {/* 3-dot menu (all posts) */}
-        <View style={s.menuWrapper}>
-          <TouchableOpacity
-            onPress={() => setShowMenu(!showMenu)}
-            activeOpacity={0.7}
-            style={s.menuBtn}
-          >
-            <MoreHorizontal size={20} color={t.textTertiary} />
-          </TouchableOpacity>
-
-          {showMenu && (
-            <>
-              <TouchableOpacity
-                style={s.menuOverlay}
-                activeOpacity={1}
-                onPress={() => setShowMenu(false)}
-              />
-              <View style={s.menuDropdown}>
-                <TouchableOpacity
-                  onPress={handleReport}
-                  activeOpacity={0.7}
-                  style={s.menuItem}
-                >
-                  <Flag size={16} color={t.textSecondary} />
-                  <Text style={s.menuItemText}>Report</Text>
-                </TouchableOpacity>
-                {isOwn && onDelete && (
-                  <TouchableOpacity
-                    onPress={handleDelete}
-                    activeOpacity={0.7}
-                    style={s.menuItem}
-                  >
-                    <Trash2 size={16} color={c.red500} />
-                    <Text style={s.menuItemTextDanger}>Delete</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
-        </View>
+        {/* 3-dot menu — Pressable for Android compatibility */}
+        <Pressable
+          onPress={() => setShowMenu(!showMenu)}
+          style={s.menuBtn}
+          hitSlop={8}
+        >
+          <Text style={s.menuDots}>•••</Text>
+        </Pressable>
       </View>
+
+      {/* Menu dropdown — rendered as card child to avoid overflow clipping */}
+      {showMenu && (
+        <>
+          <Pressable
+            style={s.menuOverlay}
+            onPress={() => setShowMenu(false)}
+          />
+          <View style={s.menuDropdown}>
+            <TouchableOpacity
+              onPress={handleReport}
+              activeOpacity={0.7}
+              style={s.menuItem}
+            >
+              <Flag size={16} color={t.textSecondary} />
+              <Text style={s.menuItemText}>Report</Text>
+            </TouchableOpacity>
+            {isOwn && onDelete && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                activeOpacity={0.7}
+                style={s.menuItem}
+              >
+                <Trash2 size={16} color={c.red500} />
+                <Text style={s.menuItemTextDanger}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+      )}
 
       {/* Image — only render if post has one */}
       {post.image_url ? (
@@ -334,18 +333,19 @@ const cardStyles = (isDark: boolean) => {
     captionText: { fontSize: 14, color: t.text },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
-    menuWrapper: {
-      width: 40,
-      height: 40,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
     menuBtn: {
       width: 36,
       height: 36,
       borderRadius: 18,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+    },
+    menuDots: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: t.textTertiary,
+      letterSpacing: 2,
     },
     menuOverlay: {
       position: 'absolute' as const,
@@ -357,8 +357,8 @@ const cardStyles = (isDark: boolean) => {
     },
     menuDropdown: {
       position: 'absolute' as const,
-      right: 0,
-      top: 36,
+      right: 14,
+      top: 54,
       zIndex: 20,
       backgroundColor: isDark ? '#292524' : '#ffffff',
       borderRadius: 14,
