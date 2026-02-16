@@ -84,7 +84,7 @@ function TaleCard({
           deviceId={post.device_id}
           size={40}
         />
-        <View style={{ flex: 1, marginLeft: 10, marginRight: 4 }}>
+        <View style={{ flex: 1, marginLeft: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
             <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
@@ -97,7 +97,7 @@ function TaleCard({
         </View>
 
         {/* 3-dot menu (all posts) */}
-        <View style={{ flexShrink: 0 }}>
+        <View style={s.menuWrapper}>
           <TouchableOpacity
             onPress={() => setShowMenu(!showMenu)}
             activeOpacity={0.7}
@@ -334,10 +334,16 @@ const cardStyles = (isDark: boolean) => {
     captionText: { fontSize: 14, color: t.text },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
+    menuWrapper: {
+      width: 40,
+      height: 40,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
     menuBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
