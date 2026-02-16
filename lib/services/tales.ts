@@ -60,6 +60,20 @@ export async function unlikeTale(postId: string, deviceId: string): Promise<bool
   return true
 }
 
+export async function deleteTale(postId: string, deviceId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('tale_posts')
+    .delete()
+    .eq('id', postId)
+    .eq('device_id', deviceId)
+
+  if (error) {
+    console.error('Error deleting tale:', error)
+    return false
+  }
+  return true
+}
+
 export async function submitTale(params: {
   deviceId: string
   displayName: string | null

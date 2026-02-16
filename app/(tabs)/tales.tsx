@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   RefreshControl,
   Dimensions,
   StyleSheet,
+  Alert,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft } from 'lucide-react-native'
+import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, MoreHorizontal, Trash2 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -34,17 +35,22 @@ function TaleCard({
   post,
   isDark,
   isLiked,
+  isOwn,
   onLike,
   onComment,
+  onDelete,
 }: {
   post: TalePost
   isDark: boolean
   isLiked: boolean
+  isOwn: boolean
   onLike: () => void
   onComment: () => void
+  onDelete?: () => void
 }) {
   const t = themed(isDark)
   const s = cardStyles(isDark)
+  const [showMenu, setShowMenu] = useState(false)
 
   const postTypeEmoji: Record<string, string> = {
     trip: '🚐',
@@ -53,6 +59,14 @@ function TaleCard({
   }
 
   const displayName = getDisplayName(post)
+
+  const handleDelete = useCallback(() => {
+    setShowMenu(false)
+    Alert.alert('Delete Tale', 'Are you sure you want to delete this tale?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: onDelete },
+    ])
+  }, [onDelete])
 
   return (
     <View style={s.card}>
@@ -74,6 +88,39 @@ function TaleCard({
             <Text style={s.timeText}> · {timeAgo(post.created_at)}</Text>
           </View>
         </View>
+
+        {/* 3-dot menu (own posts only) */}
+        {isOwn && (
+          <View>
+            <TouchableOpacity
+              onPress={() => setShowMenu(!showMenu)}
+              activeOpacity={0.7}
+              style={s.menuBtn}
+            >
+              <MoreHorizontal size={20} color={t.textTertiary} />
+            </TouchableOpacity>
+
+            {showMenu && (
+              <>
+                <TouchableOpacity
+                  style={s.menuOverlay}
+                  activeOpacity={1}
+                  onPress={() => setShowMenu(false)}
+                />
+                <View style={s.menuDropdown}>
+                  <TouchableOpacity
+                    onPress={handleDelete}
+                    activeOpacity={0.7}
+                    style={s.menuItem}
+                  >
+                    <Trash2 size={16} color={c.red500} />
+                    <Text style={s.menuItemTextDanger}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Image — only render if post has one */}
@@ -132,7 +179,7 @@ export default function TalesScreen() {
   const t = themed(isDark)
 
   const { deviceId } = useApp()
-  const { posts, isLoading, isRefreshing, hasMore, likedIds, refresh, loadMore, toggleLike } =
+  const { posts, isLoading, isRefreshing, hasMore, likedIds, refresh, loadMore, toggleLike, deletePost } =
     useTalesFeed(deviceId)
   useRefreshOnFocus([['tales', deviceId]])
   const haptics = useHaptics()
@@ -149,8 +196,10 @@ export default function TalesScreen() {
       post={item}
       isDark={isDark}
       isLiked={likedIds.has(item.id)}
+      isOwn={item.device_id === deviceId}
       onLike={() => handleLike(item.id)}
       onComment={() => setCommentPostId(item.id)}
+      onDelete={() => deletePost(item.id)}
     />
   )
 
@@ -259,6 +308,50 @@ const cardStyles = (isDark: boolean) => {
     captionText: { fontSize: 14, color: t.text },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
     viewCommentsText: { fontSize: 13, color: t.textTertiary },
+    menuBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    menuOverlay: {
+      position: 'absolute' as const,
+      top: -200,
+      left: -400,
+      right: -400,
+      bottom: -800,
+      zIndex: 10,
+    },
+    menuDropdown: {
+      position: 'absolute' as const,
+      right: 0,
+      top: 36,
+      zIndex: 20,
+      backgroundColor: isDark ? '#292524' : '#ffffff',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? '#44403c' : '#e7e5e4',
+      paddingVertical: 4,
+      minWidth: 140,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    menuItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    menuItemTextDanger: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: c.red500,
+    },
   })
 }
 

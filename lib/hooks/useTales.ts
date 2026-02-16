@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchTales, likeTale, unlikeTale, submitTale } from '@/lib/services/tales'
+import { fetchTales, likeTale, unlikeTale, deleteTale, submitTale } from '@/lib/services/tales'
 import { awardPointsForReport } from '@/lib/services/rewards'
 import type { TalePost, TalePostType, RewardResult } from '@/lib/types'
 
@@ -89,6 +89,26 @@ export function useTalesFeed(deviceId: string | null) {
     [deviceId, likedIds]
   )
 
+  const deletePost = useCallback(
+    async (postId: string) => {
+      if (!deviceId) return
+
+      // Optimistic removal
+      const removedPost = posts.find((p) => p.id === postId)
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+
+      const success = await deleteTale(postId, deviceId)
+
+      if (!success && removedPost) {
+        // Revert
+        setPosts((prev) => [...prev, removedPost].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ))
+      }
+    },
+    [deviceId, posts]
+  )
+
   return {
     posts,
     isLoading,
@@ -98,6 +118,7 @@ export function useTalesFeed(deviceId: string | null) {
     refresh,
     loadMore,
     toggleLike,
+    deletePost,
   }
 }
 
