@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
+import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 
 const REPORT_OPTIONS = [
@@ -21,6 +21,14 @@ const REPORT_OPTIONS = [
     icon: TrendingUp,
     color: c.amber500,
     route: '/report/fare',
+  },
+  {
+    id: 'okada',
+    title: 'Okada Fare',
+    subtitle: '+10 pts',
+    icon: Bike,
+    color: c.orange500,
+    route: '/report/fare?transport_type=okada',
   },
   {
     id: 'queue',
