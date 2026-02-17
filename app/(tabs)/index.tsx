@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   RefreshControl,
   useColorScheme,
   ActivityIndicator,
@@ -14,25 +15,41 @@ import { useRouter, type Href } from 'expo-router'
 import {
   Search,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   User,
   TrainFront,
-  MapPin,
-  Clock,
-  Flame,
   Zap,
+  Flame,
+  Bus,
+  Bike,
+  TrendingUp,
+  Camera,
+  Heart,
+  Navigation,
+  ArrowRight,
+  Timer,
+  Trophy,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
-import PopularRoutesScroller from '@/components/PopularRoutesScroller'
+import { useFavorites } from '@/lib/hooks/useFavorites'
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
 import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import type { RouteWithStats } from '@/lib/types'
+
+/* ── Quick Actions ────────────────────────────────────── */
+
+const QUICK_ACTIONS = [
+  { label: 'Trotro', subtitle: 'Routes', icon: Bus, color: c.amber500, href: '/routes' },
+  { label: 'Okada', subtitle: 'Fares', icon: Bike, color: c.orange500, href: '/routes?transport=okada' },
+  { label: 'Train', subtitle: 'Schedule', icon: TrainFront, color: '#0ea5e9', href: '/train' },
+  { label: 'Report', subtitle: 'Earn pts', icon: TrendingUp, color: c.violet500, href: '/(tabs)/report' },
+  { label: 'Tales', subtitle: 'Stories', icon: Camera, color: c.pink500, href: '/(tabs)/tales' },
+] as const
 
 /* ── helpers ─────────────────────────────────────────── */
 
@@ -116,13 +133,14 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
+  const t = themed(isDark)
 
   const { profile } = useApp()
   const { routes: popularRoutes, isLoading, refetch: refetchRoutes } = usePopularRoutes()
+  const { favorites } = useFavorites()
   useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
   const [refreshing, setRefreshing] = useState(false)
-  const [exploreOpen, setExploreOpen] = useState(true)
   const greeting = useMemo(() => getGreeting(), [])
   const nextTrain = useMemo(() => getNextTrain(), [])
 
@@ -135,6 +153,40 @@ export default function HomeScreen() {
   const levelName = profile?.current_level
     ? profile.current_level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
     : null
+
+  const renderRouteCard = useCallback(({ item: route }: { item: RouteWithStats }) => (
+    <TouchableOpacity
+      key={route.id}
+      onPress={() => router.push(`/routes/${route.id}` as Href)}
+      activeOpacity={0.8}
+      style={s.routeCard}
+    >
+      <View style={s.routeCardIcon}>
+        <Navigation size={14} color={c.amber500} />
+      </View>
+      <View style={s.routeCardNames}>
+        <Text style={s.routeCardFrom} numberOfLines={1}>{route.from_location}</Text>
+        <ArrowRight size={10} color={c.amber500} />
+        <Text style={s.routeCardTo} numberOfLines={1}>{route.to_location}</Text>
+      </View>
+      <View style={s.routeCardMeta}>
+        <Timer size={10} color={t.textSecondary} />
+        <Text style={s.routeCardMetaText}>{route.estimated_duration_mins} min</Text>
+      </View>
+      <Text style={s.routeCardFare}>₵{route.official_fare.toFixed(2)}</Text>
+    </TouchableOpacity>
+  ), [isDark])
+
+  const renderSavedRoute = useCallback(({ item }: { item: typeof favorites[0] }) => (
+    <TouchableOpacity
+      onPress={() => router.push(`/routes/${item.id}` as Href)}
+      activeOpacity={0.8}
+      style={s.savedChip}
+    >
+      <Heart size={12} color={c.red500} fill={c.red500} />
+      <Text style={s.savedChipText} numberOfLines={1}>{item.from} → {item.to}</Text>
+    </TouchableOpacity>
+  ), [isDark])
 
   return (
     <SafeAreaView style={s.container}>
@@ -193,6 +245,27 @@ export default function HomeScreen() {
           <Search size={18} color={c.amber500} />
           <Text style={s.searchText}>Where are you going?</Text>
         </TouchableOpacity>
+
+        {/* ── Quick Actions ── */}
+        <View style={s.quickActionsRow}>
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon
+            return (
+              <TouchableOpacity
+                key={action.label}
+                onPress={() => router.push(action.href as Href)}
+                activeOpacity={0.7}
+                style={s.quickAction}
+              >
+                <View style={[s.quickActionIcon, { backgroundColor: action.color }]}>
+                  <Icon size={20} color={c.white} />
+                </View>
+                <Text style={s.quickActionLabel}>{action.label}</Text>
+                <Text style={s.quickActionSub}>{action.subtitle}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
 
         {/* ── Promo Banner ── */}
         <PromoBanner
@@ -254,79 +327,85 @@ export default function HomeScreen() {
           <ChevronRight size={16} color="#38bdf8" />
         </TouchableOpacity>
 
-        <View style={s.content}>
-          {/* ── Popular Routes ── */}
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Popular Routes</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/routes')}
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-            >
-              <Text style={s.seeAll}>See all</Text>
-              <ChevronRight size={16} color={c.amber500} />
-            </TouchableOpacity>
-          </View>
-
-          {isLoading ? (
-            <ActivityIndicator size="small" color={c.amber500} style={{ marginVertical: 40 }} />
-          ) : (
-            <PopularRoutesScroller routes={popularRoutes} isDark={isDark} visibleHeight={exploreOpen ? 210 : 400} />
-          )}
-
-          {/* ── Explore ── */}
+        {/* ── Popular Routes ── */}
+        <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 20 }]}>
+          <Text style={s.sectionTitle}>Popular Routes</Text>
           <TouchableOpacity
-            onPress={() => setExploreOpen((v) => !v)}
-            activeOpacity={0.7}
-            style={[s.sectionHeader, { marginTop: 24 }]}
+            onPress={() => router.push('/routes')}
+            style={{ flexDirection: 'row', alignItems: 'center' }}
           >
-            <Text style={s.sectionTitle}>Explore</Text>
-            {exploreOpen ? (
-              <ChevronUp size={20} color={c.amber500} />
-            ) : (
-              <ChevronDown size={20} color={c.amber500} />
-            )}
+            <Text style={s.seeAll}>See all</Text>
+            <ChevronRight size={16} color={c.amber500} />
           </TouchableOpacity>
-
-          {exploreOpen && <View style={s.exploreRow}>
-            <TouchableOpacity
-              onPress={() => router.push('/train' as Href)}
-              activeOpacity={0.8}
-              style={s.exploreCard}
-            >
-              <View style={[s.exploreIcon, { backgroundColor: '#0ea5e9' }]}>
-                <TrainFront size={20} color={c.white} />
-              </View>
-              <Text style={s.exploreTitle}>Train Lines</Text>
-              <Text style={s.exploreSub}>Live schedules</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/routes')}
-              activeOpacity={0.8}
-              style={s.exploreCard}
-            >
-              <View style={[s.exploreIcon, { backgroundColor: c.amber500 }]}>
-                <MapPin size={20} color={c.white} />
-              </View>
-              <Text style={s.exploreTitle}>Trotro Routes</Text>
-              <Text style={s.exploreSub}>Browse & search</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/report' as Href)}
-              activeOpacity={0.8}
-              style={s.exploreCard}
-            >
-              <View style={[s.exploreIcon, { backgroundColor: c.violet500 }]}>
-                <Clock size={20} color={c.white} />
-              </View>
-              <Text style={s.exploreTitle}>Report</Text>
-              <Text style={s.exploreSub}>Earn points</Text>
-            </TouchableOpacity>
-          </View>}
-
-          <View style={{ height: 40 }} />
         </View>
+
+        {isLoading ? (
+          <ActivityIndicator size="small" color={c.amber500} style={{ marginVertical: 40 }} />
+        ) : (
+          <FlatList
+            data={popularRoutes.slice(0, 8)}
+            renderItem={renderRouteCard}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            scrollEnabled
+            nestedScrollEnabled
+          />
+        )}
+
+        {/* ── Saved Routes ── */}
+        {favorites.length > 0 && (
+          <>
+            <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 24 }]}>
+              <Text style={s.sectionTitle}>Saved Routes</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/routes?filter=saved' as Href)}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <Text style={s.seeAll}>See all</Text>
+                <ChevronRight size={16} color={c.amber500} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={favorites.slice(0, 6)}
+              renderItem={renderSavedRoute}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+              scrollEnabled
+              nestedScrollEnabled
+            />
+          </>
+        )}
+
+        {/* ── Community ── */}
+        <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 24 }]}>
+          <Text style={s.sectionTitle}>Community</Text>
+        </View>
+        <View style={s.communityRow}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/tales' as Href)}
+            activeOpacity={0.8}
+            style={[s.communityCard, s.communityTales]}
+          >
+            <Camera size={24} color={c.pink500} />
+            <Text style={s.communityCardTitle}>Trotro Tales</Text>
+            <Text style={s.communityCardSub}>Share your commute stories</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile' as Href)}
+            activeOpacity={0.8}
+            style={[s.communityCard, s.communityRewards]}
+          >
+            <Trophy size={24} color={c.violet500} />
+            <Text style={s.communityCardTitle}>Rewards</Text>
+            <Text style={s.communityCardSub}>Earn points & climb ranks</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
       <ReportFAB />
     </SafeAreaView>
@@ -410,6 +489,40 @@ const getStyles = (isDark: boolean) => {
       color: t.textSecondary,
     },
 
+    // Quick Actions
+    quickActionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      marginTop: 16,
+      marginBottom: 4,
+    },
+    quickAction: {
+      alignItems: 'center',
+      width: 56,
+    },
+    quickActionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    quickActionLabel: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.text,
+      textAlign: 'center',
+    },
+    quickActionSub: {
+      fontSize: 10,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      textAlign: 'center',
+      marginTop: 1,
+    },
+
     // Train widget
     trainWidget: {
       flexDirection: 'row',
@@ -454,9 +567,6 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: '#22c55e',
     },
 
-    // Content
-    content: { paddingHorizontal: 20, paddingTop: 20 },
-
     // Section headers
     sectionHeader: {
       flexDirection: 'row',
@@ -475,41 +585,109 @@ const getStyles = (isDark: boolean) => {
       fontSize: 14,
     },
 
-    // Explore
-    exploreRow: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    exploreCard: {
-      flex: 1,
+    // Popular route cards (horizontal scroll)
+    routeCard: {
+      width: 180,
+      padding: 14,
       backgroundColor: t.card,
       borderRadius: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 10,
       borderWidth: 1,
       borderColor: t.border,
-      alignItems: 'center',
     },
-    exploreIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+    routeCardIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 8,
+      marginBottom: 10,
     },
-    exploreTitle: {
+    routeCardNames: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 4,
+    },
+    routeCardFrom: {
       fontSize: 13,
       fontFamily: font.semibold,
       color: t.text,
-      textAlign: 'center',
+      flexShrink: 1,
     },
-    exploreSub: {
+    routeCardTo: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: t.text,
+      flexShrink: 1,
+    },
+    routeCardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 8,
+    },
+    routeCardMetaText: {
       fontSize: 11,
       fontFamily: font.regular,
       color: t.textSecondary,
+    },
+    routeCardFare: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: c.amber500,
+    },
+
+    // Saved route chips (horizontal scroll)
+    savedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: t.card,
+      borderRadius: 100,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    savedChipText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: t.text,
+      maxWidth: 160,
+    },
+
+    // Community cards
+    communityRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      gap: 12,
+    },
+    communityCard: {
+      flex: 1,
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    communityTales: {
+      backgroundColor: isDark ? 'rgba(236,72,153,0.08)' : 'rgba(236,72,153,0.05)',
+      borderColor: isDark ? 'rgba(236,72,153,0.2)' : 'rgba(236,72,153,0.12)',
+    },
+    communityRewards: {
+      backgroundColor: isDark ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.05)',
+      borderColor: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.12)',
+    },
+    communityCardTitle: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: t.text,
+      marginTop: 10,
+    },
+    communityCardSub: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: t.textSecondary,
       marginTop: 2,
-      textAlign: 'center',
     },
   })
 }
