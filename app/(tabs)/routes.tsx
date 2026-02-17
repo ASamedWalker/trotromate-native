@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   useColorScheme,
   RefreshControl,
   StyleSheet,
@@ -36,7 +37,7 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useRouteAlerts } from '@/lib/hooks/useRouteAlerts'
 
-type Tab = 'all' | 'popular' | 'saved'
+type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
 
 export default function RoutesScreen() {
   const router = useRouter()
@@ -47,11 +48,11 @@ export default function RoutesScreen() {
   const s = getStyles(isDark)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<Tab>('all')
-  const [transportFilter, setTransportFilter] = useState<TransportType | 'all'>(
-    (params.transport as TransportType) || 'all'
+  const [activeFilter, setActiveFilter] = useState<Filter>(
+    (params.transport as Filter) || 'all'
   )
-  const activeTransport = transportFilter === 'all' ? undefined : transportFilter
+  // Derive transport type from unified filter
+  const activeTransport = activeFilter === 'trotro' || activeFilter === 'okada' ? activeFilter : undefined
   const { routes, isLoading, refetch } = useRoutes(params.from, params.to, activeTransport)
   useRefreshOnFocus([['routes', params.from, params.to, activeTransport]])
   const [refreshing, setRefreshing] = useState(false)
@@ -62,10 +63,10 @@ export default function RoutesScreen() {
   const filteredRoutes = useMemo(() => {
     let result = routes
 
-    // Tab filter
-    if (activeTab === 'popular') {
+    // Category filter
+    if (activeFilter === 'popular') {
       result = result.filter((r) => r.is_popular)
-    } else if (activeTab === 'saved') {
+    } else if (activeFilter === 'saved') {
       const favIds = new Set(favorites.map((f) => f.id))
       result = result.filter((r) => favIds.has(r.id))
     }
@@ -81,7 +82,7 @@ export default function RoutesScreen() {
     }
 
     return result
-  }, [routes, activeTab, searchQuery, favorites])
+  }, [routes, activeFilter, searchQuery, favorites])
 
   const handleShare = async (route: RouteWithStats) => {
     haptics.light()
@@ -108,10 +109,12 @@ export default function RoutesScreen() {
     }
   }
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'all', label: 'All', count: routes.length },
-    { key: 'popular', label: 'Popular', count: routes.filter((r) => r.is_popular).length },
-    { key: 'saved', label: 'Saved', count: favorites.length },
+  const filters: { key: Filter; label: string; icon: typeof Bus | null; color: string }[] = [
+    { key: 'all', label: 'All', icon: null, color: c.amber500 },
+    { key: 'trotro', label: 'Trotro', icon: Bus, color: c.amber500 },
+    { key: 'okada', label: 'Okada', icon: Bike, color: c.orange500 },
+    { key: 'popular', label: 'Popular', icon: null, color: c.amber500 },
+    { key: 'saved', label: 'Saved', icon: Heart, color: c.red500 },
   ]
 
   const renderRoute = ({ item }: { item: RouteWithStats }) => {
@@ -214,67 +217,43 @@ export default function RoutesScreen() {
           )}
         </View>
 
-        {/* Tabs */}
-        <View style={s.tabRow}>
-          {tabs.map((tab) => {
-            const active = activeTab === tab.key
+        {/* Unified filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.filterChipRow}
+          style={s.filterChipScroll}
+        >
+          {filters.map((filter) => {
+            const active = activeFilter === filter.key
+            const Icon = filter.icon
             return (
               <TouchableOpacity
-                key={tab.key}
-                onPress={() => { haptics.light(); setActiveTab(tab.key) }}
-                activeOpacity={0.7}
-                style={[s.tab, active && s.tabActive]}
-              >
-                <Text style={[s.tabLabel, active && s.tabLabelActive]}>
-                  {tab.label}
-                </Text>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <View style={[s.tabBadge, active && s.tabBadgeActive]}>
-                    <Text style={[s.tabBadgeText, active && s.tabBadgeTextActive]}>
-                      {tab.count}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        {/* Transport type filter */}
-        <View style={s.transportRow}>
-          {([
-            { key: 'all', label: 'All', icon: null },
-            { key: 'trotro', label: 'Trotro', icon: Bus },
-            { key: 'okada', label: 'Okada', icon: Bike },
-          ] as const).map((item) => {
-            const active = transportFilter === item.key
-            const isOkada = item.key === 'okada'
-            return (
-              <TouchableOpacity
-                key={item.key}
-                onPress={() => { haptics.light(); setTransportFilter(item.key) }}
+                key={filter.key}
+                onPress={() => { haptics.light(); setActiveFilter(filter.key) }}
                 activeOpacity={0.7}
                 style={[
-                  s.transportPill,
-                  active && (isOkada ? s.transportPillOkada : s.transportPillActive),
+                  s.filterChip,
+                  active && { backgroundColor: filter.color },
                 ]}
               >
-                {item.icon && (
-                  <item.icon
+                {Icon && (
+                  <Icon
                     size={14}
                     color={active ? c.white : t.textSecondary}
+                    fill={filter.key === 'saved' && active ? c.white : 'transparent'}
                   />
                 )}
                 <Text style={[
-                  s.transportPillText,
-                  active && s.transportPillTextActive,
+                  s.filterChipText,
+                  active && s.filterChipTextActive,
                 ]}>
-                  {item.label}
+                  {filter.label}
                 </Text>
               </TouchableOpacity>
             )
           })}
-        </View>
+        </ScrollView>
 
         {(params.from || params.to) && (
           <View style={s.filterRow}>
@@ -312,12 +291,12 @@ export default function RoutesScreen() {
             <View style={s.emptyContainer}>
               <MapPin size={48} color={t.textTertiary} />
               <Text style={s.emptyTitle}>
-                {activeTab === 'saved' ? 'No saved routes' : 'No routes found'}
+                {activeFilter === 'saved' ? 'No saved routes' : 'No routes found'}
               </Text>
               <Text style={s.emptySubtitle}>
-                {activeTab === 'saved'
+                {activeFilter === 'saved'
                   ? 'Tap the heart icon on any route to save it'
-                  : 'Try a different search'
+                  : 'Try a different search or filter'
                 }
               </Text>
             </View>
@@ -349,77 +328,29 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: t.card,
     },
     searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
-    tabRow: {
-      flexDirection: 'row',
+    filterChipScroll: {
       marginTop: 16,
-      gap: 8,
     },
-    tab: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    filterChipRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      paddingRight: 8,
+    },
+    filterChip: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
       paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingVertical: 9,
       borderRadius: 20,
       backgroundColor: t.card,
       gap: 6,
     },
-    tabActive: {
-      backgroundColor: c.amber500,
-    },
-    tabLabel: {
-      fontSize: 14,
+    filterChipText: {
+      fontSize: 13,
       fontFamily: font.semibold,
       color: t.textSecondary,
     },
-    tabLabelActive: {
-      color: c.white,
-    },
-    tabBadge: {
-      minWidth: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 6,
-    },
-    tabBadgeActive: {
-      backgroundColor: 'rgba(255,255,255,0.25)',
-    },
-    tabBadgeText: {
-      fontSize: 11,
-      fontFamily: font.bold,
-      color: t.textSecondary,
-    },
-    tabBadgeTextActive: {
-      color: c.white,
-    },
-    transportRow: {
-      flexDirection: 'row' as const,
-      marginTop: 12,
-      gap: 6,
-    },
-    transportPill: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-      backgroundColor: t.card,
-      gap: 4,
-    },
-    transportPillActive: {
-      backgroundColor: c.amber500,
-    },
-    transportPillOkada: {
-      backgroundColor: c.orange500,
-    },
-    transportPillText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.textSecondary,
-    },
-    transportPillTextActive: {
+    filterChipTextActive: {
       color: c.white,
     },
     filterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginTop: 12 },
