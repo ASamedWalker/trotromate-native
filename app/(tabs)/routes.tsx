@@ -23,12 +23,14 @@ import {
   BellOff,
   Share2,
   X,
+  Bike,
+  Bus,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
-import type { RouteWithStats } from '@/lib/types'
+import type { RouteWithStats, TransportType } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -38,7 +40,7 @@ type Tab = 'all' | 'popular' | 'saved'
 
 export default function RoutesScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -46,8 +48,12 @@ export default function RoutesScreen() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('all')
-  const { routes, isLoading, refetch } = useRoutes(params.from, params.to)
-  useRefreshOnFocus([['routes', params.from, params.to]])
+  const [transportFilter, setTransportFilter] = useState<TransportType | 'all'>(
+    (params.transport as TransportType) || 'all'
+  )
+  const activeTransport = transportFilter === 'all' ? undefined : transportFilter
+  const { routes, isLoading, refetch } = useRoutes(params.from, params.to, activeTransport)
+  useRefreshOnFocus([['routes', params.from, params.to, activeTransport]])
   const [refreshing, setRefreshing] = useState(false)
   const { favorites, isFavorite, toggleFavorite } = useFavorites()
   const { isAlerted, toggleAlert } = useRouteAlerts()
@@ -121,8 +127,12 @@ export default function RoutesScreen() {
         onPress={() => router.push({ pathname: '/routes/[id]', params: { id: item.id } })}
         style={s.routeCard}
       >
-        <View style={s.routeIcon}>
-          <MapPin size={24} color={c.amber500} />
+        <View style={[s.routeIcon, item.transport_type === 'okada' && s.routeIconOkada]}>
+          {item.transport_type === 'okada' ? (
+            <Bike size={24} color={c.orange500} />
+          ) : (
+            <MapPin size={24} color={c.amber500} />
+          )}
         </View>
 
         <View style={s.routeInfo}>
@@ -225,6 +235,42 @@ export default function RoutesScreen() {
                     </Text>
                   </View>
                 )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Transport type filter */}
+        <View style={s.transportRow}>
+          {([
+            { key: 'all', label: 'All', icon: null },
+            { key: 'trotro', label: 'Trotro', icon: Bus },
+            { key: 'okada', label: 'Okada', icon: Bike },
+          ] as const).map((item) => {
+            const active = transportFilter === item.key
+            const isOkada = item.key === 'okada'
+            return (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => { haptics.light(); setTransportFilter(item.key) }}
+                activeOpacity={0.7}
+                style={[
+                  s.transportPill,
+                  active && (isOkada ? s.transportPillOkada : s.transportPillActive),
+                ]}
+              >
+                {item.icon && (
+                  <item.icon
+                    size={14}
+                    color={active ? c.white : t.textSecondary}
+                  />
+                )}
+                <Text style={[
+                  s.transportPillText,
+                  active && s.transportPillTextActive,
+                ]}>
+                  {item.label}
+                </Text>
               </TouchableOpacity>
             )
           })}
@@ -348,7 +394,35 @@ const getStyles = (isDark: boolean) => {
     tabBadgeTextActive: {
       color: c.white,
     },
-    filterRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+    transportRow: {
+      flexDirection: 'row' as const,
+      marginTop: 12,
+      gap: 6,
+    },
+    transportPill: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: t.card,
+      gap: 4,
+    },
+    transportPillActive: {
+      backgroundColor: c.amber500,
+    },
+    transportPillOkada: {
+      backgroundColor: c.orange500,
+    },
+    transportPillText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.textSecondary,
+    },
+    transportPillTextActive: {
+      color: c.white,
+    },
+    filterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginTop: 12 },
     filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
     routeCard: {
       flexDirection: 'row',
@@ -363,9 +437,12 @@ const getStyles = (isDark: boolean) => {
       height: 48,
       borderRadius: 12,
       backgroundColor: c.amber100,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
       marginRight: 12,
+    },
+    routeIconOkada: {
+      backgroundColor: isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed',
     },
     routeInfo: { flex: 1 },
     routeName: { fontFamily: font.semibold, fontSize: 15, color: t.text },
