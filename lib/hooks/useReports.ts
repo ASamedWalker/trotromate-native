@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react'
 import { submitFareReport, submitQueueReport, submitIncidentReport } from '@/lib/services/reports'
 import { awardPointsForReport } from '@/lib/services/rewards'
-import type { RewardResult } from '@/lib/types'
+import type { RewardResult, TransportType } from '@/lib/types'
 
 export function useSubmitFareReport(deviceId: string | null) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const submit = useCallback(
-    async (from: string, to: string, fare: number): Promise<RewardResult | null> => {
+    async (from: string, to: string, fare: number, transportType: TransportType = 'trotro'): Promise<RewardResult | null> => {
       if (!deviceId) {
         setError('Device not ready')
         return null
@@ -21,6 +21,7 @@ export function useSubmitFareReport(deviceId: string | null) {
           toLocation: to,
           fare,
           deviceId,
+          transportType,
         })
         if (!result) {
           setError('Failed to submit report')

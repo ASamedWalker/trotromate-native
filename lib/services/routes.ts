@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Route, RouteWithStats, RouteFareStats, FareReport } from '@/lib/types'
+import type { Route, RouteWithStats, RouteFareStats, FareReport, TransportType } from '@/lib/types'
 
-export async function fetchRoutes(from?: string, to?: string): Promise<RouteWithStats[]> {
+export async function fetchRoutes(from?: string, to?: string, transportType?: TransportType): Promise<RouteWithStats[]> {
   let query = supabase
     .from('routes')
     .select('*')
@@ -10,6 +10,7 @@ export async function fetchRoutes(from?: string, to?: string): Promise<RouteWith
 
   if (from) query = query.ilike('from_location', `%${from}%`)
   if (to) query = query.ilike('to_location', `%${to}%`)
+  if (transportType) query = query.eq('transport_type', transportType)
 
   const { data: routes, error } = await query
   if (error || !routes) return []
@@ -95,13 +96,15 @@ export async function fetchRouteById(
 export async function findOrCreateRoute(
   fromLocation: string,
   toLocation: string,
-  fare: number
+  fare: number,
+  transportType: TransportType = 'trotro'
 ): Promise<string | null> {
   const { data: existing } = await supabase
     .from('routes')
     .select('id')
     .eq('from_location', fromLocation)
     .eq('to_location', toLocation)
+    .eq('transport_type', transportType)
     .single()
 
   if (existing) return existing.id
@@ -113,6 +116,7 @@ export async function findOrCreateRoute(
       to_location: toLocation,
       official_fare: fare,
       is_popular: false,
+      transport_type: transportType,
     })
     .select('id')
     .single()

@@ -1,6 +1,9 @@
 // Troski Core Types
 
-// Route represents a trotro route (e.g., Circle → Madina)
+// Transport types supported
+export type TransportType = 'trotro' | 'okada'
+
+// Route represents a trotro/okada route (e.g., Circle → Madina)
 export interface Route {
   id: string
   from_location: string
@@ -10,6 +13,7 @@ export interface Route {
   estimated_duration_mins: number
   distance_km?: number
   is_popular: boolean
+  transport_type?: TransportType
   created_at: string
   updated_at: string
 }

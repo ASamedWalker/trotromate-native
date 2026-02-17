@@ -1,15 +1,17 @@
 import { supabase } from '@/lib/supabase/client'
 import { findOrCreateRoute } from './routes'
+import type { TransportType } from '@/lib/types'
 
 export async function submitFareReport(params: {
   fromLocation: string
   toLocation: string
   fare: number
   deviceId: string
+  transportType?: TransportType
 }): Promise<{ reportId: string; routeId: string } | null> {
-  const { fromLocation, toLocation, fare } = params
+  const { fromLocation, toLocation, fare, transportType } = params
 
-  const routeId = await findOrCreateRoute(fromLocation, toLocation, fare)
+  const routeId = await findOrCreateRoute(fromLocation, toLocation, fare, transportType || 'trotro')
   if (!routeId) return null
 
   const { data: report, error } = await supabase

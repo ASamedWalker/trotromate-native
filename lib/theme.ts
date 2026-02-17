@@ -24,6 +24,7 @@ export const c = {
   violet500: '#8b5cf6',
   violet900: '#2e1065',
 
+  orange500: '#f97316',
   emerald500: '#10b981',
   red500: '#ef4444',
   pink500: '#ec4899',

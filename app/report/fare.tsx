@@ -12,15 +12,17 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { Coins, MapPin, Navigation, Check } from 'lucide-react-native'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { Coins, MapPin, Navigation, Check, Bus, Bike } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import type { TransportType } from '@/lib/types'
 
 export default function FareReportScreen() {
   const router = useRouter()
+  const { transport_type: urlTransportType } = useLocalSearchParams<{ transport_type?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -33,6 +35,10 @@ export default function FareReportScreen() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [fare, setFare] = useState('')
+  const [transportType, setTransportType] = useState<TransportType>(
+    urlTransportType === 'okada' ? 'okada' : 'trotro'
+  )
+  const isOkada = transportType === 'okada'
 
   const handleSubmit = async () => {
     if (!from.trim() || !to.trim() || !fare.trim()) {
@@ -46,7 +52,7 @@ export default function FareReportScreen() {
       return
     }
 
-    const result = await submit(from.trim(), to.trim(), fareValue)
+    const result = await submit(from.trim(), to.trim(), fareValue, transportType)
     if (result) {
       haptics.success()
       await refreshProfile()
@@ -64,14 +70,32 @@ export default function FareReportScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+          {/* Transport Type Toggle */}
+          <View style={s.toggleRow}>
+            <TouchableOpacity
+              onPress={() => setTransportType('trotro')}
+              style={[s.toggleBtn, !isOkada && s.toggleBtnActive]}
+            >
+              <Bus size={18} color={!isOkada ? c.white : t.textSecondary} />
+              <Text style={[s.toggleText, !isOkada && s.toggleTextActive]}>Trotro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTransportType('okada')}
+              style={[s.toggleBtn, isOkada && s.toggleBtnOkada]}
+            >
+              <Bike size={18} color={isOkada ? c.white : t.textSecondary} />
+              <Text style={[s.toggleText, isOkada && s.toggleTextActive]}>Okada</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Header Card */}
-          <View style={s.headerCard}>
+          <View style={[s.headerCard, isOkada && { backgroundColor: c.orange500 }]}>
             <View style={s.headerRow}>
               <View style={s.headerIcon}>
-                <Coins size={24} color={c.white} />
+                {isOkada ? <Bike size={24} color={c.white} /> : <Coins size={24} color={c.white} />}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.headerTitle}>Report a Fare</Text>
+                <Text style={s.headerTitle}>{isOkada ? 'Report Okada Fare' : 'Report a Fare'}</Text>
                 <Text style={s.headerSub}>Help others know the current price</Text>
               </View>
               <View style={s.pointsBadge}>
@@ -172,6 +196,35 @@ const getStyles = (isDark: boolean) => {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
     scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+    toggleRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      marginBottom: 16,
+    },
+    toggleBtn: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: 16,
+      backgroundColor: t.card,
+    },
+    toggleBtnActive: {
+      backgroundColor: c.amber500,
+    },
+    toggleBtnOkada: {
+      backgroundColor: c.orange500,
+    },
+    toggleText: {
+      fontSize: 15,
+      fontFamily: font.semibold,
+      color: t.textSecondary,
+    },
+    toggleTextActive: {
+      color: c.white,
+    },
     headerCard: {
       backgroundColor: c.amber500,
       padding: 20,
