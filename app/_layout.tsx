@@ -151,6 +151,7 @@ function AppInner() {
           options={{
             title: 'Train Lines',
             headerBackTitle: 'Home',
+            headerTitleAlign: 'center',
             headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#0ea5e9',
           }}
