@@ -9,11 +9,6 @@
     "scheme": "troski",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f59e0b"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.troski.app",
@@ -67,7 +62,14 @@
           "color": "#f59e0b"
         }
       ],
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f59e0b"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
