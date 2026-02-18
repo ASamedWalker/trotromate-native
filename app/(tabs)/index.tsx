@@ -141,7 +141,7 @@ export default function HomeScreen() {
   useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
   const [refreshing, setRefreshing] = useState(false)
-  const greeting = useMemo(() => getGreeting(), [])
+  const greeting = getGreeting()
   const nextTrain = useMemo(() => getNextTrain(), [])
 
   const onRefresh = useCallback(async () => {
