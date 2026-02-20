@@ -25,6 +25,20 @@ const CONDITION_ICONS: Record<string, typeof Sun> = {
   Snow: Snowflake,
 }
 
+// Map WMO weather codes to conditions
+function wmoToCondition(code: number): { condition: string; description: string; is_rain: boolean } {
+  if (code <= 1) return { condition: 'Clear', description: 'clear sky', is_rain: false }
+  if (code <= 3) return { condition: 'Clouds', description: 'cloudy', is_rain: false }
+  if (code <= 48) return { condition: 'Clouds', description: 'fog', is_rain: false }
+  if (code <= 57) return { condition: 'Drizzle', description: 'drizzle', is_rain: true }
+  if (code <= 67) return { condition: 'Rain', description: 'rain', is_rain: true }
+  if (code <= 77) return { condition: 'Snow', description: 'snow', is_rain: false }
+  if (code <= 82) return { condition: 'Rain', description: 'rain showers', is_rain: true }
+  if (code <= 86) return { condition: 'Snow', description: 'snow showers', is_rain: false }
+  if (code <= 99) return { condition: 'Thunderstorm', description: 'thunderstorm', is_rain: true }
+  return { condition: 'Clear', description: 'unknown', is_rain: false }
+}
+
 async function fetchWeatherData(): Promise<WeatherData | null> {
   // Check cache
   try {
@@ -37,22 +51,22 @@ async function fetchWeatherData(): Promise<WeatherData | null> {
     }
   } catch {}
 
-  // Fetch from OpenWeatherMap directly (free tier)
-  const apiKey = process.env.EXPO_PUBLIC_OPENWEATHERMAP_API_KEY
-  if (!apiKey) return null
-
+  // Open-Meteo: free, open-source, no API key needed
   try {
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${ACCRA_LAT}&lon=${ACCRA_LON}&units=metric&appid=${apiKey}`
+      `https://api.open-meteo.com/v1/forecast?latitude=${ACCRA_LAT}&longitude=${ACCRA_LON}&current=temperature_2m,weather_code`
     )
     if (!res.ok) return null
 
     const raw = await res.json()
+    const current = raw.current
+    const { condition, description, is_rain } = wmoToCondition(current.weather_code)
+
     const data: WeatherData = {
-      temp: Math.round(raw.main.temp),
-      condition: raw.weather[0]?.main || 'Clear',
-      description: raw.weather[0]?.description || '',
-      is_rain: ['Rain', 'Drizzle', 'Thunderstorm'].includes(raw.weather[0]?.main),
+      temp: Math.round(current.temperature_2m),
+      condition,
+      description,
+      is_rain,
     }
 
     // Cache
@@ -94,6 +108,9 @@ export function WeatherBadge() {
       <Icon size={14} color={c.amber500} />
       <Text style={{ fontSize: 12, fontFamily: font.semibold, color: t.text }}>
         {weather.temp}°C
+      </Text>
+      <Text style={{ fontSize: 10, fontFamily: font.regular, color: t.textSecondary }}>
+        Accra
       </Text>
     </View>
   )
