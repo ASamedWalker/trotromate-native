@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -18,16 +18,61 @@ import {
   MapPin,
   Navigation,
   Search,
+  Bus,
+  Bike,
+  Footprints,
+  LayoutGrid,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
-import { RoutePlannerResults } from '@/components/RoutePlannerResults'
+import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
 
 const POPULAR_STATIONS = [
   'Circle', 'Madina', 'Tema', 'Kaneshie', 'Lapaz',
   'Achimota', 'Legon', 'Kasoa', 'Dansoman', 'Spintex',
   'Nima', 'Osu', 'Labadi', 'Teshie', 'Ashaiman',
 ]
+
+type TransportMode = 'all' | 'trotro' | 'okada' | 'walk'
+
+const MODE_TABS: { mode: TransportMode; icon: typeof Bus; label: string }[] = [
+  { mode: 'all', icon: LayoutGrid, label: 'Best' },
+  { mode: 'trotro', icon: Bus, label: 'Trotro' },
+  { mode: 'okada', icon: Bike, label: 'Okada' },
+  { mode: 'walk', icon: Footprints, label: 'Walk' },
+]
+
+const MODE_COLORS: Record<TransportMode, { active: string; bg: string }> = {
+  all: { active: c.amber600, bg: 'rgba(245,158,11,0.12)' },
+  trotro: { active: c.amber600, bg: 'rgba(245,158,11,0.12)' },
+  okada: { active: c.orange500, bg: 'rgba(249,115,22,0.12)' },
+  walk: { active: '#16a34a', bg: 'rgba(34,197,94,0.12)' },
+}
+
+// Station coordinates for walking estimate
+const STATION_COORDS: Record<string, { lat: number; lon: number }> = {
+  Circle: { lat: 5.5714, lon: -0.2096 },
+  Madina: { lat: 5.6769, lon: -0.1648 },
+  Tema: { lat: 5.6698, lon: -0.0166 },
+  Kaneshie: { lat: 5.5609, lon: -0.2347 },
+  Lapaz: { lat: 5.6055, lon: -0.2464 },
+  Achimota: { lat: 5.6133, lon: -0.2271 },
+  Legon: { lat: 5.6500, lon: -0.1869 },
+  Kasoa: { lat: 5.5345, lon: -0.4164 },
+  Dansoman: { lat: 5.5286, lon: -0.2575 },
+  Spintex: { lat: 5.6357, lon: -0.1144 },
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
 
 export default function RoutePlannerScreen() {
   const router = useRouter()
@@ -42,9 +87,23 @@ export default function RoutePlannerScreen() {
   const [searchTo, setSearchTo] = useState(params.to || '')
   const [activeInput, setActiveInput] = useState<'from' | 'to' | null>(null)
   const [hasSearched, setHasSearched] = useState(!!params.from && !!params.to)
+  const [transportMode, setTransportMode] = useState<TransportMode>('all')
 
   const toRef = useRef<TextInput>(null)
-  const { plans, isLoading } = useRoutePlanner(searchFrom, searchTo)
+  const transportTypeParam = transportMode === 'all' || transportMode === 'walk' ? undefined : transportMode
+  const { plans, isLoading } = useRoutePlanner(searchFrom, searchTo, transportTypeParam)
+
+  const walkingEstimate = useMemo<WalkingEstimate | null>(() => {
+    const f = from.trim()
+    const t2 = to.trim()
+    if (!f || !t2) return null
+    const fc = STATION_COORDS[f]
+    const tc = STATION_COORDS[t2]
+    if (!fc || !tc) return null
+    const dist = haversineKm(fc.lat, fc.lon, tc.lat, tc.lon)
+    if (dist > 10) return null
+    return { distance_km: dist, duration_mins: Math.round(dist / 5 * 60), from: f, to: t2 }
+  }, [from, to])
 
   const filteredStations = POPULAR_STATIONS.filter((station) => {
     const query = activeInput === 'from' ? from : to
@@ -161,6 +220,35 @@ export default function RoutePlannerScreen() {
               Find Routes
             </Text>
           </TouchableOpacity>
+
+          {/* Transport Mode Tabs */}
+          {hasSearched && !activeInput && (
+            <View style={s.modeTabs}>
+              {MODE_TABS.map(({ mode, icon: Icon, label }) => {
+                const isActive = transportMode === mode
+                const colors = MODE_COLORS[mode]
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    onPress={() => setTransportMode(mode)}
+                    activeOpacity={0.7}
+                    style={[
+                      s.modeTab,
+                      { backgroundColor: isActive ? colors.bg : (isDark ? c.stone800 : c.stone100) },
+                    ]}
+                  >
+                    <Icon size={14} color={isActive ? colors.active : t.textSecondary} />
+                    <Text style={[
+                      s.modeTabText,
+                      { color: isActive ? colors.active : t.textSecondary },
+                    ]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
         </View>
 
         <ScrollView
@@ -189,7 +277,11 @@ export default function RoutePlannerScreen() {
 
           {/* Results */}
           {hasSearched && !activeInput && (
-            <RoutePlannerResults plans={plans} isLoading={isLoading} />
+            <RoutePlannerResults
+              plans={transportMode === 'walk' ? [] : plans}
+              isLoading={transportMode !== 'walk' && isLoading}
+              walkingEstimate={transportMode === 'all' || transportMode === 'walk' ? walkingEstimate : null}
+            />
           )}
 
           {/* Empty state */}
@@ -296,6 +388,17 @@ const getStyles = (isDark: boolean) => {
     searchBtnText: { fontSize: 14, fontFamily: font.semibold },
     searchBtnTextActive: { color: '#fff' },
     searchBtnTextDisabled: { color: t.textSecondary },
+
+    modeTabs: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    modeTab: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 12,
+    },
+    modeTabText: { fontSize: 12, fontFamily: font.semibold },
 
     suggestions: { paddingHorizontal: 20, marginTop: 16 },
     suggestionsLabel: { fontSize: 12, fontFamily: font.medium, color: t.textSecondary, marginBottom: 8 },

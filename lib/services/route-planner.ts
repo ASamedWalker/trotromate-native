@@ -18,11 +18,11 @@ export interface TransferPlan {
   transfer_wait_mins?: number
 }
 
-export async function planRoute(from: string, to: string): Promise<TransferPlan[]> {
+export async function planRoute(from: string, to: string, transportType?: string): Promise<TransferPlan[]> {
   const results: TransferPlan[] = []
 
   // 1. Check direct routes (both directions)
-  const { data: directRoutes } = await supabase
+  let directQuery = supabase
     .from('routes')
     .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
     .or(
@@ -30,6 +30,12 @@ export async function planRoute(from: string, to: string): Promise<TransferPlan[
       `and(from_location.ilike.%${to}%,to_location.ilike.%${from}%)`
     )
     .limit(5)
+
+  if (transportType) {
+    directQuery = directQuery.eq('transport_type', transportType)
+  }
+
+  const { data: directRoutes } = await directQuery
 
   for (const r of directRoutes || []) {
     const isReversed = r.from_location.toLowerCase().includes(to.toLowerCase())
@@ -63,7 +69,7 @@ export async function planRoute(from: string, to: string): Promise<TransferPlan[
       hubName.toLowerCase() === to.toLowerCase()
     ) continue
 
-    const { data: legA } = await supabase
+    let legAQuery = supabase
       .from('routes')
       .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
       .or(
@@ -72,9 +78,12 @@ export async function planRoute(from: string, to: string): Promise<TransferPlan[
       )
       .limit(1)
 
+    if (transportType) legAQuery = legAQuery.eq('transport_type', transportType)
+    const { data: legA } = await legAQuery
+
     if (!legA?.length) continue
 
-    const { data: legB } = await supabase
+    let legBQuery = supabase
       .from('routes')
       .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
       .or(
@@ -82,6 +91,9 @@ export async function planRoute(from: string, to: string): Promise<TransferPlan[
         `and(from_location.ilike.%${to}%,to_location.ilike.%${hubName}%)`
       )
       .limit(1)
+
+    if (transportType) legBQuery = legBQuery.eq('transport_type', transportType)
+    const { data: legB } = await legBQuery
 
     if (!legB?.length) continue
 
