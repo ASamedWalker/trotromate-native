@@ -92,6 +92,7 @@ function AppInner() {
     <ThemeProvider value={colorScheme === 'dark' ? TrotroDarkTheme : TrotroLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen
           name="routes/[id]"
           options={{
