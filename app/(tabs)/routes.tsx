@@ -36,6 +36,9 @@ import { SkeletonRouteCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useRouteAlerts } from '@/lib/hooks/useRouteAlerts'
+import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
+import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
+import { Sparkles, History } from 'lucide-react-native'
 
 type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
 
@@ -59,6 +62,11 @@ export default function RoutesScreen() {
   const { favorites, isFavorite, toggleFavorite } = useFavorites()
   const { isAlerted, toggleAlert } = useRouteAlerts()
   const haptics = useHaptics()
+  const { addSearch, getRecentSearches } = useSearchHistory()
+  const { suggestions } = useSmartSuggestions()
+
+  const recentSearches = getRecentSearches(5)
+  const showSuggestions = !searchQuery && activeFilter === 'all' && !params.from && !params.to
 
   const filteredRoutes = useMemo(() => {
     let result = routes
@@ -127,7 +135,10 @@ export default function RoutesScreen() {
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => router.push({ pathname: '/routes/[id]', params: { id: item.id } })}
+        onPress={() => {
+          addSearch({ id: item.id, from: item.from_location, to: item.to_location, transportType: item.transport_type as 'trotro' | 'okada' | undefined })
+          router.push({ pathname: '/routes/[id]', params: { id: item.id } })
+        }}
         style={s.routeCard}
       >
         <View style={[s.routeIcon, item.transport_type === 'okada' && s.routeIconOkada]}>
@@ -279,6 +290,59 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={showSuggestions ? (
+            <View>
+              {/* Smart Suggestions */}
+              {suggestions.length > 0 && (
+                <View style={s.suggestionsSection}>
+                  <View style={s.sectionHeader}>
+                    <Sparkles size={16} color={c.amber500} />
+                    <Text style={s.sectionTitle}>Suggested for you</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {suggestions.map((sg) => (
+                      <TouchableOpacity
+                        key={sg.routeId}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          addSearch({ id: sg.routeId, from: sg.from, to: sg.to, transportType: sg.transportType })
+                          router.push({ pathname: '/routes/[id]', params: { id: sg.routeId } })
+                        }}
+                        style={s.suggestionCard}
+                      >
+                        <Text style={s.suggestionRoute} numberOfLines={1}>{sg.from} → {sg.to}</Text>
+                        <Text style={s.suggestionReason}>{sg.reason}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <View style={s.recentSection}>
+                  <View style={s.sectionHeader}>
+                    <History size={16} color={t.textSecondary} />
+                    <Text style={s.sectionTitle}>Recent</Text>
+                  </View>
+                  {recentSearches.map((entry) => (
+                    <TouchableOpacity
+                      key={entry.routeId + entry.timestamp}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        addSearch({ id: entry.routeId, from: entry.from, to: entry.to, transportType: entry.transportType })
+                        router.push({ pathname: '/routes/[id]', params: { id: entry.routeId } })
+                      }}
+                      style={s.recentItem}
+                    >
+                      <Clock size={16} color={t.textSecondary} />
+                      <Text style={s.recentText}>{entry.from} → {entry.to}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -390,5 +454,32 @@ const getStyles = (isDark: boolean) => {
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
     emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },
+    // Suggestions & Recent
+    suggestionsSection: { marginBottom: 16 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    sectionTitle: { fontSize: 14, fontFamily: font.semibold, color: t.text },
+    suggestionCard: {
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#fde68a',
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      minWidth: 160,
+    },
+    suggestionRoute: { fontSize: 14, fontFamily: font.semibold, color: t.text },
+    suggestionReason: { fontSize: 12, fontFamily: font.regular, color: c.amber500, marginTop: 4 },
+    recentSection: { marginBottom: 16 },
+    recentItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: t.card,
+      marginBottom: 6,
+    },
+    recentText: { fontSize: 14, fontFamily: font.regular, color: t.text },
   })
 }

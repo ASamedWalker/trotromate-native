@@ -29,6 +29,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard, useAllBadges, usePointsHistory } from '@/lib/hooks/useRewards'
 import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import { ReferralCard } from '@/components/ReferralCard'
 import { timeAgo } from '@/lib/utils/time'
 import type { Badge, EarnedBadge } from '@/lib/types'
 
@@ -54,6 +55,7 @@ const REASON_LABELS: Record<string, string> = {
   tale_report: 'Tale Shared',
   badge_bonus: 'Badge Bonus',
   streak_bonus: 'Streak Bonus',
+  referral_bonus: 'Referral Bonus',
 }
 
 export default function RewardsScreen() {
@@ -144,26 +146,41 @@ export default function RewardsScreen() {
 
             {/* Inline stats row */}
             <View style={s.inlineStats}>
-              <View style={s.inlineStat}>
+              <TouchableOpacity
+                onPress={() => setActiveTab('history')}
+                activeOpacity={0.7}
+                style={s.inlineStat}
+              >
                 <Flame size={14} color="#ef4444" />
                 <Text style={s.inlineStatValue}>{streak}</Text>
                 <Text style={s.inlineStatLabel}>Streak</Text>
-              </View>
+              </TouchableOpacity>
               <View style={s.inlineStatDivider} />
-              <View style={s.inlineStat}>
+              <TouchableOpacity
+                onPress={() => setActiveTab('history')}
+                activeOpacity={0.7}
+                style={s.inlineStat}
+              >
                 <Target size={14} color={c.violet500} />
                 <Text style={s.inlineStatValue}>{totalReports}</Text>
                 <Text style={s.inlineStatLabel}>Reports</Text>
-              </View>
+              </TouchableOpacity>
               <View style={s.inlineStatDivider} />
-              <View style={s.inlineStat}>
+              <TouchableOpacity
+                onPress={() => setActiveTab('top')}
+                activeOpacity={0.7}
+                style={s.inlineStat}
+              >
                 <Medal size={14} color={c.emerald500} />
                 <Text style={s.inlineStatValue}>#{userRank}</Text>
                 <Text style={s.inlineStatLabel}>Rank</Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
+
+        {/* Referral Card */}
+        <ReferralCard />
 
         {/* Tabs */}
         <View style={s.section}>

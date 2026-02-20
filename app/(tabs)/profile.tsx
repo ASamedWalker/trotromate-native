@@ -13,6 +13,7 @@ import { c, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { LEVELS } from '@/lib/constants/rewards'
+import { SpendingSummary } from '@/components/SpendingSummary'
 import InitialsAvatar from '@/components/InitialsAvatar'
 
 export default function ProfileScreen() {
@@ -66,6 +67,9 @@ export default function ProfileScreen() {
             <Text style={s.statLabel}>Streak</Text>
           </View>
         </View>
+
+        {/* Monthly Spending Summary */}
+        <SpendingSummary />
 
         {/* Menu */}
         <View style={s.menuCard}>

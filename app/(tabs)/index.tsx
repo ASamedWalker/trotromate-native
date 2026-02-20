@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Timer,
   Trophy,
+  Map,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
@@ -39,6 +40,8 @@ import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
 import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import { MyCommuteWidget } from '@/components/MyCommuteWidget'
+import { WeatherBadge, WeatherRainAlert } from '@/components/WeatherBadge'
 import type { RouteWithStats } from '@/lib/types'
 
 /* ── Quick Actions ────────────────────────────────────── */
@@ -48,7 +51,7 @@ const QUICK_ACTIONS = [
   { label: 'Okada', subtitle: 'Fares', icon: Bike, color: c.orange500, href: '/routes?transport=okada' },
   { label: 'Train', subtitle: 'Schedule', icon: TrainFront, color: '#0ea5e9', href: '/train' },
   { label: 'Report', subtitle: 'Earn pts', icon: TrendingUp, color: c.violet500, href: '/(tabs)/report' },
-  { label: 'Tales', subtitle: 'Stories', icon: Camera, color: c.pink500, href: '/(tabs)/tales' },
+  { label: 'Plan', subtitle: 'Multi-hop', icon: Map, color: '#10b981', href: '/routes/plan' },
 ] as const
 
 /* ── helpers ─────────────────────────────────────────── */
@@ -221,6 +224,7 @@ export default function HomeScreen() {
                     </View>
                   )}
                   {levelName && <Text style={s.levelText}>{levelName}</Text>}
+                  <WeatherBadge />
                 </>
               ) : (
                 <Text style={s.levelText}>Start contributing to earn points</Text>
@@ -245,6 +249,12 @@ export default function HomeScreen() {
           <Search size={18} color={c.amber500} />
           <Text style={s.searchText}>Where are you going?</Text>
         </TouchableOpacity>
+
+        {/* ── Rain Alert ── */}
+        <WeatherRainAlert />
+
+        {/* ── My Commute ── */}
+        <MyCommuteWidget />
 
         {/* ── Quick Actions ── */}
         <View style={s.quickActionsRow}>
