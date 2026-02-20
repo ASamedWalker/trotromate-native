@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, Share, useColorScheme } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
 import { Gift, Copy, Check, Share2, Users } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
@@ -58,9 +57,15 @@ export function ReferralCard() {
 
   const handleCopy = async () => {
     if (!referralCode) return
-    await Clipboard.setStringAsync(referralCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      const Clipboard = require('expo-clipboard')
+      await Clipboard.setStringAsync(referralCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Native module not available — fall back to Share
+      await handleShare()
+    }
   }
 
   const handleShare = async () => {
