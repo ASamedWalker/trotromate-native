@@ -42,6 +42,7 @@ import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { MyCommuteWidget } from '@/components/MyCommuteWidget'
 import { WeatherBadge, WeatherRainAlert } from '@/components/WeatherBadge'
+import HappeningNow from '@/components/HappeningNow'
 import { supabase } from '@/lib/supabase/client'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
@@ -303,6 +304,9 @@ export default function HomeScreen() {
 
         {/* ── Rain Alert ── */}
         <WeatherRainAlert />
+
+        {/* ── Happening Now (live events) ── */}
+        <HappeningNow />
 
         {/* ── My Commute ── */}
         <MyCommuteWidget />
