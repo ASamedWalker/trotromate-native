@@ -43,6 +43,7 @@ import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { MyCommuteWidget } from '@/components/MyCommuteWidget'
 import { WeatherBadge, WeatherRainAlert } from '@/components/WeatherBadge'
 import HappeningNow from '@/components/HappeningNow'
+import TrafficNow from '@/components/TrafficNow'
 import { supabase } from '@/lib/supabase/client'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
@@ -307,6 +308,9 @@ export default function HomeScreen() {
 
         {/* ── Happening Now (live events) ── */}
         <HappeningNow />
+
+        {/* ── Traffic Now ── */}
+        <TrafficNow />
 
         {/* ── My Commute ── */}
         <MyCommuteWidget />

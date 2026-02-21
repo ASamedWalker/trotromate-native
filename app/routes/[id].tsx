@@ -14,6 +14,9 @@ import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
+import { TrafficBadge } from '@/components/TrafficBadge'
+import { BusynessMeter } from '@/components/BusynessMeter'
+import { useTrafficInfo } from '@/lib/hooks/useTraffic'
 
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -23,6 +26,7 @@ export default function RouteDetailScreen() {
   const s = getStyles(isDark)
 
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
+  const { data: traffic } = useTrafficInfo(id)
 
   if (isLoading) {
     return (
@@ -99,6 +103,31 @@ export default function RouteDetailScreen() {
           </View>
         </View>
 
+        {/* Traffic Conditions */}
+        {traffic && (traffic.traffic_condition || traffic.busyness.confidence > 0) && (
+          <View style={s.trafficCard}>
+            <Text style={s.trafficTitle}>Live Traffic</Text>
+            <TrafficBadge
+              condition={traffic.traffic_condition}
+              delayMins={traffic.delay_mins}
+              isDark={isDark}
+            />
+            {traffic.duration_in_traffic_mins && (
+              <View style={s.etaRow}>
+                <Text style={s.etaLabel}>ETA with traffic: </Text>
+                <Text style={s.etaValue}>{traffic.duration_in_traffic_mins} min</Text>
+                {traffic.typical_duration_mins && (
+                  <>
+                    <Text style={s.etaLabel}>  Usually: </Text>
+                    <Text style={s.etaUsual}>{traffic.typical_duration_mins} min</Text>
+                  </>
+                )}
+              </View>
+            )}
+            <BusynessMeter level={traffic.busyness.level} isDark={isDark} />
+          </View>
+        )}
+
         {/* Safety Actions */}
         <View style={s.safetyRow}>
           <TripShareButton
@@ -169,6 +198,28 @@ const getStyles = (isDark: boolean) => {
     fareUpdated: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
     fareUpdatedText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
     statsRow: { flexDirection: 'row', gap: 12 } as const,
+    trafficCard: {
+      marginHorizontal: 20,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 20,
+      backgroundColor: t.card,
+      gap: 10,
+    },
+    trafficTitle: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: t.text,
+      marginBottom: 2,
+    },
+    etaRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      flexWrap: 'wrap' as const,
+    },
+    etaLabel: { fontSize: 13, color: t.textSecondary },
+    etaValue: { fontSize: 13, fontFamily: font.semibold, color: t.text },
+    etaUsual: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary },
     safetyRow: {
       flexDirection: 'row' as const,
       gap: 12,
