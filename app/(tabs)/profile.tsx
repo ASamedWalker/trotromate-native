@@ -8,7 +8,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Settings, Bell, Shield, HelpCircle, ChevronRight } from 'lucide-react-native'
+import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -20,7 +20,7 @@ export default function ProfileScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = styles(isDark)
+  const s = getStyles(isDark)
   const { profile, deviceId } = useApp()
   const { unreadCount } = useNotifications(deviceId)
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
@@ -35,8 +35,16 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={s.header}>
-          <Text style={[s.headerTitle, { textAlign: 'center' }]}>Profile</Text>
+          <Text style={s.headerTitle}>Profile</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings/edit-profile' as Href)}
+            style={s.editBtn}
+            activeOpacity={0.7}
+          >
+            <Edit3 size={18} color={isDark ? c.stone300 : c.stone600} />
+          </TouchableOpacity>
         </View>
 
         {/* Avatar Card */}
@@ -52,12 +60,42 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Bio */}
+        {profile?.bio ? (
+          <View style={s.bioCard}>
+            <Text style={s.bioText}>{profile.bio}</Text>
+            {profile.home_route_label && (
+              <View style={s.routeRow}>
+                <MapPin size={14} color={c.pink500} />
+                <Text style={s.routeText}>{profile.home_route_label}</Text>
+              </View>
+            )}
+          </View>
+        ) : profile?.home_route_label ? (
+          <View style={s.bioCard}>
+            <View style={s.routeRow}>
+              <MapPin size={14} color={c.pink500} />
+              <Text style={s.routeText}>{profile.home_route_label}</Text>
+            </View>
+          </View>
+        ) : null}
+
         {/* Stats Row */}
         <View style={s.statsRow}>
-          <View style={s.statBox}>
-            <Text style={s.statValue}>{profile?.total_reports ?? 0}</Text>
-            <Text style={s.statLabel}>Reports</Text>
-          </View>
+          <TouchableOpacity
+            style={s.statBox}
+            onPress={() => deviceId && router.push(`/profile/followers?id=${deviceId}&tab=followers` as Href)}
+          >
+            <Text style={s.statValue}>{profile?.follower_count ?? 0}</Text>
+            <Text style={s.statLabel}>Followers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.statBox, s.statBorder]}
+            onPress={() => deviceId && router.push(`/profile/followers?id=${deviceId}&tab=following` as Href)}
+          >
+            <Text style={s.statValue}>{profile?.following_count ?? 0}</Text>
+            <Text style={s.statLabel}>Following</Text>
+          </TouchableOpacity>
           <View style={[s.statBox, s.statBorder]}>
             <Text style={s.statValue}>{profile?.total_points ?? 0}</Text>
             <Text style={s.statLabel}>Points</Text>
@@ -105,34 +143,54 @@ export default function ProfileScreen() {
   )
 }
 
-const styles = (isDark: boolean) =>
+const getStyles = (isDark: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: isDark ? '#0c0a09' : '#fafaf9' },
     scroll: { flex: 1 },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917' },
+    editBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? c.stone800 : c.stone100,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     avatarCard: {
       flexDirection: 'row',
       alignItems: 'center',
       margin: 20,
+      marginBottom: 0,
       padding: 20,
       borderRadius: 20,
       backgroundColor: isDark ? '#1c1917' : '#ffffff',
     },
-    avatarCircle: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: '#f59e0b',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     avatarInfo: { marginLeft: 16, flex: 1 },
     avatarName: { fontSize: 18, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917' },
     avatarSub: { fontSize: 13, color: isDark ? '#a8a29e' : '#78716c', marginTop: 2 },
+    bioCard: {
+      marginHorizontal: 20,
+      marginTop: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 16,
+      backgroundColor: isDark ? '#1c1917' : '#ffffff',
+    },
+    bioText: { fontSize: 14, color: isDark ? c.stone300 : c.stone600, lineHeight: 20 },
+    routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+    routeText: { fontSize: 12, color: isDark ? c.stone400 : c.stone500 },
     statsRow: {
       flexDirection: 'row',
       marginHorizontal: 20,
+      marginTop: 16,
       marginBottom: 20,
       padding: 16,
       borderRadius: 20,
@@ -141,11 +199,10 @@ const styles = (isDark: boolean) =>
     statBox: { flex: 1, alignItems: 'center' },
     statBorder: {
       borderLeftWidth: 1,
-      borderRightWidth: 1,
       borderColor: isDark ? '#292524' : '#e7e5e3',
     },
-    statValue: { fontSize: 22, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917' },
-    statLabel: { fontSize: 12, color: isDark ? '#a8a29e' : '#78716c', marginTop: 2 },
+    statValue: { fontSize: 20, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917' },
+    statLabel: { fontSize: 11, color: isDark ? '#a8a29e' : '#78716c', marginTop: 2 },
     menuCard: {
       marginHorizontal: 20,
       borderRadius: 20,
@@ -173,8 +230,8 @@ const styles = (isDark: boolean) =>
       height: 20,
       borderRadius: 10,
       backgroundColor: c.red500,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
       paddingHorizontal: 6,
       marginRight: 8,
     },

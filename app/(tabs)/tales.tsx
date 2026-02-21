@@ -41,6 +41,7 @@ function TaleCard({
   onComment,
   onDelete,
   onReport,
+  onProfilePress,
 }: {
   post: TalePost
   isDark: boolean
@@ -50,6 +51,7 @@ function TaleCard({
   onComment: () => void
   onDelete?: () => void
   onReport: () => void
+  onProfilePress: () => void
 }) {
   const t = themed(isDark)
   const s = cardStyles(isDark)
@@ -80,14 +82,18 @@ function TaleCard({
     <View style={s.card}>
       {/* Header */}
       <View style={s.cardHeader}>
-        <InitialsAvatar
-          name={post.display_name}
-          deviceId={post.device_id}
-          size={40}
-        />
+        <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
+          <InitialsAvatar
+            name={post.display_name}
+            deviceId={post.device_id}
+            size={40}
+          />
+        </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 10, marginRight: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={s.name} numberOfLines={1}>{displayName}</Text>
+            <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
+              <Text style={s.name} numberOfLines={1}>{displayName}</Text>
+            </TouchableOpacity>
             <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -223,6 +229,7 @@ export default function TalesScreen() {
       onComment={() => setCommentPostId(item.id)}
       onDelete={() => deletePost(item.id)}
       onReport={() => handleReport(item.id)}
+      onProfilePress={() => router.push(`/profile/${item.device_id}` as Href)}
     />
   )
 

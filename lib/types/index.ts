@@ -86,6 +86,13 @@ export interface ContributorProfile {
   id: string
   device_id: string
   display_name: string | null
+  bio: string | null
+  avatar_url: string | null
+  home_route_id: string | null
+  home_route_label: string | null
+  follower_count: number
+  following_count: number
+  is_public: boolean
   total_points: number
   current_level: LevelSlug
   current_streak: number
@@ -97,6 +104,24 @@ export interface ContributorProfile {
   incident_reports: number
   created_at: string
   updated_at: string
+}
+
+export interface PublicProfile {
+  device_id: string
+  display_name: string | null
+  bio: string | null
+  avatar_url: string | null
+  current_level: string
+  total_points: number
+  total_reports: number
+  current_streak: number
+  follower_count: number
+  following_count: number
+  home_route_label: string | null
+  home_route_id: string | null
+  is_public: boolean
+  is_following?: boolean
+  tale_count?: number
 }
 
 export interface Badge {
