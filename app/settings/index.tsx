@@ -151,6 +151,16 @@ export default function SettingsScreen() {
                 thumbColor={c.white}
               />
             </View>
+            <View style={s.divider} />
+            <TouchableOpacity
+              onPress={() => router.push('/settings/notifications' as Href)}
+              activeOpacity={0.7}
+              style={s.linkRow}
+            >
+              <View style={{ width: 18 }} />
+              <Text style={s.linkLabel}>Notification Preferences</Text>
+              <ChevronRight size={18} color={t.textTertiary} />
+            </TouchableOpacity>
           </View>
         </View>
 
