@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import * as Crypto from 'expo-crypto'
 
 export interface TripShare {
   id: string
@@ -25,8 +24,7 @@ export async function createTripShare(
   routeId?: string,
   estimatedMins?: number
 ): Promise<TripShare | null> {
-  const tokenBytes = await Crypto.getRandomBytesAsync(4)
-  const shareToken = Array.from(tokenBytes).map((b) => b.toString(16).padStart(2, '0')).join('')
+  const shareToken = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
 
   const estimatedArrival = estimatedMins
     ? new Date(Date.now() + estimatedMins * 60 * 1000).toISOString()
