@@ -12,6 +12,8 @@ import { MapPin, Clock, TrendingUp, Users } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
+import { TripShareButton } from '@/components/TripShareButton'
+import { SOSButton } from '@/components/SOSButton'
 
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -97,6 +99,17 @@ export default function RouteDetailScreen() {
           </View>
         </View>
 
+        {/* Safety Actions */}
+        <View style={s.safetyRow}>
+          <TripShareButton
+            routeId={id}
+            from={route.from_location}
+            to={route.to_location}
+            estimatedMins={route.estimated_duration_mins}
+          />
+          <SOSButton from={route.from_location} to={route.to_location} />
+        </View>
+
         {/* Recent Reports */}
         <View style={s.reportsSection}>
           <Text style={s.sectionTitle}>Recent Reports</Text>
@@ -155,7 +168,13 @@ const getStyles = (isDark: boolean) => {
     fareValue: { fontSize: 32, fontFamily: font.bold, color: c.amber500 },
     fareUpdated: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
     fareUpdatedText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
-    statsRow: { flexDirection: 'row', gap: 12 },
+    statsRow: { flexDirection: 'row', gap: 12 } as const,
+    safetyRow: {
+      flexDirection: 'row' as const,
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 16,
+    },
     statBox: {
       flex: 1,
       padding: 16,
