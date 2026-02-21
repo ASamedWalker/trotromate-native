@@ -95,7 +95,7 @@ export async function processQueue(): Promise<number> {
           const result = await submitTale({
             deviceId: item.deviceId,
             displayName: item.payload.displayName as string | null,
-            imageUri: item.payload.imageUri as string,
+            imageUris: [item.payload.imageUri as string],
             caption: item.payload.caption as string,
             location: item.payload.location as string,
           })

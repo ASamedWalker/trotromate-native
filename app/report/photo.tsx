@@ -11,15 +11,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import { Camera, Image as ImageIcon, MapPin, X, Send } from 'lucide-react-native'
+import { Camera, Image as ImageIcon, MapPin, X, Send, Plus } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useSubmitTale } from '@/lib/hooks/useTales'
+
+const MAX_IMAGES = 10
 
 const LOCATIONS = [
   'Circle', 'Madina', 'Lapaz', 'Achimota', 'Kaneshie',
@@ -38,11 +41,17 @@ export default function TrotroTalesPostScreen() {
   const haptics = useHaptics()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
 
-  const [imageUri, setImageUri] = useState<string | null>(null)
+  const [imageUris, setImageUris] = useState<string[]>([])
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
 
+  const canAddMore = imageUris.length < MAX_IMAGES
+
   const pickFromCamera = async () => {
+    if (!canAddMore) {
+      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images`)
+      return
+    }
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission Needed', 'Camera access is required to take photos.')
@@ -55,29 +64,40 @@ export default function TrotroTalesPostScreen() {
       aspect: [4, 3],
     })
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri)
+      setImageUris((prev) => [...prev, result.assets[0].uri])
     }
   }
 
   const pickFromGallery = async () => {
+    if (!canAddMore) {
+      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images`)
+      return
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission Needed', 'Photo library access is required to pick images.')
       return
     }
+    const remaining = MAX_IMAGES - imageUris.length
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      orderedSelection: true,
     })
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri)
+    if (!result.canceled && result.assets.length > 0) {
+      const newUris = result.assets.map((a) => a.uri)
+      setImageUris((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES))
     }
   }
 
+  const removeImage = (index: number) => {
+    setImageUris((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async () => {
-    if (!imageUri) {
+    if (imageUris.length === 0) {
       Alert.alert('Missing Photo', 'Please take or choose a photo')
       return
     }
@@ -91,7 +111,7 @@ export default function TrotroTalesPostScreen() {
     }
 
     const reward = await submitTale({
-      imageUri,
+      imageUris,
       caption,
       location,
       displayName: profile?.display_name ?? null,
@@ -133,18 +153,68 @@ export default function TrotroTalesPostScreen() {
 
           {/* Photo Section */}
           <View style={s.formCard}>
-            <Text style={s.label}>Photo</Text>
+            <View style={s.labelRow}>
+              <Text style={s.label}>Photos</Text>
+              {imageUris.length > 0 && (
+                <Text style={s.counter}>{imageUris.length}/{MAX_IMAGES}</Text>
+              )}
+            </View>
 
-            {imageUri ? (
-              <View style={s.previewContainer}>
-                <Image source={{ uri: imageUri }} style={s.preview} />
-                <TouchableOpacity
-                  style={s.removeBtn}
-                  onPress={() => setImageUri(null)}
-                >
-                  <X size={16} color={c.white} />
-                </TouchableOpacity>
-              </View>
+            {imageUris.length > 0 ? (
+              <>
+                {/* Thumbnail strip */}
+                <FlatList
+                  data={[...imageUris, ...(canAddMore ? ['__add__'] : [])]}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(_, i) => String(i)}
+                  contentContainerStyle={s.thumbStrip}
+                  renderItem={({ item, index }) => {
+                    if (item === '__add__') {
+                      return (
+                        <TouchableOpacity
+                          onPress={pickFromGallery}
+                          activeOpacity={0.7}
+                          style={s.addThumb}
+                        >
+                          <Plus size={24} color={isDark ? c.stone400 : c.stone500} />
+                          <Text style={s.addThumbText}>Add</Text>
+                        </TouchableOpacity>
+                      )
+                    }
+                    return (
+                      <View style={s.thumbContainer}>
+                        <Image source={{ uri: item }} style={s.thumb} />
+                        <TouchableOpacity
+                          onPress={() => removeImage(index)}
+                          style={s.thumbRemove}
+                        >
+                          <X size={12} color={c.white} />
+                        </TouchableOpacity>
+                        {index === 0 && (
+                          <View style={s.coverBadge}>
+                            <Text style={s.coverBadgeText}>Cover</Text>
+                          </View>
+                        )}
+                      </View>
+                    )
+                  }}
+                />
+
+                {/* Quick add buttons */}
+                {canAddMore && (
+                  <View style={s.quickAddRow}>
+                    <TouchableOpacity onPress={pickFromCamera} activeOpacity={0.7} style={s.quickAddBtn}>
+                      <Camera size={14} color={c.amber500} />
+                      <Text style={[s.quickAddText, { color: c.amber500 }]}>Camera</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={pickFromGallery} activeOpacity={0.7} style={s.quickAddBtn}>
+                      <ImageIcon size={14} color={isDark ? c.stone400 : c.stone500} />
+                      <Text style={s.quickAddText}>Gallery</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             ) : (
               <View style={s.photoButtons}>
                 <TouchableOpacity
@@ -230,7 +300,9 @@ export default function TrotroTalesPostScreen() {
             >
               <Send size={20} color={c.white} />
               <Text style={s.submitText}>
-                {isSubmitting ? 'Posting...' : 'Share Tale'}
+                {isSubmitting
+                  ? `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
+                  : 'Share Tale'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -266,11 +338,23 @@ const getStyles = (isDark: boolean) => {
     headerTitle: { color: c.white, fontSize: 18, fontFamily: font.bold },
     headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
     formCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
     label: {
       fontSize: 14,
       fontFamily: font.medium,
       marginBottom: 8,
       color: isDark ? c.stone300 : c.stone600,
+    },
+    counter: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? c.stone400 : c.stone500,
+      marginBottom: 8,
     },
     required: { color: c.red500, fontSize: 12 },
     photoButtons: { flexDirection: 'row', gap: 12 },
@@ -282,18 +366,63 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
     },
     photoBtnText: { color: c.white, fontFamily: font.semibold, marginTop: 8 },
-    previewContainer: { position: 'relative', borderRadius: 16, overflow: 'hidden' },
-    preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: 16 },
-    removeBtn: {
+    thumbStrip: { gap: 8, paddingBottom: 8 },
+    thumbContainer: { position: 'relative', borderRadius: 12, overflow: 'hidden' },
+    thumb: { width: 80, height: 60, borderRadius: 12 },
+    thumbRemove: {
       position: 'absolute',
-      top: 8,
-      right: 8,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      top: 4,
+      right: 4,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
       backgroundColor: 'rgba(0,0,0,0.6)',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    coverBadge: {
+      position: 'absolute',
+      bottom: 4,
+      left: 4,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    coverBadgeText: { color: c.white, fontSize: 9, fontWeight: '600' },
+    addThumb: {
+      width: 80,
+      height: 60,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: isDark ? c.stone600 : c.stone300,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addThumbText: {
+      fontSize: 10,
+      color: isDark ? c.stone400 : c.stone500,
+      marginTop: 2,
+    },
+    quickAddRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 4,
+    },
+    quickAddBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+    },
+    quickAddText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? c.stone400 : c.stone500,
     },
     captionBox: {
       borderRadius: 16,

@@ -78,33 +78,36 @@ export async function deleteTale(postId: string, deviceId: string): Promise<bool
 export async function submitTale(params: {
   deviceId: string
   displayName: string | null
-  imageUri: string
+  imageUris: string[]
   caption: string
   location: string
   postType?: TalePostType
 }): Promise<{ postId: string } | null> {
-  const { deviceId, displayName, imageUri, caption, location, postType = 'tale' } = params
+  const { deviceId, displayName, imageUris, caption, location, postType = 'tale' } = params
 
   try {
-    // Upload image to Supabase storage
-    const fileName = `${deviceId}-${Date.now()}.jpg`
-    const file = new File(imageUri)
-    const arrayBuffer = await file.arrayBuffer()
+    // Upload all images in parallel
+    const imageUrls = await Promise.all(
+      imageUris.map(async (uri, index) => {
+        const fileName = `${deviceId}-${Date.now()}-${index}.jpg`
+        const file = new File(uri)
+        const arrayBuffer = await file.arrayBuffer()
 
-    const { error: uploadError } = await supabase.storage
-      .from('tale-images')
-      .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' })
+        const { error: uploadError } = await supabase.storage
+          .from('tale-images')
+          .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' })
 
-    let imageUrl = ''
-    if (uploadError) {
-      console.warn('Image upload failed, using placeholder:', uploadError.message)
-      imageUrl = `https://placehold.co/600x450/f59e0b/white?text=Troski+Tale`
-    } else {
-      const { data: urlData } = supabase.storage
-        .from('tale-images')
-        .getPublicUrl(fileName)
-      imageUrl = urlData.publicUrl
-    }
+        if (uploadError) {
+          console.warn(`Image ${index} upload failed:`, uploadError.message)
+          return `https://placehold.co/600x450/f59e0b/white?text=Troski+Tale`
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('tale-images')
+          .getPublicUrl(fileName)
+        return urlData.publicUrl
+      })
+    )
 
     // Insert tale post
     const { data, error: insertError } = await supabase
@@ -113,7 +116,8 @@ export async function submitTale(params: {
         device_id: deviceId,
         display_name: displayName,
         is_anonymous: false,
-        image_url: imageUrl,
+        image_url: imageUrls[0],
+        image_urls: imageUrls.length > 1 ? imageUrls : null,
         caption: caption.trim() || null,
         post_type: postType,
         location_name: location.trim(),

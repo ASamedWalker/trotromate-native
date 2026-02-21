@@ -191,6 +191,7 @@ export interface TalePost {
   display_name: string | null
   is_anonymous: boolean
   image_url: string
+  image_urls: string[] | null
   caption: string | null
   post_type: TalePostType
   location_name: string

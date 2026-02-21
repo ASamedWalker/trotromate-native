@@ -129,7 +129,7 @@ export function useSubmitTale(deviceId: string | null) {
 
   const submit = useCallback(
     async (params: {
-      imageUri: string
+      imageUris: string[]
       caption: string
       location: string
       displayName: string | null
@@ -145,7 +145,7 @@ export function useSubmitTale(deviceId: string | null) {
         const result = await submitTale({
           deviceId,
           displayName: params.displayName,
-          imageUri: params.imageUri,
+          imageUris: params.imageUris,
           caption: params.caption,
           location: params.location,
           postType: params.postType,

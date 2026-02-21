@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native'
-import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
@@ -25,6 +24,7 @@ import CommentSheet from '@/components/CommentSheet'
 import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import ImageCarousel from '@/components/ImageCarousel'
 import type { TalePost } from '@/lib/types'
 
 function getDisplayName(post: TalePost): string {
@@ -137,13 +137,11 @@ function TaleCard({
         </>
       )}
 
-      {/* Image — only render if post has one */}
+      {/* Image(s) */}
       {post.image_url ? (
-        <Image
-          source={{ uri: post.image_url }}
-          style={s.image}
-          contentFit="cover"
-          transition={300}
+        <ImageCarousel
+          images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url]}
+          width={Dimensions.get('window').width - 32}
         />
       ) : null}
 
