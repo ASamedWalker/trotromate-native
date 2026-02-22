@@ -44,7 +44,7 @@ const REPORT_OPTIONS = [
     subtitle: 'View queues',
     icon: MapPin,
     color: '#e88a3a',
-    route: '/report/queue',
+    route: '/stations',
   },
   {
     id: 'incident',

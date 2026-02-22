@@ -356,7 +356,7 @@ export default function HomeScreen() {
 
         {/* ── Station Queues Widget ── */}
         <TouchableOpacity
-          onPress={() => router.push('/report/queue' as Href)}
+          onPress={() => router.push('/stations' as Href)}
           activeOpacity={0.8}
           style={s.stationWidget}
         >

@@ -166,6 +166,7 @@ function AppInner() {
             headerTintColor: '#0ea5e9',
           }}
         />
+        <Stack.Screen name="stations/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/edit-name" options={{ headerShown: false }} />
         <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
