@@ -53,12 +53,36 @@ export async function fetchPopularRoutes(): Promise<RouteWithStats[]> {
 
   if (error || !routes) return []
 
+  // Fetch cached traffic data for these routes
+  const { data: trafficCache } = await supabase
+    .from('traffic_cache')
+    .select('route_id, duration_in_traffic_mins, traffic_condition')
+    .in('route_id', routeIds)
+    .gt('expires_at', new Date().toISOString())
+    .order('fetched_at', { ascending: false })
+
+  const trafficByRoute = new Map<string, { duration_in_traffic_mins: number; traffic_condition: string }>()
+  for (const t of trafficCache || []) {
+    if (!trafficByRoute.has(t.route_id)) {
+      trafficByRoute.set(t.route_id, t)
+    }
+  }
+
   // Return routes ordered by report count (most reports first)
   return fareStats
     .map((fs: RouteFareStats) => {
       const route = routes.find((r: Route) => r.id === fs.route_id)
       if (!route) return null
-      return { ...route, fare_stats: fs }
+      const tc = trafficByRoute.get(route.id)
+      return {
+        ...route,
+        fare_stats: fs,
+        traffic: tc ? {
+          duration_in_traffic_mins: tc.duration_in_traffic_mins,
+          traffic_condition: tc.traffic_condition as 'light' | 'moderate' | 'heavy' | 'severe',
+          delay_mins: Math.max(0, (tc.duration_in_traffic_mins || 0) - (route.estimated_duration_mins || 0)),
+        } : null,
+      }
     })
     .filter(Boolean) as RouteWithStats[]
 }

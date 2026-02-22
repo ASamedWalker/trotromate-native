@@ -62,9 +62,17 @@ export interface RouteFareStats {
   last_report_at: string | null
 }
 
+// Cached traffic info for a route
+export interface RouteTraffic {
+  duration_in_traffic_mins: number
+  traffic_condition: 'light' | 'moderate' | 'heavy' | 'severe'
+  delay_mins: number
+}
+
 // Route with merged fare statistics
 export interface RouteWithStats extends Route {
   fare_stats: RouteFareStats | null
+  traffic?: RouteTraffic | null
 }
 
 // === Rewards System ===

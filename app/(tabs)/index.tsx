@@ -52,6 +52,13 @@ const QUICK_ACTIONS = [
   { label: 'Plan', subtitle: 'Multi-hop', icon: Map, color: '#10b981', href: '/routes/plan' },
 ] as const
 
+const TRAFFIC_COLORS: Record<string, string> = {
+  light: '#10b981',    // emerald-500
+  moderate: '#f59e0b',  // amber-500
+  heavy: '#f97316',     // orange-500
+  severe: '#ef4444',    // red-500
+}
+
 /* ── helpers ─────────────────────────────────────────── */
 
 function getGreeting(): string {
@@ -155,28 +162,46 @@ export default function HomeScreen() {
     ? profile.current_level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
     : null
 
-  const renderRouteCard = useCallback(({ item: route }: { item: RouteWithStats }) => (
-    <TouchableOpacity
-      key={route.id}
-      onPress={() => router.push(`/routes/${route.id}` as Href)}
-      activeOpacity={0.8}
-      style={s.routeCard}
-    >
-      <View style={s.routeCardIcon}>
-        <Navigation size={14} color={c.amber500} />
-      </View>
-      <View style={s.routeCardNames}>
-        <Text style={s.routeCardFrom} numberOfLines={1}>{route.from_location}</Text>
-        <ArrowRight size={10} color={c.amber500} />
-        <Text style={s.routeCardTo} numberOfLines={1}>{route.to_location}</Text>
-      </View>
-      <View style={s.routeCardMeta}>
-        <Timer size={10} color={t.textSecondary} />
-        <Text style={s.routeCardMetaText}>{route.estimated_duration_mins} min</Text>
-      </View>
-      <Text style={s.routeCardFare}>₵{route.official_fare.toFixed(2)}</Text>
-    </TouchableOpacity>
-  ), [isDark])
+  const renderRouteCard = useCallback(({ item: route }: { item: RouteWithStats }) => {
+    const hasTraffic = !!route.traffic
+    const displayMins = route.traffic?.duration_in_traffic_mins ?? route.estimated_duration_mins
+    const trafficColor = hasTraffic
+      ? TRAFFIC_COLORS[route.traffic!.traffic_condition] || t.textSecondary
+      : t.textSecondary
+    const delayMins = route.traffic?.delay_mins ?? 0
+
+    return (
+      <TouchableOpacity
+        key={route.id}
+        onPress={() => router.push(`/routes/${route.id}` as Href)}
+        activeOpacity={0.8}
+        style={s.routeCard}
+      >
+        <View style={s.routeCardIcon}>
+          <Navigation size={14} color={c.amber500} />
+        </View>
+        <View style={s.routeCardNames}>
+          <Text style={s.routeCardFrom} numberOfLines={1}>{route.from_location}</Text>
+          <ArrowRight size={10} color={c.amber500} />
+          <Text style={s.routeCardTo} numberOfLines={1}>{route.to_location}</Text>
+        </View>
+        <View style={s.routeCardBottom}>
+          <Text style={s.routeCardFare}>₵{route.official_fare.toFixed(2)}</Text>
+          <View style={s.routeCardDuration}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Timer size={10} color={trafficColor} />
+              <Text style={[s.routeCardMetaText, { color: trafficColor, fontFamily: hasTraffic ? font.semibold : font.regular }]}>
+                {displayMins}m
+              </Text>
+            </View>
+            {delayMins > 0 && (
+              <Text style={s.routeCardDelay}>+{delayMins}m delay</Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    )
+  }, [isDark])
 
   const renderSavedRoute = useCallback(({ item }: { item: typeof favorites[0] }) => (
     <TouchableOpacity
@@ -597,6 +622,12 @@ const getStyles = (isDark: boolean) => {
       color: t.text,
       flexShrink: 1,
     },
+    routeCardBottom: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      marginTop: 8,
+    },
     routeCardMeta: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -612,6 +643,15 @@ const getStyles = (isDark: boolean) => {
       fontSize: 20,
       fontFamily: font.bold,
       color: c.amber500,
+    },
+    routeCardDuration: {
+      alignItems: 'flex-end',
+    },
+    routeCardDelay: {
+      fontSize: 9,
+      fontFamily: font.medium,
+      color: '#f97316',
+      marginTop: 1,
     },
 
     // Saved route chips (horizontal scroll)
