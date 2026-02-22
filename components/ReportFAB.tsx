@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike } from 'lucide-react-native'
+import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike, MapPin } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 
 const REPORT_OPTIONS = [
@@ -36,6 +36,14 @@ const REPORT_OPTIONS = [
     subtitle: '+5 pts',
     icon: Users,
     color: c.violet500,
+    route: '/report/queue',
+  },
+  {
+    id: 'station-queues',
+    title: 'Station Queues',
+    subtitle: 'View queues',
+    icon: MapPin,
+    color: '#e88a3a',
     route: '/report/queue',
   },
   {

@@ -27,6 +27,7 @@ import {
   ArrowRight,
   Timer,
   Map,
+  MapPin,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
@@ -353,6 +354,22 @@ export default function HomeScreen() {
           <ChevronRight size={16} color="#38bdf8" />
         </TouchableOpacity>
 
+        {/* ── Station Queues Widget ── */}
+        <TouchableOpacity
+          onPress={() => router.push('/report/queue' as Href)}
+          activeOpacity={0.8}
+          style={s.stationWidget}
+        >
+          <View style={s.stationWidgetIcon}>
+            <MapPin size={18} color={c.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.stationWidgetTitle}>Station Queues</Text>
+            <Text style={s.stationWidgetSub}>View & report live wait times</Text>
+          </View>
+          <ChevronRight size={16} color="#e88a3a" />
+        </TouchableOpacity>
+
         {/* ── Popular Routes ── */}
         <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 20 }]}>
           <Text style={s.sectionTitle}>Popular Routes</Text>
@@ -651,6 +668,39 @@ const getStyles = (isDark: boolean) => {
       fontSize: 9,
       fontFamily: font.medium,
       color: '#f97316',
+      marginTop: 1,
+    },
+
+    // Station Queues widget
+    stationWidget: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 20,
+      marginTop: 12,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(232,138,58,0.12)' : 'rgba(232,138,58,0.06)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(232,138,58,0.2)' : 'rgba(232,138,58,0.12)',
+      gap: 12,
+    },
+    stationWidgetIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: '#e88a3a',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stationWidgetTitle: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+    stationWidgetSub: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: t.textSecondary,
       marginTop: 1,
     },
 
