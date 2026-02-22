@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -22,12 +22,10 @@ import {
   Bus,
   Bike,
   TrendingUp,
-  Camera,
   Heart,
   Navigation,
   ArrowRight,
   Timer,
-  Trophy,
   Map,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
@@ -38,16 +36,11 @@ import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
-import PromoBanner, { DEFAULT_PROMOS } from '@/components/PromoBanner'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { MyCommuteWidget } from '@/components/MyCommuteWidget'
 import { WeatherBadge, WeatherRainAlert } from '@/components/WeatherBadge'
 import HappeningNow from '@/components/HappeningNow'
-import TrafficNow from '@/components/TrafficNow'
-import { supabase } from '@/lib/supabase/client'
-import InitialsAvatar from '@/components/InitialsAvatar'
-import FollowButton from '@/components/FollowButton'
-import type { RouteWithStats, PublicProfile } from '@/lib/types'
+import type { RouteWithStats } from '@/lib/types'
 
 /* ── Quick Actions ────────────────────────────────────── */
 
@@ -143,62 +136,14 @@ export default function HomeScreen() {
   const s = getStyles(isDark)
   const t = themed(isDark)
 
-  const { profile, deviceId } = useApp()
+  const { profile } = useApp()
   const { routes: popularRoutes, isLoading, refetch: refetchRoutes } = usePopularRoutes()
   const { favorites } = useFavorites()
   useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
   const [refreshing, setRefreshing] = useState(false)
-  const [discoverUsers, setDiscoverUsers] = useState<PublicProfile[]>([])
   const greeting = getGreeting()
   const nextTrain = useMemo(() => getNextTrain(), [])
-
-  // Fetch discover users
-  useEffect(() => {
-    if (!deviceId) return
-    async function fetchDiscover() {
-      try {
-        // Get users the requester already follows
-        const { data: existingFollows } = await supabase
-          .from('follows')
-          .select('following_device_id')
-          .eq('follower_device_id', deviceId!)
-
-        const followedIds = new Set(existingFollows?.map((f) => f.following_device_id) || [])
-
-        // Get recently active users
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        const { data: activeTalers } = await supabase
-          .from('tale_posts')
-          .select('device_id')
-          .gte('created_at', sevenDaysAgo)
-          .eq('is_hidden', false)
-          .neq('device_id', deviceId!)
-          .order('created_at', { ascending: false })
-          .limit(30)
-
-        const activeIds = [...new Set((activeTalers || []).map((t) => t.device_id))]
-          .filter((id) => !followedIds.has(id))
-          .slice(0, 6)
-
-        if (activeIds.length === 0) return
-
-        const { data: profiles } = await supabase
-          .from('contributor_profiles')
-          .select('device_id, display_name, bio, avatar_url, current_level, total_points, total_reports, current_streak, follower_count, following_count, home_route_label, home_route_id, is_public')
-          .in('device_id', activeIds)
-          .eq('is_public', true)
-          .order('total_points', { ascending: false })
-
-        if (profiles && profiles.length > 0) {
-          setDiscoverUsers(profiles.map((u) => ({ ...u, is_following: false })) as PublicProfile[])
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchDiscover()
-  }, [deviceId])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -306,15 +251,6 @@ export default function HomeScreen() {
         {/* ── Rain Alert ── */}
         <WeatherRainAlert />
 
-        {/* ── Happening Now (live events) ── */}
-        <HappeningNow />
-
-        {/* ── Traffic Now ── */}
-        <TrafficNow />
-
-        {/* ── My Commute ── */}
-        <MyCommuteWidget />
-
         {/* ── Quick Actions ── */}
         <View style={s.quickActionsRow}>
           {QUICK_ACTIONS.map((action) => {
@@ -336,15 +272,11 @@ export default function HomeScreen() {
           })}
         </View>
 
-        {/* ── Promo Banner ── */}
-        <PromoBanner
-          promos={DEFAULT_PROMOS}
-          onPromoPress={(promo) => {
-            if (promo.id === 'train') router.push('/train' as Href)
-            else if (promo.id === 'tales') router.push('/(tabs)/tales' as Href)
-            else if (promo.id === 'welcome') router.push('/(tabs)/report' as Href)
-          }}
-        />
+        {/* ── My Commute ── */}
+        <MyCommuteWidget />
+
+        {/* ── Happening Now (live events — conditional) ── */}
+        <HappeningNow />
 
         {/* ── Next Train Widget ── */}
         <TouchableOpacity
@@ -445,74 +377,6 @@ export default function HomeScreen() {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
               scrollEnabled
               nestedScrollEnabled
-            />
-          </>
-        )}
-
-        {/* ── Community ── */}
-        <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 24 }]}>
-          <Text style={s.sectionTitle}>Community</Text>
-        </View>
-        <View style={s.communityRow}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/tales' as Href)}
-            activeOpacity={0.8}
-            style={[s.communityCard, s.communityTales]}
-          >
-            <Camera size={24} color={c.pink500} />
-            <Text style={s.communityCardTitle}>Trotro Tales</Text>
-            <Text style={s.communityCardSub}>Share your commute stories</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile' as Href)}
-            activeOpacity={0.8}
-            style={[s.communityCard, s.communityRewards]}
-          >
-            <Trophy size={24} color={c.violet500} />
-            <Text style={s.communityCardTitle}>Rewards</Text>
-            <Text style={s.communityCardSub}>Earn points & climb ranks</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── People You May Know ── */}
-        {discoverUsers.length > 0 && (
-          <>
-            <View style={[s.sectionHeader, { paddingHorizontal: 20, marginTop: 24 }]}>
-              <Text style={s.sectionTitle}>People You May Know</Text>
-            </View>
-            <FlatList
-              data={discoverUsers}
-              keyExtractor={(item) => item.device_id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-              scrollEnabled
-              nestedScrollEnabled
-              renderItem={({ item }) => {
-                const userNumber = item.device_id.slice(-4).toUpperCase()
-                const name = item.display_name || `User-${userNumber}`
-                return (
-                  <TouchableOpacity
-                    onPress={() => router.push(`/profile/${item.device_id}` as Href)}
-                    activeOpacity={0.8}
-                    style={s.discoverCard}
-                  >
-                    <InitialsAvatar name={name} size={48} />
-                    <Text style={s.discoverName} numberOfLines={1}>{name}</Text>
-                    <Text style={s.discoverLevel} numberOfLines={1}>
-                      {item.current_level?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) || 'Commuter'}
-                    </Text>
-                    <View style={{ marginTop: 8 }}>
-                      <FollowButton
-                        myDeviceId={deviceId}
-                        targetDeviceId={item.device_id}
-                        initialFollowing={false}
-                        size="sm"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                )
-              }}
             />
           </>
         )}
@@ -769,64 +633,5 @@ const getStyles = (isDark: boolean) => {
       maxWidth: 160,
     },
 
-    // Community cards
-    communityRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 20,
-      gap: 12,
-    },
-    communityCard: {
-      flex: 1,
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-    },
-    communityTales: {
-      backgroundColor: isDark ? 'rgba(236,72,153,0.08)' : 'rgba(236,72,153,0.05)',
-      borderColor: isDark ? 'rgba(236,72,153,0.2)' : 'rgba(236,72,153,0.12)',
-    },
-    communityRewards: {
-      backgroundColor: isDark ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.05)',
-      borderColor: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.12)',
-    },
-    communityCardTitle: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: t.text,
-      marginTop: 10,
-    },
-    communityCardSub: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginTop: 2,
-    },
-
-    // Discover user cards
-    discoverCard: {
-      width: 130,
-      padding: 16,
-      borderRadius: 16,
-      backgroundColor: t.card,
-      borderWidth: 1,
-      borderColor: t.border,
-      alignItems: 'center',
-    },
-    discoverName: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: t.text,
-      marginTop: 8,
-      textAlign: 'center',
-      width: '100%',
-    },
-    discoverLevel: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      textAlign: 'center',
-      marginTop: 2,
-      width: '100%',
-    },
   })
 }
