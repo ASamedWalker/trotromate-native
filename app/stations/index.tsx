@@ -220,10 +220,11 @@ export default function StationsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       setSelectedStationId(stationId)
 
-      // Zoom map to station
+      // Zoom map to station with 3D tilt
       cameraRef.current?.setCamera({
         centerCoordinate: [station._lng, station._lat],
-        zoomLevel: 14,
+        zoomLevel: 15,
+        pitch: 50,
         animationDuration: 500,
       })
 
@@ -247,7 +248,8 @@ export default function StationsScreen() {
 
       cameraRef.current?.setCamera({
         centerCoordinate: [station._lng, station._lat],
-        zoomLevel: 14,
+        zoomLevel: 15,
+        pitch: 50,
         animationDuration: 500,
       })
 
@@ -278,6 +280,22 @@ export default function StationsScreen() {
           defaultSettings={{
             centerCoordinate: [-0.187, 5.6037],
             zoomLevel: 12,
+            pitch: 45,
+          }}
+        />
+
+        {/* 3D buildings — visible at zoom 14+ */}
+        <Mapbox.FillExtrusionLayer
+          id="3d-buildings"
+          sourceID="composite"
+          sourceLayerID="building"
+          minZoomLevel={14}
+          maxZoomLevel={24}
+          style={{
+            fillExtrusionColor: isDark ? c.stone700 : '#ddd',
+            fillExtrusionHeight: ['get', 'height'],
+            fillExtrusionBase: ['get', 'min_height'],
+            fillExtrusionOpacity: isDark ? 0.5 : 0.6,
           }}
         />
 
