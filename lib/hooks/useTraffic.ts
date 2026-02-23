@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { fetchRouteTraffic, fetchTrafficSummary } from '@/lib/services/traffic-api'
 
 interface TrafficInfo {
   route_id: string
@@ -23,7 +24,9 @@ interface TrafficSummaryRoute {
 }
 
 /**
- * Fetches traffic info for a specific route from Supabase cache.
+ * Fetches traffic info for a specific route.
+ * Calls the PWA API first (refreshes Google Routes cache server-side).
+ * Falls back to direct Supabase cache read on failure.
  */
 export function useTrafficInfo(routeId: string | undefined) {
   return useQuery<TrafficInfo | null>({
@@ -31,105 +34,127 @@ export function useTrafficInfo(routeId: string | undefined) {
     queryFn: async () => {
       if (!routeId) return null
 
-      // Get cached traffic data
-      const { data: cached } = await supabase
-        .from('traffic_cache')
-        .select('*')
-        .eq('route_id', routeId)
-        .gt('expires_at', new Date().toISOString())
-        .order('fetched_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      // Get queue reports for busyness
-      const { data: route } = await supabase
-        .from('routes')
-        .select('from_station_id, to_station_id')
-        .eq('id', routeId)
-        .single()
-
-      const busyness = await computeBusyness(route, cached?.traffic_condition || null)
-
-      if (!cached) {
-        return {
-          route_id: routeId,
-          duration_in_traffic_mins: null,
-          typical_duration_mins: null,
-          traffic_condition: null,
-          delay_mins: 0,
-          busyness,
-          fetched_at: null,
-        }
+      // Try PWA API first — it refreshes the cache server-side
+      const apiResult = await fetchRouteTraffic(routeId)
+      if (apiResult && (apiResult.traffic_condition || apiResult.busyness?.confidence > 0)) {
+        return apiResult
       }
 
-      return {
-        route_id: routeId,
-        duration_in_traffic_mins: cached.duration_in_traffic_mins,
-        typical_duration_mins: cached.typical_duration_mins,
-        traffic_condition: cached.traffic_condition as TrafficInfo['traffic_condition'],
-        delay_mins: Math.max(0, (cached.duration_in_traffic_mins || 0) - (cached.typical_duration_mins || 0)),
-        busyness,
-        fetched_at: cached.fetched_at,
-      }
+      // Fallback: read Supabase cache directly + local busyness calc
+      return fallbackTrafficInfo(routeId)
     },
     enabled: !!routeId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   })
 }
 
 /**
  * Fetches traffic summary for popular routes.
+ * Calls the PWA API first, falls back to direct Supabase cache read.
  */
 export function useTrafficSummary() {
   return useQuery<TrafficSummaryRoute[]>({
     queryKey: ['traffic-summary'],
     queryFn: async () => {
-      // Get popular routes
-      const { data: routes } = await supabase
-        .from('routes')
-        .select('id, from_location, to_location, estimated_duration_mins')
-        .eq('is_popular', true)
-        .limit(10)
-
-      if (!routes || routes.length === 0) return []
-
-      const results: TrafficSummaryRoute[] = []
-
-      for (const route of routes) {
-        const { data: cached } = await supabase
-          .from('traffic_cache')
-          .select('*')
-          .eq('route_id', route.id)
-          .gt('expires_at', new Date().toISOString())
-          .order('fetched_at', { ascending: false })
-          .limit(1)
-          .single()
-
-        const busyness = await computeBusyness(
-          { from_station_id: null, to_station_id: null },
-          cached?.traffic_condition || null
-        )
-
-        results.push({
-          route_id: route.id,
-          from_location: route.from_location,
-          to_location: route.to_location,
-          estimated_duration_mins: route.estimated_duration_mins,
-          duration_in_traffic_mins: cached?.duration_in_traffic_mins || null,
-          traffic_condition: (cached?.traffic_condition as TrafficSummaryRoute['traffic_condition']) || null,
-          delay_mins: cached
-            ? Math.max(0, (cached.duration_in_traffic_mins || 0) - (cached.typical_duration_mins || 0))
-            : 0,
-          busyness,
-        })
+      // Try PWA API first
+      const apiResult = await fetchTrafficSummary()
+      if (apiResult && apiResult.length > 0) {
+        return apiResult
       }
 
-      return results
+      // Fallback: read Supabase cache directly
+      return fallbackTrafficSummary()
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   })
+}
+
+// ── Fallbacks (original Supabase-only logic) ─────────────
+
+async function fallbackTrafficInfo(routeId: string): Promise<TrafficInfo> {
+  const { data: cached } = await supabase
+    .from('traffic_cache')
+    .select('*')
+    .eq('route_id', routeId)
+    .gt('expires_at', new Date().toISOString())
+    .order('fetched_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  const { data: route } = await supabase
+    .from('routes')
+    .select('from_station_id, to_station_id')
+    .eq('id', routeId)
+    .single()
+
+  const busyness = await computeBusyness(route, cached?.traffic_condition || null)
+
+  if (!cached) {
+    return {
+      route_id: routeId,
+      duration_in_traffic_mins: null,
+      typical_duration_mins: null,
+      traffic_condition: null,
+      delay_mins: 0,
+      busyness,
+      fetched_at: null,
+    }
+  }
+
+  return {
+    route_id: routeId,
+    duration_in_traffic_mins: cached.duration_in_traffic_mins,
+    typical_duration_mins: cached.typical_duration_mins,
+    traffic_condition: cached.traffic_condition as TrafficInfo['traffic_condition'],
+    delay_mins: Math.max(0, (cached.duration_in_traffic_mins || 0) - (cached.typical_duration_mins || 0)),
+    busyness,
+    fetched_at: cached.fetched_at,
+  }
+}
+
+async function fallbackTrafficSummary(): Promise<TrafficSummaryRoute[]> {
+  const { data: routes } = await supabase
+    .from('routes')
+    .select('id, from_location, to_location, estimated_duration_mins')
+    .eq('is_popular', true)
+    .limit(10)
+
+  if (!routes || routes.length === 0) return []
+
+  const results: TrafficSummaryRoute[] = []
+
+  for (const route of routes) {
+    const { data: cached } = await supabase
+      .from('traffic_cache')
+      .select('*')
+      .eq('route_id', route.id)
+      .gt('expires_at', new Date().toISOString())
+      .order('fetched_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    const busyness = await computeBusyness(
+      { from_station_id: null, to_station_id: null },
+      cached?.traffic_condition || null
+    )
+
+    results.push({
+      route_id: route.id,
+      from_location: route.from_location,
+      to_location: route.to_location,
+      estimated_duration_mins: route.estimated_duration_mins,
+      duration_in_traffic_mins: cached?.duration_in_traffic_mins || null,
+      traffic_condition: (cached?.traffic_condition as TrafficSummaryRoute['traffic_condition']) || null,
+      delay_mins: cached
+        ? Math.max(0, (cached.duration_in_traffic_mins || 0) - (cached.typical_duration_mins || 0))
+        : 0,
+      busyness,
+    })
+  }
+
+  return results
 }
 
 // ── Helpers ──────────────────────────────────────────────
