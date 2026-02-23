@@ -286,6 +286,35 @@ export default function StationsScreen() {
     })
   }, [])
 
+  // Auto-zoom to fit filtered stations when search changes
+  useEffect(() => {
+    if (!stationsWithCoords.length) return
+
+    if (stationsWithCoords.length === 1) {
+      // Single result: zoom directly to it
+      const st = stationsWithCoords[0]
+      cameraRef.current?.setCamera({
+        centerCoordinate: [st._lng, st._lat],
+        zoomLevel: 15,
+        animationDuration: 600,
+      })
+    } else if (search && stationsWithCoords.length <= 5) {
+      // Few results: fit them all in view
+      const lats = stationsWithCoords.map(s => s._lat)
+      const lngs = stationsWithCoords.map(s => s._lng)
+      const ne: [number, number] = [Math.max(...lngs) + 0.005, Math.max(...lats) + 0.005]
+      const sw: [number, number] = [Math.min(...lngs) - 0.005, Math.min(...lats) - 0.005]
+      cameraRef.current?.fitBounds(ne, sw, 60, 600)
+    } else if (!search) {
+      // Search cleared: reset to default Accra view
+      cameraRef.current?.setCamera({
+        centerCoordinate: [-0.187, 5.6037],
+        zoomLevel: 12,
+        animationDuration: 400,
+      })
+    }
+  }, [stationsWithCoords, search])
+
   return (
     <View style={s.container}>
       {/* Header */}
@@ -347,17 +376,19 @@ export default function StationsScreen() {
             />
 
             {stationsWithCoords.map((station, index) => (
-              <Mapbox.MarkerView
+              <Mapbox.PointAnnotation
                 key={station.id}
+                id={`station-${station.id}`}
                 coordinate={[station._lng, station._lat]}
                 anchor={{ x: 0.5, y: 1 }}
+                onSelected={() => handleMarkerPress(station)}
               >
                 <StationPin
                   station={station}
                   index={index}
                   onPress={() => handleMarkerPress(station)}
                 />
-              </Mapbox.MarkerView>
+              </Mapbox.PointAnnotation>
             ))}
           </Mapbox.MapView>
         )}

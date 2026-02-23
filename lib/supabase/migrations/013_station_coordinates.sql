@@ -24,7 +24,7 @@ UPDATE stations SET latitude = 5.6636, longitude = -0.2652 WHERE name = 'Ofankor
 UPDATE stations SET latitude = 5.635, longitude = -0.187 WHERE name = 'Okponglo';           -- [L] Okponglo junction
 UPDATE stations SET latitude = 5.634, longitude = -0.252 WHERE name = 'Taifa';              -- [L] Taifa junction
 UPDATE stations SET latitude = 5.593, longitude = -0.164 WHERE name = 'Tetteh Quarshie';    -- [L] TQ Interchange
-UPDATE stations SET latitude = 5.587, longitude = -0.187 WHERE name = '37 Military Hospital'; -- [L]
+UPDATE stations SET latitude = 5.584, longitude = -0.192 WHERE name = '37 Military Hospital'; -- [L] 37 Station (lorry park)
 UPDATE stations SET latitude = 5.548, longitude = -0.252 WHERE name = 'Ablekuma';           -- [L] Ablekuma junction
 UPDATE stations SET latitude = 5.715, longitude = -0.153 WHERE name = 'Abokobi';            -- [L] Abokobi town
 UPDATE stations SET latitude = 5.6497, longitude = -0.1367 WHERE name = 'Adjringanor';      -- [M] Adjiringanor
