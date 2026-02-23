@@ -108,18 +108,22 @@ export default function StationsScreen() {
     return copy
   }, [filteredStations, activeTab])
 
-  // Best pick: station with shortest queue that has recent data
+  // Best pick: station with shortest queue, or top major station if no queue data
   const bestPick = useMemo(() => {
+    if (!stationsWithCoords.length) return null
     const withReports = stationsWithCoords.filter(
       (st) => st.queue_stats?.[0]?.current_status,
     )
-    if (!withReports.length) return null
-    withReports.sort((a, b) => {
-      const aSev = QUEUE_SEVERITY[a.queue_stats![0].current_status] ?? 99
-      const bSev = QUEUE_SEVERITY[b.queue_stats![0].current_status] ?? 99
-      return aSev - bSev
-    })
-    return withReports[0]
+    if (withReports.length) {
+      withReports.sort((a, b) => {
+        const aSev = QUEUE_SEVERITY[a.queue_stats![0].current_status] ?? 99
+        const bSev = QUEUE_SEVERITY[b.queue_stats![0].current_status] ?? 99
+        return aSev - bSev
+      })
+      return withReports[0]
+    }
+    // No queue data — pick the first major station
+    return stationsWithCoords.find((st) => st.is_major) ?? stationsWithCoords[0]
   }, [stationsWithCoords])
 
   // Build GeoJSON for map dots (filtered by search)

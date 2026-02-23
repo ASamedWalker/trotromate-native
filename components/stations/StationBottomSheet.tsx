@@ -138,7 +138,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
           </View>
 
           {/* Best Pick card */}
-          {bestPick && bestPickConfig && bestPickColor && !search && (
+          {bestPick && !search && (
             <TouchableOpacity
               style={[
                 styles.bestPick,
@@ -153,24 +153,42 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
               <View style={styles.bestPickHeader}>
                 <View style={styles.bestPickBadge}>
                   <Zap size={12} color={c.amber500} />
-                  <Text style={styles.bestPickBadgeText}>BEST RIGHT NOW</Text>
+                  <Text style={styles.bestPickBadgeText}>
+                    {bestPickConfig ? 'BEST RIGHT NOW' : 'TOP STATION'}
+                  </Text>
                 </View>
+                {bestPick.is_major && (
+                  <Text style={[styles.bestPickMajorTag, { color: t.textTertiary }]}>
+                    MAJOR
+                  </Text>
+                )}
               </View>
               <Text style={[styles.bestPickName, { color: t.text }]}>
                 {stationLabel(bestPick.name)}
               </Text>
-              <View style={styles.bestPickBarRow}>
-                <QueueStatusBar status={bestPickStatus ?? null} isDark={isDark} />
-              </View>
-              <View style={styles.bestPickStatus}>
-                <View style={[styles.bestPickDot, { backgroundColor: bestPickColor }]} />
-                <Text style={[styles.bestPickLabel, { color: bestPickColor }]}>
-                  {bestPickConfig.label} queue
+              <Text style={[styles.bestPickLocation, { color: t.textSecondary }]}>
+                {bestPick.location}
+              </Text>
+              {bestPickConfig && bestPickColor ? (
+                <>
+                  <View style={styles.bestPickBarRow}>
+                    <QueueStatusBar status={bestPickStatus ?? null} isDark={isDark} />
+                  </View>
+                  <View style={styles.bestPickStatus}>
+                    <View style={[styles.bestPickDot, { backgroundColor: bestPickColor }]} />
+                    <Text style={[styles.bestPickLabel, { color: bestPickColor }]}>
+                      {bestPickConfig.label} queue
+                    </Text>
+                    <Text style={[styles.bestPickEstimate, { color: t.textSecondary }]}>
+                      · {bestPickConfig.estimate}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={[styles.bestPickNoData, { color: t.textTertiary }]}>
+                  Tap to view on map
                 </Text>
-                <Text style={[styles.bestPickEstimate, { color: t.textSecondary }]}>
-                  · {bestPickConfig.estimate}
-                </Text>
-              </View>
+              )}
             </TouchableOpacity>
           )}
 
@@ -305,9 +323,20 @@ const styles = StyleSheet.create({
     color: c.amber500,
     letterSpacing: 0.6,
   },
+  bestPickMajorTag: {
+    fontSize: 9,
+    fontFamily: font.semibold,
+    letterSpacing: 0.6,
+    marginLeft: 'auto',
+  },
   bestPickName: {
     fontSize: 16,
     fontFamily: font.bold,
+  },
+  bestPickLocation: {
+    fontSize: 12,
+    fontFamily: font.regular,
+    marginTop: 1,
   },
   bestPickBarRow: {
     marginTop: 8,
@@ -330,5 +359,10 @@ const styles = StyleSheet.create({
   bestPickEstimate: {
     fontSize: 12,
     fontFamily: font.regular,
+  },
+  bestPickNoData: {
+    fontSize: 12,
+    fontFamily: font.medium,
+    marginTop: 8,
   },
 })
