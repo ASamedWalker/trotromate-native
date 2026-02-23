@@ -7,8 +7,6 @@ import {
   ActivityIndicator,
   useColorScheme,
   StyleSheet,
-  Animated,
-  Easing,
   Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -47,78 +45,27 @@ const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
 
 /* ── Animated Pin ───────────────────────────────────── */
 
+// Display name: append "Station" if not already present
+function stationLabel(name: string): string {
+  if (name.endsWith('Station') || name.endsWith('Hospital')) return name
+  return `${name} Station`
+}
+
 function StationPin({
   station,
-  index,
   onPress,
 }: {
   station: StationWithQueue
-  index: number
   onPress: () => void
 }) {
-  const scaleAnim = useRef(new Animated.Value(0)).current
-  const pulseAnim = useRef(new Animated.Value(0.8)).current
-
   const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
   const color = queueStatus ? QUEUE_COLORS[queueStatus] : TROSKI_ORANGE
   const isMajor = station.is_major
-  const iconSize = isMajor ? 48 : 38
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      delay: index * 60,
-      friction: 5,
-      tension: 80,
-      useNativeDriver: true,
-    }).start()
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.6,
-          duration: 2000,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.8,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start()
-  }, [])
-
-  const pulseOpacity = pulseAnim.interpolate({
-    inputRange: [0.8, 1.6],
-    outputRange: [0.4, 0],
-  })
+  const iconSize = isMajor ? 46 : 36
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <Animated.View
-        style={{
-          alignItems: 'center',
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        {/* Pulse ring */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: (iconSize - iconSize * 0.7) / 2,
-            alignSelf: 'center',
-            width: iconSize * 0.7,
-            height: iconSize * 0.7,
-            borderRadius: iconSize * 0.35,
-            borderWidth: 2,
-            borderColor: color,
-            opacity: pulseOpacity,
-            transform: [{ scale: pulseAnim }],
-          }}
-        />
-
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <View style={{ alignItems: 'center' }}>
         {/* Bus icon container */}
         <View style={{
           width: iconSize,
@@ -139,10 +86,10 @@ function StationPin({
             android: { elevation: 8 },
           }),
         }}>
-          <Bus size={isMajor ? 22 : 18} color="#fff" strokeWidth={2.5} />
+          <Bus size={isMajor ? 22 : 16} color="#fff" strokeWidth={2.5} />
         </View>
 
-        {/* Station name label — shown for ALL stations */}
+        {/* Station name label */}
         <View style={{
           backgroundColor: color,
           paddingHorizontal: isMajor ? 8 : 6,
@@ -166,9 +113,9 @@ function StationPin({
             fontFamily: font.bold,
             color: '#fff',
             textAlign: 'center',
-          }}>{station.name}</Text>
+          }}>{stationLabel(station.name)}</Text>
         </View>
-      </Animated.View>
+      </View>
     </TouchableOpacity>
   )
 }
@@ -201,7 +148,7 @@ function StationCallout({ station }: { station: StationWithQueue }) {
       }),
     }}>
       <Text style={{ fontSize: 15, fontFamily: font.bold, color: t.text }}>
-        {station.name}
+        {stationLabel(station.name)}
       </Text>
       <Text style={{ fontSize: 12, fontFamily: font.regular, color: t.textSecondary, marginTop: 2 }}>
         {station.location}
@@ -375,20 +322,17 @@ export default function StationsScreen() {
               }}
             />
 
-            {stationsWithCoords.map((station, index) => (
-              <Mapbox.PointAnnotation
+            {stationsWithCoords.map((station) => (
+              <Mapbox.MarkerView
                 key={station.id}
-                id={`station-${station.id}`}
                 coordinate={[station._lng, station._lat]}
-                anchor={{ x: 0.5, y: 1 }}
-                onSelected={() => handleMarkerPress(station)}
+                allowOverlap
               >
                 <StationPin
                   station={station}
-                  index={index}
                   onPress={() => handleMarkerPress(station)}
                 />
-              </Mapbox.PointAnnotation>
+              </Mapbox.MarkerView>
             ))}
           </Mapbox.MapView>
         )}
