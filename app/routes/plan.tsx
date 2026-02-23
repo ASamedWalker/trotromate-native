@@ -26,6 +26,7 @@ import {
 import { c, themed, font } from '@/lib/theme'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
 import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
+import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 
 // Lazy-load map to avoid Mapbox native module crashing the screen on import
 const RoutePlanMap = lazy(() =>
@@ -54,19 +55,14 @@ const MODE_COLORS: Record<TransportMode, { active: string; bg: string }> = {
   walk: { active: '#16a34a', bg: 'rgba(34,197,94,0.12)' },
 }
 
-// Station coordinates for walking estimate + map
-export const STATION_COORDS: Record<string, { lat: number; lon: number }> = {
-  Circle: { lat: 5.5714, lon: -0.2096 },
-  Madina: { lat: 5.6769, lon: -0.1648 },
-  Tema: { lat: 5.6698, lon: -0.0166 },
-  Kaneshie: { lat: 5.5609, lon: -0.2347 },
-  Lapaz: { lat: 5.6055, lon: -0.2464 },
-  Achimota: { lat: 5.6133, lon: -0.2271 },
-  Legon: { lat: 5.6500, lon: -0.1869 },
-  Kasoa: { lat: 5.5345, lon: -0.4164 },
-  Dansoman: { lat: 5.5286, lon: -0.2575 },
-  Spintex: { lat: 5.6357, lon: -0.1144 },
-}
+// Build station coords from shared utility ({ latitude, longitude } → { lat, lon })
+export const STATION_COORDS: Record<string, { lat: number; lon: number }> =
+  Object.fromEntries(
+    Object.entries(FALLBACK_STATION_COORDS).map(([name, c]) => [
+      name,
+      { lat: c.latitude, lon: c.longitude },
+    ])
+  )
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371

@@ -13,10 +13,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Search, MapPin, Timer, Users, X } from 'lucide-react-native'
+import { ChevronLeft, Search, MapPin, Timer, Users, X, Bus } from 'lucide-react-native'
 import Mapbox from '@rnmapbox/maps'
 import { c, themed, font } from '@/lib/theme'
 import { useStations } from '@/lib/hooks/useStations'
+import { getStationCoords } from '@/lib/utils/station-coords'
 import type { StationWithQueue } from '@/lib/services/stations'
 
 // Public token for map rendering
@@ -42,29 +43,7 @@ const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
   very_long: { label: 'Very Long', estimate: '45+ min' },
 }
 
-// Known station coordinates (fallback when DB has no lat/lng)
-const STATION_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
-  'Circle': { latitude: 5.5560, longitude: -0.2050 },
-  'Madina': { latitude: 5.6720, longitude: -0.1700 },
-  'Tema Station': { latitude: 5.6690, longitude: -0.0170 },
-  'Kaneshie': { latitude: 5.5590, longitude: -0.2310 },
-  'Lapaz': { latitude: 5.6080, longitude: -0.2460 },
-  'Achimota': { latitude: 5.6140, longitude: -0.2190 },
-  'Legon': { latitude: 5.6500, longitude: -0.1860 },
-  'Kasoa': { latitude: 5.5340, longitude: -0.4180 },
-  'Dansoman': { latitude: 5.5330, longitude: -0.2620 },
-  'Spintex': { latitude: 5.6380, longitude: -0.0800 },
-  'Nkrumah Circle': { latitude: 5.5560, longitude: -0.2050 },
-  '37 Military Hospital': { latitude: 5.5870, longitude: -0.1870 },
-  'Osu': { latitude: 5.5560, longitude: -0.1780 },
-  'Airport City': { latitude: 5.5960, longitude: -0.1720 },
-  'East Legon': { latitude: 5.6350, longitude: -0.1570 },
-  'Teshie': { latitude: 5.5830, longitude: -0.1050 },
-  'Nungua': { latitude: 5.5920, longitude: -0.0750 },
-  'Ashaiman': { latitude: 5.6870, longitude: -0.0310 },
-  'Adenta': { latitude: 5.7090, longitude: -0.1590 },
-  'Dome': { latitude: 5.6520, longitude: -0.2310 },
-}
+// Coordinates from shared utility: lib/utils/station-coords.ts
 
 /* ── Animated Pin ───────────────────────────────────── */
 
@@ -83,24 +62,22 @@ function StationPin({
   const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
   const color = queueStatus ? QUEUE_COLORS[queueStatus] : TROSKI_ORANGE
   const isMajor = station.is_major
-  const pinSize = isMajor ? 44 : 34
+  const iconSize = isMajor ? 48 : 38
 
   useEffect(() => {
-    // Staggered drop-in animation
     Animated.spring(scaleAnim, {
       toValue: 1,
-      delay: index * 80,
+      delay: index * 60,
       friction: 5,
       tension: 80,
       useNativeDriver: true,
     }).start()
 
-    // Pulse animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.8,
-          duration: 1500,
+          toValue: 1.6,
+          duration: 2000,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
@@ -114,16 +91,14 @@ function StationPin({
   }, [])
 
   const pulseOpacity = pulseAnim.interpolate({
-    inputRange: [0.8, 1.8],
-    outputRange: [0.5, 0],
+    inputRange: [0.8, 1.6],
+    outputRange: [0.4, 0],
   })
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
       <Animated.View
         style={{
-          width: pinSize,
-          height: pinSize + 20,
           alignItems: 'center',
           transform: [{ scale: scaleAnim }],
         }}
@@ -132,107 +107,67 @@ function StationPin({
         <Animated.View
           style={{
             position: 'absolute',
-            top: 4,
-            width: pinSize * 0.7,
-            height: pinSize * 0.7,
-            borderRadius: pinSize * 0.35,
-            borderWidth: 2.5,
+            top: (iconSize - iconSize * 0.7) / 2,
+            alignSelf: 'center',
+            width: iconSize * 0.7,
+            height: iconSize * 0.7,
+            borderRadius: iconSize * 0.35,
+            borderWidth: 2,
             borderColor: color,
             opacity: pulseOpacity,
             transform: [{ scale: pulseAnim }],
-            alignSelf: 'center',
           }}
         />
-        {/* Pin body */}
+
+        {/* Bus icon container */}
         <View style={{
-          width: pinSize,
-          height: pinSize,
+          width: iconSize,
+          height: iconSize,
+          borderRadius: iconSize * 0.28,
+          backgroundColor: color,
           alignItems: 'center',
           justifyContent: 'center',
+          borderWidth: 2.5,
+          borderColor: '#fff',
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.35,
+              shadowRadius: 5,
+            },
+            android: { elevation: 8 },
+          }),
         }}>
-          {/* Teardrop shape using nested views */}
-          <View style={{
-            width: pinSize * 0.8,
-            height: pinSize,
-            alignItems: 'center',
-          }}>
-            {/* Top circle */}
-            <View style={{
-              width: pinSize * 0.8,
-              height: pinSize * 0.8,
-              borderRadius: pinSize * 0.4,
-              backgroundColor: color,
-              alignItems: 'center',
-              justifyContent: 'center',
-              ...Platform.select({
-                ios: {
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 4,
-                },
-                android: { elevation: 6 },
-              }),
-            }}>
-              {/* Inner white circle */}
-              <View style={{
-                width: pinSize * 0.35,
-                height: pinSize * 0.35,
-                borderRadius: pinSize * 0.175,
-                backgroundColor: '#fff',
-                opacity: 0.95,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <View style={{
-                  width: pinSize * 0.15,
-                  height: pinSize * 0.15,
-                  borderRadius: pinSize * 0.075,
-                  backgroundColor: color,
-                  opacity: 0.6,
-                }} />
-              </View>
-            </View>
-            {/* Point of teardrop */}
-            <View style={{
-              width: 0,
-              height: 0,
-              borderLeftWidth: pinSize * 0.2,
-              borderRightWidth: pinSize * 0.2,
-              borderTopWidth: pinSize * 0.35,
-              borderLeftColor: 'transparent',
-              borderRightColor: 'transparent',
-              borderTopColor: color,
-              marginTop: -2,
-            }} />
-          </View>
+          <Bus size={isMajor ? 22 : 18} color="#fff" strokeWidth={2.5} />
         </View>
-        {/* Station name label for major stations */}
-        {isMajor && (
-          <View style={{
-            backgroundColor: color,
-            paddingHorizontal: 6,
-            paddingVertical: 1,
-            borderRadius: 4,
-            marginTop: -2,
-            ...Platform.select({
-              ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.2,
-                shadowRadius: 2,
-              },
-              android: { elevation: 2 },
-            }),
-          }}>
-            <Text style={{
-              fontSize: 9,
-              fontFamily: font.bold,
-              color: '#fff',
-              textAlign: 'center',
-            }}>{station.name}</Text>
-          </View>
-        )}
+
+        {/* Station name label — shown for ALL stations */}
+        <View style={{
+          backgroundColor: color,
+          paddingHorizontal: isMajor ? 8 : 6,
+          paddingVertical: 2,
+          borderRadius: 6,
+          marginTop: 3,
+          borderWidth: 1.5,
+          borderColor: '#fff',
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3,
+            },
+            android: { elevation: 4 },
+          }),
+        }}>
+          <Text style={{
+            fontSize: isMajor ? 11 : 9,
+            fontFamily: font.bold,
+            color: '#fff',
+            textAlign: 'center',
+          }}>{station.name}</Text>
+        </View>
       </Animated.View>
     </TouchableOpacity>
   )
@@ -321,12 +256,9 @@ export default function StationsScreen() {
   const [selectedStation, setSelectedStation] = useState<StationWithQueue | null>(null)
   const cameraRef = useRef<Mapbox.Camera>(null)
 
-  // Resolve coordinates: use DB values or fallback to known coords
+  // Resolve coordinates: use DB values or fallback to curated list
   const getCoords = useCallback((station: StationWithQueue) => {
-    if (station.latitude && station.longitude) {
-      return { latitude: station.latitude, longitude: station.longitude }
-    }
-    return STATION_COORDINATES[station.name] || null
+    return getStationCoords(station)
   }, [])
 
   const filteredStations = useMemo(() => {
