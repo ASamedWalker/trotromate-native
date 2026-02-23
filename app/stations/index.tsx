@@ -394,52 +394,87 @@ export default function StationsScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* OSM transport stops — subtle background dots */}
+        {/* OSM transport stops — icons like Uber/Bolt style */}
         {showTransportLayer && (
           <Mapbox.ShapeSource id="transport-stops" shape={transportStopsGeojson}>
+            {/* Ambient dots at zoom 13-14 for network density feel */}
             <Mapbox.CircleLayer
               id="transport-stop-dot"
               minZoomLevel={13}
+              maxZoomLevel={15}
+              filter={['!=', ['get', 'stopType'], 'lorry_park']}
               style={{
-                circleRadius: [
-                  'match',
-                  ['get', 'stopType'],
-                  'lorry_park', 4,
-                  3,
-                ],
-                circleColor: [
-                  'match',
-                  ['get', 'stopType'],
-                  'trotro_stop', isDark ? '#fbbf24' : '#d97706',
-                  'bus_stop', isDark ? '#818cf8' : '#6366f1',
-                  'lorry_park', isDark ? '#4ade80' : '#16a34a',
-                  'taxi_rank', isDark ? '#22d3ee' : '#0891b2',
-                  isDark ? '#fbbf24' : '#d97706',
-                ],
+                circleRadius: 2.5,
+                circleColor: isDark ? '#fbbf24' : '#d97706',
                 circleOpacity: [
                   'interpolate', ['linear'], ['zoom'],
-                  13, 0.3,
-                  14, 0.5,
-                  16, 0.7,
+                  13, 0.25,
+                  14, 0.4,
+                  15, 0.2,
                 ],
-                circleStrokeWidth: 0,
               }}
             />
+
+            {/* Bus icons for regular stops at zoom 15+ */}
             <Mapbox.SymbolLayer
-              id="transport-stop-labels"
+              id="transport-stop-icons"
               minZoomLevel={15}
-              filter={['!=', ['get', 'name'], '']}
+              filter={['!=', ['get', 'stopType'], 'lorry_park']}
               style={{
+                iconImage: 'bus-15',
+                iconSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  15, 0.7,
+                  17, 1.0,
+                ],
+                iconColor: isDark ? '#fbbf24' : '#b45309',
+                iconAllowOverlap: false,
+                iconPadding: 8,
                 textField: ['get', 'name'],
                 textSize: 9,
                 textFont: ['Open Sans Regular', 'Arial Unicode MS Regular'],
                 textAnchor: 'top',
-                textOffset: [0, 0.8],
+                textOffset: [0, 1.0],
                 textColor: isDark ? c.stone400 : c.stone500,
-                textHaloColor: isDark ? c.stone900 : '#ffffff',
+                textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
                 textHaloWidth: 1,
                 textAllowOverlap: false,
                 textOptional: true,
+                textMaxWidth: 8,
+              }}
+            />
+
+            {/* Lorry park icons — larger, visible from zoom 13 */}
+            <Mapbox.SymbolLayer
+              id="transport-lorry-park-icons"
+              minZoomLevel={13}
+              filter={['==', ['get', 'stopType'], 'lorry_park']}
+              style={{
+                iconImage: 'bus-15',
+                iconSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 0.8,
+                  15, 1.1,
+                  17, 1.4,
+                ],
+                iconColor: isDark ? '#4ade80' : '#16a34a',
+                iconAllowOverlap: false,
+                iconPadding: 4,
+                textField: ['get', 'name'],
+                textSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 9,
+                  15, 11,
+                ],
+                textFont: ['Open Sans Semibold', 'Arial Unicode MS Regular'],
+                textAnchor: 'top',
+                textOffset: [0, 1.2],
+                textColor: isDark ? '#4ade80' : '#15803d',
+                textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+                textHaloWidth: 1.5,
+                textAllowOverlap: false,
+                textOptional: true,
+                textMaxWidth: 8,
               }}
             />
           </Mapbox.ShapeSource>

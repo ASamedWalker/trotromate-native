@@ -27,9 +27,9 @@ const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
 
 const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
   trotro_stop: '#d97706',
-  bus_stop: '#6366f1',
+  bus_stop: '#d97706',    // Same as trotro — in Ghana, bus_stop = trotro stop
   lorry_park: '#16a34a',
-  taxi_rank: '#0891b2',
+  taxi_rank: '#d97706',
 }
 
 // Display name: "37 Military Hospital" → "37 Station", others append "Station"
