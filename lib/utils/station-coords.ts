@@ -3,51 +3,52 @@
  * Primary source is Supabase `stations.latitude/longitude`.
  * These are used when DB coordinates are missing.
  *
- * Coordinates sourced from Mapbox Geocoding API + manual curation (2026-02-23).
+ * Coordinates sourced from OpenStreetMap (Overpass API + Nominatim) 2026-02-23.
+ * Verified against Mapcarta.
  */
 
 export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitude: number }> = {
-  // Major stations
-  'Circle':               { latitude: 5.5560, longitude: -0.2055 },
-  'Madina':               { latitude: 5.6690, longitude: -0.1678 },
-  'Tema Station':         { latitude: 5.6596, longitude: -0.0097 },
-  'Kaneshie':             { latitude: 5.5562, longitude: -0.2310 },
-  'Lapaz':                { latitude: 5.6058, longitude: -0.2464 },
-  'Achimota':             { latitude: 5.6140, longitude: -0.2200 },
-  'Legon':                { latitude: 5.6503, longitude: -0.1869 },
-  'Adenta':               { latitude: 5.7042, longitude: -0.1691 },
-  'Kasoa':                { latitude: 5.5326, longitude: -0.4375 },
-  'Mallam':               { latitude: 5.5743, longitude: -0.2890 },
-  'Dansoman':             { latitude: 5.5468, longitude: -0.2657 },
-  'Ashaiman':             { latitude: 5.6944, longitude: -0.0295 },
-  'Spintex':              { latitude: 5.6288, longitude: -0.0902 },
+  // Major stations (OSM verified)
+  'Circle':               { latitude: 5.5703, longitude: -0.2133 }, // OSM: Accra Circle bus station
+  'Madina':               { latitude: 5.6767, longitude: -0.1716 }, // OSM: Madina trotro station
+  'Tema Station':         { latitude: 5.6596, longitude: -0.0097 }, // Tema city lorry park (kept, OSM "Tema station" is Accra-side)
+  'Kaneshie':             { latitude: 5.5641, longitude: -0.2359 }, // OSM: Kaneshie market lorry park
+  'Lapaz':                { latitude: 5.6058, longitude: -0.2464 }, // Lapaz Junction
+  'Achimota':             { latitude: 5.6133, longitude: -0.2255 }, // OSM: Achimota Overhead
+  'Legon':                { latitude: 5.6407, longitude: -0.1790 }, // OSM: Legon
+  'Adenta':               { latitude: 5.7060, longitude: -0.1656 }, // OSM: Adenta Trotro Station
+  'Kasoa':                { latitude: 5.5341, longitude: -0.4241 }, // OSM: Kasoa Bus Terminal
+  'Mallam':               { latitude: 5.5743, longitude: -0.2890 }, // Mallam Junction
+  'Dansoman':             { latitude: 5.5468, longitude: -0.2657 }, // Dansoman Roundabout (kept, OSM "Dansoman Station" is at Kaneshie)
+  'Ashaiman':             { latitude: 5.6868, longitude: -0.0327 }, // OSM: Ashaiman
+  'Spintex':              { latitude: 5.6288, longitude: -0.0902 }, // Spintex Road junction (kept)
 
-  // Other stations
-  'Accra Central':        { latitude: 5.5480, longitude: -0.2115 },
-  'Haatso':               { latitude: 5.6470, longitude: -0.2050 },
-  'Ofankor':              { latitude: 5.6636, longitude: -0.2652 },
-  'Okponglo':             { latitude: 5.6350, longitude: -0.1870 },
-  'Taifa':                { latitude: 5.6340, longitude: -0.2520 },
-  'Tetteh Quarshie':      { latitude: 5.5930, longitude: -0.1640 },
+  // Other stations (OSM verified where available)
+  'Accra Central':        { latitude: 5.5446, longitude: -0.2048 }, // OSM: Tudu Station
+  'Haatso':               { latitude: 5.6673, longitude: -0.2047 }, // OSM: Haatso
+  'Ofankor':              { latitude: 5.6577, longitude: -0.2655 }, // OSM: Ofankor Barrier
+  'Okponglo':             { latitude: 5.6395, longitude: -0.1781 }, // OSM: Okponglo
+  'Taifa':                { latitude: 5.6584, longitude: -0.2529 }, // OSM: Taifa
+  'Tetteh Quarshie':      { latitude: 5.6240, longitude: -0.1738 }, // OSM: Tetteh Quarshie Roundabout
   '37 Military Hospital': { latitude: 5.5869, longitude: -0.2076 }, // DB name (display as "37 Station")
   '37 Station':           { latitude: 5.5869, longitude: -0.2076 }, // Mapcarta N6968590872
-  'Ablekuma':             { latitude: 5.5480, longitude: -0.2520 },
-  'Abokobi':              { latitude: 5.7150, longitude: -0.1530 },
-  'Adjringanor':          { latitude: 5.6497, longitude: -0.1367 },
-  'Airport':              { latitude: 5.6050, longitude: -0.1720 },
-  'Airport City':         { latitude: 5.5960, longitude: -0.1720 },
-  'Asylum Down':          { latitude: 5.5709, longitude: -0.2025 },
-  'Atadeka':              { latitude: 5.6920, longitude: -0.0330 },
-  'Dodowa':               { latitude: 5.8830, longitude: -0.0970 },
-  'Dome':                 { latitude: 5.6520, longitude: -0.2310 },
-  'East Legon':           { latitude: 5.6393, longitude: -0.1625 },
-  'Maamobi':              { latitude: 5.5905, longitude: -0.1970 },
-  'Nima':                 { latitude: 5.5820, longitude: -0.1988 },
-  'Nkrumah Circle':       { latitude: 5.5560, longitude: -0.2055 },
-  'Nungua':               { latitude: 5.5607, longitude: -0.0740 },
-  'Osu':                  { latitude: 5.5606, longitude: -0.1824 },
-  'St Johns':             { latitude: 5.6200, longitude: -0.2400 },
-  'Teshie':               { latitude: 5.5835, longitude: -0.1050 },
+  'Ablekuma':             { latitude: 5.5480, longitude: -0.2520 }, // Ablekuma junction (kept)
+  'Abokobi':              { latitude: 5.7150, longitude: -0.1530 }, // Abokobi town (kept)
+  'Adjringanor':          { latitude: 5.6497, longitude: -0.1367 }, // Adjringanor
+  'Airport':              { latitude: 5.6065, longitude: -0.1773 }, // OSM: Airport First bus stop
+  'Airport City':         { latitude: 5.5960, longitude: -0.1720 }, // Airport City
+  'Asylum Down':          { latitude: 5.5709, longitude: -0.2025 }, // Asylum Down
+  'Atadeka':              { latitude: 5.6920, longitude: -0.0330 }, // Atadeka
+  'Dodowa':               { latitude: 5.8881, longitude: -0.0899 }, // OSM: Dodowa Last Stop
+  'Dome':                 { latitude: 5.6452, longitude: -0.2372 }, // OSM: Dome
+  'East Legon':           { latitude: 5.6483, longitude: -0.1508 }, // OSM: East Legon
+  'Maamobi':              { latitude: 5.5905, longitude: -0.1970 }, // Maamobi
+  'Nima':                 { latitude: 5.5820, longitude: -0.1988 }, // Nima
+  'Nkrumah Circle':       { latitude: 5.5703, longitude: -0.2133 }, // Same as Circle (OSM)
+  'Nungua':               { latitude: 5.6022, longitude: -0.0791 }, // OSM: Nungua bus stop
+  'Osu':                  { latitude: 5.5541, longitude: -0.1836 }, // OSM: Osu
+  'St Johns':             { latitude: 5.6200, longitude: -0.2400 }, // St Johns area (kept)
+  'Teshie':               { latitude: 5.5886, longitude: -0.0978 }, // OSM: Teshie First Junction
 }
 
 /**

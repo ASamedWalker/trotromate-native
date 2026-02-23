@@ -6,9 +6,8 @@ import {
   Animated,
   useColorScheme,
   StyleSheet,
-  Platform,
 } from 'react-native'
-import { Map, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react-native'
+import { Map, ChevronDown, ChevronUp } from 'lucide-react-native'
 import Mapbox from '@rnmapbox/maps'
 import { c, themed, font } from '@/lib/theme'
 import type { TransferPlan } from '@/lib/services/route-planner'
@@ -29,66 +28,6 @@ interface RoutePlanMapProps {
   from: string
   to: string
   stationCoords: Record<string, { lat: number; lon: number }>
-}
-
-/* ── Pin marker ─────────────────────────────────────── */
-
-function PlanPin({ color, label, size = 36 }: { color: string; label: string; size?: number }) {
-  return (
-    <View style={{ alignItems: 'center', width: size + 20 }}>
-      <View style={{ alignItems: 'center' }}>
-        {/* Circle head */}
-        <View style={{
-          width: size * 0.75,
-          height: size * 0.75,
-          borderRadius: size * 0.375,
-          backgroundColor: color,
-          alignItems: 'center',
-          justifyContent: 'center',
-          ...Platform.select({
-            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
-            android: { elevation: 6 },
-          }),
-        }}>
-          <View style={{
-            width: size * 0.3,
-            height: size * 0.3,
-            borderRadius: size * 0.15,
-            backgroundColor: '#fff',
-            opacity: 0.9,
-          }} />
-        </View>
-        {/* Point */}
-        <View style={{
-          width: 0,
-          height: 0,
-          borderLeftWidth: size * 0.18,
-          borderRightWidth: size * 0.18,
-          borderTopWidth: size * 0.3,
-          borderLeftColor: 'transparent',
-          borderRightColor: 'transparent',
-          borderTopColor: color,
-          marginTop: -2,
-        }} />
-      </View>
-      {/* Label */}
-      <View style={{
-        backgroundColor: color,
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 4,
-        marginTop: 2,
-        ...Platform.select({
-          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 },
-          android: { elevation: 2 },
-        }),
-      }}>
-        <Text style={{ fontSize: 9, fontFamily: font.bold, color: '#fff', textAlign: 'center' }}>
-          {label}
-        </Text>
-      </View>
-    </View>
-  )
 }
 
 /* ── Map component ──────────────────────────────────── */
@@ -209,6 +148,36 @@ function RoutePlanMapInner({ plans, selectedPlanIndex, from, to, stationCoords }
       .filter(Boolean) as { id: string; transportType: string; geojson: GeoJSON.Feature }[]
   }, [selectedPlan, fromCoord, toCoord])
 
+  // GeoJSON for origin/destination/hub markers (native rendering)
+  const markerGeoJson = useMemo(() => {
+    const features: GeoJSON.Feature[] = []
+    if (fromCoord) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [fromCoord.lon, fromCoord.lat] },
+        properties: { label: from, color: '#22c55e' },
+      })
+    }
+    if (toCoord) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [toCoord.lon, toCoord.lat] },
+        properties: { label: to, color: '#ef4444' },
+      })
+    }
+    if (selectedPlan?.transfer_hub) {
+      const hubCoord = getCoord(selectedPlan.transfer_hub)
+      if (hubCoord) {
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [hubCoord.lon, hubCoord.lat] },
+          properties: { label: selectedPlan.transfer_hub, color: '#0ea5e9' },
+        })
+      }
+    }
+    return { type: 'FeatureCollection' as const, features }
+  }, [fromCoord, toCoord, selectedPlan, from, to])
+
   if (!hasCoords) return null
 
   const centerLon = (fromCoord!.lon + toCoord!.lon) / 2
@@ -276,35 +245,39 @@ function RoutePlanMapInner({ plans, selectedPlanIndex, from, to, stationCoords }
               )
             })}
 
-            {/* Origin marker */}
-            <Mapbox.MarkerView
-              coordinate={[fromCoord!.lon, fromCoord!.lat]}
-              anchor={{ x: 0.5, y: 1 }}
-            >
-              <PlanPin color="#22c55e" label={from} />
-            </Mapbox.MarkerView>
-
-            {/* Destination marker */}
-            <Mapbox.MarkerView
-              coordinate={[toCoord!.lon, toCoord!.lat]}
-              anchor={{ x: 0.5, y: 1 }}
-            >
-              <PlanPin color="#ef4444" label={to} />
-            </Mapbox.MarkerView>
-
-            {/* Transfer hub marker */}
-            {selectedPlan?.transfer_hub && (() => {
-              const hubCoord = getCoord(selectedPlan.transfer_hub!)
-              if (!hubCoord) return null
-              return (
-                <Mapbox.MarkerView
-                  coordinate={[hubCoord.lon, hubCoord.lat]}
-                  anchor={{ x: 0.5, y: 1 }}
-                >
-                  <PlanPin color="#0ea5e9" label={selectedPlan.transfer_hub!} size={30} />
-                </Mapbox.MarkerView>
-              )
-            })()}
+            {/* Route markers — native rendering (no RN views = no iOS crash) */}
+            <Mapbox.ShapeSource id="plan-markers" shape={markerGeoJson}>
+              <Mapbox.CircleLayer
+                id="plan-marker-border"
+                style={{
+                  circleRadius: 10,
+                  circleColor: '#ffffff',
+                  circleStrokeWidth: 0,
+                }}
+              />
+              <Mapbox.CircleLayer
+                id="plan-marker-dot"
+                style={{
+                  circleRadius: 7,
+                  circleColor: ['get', 'color'],
+                  circleStrokeWidth: 0,
+                }}
+              />
+              <Mapbox.SymbolLayer
+                id="plan-marker-labels"
+                style={{
+                  textField: ['get', 'label'],
+                  textSize: 11,
+                  textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                  textOffset: [0, 1.5],
+                  textAnchor: 'top',
+                  textColor: ['get', 'color'],
+                  textHaloColor: '#ffffff',
+                  textHaloWidth: 1.5,
+                  textAllowOverlap: true,
+                }}
+              />
+            </Mapbox.ShapeSource>
           </Mapbox.MapView>
         )}
       </Animated.View>
