@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
 import { c, themed, font } from '@/lib/theme'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
 import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
+import { RoutePlanMap } from '@/components/RoutePlanMap'
 
 const POPULAR_STATIONS = [
   'Circle', 'Madina', 'Tema', 'Kaneshie', 'Lapaz',
@@ -49,8 +50,8 @@ const MODE_COLORS: Record<TransportMode, { active: string; bg: string }> = {
   walk: { active: '#16a34a', bg: 'rgba(34,197,94,0.12)' },
 }
 
-// Station coordinates for walking estimate
-const STATION_COORDS: Record<string, { lat: number; lon: number }> = {
+// Station coordinates for walking estimate + map
+export const STATION_COORDS: Record<string, { lat: number; lon: number }> = {
   Circle: { lat: 5.5714, lon: -0.2096 },
   Madina: { lat: 5.6769, lon: -0.1648 },
   Tema: { lat: 5.6698, lon: -0.0166 },
@@ -88,10 +89,18 @@ export default function RoutePlannerScreen() {
   const [activeInput, setActiveInput] = useState<'from' | 'to' | null>(null)
   const [hasSearched, setHasSearched] = useState(!!params.from && !!params.to)
   const [transportMode, setTransportMode] = useState<TransportMode>('all')
+  const [selectedPlanIndex, setSelectedPlanIndex] = useState<number | null>(null)
 
   const toRef = useRef<TextInput>(null)
   const transportTypeParam = transportMode === 'all' || transportMode === 'walk' ? undefined : transportMode
   const { plans, isLoading } = useRoutePlanner(searchFrom, searchTo, transportTypeParam)
+
+  // Auto-select first plan when results arrive
+  useEffect(() => {
+    if (plans.length > 0 && selectedPlanIndex === null) {
+      setSelectedPlanIndex(0)
+    }
+  }, [plans])
 
   const walkingEstimate = useMemo<WalkingEstimate | null>(() => {
     const f = from.trim()
@@ -117,6 +126,7 @@ export default function RoutePlannerScreen() {
     setSearchTo(to.trim())
     setHasSearched(true)
     setActiveInput(null)
+    setSelectedPlanIndex(null)
   }
 
   function swapLocations() {
@@ -125,6 +135,7 @@ export default function RoutePlannerScreen() {
     setSearchFrom('')
     setSearchTo('')
     setHasSearched(false)
+    setSelectedPlanIndex(null)
   }
 
   function selectStation(station: string) {
@@ -275,12 +286,25 @@ export default function RoutePlannerScreen() {
             </View>
           )}
 
+          {/* Route Map */}
+          {hasSearched && !activeInput && (
+            <RoutePlanMap
+              plans={transportMode === 'walk' ? [] : plans}
+              selectedPlanIndex={selectedPlanIndex}
+              from={from}
+              to={to}
+              stationCoords={STATION_COORDS}
+            />
+          )}
+
           {/* Results */}
           {hasSearched && !activeInput && (
             <RoutePlannerResults
               plans={transportMode === 'walk' ? [] : plans}
               isLoading={transportMode !== 'walk' && isLoading}
               walkingEstimate={transportMode === 'all' || transportMode === 'walk' ? walkingEstimate : null}
+              selectedPlanIndex={selectedPlanIndex}
+              onSelectPlan={setSelectedPlanIndex}
             />
           )}
 

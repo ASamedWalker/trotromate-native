@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native'
 import { Bus, Bike, ArrowRight, Clock, RefreshCw, Footprints } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import Skeleton from '@/components/Skeleton'
@@ -99,10 +99,14 @@ export function RoutePlannerResults({
   plans,
   isLoading,
   walkingEstimate,
+  selectedPlanIndex,
+  onSelectPlan,
 }: {
   plans: TransferPlan[]
   isLoading: boolean
   walkingEstimate?: WalkingEstimate | null
+  selectedPlanIndex?: number | null
+  onSelectPlan?: (index: number) => void
 }) {
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
@@ -131,12 +135,24 @@ export function RoutePlannerResults({
         const config = getConfig(primaryType)
         const PrimaryIcon = config.icon
 
+        const isSelected = selectedPlanIndex === i
+
         return (
-          <View
+          <TouchableOpacity
             key={i}
+            onPress={() => onSelectPlan?.(i)}
+            activeOpacity={0.85}
             style={[
               s.card,
               { borderLeftColor: config.borderColor, borderLeftWidth: 4 },
+              isSelected && {
+                borderWidth: 2,
+                borderColor: c.amber500,
+                ...Platform.select({
+                  ios: { shadowColor: c.amber500, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 8 },
+                  android: { elevation: 4 },
+                }),
+              },
             ]}
           >
             {/* Header — transport mode + badge + stats */}
@@ -210,7 +226,7 @@ export function RoutePlannerResults({
                 </View>
               )
             })}
-          </View>
+          </TouchableOpacity>
         )
       })}
 
