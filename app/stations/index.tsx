@@ -299,6 +299,61 @@ export default function StationsScreen() {
           }}
         />
 
+        {/* Enhanced POI icons — pharmacies, police, mosques, schools, etc. */}
+        <Mapbox.SymbolLayer
+          id="poi-icons-enhanced"
+          sourceID="composite"
+          sourceLayerID="poi_label"
+          minZoomLevel={14}
+          maxZoomLevel={24}
+          filter={[
+            'match',
+            ['get', 'maki'],
+            [
+              'hospital', 'pharmacy', 'doctor',
+              'police',
+              'school', 'college',
+              'religious-muslim', 'religious-christian',
+              'bank', 'atm',
+              'fuel',
+              'grocery', 'marketplace',
+              'post',
+              'fire-station',
+              'library',
+              'town-hall',
+            ],
+            true,
+            false,
+          ]}
+          style={{
+            iconImage: ['concat', ['get', 'maki'], '-15'],
+            iconSize: [
+              'interpolate', ['linear'], ['zoom'],
+              14, 1.0,
+              16, 1.3,
+              18, 1.5,
+            ],
+            iconAllowOverlap: false,
+            iconPadding: 4,
+            textField: ['get', 'name'],
+            textSize: [
+              'interpolate', ['linear'], ['zoom'],
+              14, 9,
+              16, 11,
+              18, 12,
+            ],
+            textFont: ['Open Sans Regular', 'Arial Unicode MS Regular'],
+            textAnchor: 'top',
+            textOffset: [0, 1.2],
+            textColor: isDark ? c.stone300 : c.stone600,
+            textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+            textHaloWidth: 1.5,
+            textAllowOverlap: false,
+            textOptional: true,
+            textMaxWidth: 8,
+          }}
+        />
+
         {/* User location blue dot */}
         <Mapbox.UserLocation visible animated />
 
