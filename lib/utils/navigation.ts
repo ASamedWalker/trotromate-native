@@ -2,19 +2,20 @@ import * as Linking from 'expo-linking'
 import { Platform } from 'react-native'
 
 /**
- * Open native maps app with directions to a location.
+ * Open native maps app showing a station location with a pin.
+ * The user can then tap "Directions" within the maps app if nearby.
+ * This avoids "Directions Not Available" when far from the destination.
  */
 export function openDirections(lat: number, lon: number, label: string) {
   const encodedLabel = encodeURIComponent(label)
 
   if (Platform.OS === 'ios') {
-    // https://maps.apple.com always opens Apple Maps on iOS
-    const appleMaps = `https://maps.apple.com/?daddr=${lat},${lon}&q=${encodedLabel}&dirflg=d`
-    Linking.openURL(appleMaps)
+    // Show pin on Apple Maps — user can tap Directions from there
+    Linking.openURL(`https://maps.apple.com/?ll=${lat},${lon}&q=${encodedLabel}`)
   } else {
-    // Try Google Maps navigation first, fall back to web
-    Linking.openURL(`google.navigation:q=${lat},${lon}&mode=d`).catch(() => {
-      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&destination_place_id=${encodedLabel}`)
+    // geo: intent opens default maps app with a labeled pin
+    Linking.openURL(`geo:${lat},${lon}?q=${lat},${lon}(${encodedLabel})`).catch(() => {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`)
     })
   }
 }
