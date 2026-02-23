@@ -252,25 +252,29 @@ function RoutePlanMapInner({ plans, selectedPlanIndex, from, to, stationCoords }
             />
 
             {/* Route lines */}
-            {legFeatures.map((feat) => (
-              <Mapbox.ShapeSource
-                key={feat.id}
-                id={`src-${feat.id}`}
-                shape={feat.geojson}
-              >
-                <Mapbox.LineLayer
-                  id={`line-${feat.id}`}
-                  style={{
-                    lineColor: LINE_COLORS[feat.transportType] || LINE_COLORS.trotro,
-                    lineWidth: 4,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                    lineOpacity: feat.transportType === 'walk' ? 0.5 : 0.9,
-                    lineDasharray: feat.transportType === 'walk' ? [2, 3] : undefined,
-                  }}
-                />
-              </Mapbox.ShapeSource>
-            ))}
+            {legFeatures.map((feat) => {
+              const isWalk = feat.transportType === 'walk'
+              const lineStyle: Record<string, unknown> = {
+                lineColor: LINE_COLORS[feat.transportType] || LINE_COLORS.trotro,
+                lineWidth: 4,
+                lineCap: 'round' as const,
+                lineJoin: 'round' as const,
+                lineOpacity: isWalk ? 0.5 : 0.9,
+              }
+              if (isWalk) lineStyle.lineDasharray = [2, 3]
+              return (
+                <Mapbox.ShapeSource
+                  key={feat.id}
+                  id={`src-${feat.id}`}
+                  shape={feat.geojson}
+                >
+                  <Mapbox.LineLayer
+                    id={`line-${feat.id}`}
+                    style={lineStyle}
+                  />
+                </Mapbox.ShapeSource>
+              )
+            })}
 
             {/* Origin marker */}
             <Mapbox.MarkerView

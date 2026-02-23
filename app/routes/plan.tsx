@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect, lazy, Suspense } from 'react'
 import {
   View,
   Text,
@@ -26,7 +26,11 @@ import {
 import { c, themed, font } from '@/lib/theme'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
 import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
-import { RoutePlanMap } from '@/components/RoutePlanMap'
+
+// Lazy-load map to avoid Mapbox native module crashing the screen on import
+const RoutePlanMap = lazy(() =>
+  import('@/components/RoutePlanMap').then(mod => ({ default: mod.RoutePlanMap }))
+)
 
 const POPULAR_STATIONS = [
   'Circle', 'Madina', 'Tema', 'Kaneshie', 'Lapaz',
@@ -288,13 +292,15 @@ export default function RoutePlannerScreen() {
 
           {/* Route Map */}
           {hasSearched && !activeInput && (
-            <RoutePlanMap
-              plans={transportMode === 'walk' ? [] : plans}
-              selectedPlanIndex={selectedPlanIndex}
-              from={from}
-              to={to}
-              stationCoords={STATION_COORDS}
-            />
+            <Suspense fallback={<View style={{ height: 50 }} />}>
+              <RoutePlanMap
+                plans={transportMode === 'walk' ? [] : plans}
+                selectedPlanIndex={selectedPlanIndex}
+                from={from}
+                to={to}
+                stationCoords={STATION_COORDS}
+              />
+            </Suspense>
           )}
 
           {/* Results */}
