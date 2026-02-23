@@ -29,8 +29,8 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Okponglo':             { latitude: 5.6350, longitude: -0.1870 },
   'Taifa':                { latitude: 5.6340, longitude: -0.2520 },
   'Tetteh Quarshie':      { latitude: 5.5930, longitude: -0.1640 },
-  '37 Military Hospital': { latitude: 5.5840, longitude: -0.1920 }, // 37 Station (lorry park), not the hospital
-  '37 Station':           { latitude: 5.5840, longitude: -0.1920 },
+  '37 Military Hospital': { latitude: 5.5869, longitude: -0.2076 }, // DB name (display as "37 Station")
+  '37 Station':           { latitude: 5.5869, longitude: -0.2076 }, // Mapcarta N6968590872
   'Ablekuma':             { latitude: 5.5480, longitude: -0.2520 },
   'Abokobi':              { latitude: 5.7150, longitude: -0.1530 },
   'Adjringanor':          { latitude: 5.6497, longitude: -0.1367 },

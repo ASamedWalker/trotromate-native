@@ -38,7 +38,7 @@ const STATION_COORDS = {
   'Okponglo':            { lat: 5.6350, lon: -0.1870, src: 'L', note: 'Okponglo junction' },
   'Taifa':               { lat: 5.6340, lon: -0.2520, src: 'L', note: 'Taifa junction' },
   'Tetteh Quarshie':     { lat: 5.5930, lon: -0.1640, src: 'L', note: 'TQ Interchange' },
-  '37 Military Hospital':{ lat: 5.5870, lon: -0.1870, src: 'L', note: '37 Hospital area' },
+  '37 Station':          { lat: 5.5869, lon: -0.2076, src: 'L', note: 'Mapcarta N6968590872' },
   'Ablekuma':            { lat: 5.5480, lon: -0.2520, src: 'L', note: 'Ablekuma junction' },
   'Abokobi':             { lat: 5.7150, lon: -0.1530, src: 'L', note: 'Abokobi town' },
   'Adjringanor':         { lat: 5.6497, lon: -0.1367, src: 'M', note: 'Adjiringanor' },

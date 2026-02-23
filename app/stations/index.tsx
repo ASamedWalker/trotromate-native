@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Search, MapPin, Timer, Users, X, Bus } from 'lucide-react-native'
+import { ChevronLeft, Search, Timer, Users, X } from 'lucide-react-native'
 import Mapbox from '@rnmapbox/maps'
 import { c, themed, font } from '@/lib/theme'
 import { useStations } from '@/lib/hooks/useStations'
@@ -41,83 +41,16 @@ const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
   very_long: { label: 'Very Long', estimate: '45+ min' },
 }
 
-// Coordinates from shared utility: lib/utils/station-coords.ts
-
-/* ── Animated Pin ───────────────────────────────────── */
-
-// Display name: append "Station" if not already present
+// Display name: "37 Military Hospital" → "37 Station", others append "Station"
 function stationLabel(name: string): string {
-  if (name.endsWith('Station') || name.endsWith('Hospital')) return name
+  if (name === '37 Military Hospital') return '37 Station'
+  if (name.endsWith('Station')) return name
   return `${name} Station`
 }
 
-function StationPin({
-  station,
-  onPress,
-}: {
-  station: StationWithQueue
-  onPress: () => void
-}) {
+function getStationColor(station: StationWithQueue): string {
   const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
-  const color = queueStatus ? QUEUE_COLORS[queueStatus] : TROSKI_ORANGE
-  const isMajor = station.is_major
-  const iconSize = isMajor ? 46 : 36
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View style={{ alignItems: 'center' }}>
-        {/* Bus icon container */}
-        <View style={{
-          width: iconSize,
-          height: iconSize,
-          borderRadius: iconSize * 0.28,
-          backgroundColor: color,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 2.5,
-          borderColor: '#fff',
-          ...Platform.select({
-            ios: {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.35,
-              shadowRadius: 5,
-            },
-            android: { elevation: 8 },
-          }),
-        }}>
-          <Bus size={isMajor ? 22 : 16} color="#fff" strokeWidth={2.5} />
-        </View>
-
-        {/* Station name label */}
-        <View style={{
-          backgroundColor: color,
-          paddingHorizontal: isMajor ? 8 : 6,
-          paddingVertical: 2,
-          borderRadius: 6,
-          marginTop: 3,
-          borderWidth: 1.5,
-          borderColor: '#fff',
-          ...Platform.select({
-            ios: {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3,
-            },
-            android: { elevation: 4 },
-          }),
-        }}>
-          <Text style={{
-            fontSize: isMajor ? 11 : 9,
-            fontFamily: font.bold,
-            color: '#fff',
-            textAlign: 'center',
-          }}>{stationLabel(station.name)}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  )
+  return queueStatus ? QUEUE_COLORS[queueStatus] : TROSKI_ORANGE
 }
 
 /* ── Callout ────────────────────────────────────────── */
@@ -210,8 +143,8 @@ export default function StationsScreen() {
 
   const filteredStations = useMemo(() => {
     if (!search) return stations
-    const s = search.toLowerCase()
-    return stations.filter((st) => st.name.toLowerCase().includes(s))
+    const q = search.toLowerCase()
+    return stations.filter((st) => st.name.toLowerCase().includes(q))
   }, [stations, search])
 
   const stationsWithCoords = useMemo(() => {
@@ -224,21 +157,47 @@ export default function StationsScreen() {
       .filter(Boolean) as (StationWithQueue & { _lat: number; _lng: number })[]
   }, [filteredStations, getCoords])
 
-  const handleMarkerPress = useCallback((station: StationWithQueue & { _lat: number; _lng: number }) => {
+  // Build GeoJSON for native Mapbox rendering (no React Native views on map = no iOS crashes)
+  const geojson = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: stationsWithCoords.map((station) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [station._lng, station._lat],
+      },
+      properties: {
+        id: station.id,
+        name: station.name,
+        label: stationLabel(station.name),
+        isMajor: station.is_major ? 1 : 0,
+        color: getStationColor(station),
+      },
+    })),
+  }), [stationsWithCoords])
+
+  // Handle tap on a station marker (native ShapeSource press)
+  const handleShapePress = useCallback((event: any) => {
+    const feature = event?.features?.[0]
+    if (!feature?.properties?.id) return
+
+    const stationId = feature.properties.id
+    const station = stationsWithCoords.find((s) => s.id === stationId)
+    if (!station) return
+
     setSelectedStation(station)
     cameraRef.current?.setCamera({
       centerCoordinate: [station._lng, station._lat],
       zoomLevel: 14,
       animationDuration: 500,
     })
-  }, [])
+  }, [stationsWithCoords])
 
   // Auto-zoom to fit filtered stations when search changes
   useEffect(() => {
     if (!stationsWithCoords.length) return
 
     if (stationsWithCoords.length === 1) {
-      // Single result: zoom directly to it
       const st = stationsWithCoords[0]
       cameraRef.current?.setCamera({
         centerCoordinate: [st._lng, st._lat],
@@ -246,14 +205,12 @@ export default function StationsScreen() {
         animationDuration: 600,
       })
     } else if (search && stationsWithCoords.length <= 5) {
-      // Few results: fit them all in view
-      const lats = stationsWithCoords.map(s => s._lat)
-      const lngs = stationsWithCoords.map(s => s._lng)
+      const lats = stationsWithCoords.map((s) => s._lat)
+      const lngs = stationsWithCoords.map((s) => s._lng)
       const ne: [number, number] = [Math.max(...lngs) + 0.005, Math.max(...lats) + 0.005]
       const sw: [number, number] = [Math.min(...lngs) - 0.005, Math.min(...lats) - 0.005]
       cameraRef.current?.fitBounds(ne, sw, 60, 600)
     } else if (!search) {
-      // Search cleared: reset to default Accra view
       cameraRef.current?.setCamera({
         centerCoordinate: [-0.187, 5.6037],
         zoomLevel: 12,
@@ -313,6 +270,7 @@ export default function StationsScreen() {
             attributionEnabled={false}
             compassEnabled
             scaleBarEnabled={false}
+            onPress={() => setSelectedStation(null)}
           >
             <Mapbox.Camera
               ref={cameraRef}
@@ -322,18 +280,27 @@ export default function StationsScreen() {
               }}
             />
 
-            {stationsWithCoords.map((station) => (
-              <Mapbox.MarkerView
-                key={station.id}
-                coordinate={[station._lng, station._lat]}
-                allowOverlap
-              >
-                <StationPin
-                  station={station}
-                  onPress={() => handleMarkerPress(station)}
-                />
-              </Mapbox.MarkerView>
-            ))}
+            {/* Native text labels — no RN views = no iOS crashes */}
+            <Mapbox.ShapeSource
+              id="stations"
+              shape={geojson}
+              onPress={handleShapePress}
+            >
+              <Mapbox.SymbolLayer
+                id="stationLabels"
+                style={{
+                  textField: ['get', 'label'],
+                  textSize: ['case', ['==', ['get', 'isMajor'], 1], 14, 12],
+                  textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                  textAnchor: 'center',
+                  textColor: ['get', 'color'],
+                  textHaloColor: '#ffffff',
+                  textHaloWidth: 2,
+                  textAllowOverlap: true,
+                  textPadding: 4,
+                }}
+              />
+            </Mapbox.ShapeSource>
           </Mapbox.MapView>
         )}
       </View>
