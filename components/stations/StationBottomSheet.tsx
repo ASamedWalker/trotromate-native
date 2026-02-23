@@ -10,11 +10,36 @@ import {
   RefreshControl,
 } from 'react-native'
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet'
-import { Search, X } from 'lucide-react-native'
+import { Search, X, Zap } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { SortTabs, type SortTab } from './SortTabs'
 import { StationCard } from './StationCard'
+import { QueueStatusBar } from './QueueStatusBar'
 import type { StationWithQueue } from '@/lib/services/stations'
+
+type QueueStatus = 'empty' | 'short' | 'moderate' | 'long' | 'very_long'
+
+const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
+  empty: { label: 'Empty', estimate: 'No wait' },
+  short: { label: 'Short', estimate: '~5 min' },
+  moderate: { label: 'Moderate', estimate: '~15 min' },
+  long: { label: 'Long', estimate: '~30 min' },
+  very_long: { label: 'Very Long', estimate: '45+ min' },
+}
+
+const QUEUE_COLORS: Record<QueueStatus, string> = {
+  empty: '#22c55e',
+  short: '#22c55e',
+  moderate: '#f59e0b',
+  long: '#f97316',
+  very_long: '#ef4444',
+}
+
+function stationLabel(name: string): string {
+  if (name === '37 Military Hospital') return '37 Station'
+  if (name.endsWith('Station')) return name
+  return `${name} Station`
+}
 
 interface StationWithCoords extends StationWithQueue {
   _lat: number
@@ -37,6 +62,7 @@ interface StationBottomSheetProps {
   isLoading: boolean
   onRefresh: () => void
   getDistance: (station: StationWithCoords) => number | null
+  bestPick: StationWithCoords | null
 }
 
 export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBottomSheetProps>(
@@ -52,6 +78,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
       isLoading,
       onRefresh,
       getDistance,
+      bestPick,
     },
     ref,
   ) {
@@ -68,7 +95,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
       },
     }))
 
-    const snapPoints = useMemo(() => ['28%', '55%', '88%'], [])
+    const snapPoints = useMemo(() => ['25%', '55%', '88%'], [])
 
     const renderItem = useCallback(
       ({ item }: { item: StationWithCoords }) => (
@@ -84,6 +111,11 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
     )
 
     const keyExtractor = useCallback((item: StationWithCoords) => item.id, [])
+
+    // Best pick queue info
+    const bestPickStatus = bestPick?.queue_stats?.[0]?.current_status as QueueStatus | undefined
+    const bestPickConfig = bestPickStatus ? QUEUE_CONFIG[bestPickStatus] : null
+    const bestPickColor = bestPickStatus ? QUEUE_COLORS[bestPickStatus] : undefined
 
     const ListHeader = useMemo(
       () => (
@@ -105,6 +137,43 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
             )}
           </View>
 
+          {/* Best Pick card */}
+          {bestPick && bestPickConfig && bestPickColor && !search && (
+            <TouchableOpacity
+              style={[
+                styles.bestPick,
+                {
+                  backgroundColor: isDark ? '#1a1a0f' : '#fffef5',
+                  borderColor: c.amber500,
+                },
+              ]}
+              onPress={() => onSelectStation(bestPick)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.bestPickHeader}>
+                <View style={styles.bestPickBadge}>
+                  <Zap size={12} color={c.amber500} />
+                  <Text style={styles.bestPickBadgeText}>BEST RIGHT NOW</Text>
+                </View>
+              </View>
+              <Text style={[styles.bestPickName, { color: t.text }]}>
+                {stationLabel(bestPick.name)}
+              </Text>
+              <View style={styles.bestPickBarRow}>
+                <QueueStatusBar status={bestPickStatus ?? null} isDark={isDark} />
+              </View>
+              <View style={styles.bestPickStatus}>
+                <View style={[styles.bestPickDot, { backgroundColor: bestPickColor }]} />
+                <Text style={[styles.bestPickLabel, { color: bestPickColor }]}>
+                  {bestPickConfig.label} queue
+                </Text>
+                <Text style={[styles.bestPickEstimate, { color: t.textSecondary }]}>
+                  · {bestPickConfig.estimate}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Sort tabs */}
           <View style={styles.tabsRow}>
             <SortTabs activeTab={activeTab} onChangeTab={onChangeTab} isDark={isDark} />
@@ -116,7 +185,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
           </Text>
         </View>
       ),
-      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length],
+      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length, bestPick, bestPickConfig, bestPickColor, bestPickStatus, onSelectStation],
     )
 
     const ListEmpty = useMemo(
@@ -138,7 +207,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
     return (
       <BottomSheet
         ref={sheetRef}
-        index={0}
+        index={1}
         snapPoints={snapPoints}
         backgroundStyle={{ backgroundColor: t.card, borderRadius: 24 }}
         handleIndicatorStyle={{ backgroundColor: isDark ? c.stone600 : c.stone300, width: 40 }}
@@ -208,5 +277,58 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     fontFamily: font.medium,
+  },
+  bestPick: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  bestPickHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  bestPickBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  bestPickBadgeText: {
+    fontSize: 10,
+    fontFamily: font.bold,
+    color: c.amber500,
+    letterSpacing: 0.6,
+  },
+  bestPickName: {
+    fontSize: 16,
+    fontFamily: font.bold,
+  },
+  bestPickBarRow: {
+    marginTop: 8,
+  },
+  bestPickStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  bestPickDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bestPickLabel: {
+    fontSize: 13,
+    fontFamily: font.semibold,
+  },
+  bestPickEstimate: {
+    fontSize: 12,
+    fontFamily: font.regular,
   },
 })

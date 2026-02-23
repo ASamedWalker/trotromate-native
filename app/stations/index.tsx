@@ -108,6 +108,20 @@ export default function StationsScreen() {
     return copy
   }, [filteredStations, activeTab])
 
+  // Best pick: station with shortest queue that has recent data
+  const bestPick = useMemo(() => {
+    const withReports = stationsWithCoords.filter(
+      (st) => st.queue_stats?.[0]?.current_status,
+    )
+    if (!withReports.length) return null
+    withReports.sort((a, b) => {
+      const aSev = QUEUE_SEVERITY[a.queue_stats![0].current_status] ?? 99
+      const bSev = QUEUE_SEVERITY[b.queue_stats![0].current_status] ?? 99
+      return aSev - bSev
+    })
+    return withReports[0]
+  }, [stationsWithCoords])
+
   // Build GeoJSON for map dots (filtered by search)
   const geojson = useMemo(
     () => ({
@@ -253,13 +267,31 @@ export default function StationsScreen() {
               circleStrokeColor: c.amber500,
             }}
           />
-          {/* Labels at higher zoom levels */}
+          {/* Major station labels — always visible */}
           <Mapbox.SymbolLayer
-            id="station-labels"
-            minZoomLevel={13}
+            id="station-labels-major"
+            filter={['==', ['get', 'isMajor'], 1]}
             style={{
               textField: ['get', 'name'],
-              textSize: ['case', ['==', ['get', 'isMajor'], 1], 13, 11],
+              textSize: 13,
+              textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              textAnchor: 'top',
+              textOffset: [0, 1.2],
+              textColor: isDark ? c.stone200 : c.stone800,
+              textHaloColor: isDark ? c.stone900 : '#ffffff',
+              textHaloWidth: 2,
+              textAllowOverlap: false,
+              textOptional: true,
+            }}
+          />
+          {/* Minor station labels — only at higher zoom */}
+          <Mapbox.SymbolLayer
+            id="station-labels-minor"
+            minZoomLevel={13}
+            filter={['==', ['get', 'isMajor'], 0]}
+            style={{
+              textField: ['get', 'name'],
+              textSize: 11,
               textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
               textAnchor: 'top',
               textOffset: [0, 1.2],
@@ -295,6 +327,7 @@ export default function StationsScreen() {
         isLoading={isLoading}
         onRefresh={handleRefresh}
         getDistance={getDistance}
+        bestPick={bestPick}
       />
     </View>
   )
