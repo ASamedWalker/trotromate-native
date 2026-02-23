@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
-import { Navigation, Users, Clock } from 'lucide-react-native'
+import { Navigation, Users, Clock, MapPin } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
+import type { NearbyStop } from '@/lib/utils/nearby-stops'
+import type { TransportStopType } from '@/lib/types/transport'
 import { QueueStatusBar } from './QueueStatusBar'
 import { formatDistance } from '@/lib/utils/distance'
 import { openDirections } from '@/lib/utils/navigation'
@@ -21,6 +23,13 @@ const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
   moderate: { label: 'Moderate', estimate: '~15 min' },
   long: { label: 'Long', estimate: '~30 min' },
   very_long: { label: 'Very Long', estimate: '45+ min' },
+}
+
+const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
+  trotro_stop: '#d97706',
+  bus_stop: '#6366f1',
+  lorry_park: '#16a34a',
+  taxi_rank: '#0891b2',
 }
 
 // Display name: "37 Military Hospital" → "37 Station", others append "Station"
@@ -57,9 +66,10 @@ interface StationCardProps {
   isSelected: boolean
   onPress: () => void
   isDark: boolean
+  nearbyStops?: NearbyStop[]
 }
 
-export function StationCard({ station, distanceKm, isSelected, onPress, isDark }: StationCardProps) {
+export function StationCard({ station, distanceKm, isSelected, onPress, isDark, nearbyStops }: StationCardProps) {
   const t = themed(isDark)
   const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
   const queueConfig = queueStatus ? QUEUE_CONFIG[queueStatus] : null
@@ -155,6 +165,29 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark }
           <Text style={styles.navText}>Navigate</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Nearby stops */}
+      {nearbyStops && nearbyStops.length > 0 && (
+        <View style={[styles.nearbySection, { borderTopColor: t.border }]}>
+          <View style={styles.nearbyHeader}>
+            <MapPin size={12} color={t.textTertiary} />
+            <Text style={[styles.nearbyTitle, { color: t.textTertiary }]}>
+              Nearby stops ({nearbyStops.length})
+            </Text>
+          </View>
+          {nearbyStops.slice(0, 4).map((stop, i) => (
+            <View key={i} style={styles.nearbyRow}>
+              <View style={[styles.nearbyDot, { backgroundColor: STOP_TYPE_COLORS[stop.type] }]} />
+              <Text style={[styles.nearbyName, { color: t.textSecondary }]} numberOfLines={1}>
+                {stop.name}
+              </Text>
+              <Text style={[styles.nearbyDist, { color: t.textTertiary }]}>
+                {stop.distanceM}m
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </TouchableOpacity>
   )
 }
@@ -246,5 +279,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: font.semibold,
     color: c.white,
+  },
+  nearbySection: {
+    borderTopWidth: 1,
+    marginTop: 10,
+    paddingTop: 8,
+  },
+  nearbyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  nearbyTitle: {
+    fontSize: 11,
+    fontFamily: font.semibold,
+  },
+  nearbyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  nearbyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  nearbyName: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: font.regular,
+  },
+  nearbyDist: {
+    fontSize: 10,
+    fontFamily: font.medium,
   },
 })

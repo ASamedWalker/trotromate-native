@@ -6,12 +6,14 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { ChevronLeft, Layers } from 'lucide-react-native'
 import Mapbox from '@rnmapbox/maps'
 import * as Haptics from 'expo-haptics'
 import { c, themed } from '@/lib/theme'
 import { useStations } from '@/lib/hooks/useStations'
 import { getStationCoords } from '@/lib/utils/station-coords'
+import { useTransportStops, useTransportRoutes } from '@/lib/hooks/useTransportData'
+import { findNearbyStops, type NearbyStop } from '@/lib/utils/nearby-stops'
 import { StationBottomSheet, type StationBottomSheetRef } from '@/components/stations/StationBottomSheet'
 import type { SortTab } from '@/components/stations/SortTabs'
 import type { StationWithQueue } from '@/lib/services/stations'
@@ -58,9 +60,12 @@ export default function StationsScreen() {
   const t = themed(isDark)
 
   const { stations, isLoading, refetch } = useStations()
+  const transportStops = useTransportStops()
+  const transportRoutes = useTransportRoutes()
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<SortTab>('nearest')
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
+  const [showTransportLayer, setShowTransportLayer] = useState(true)
 
   const cameraRef = useRef<Mapbox.Camera>(null)
   const sheetRef = useRef<StationBottomSheetRef>(null)
@@ -148,6 +153,53 @@ export default function StationsScreen() {
     [filteredStations, selectedStationId],
   )
 
+  // Transport stops GeoJSON (decorative layer)
+  const transportStopsGeojson = useMemo(
+    () => ({
+      type: 'FeatureCollection' as const,
+      features: transportStops.map((stop) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [stop.lng, stop.lat],
+        },
+        properties: {
+          name: stop.name || '',
+          stopType: stop.type,
+        },
+      })),
+    }),
+    [transportStops],
+  )
+
+  // Transport routes GeoJSON (corridor lines)
+  const transportRoutesGeojson = useMemo(
+    () => ({
+      type: 'FeatureCollection' as const,
+      features: transportRoutes.map((route, idx) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: route.coordinates,
+        },
+        properties: {
+          name: route.name || route.ref || '',
+          routeType: route.type,
+          colorIndex: idx % 6,
+        },
+      })),
+    }),
+    [transportRoutes],
+  )
+
+  // Nearby stops for selected station
+  const selectedNearbyStops = useMemo((): NearbyStop[] => {
+    if (!selectedStationId || !transportStops.length) return []
+    const station = stationsWithCoords.find((s) => s.id === selectedStationId)
+    if (!station) return []
+    return findNearbyStops(station._lat, station._lng, transportStops)
+  }, [selectedStationId, stationsWithCoords, transportStops])
+
   // Distance calculator (Phase 1: no GPS, return null)
   const getDistance = useCallback((_station: StationWithCoords) => {
     return null as number | null
@@ -231,6 +283,94 @@ export default function StationsScreen() {
 
         {/* User location blue dot */}
         <Mapbox.UserLocation visible animated />
+
+        {/* Transport route corridors — subtle lines below everything */}
+        {showTransportLayer && (
+          <Mapbox.ShapeSource id="transport-routes" shape={transportRoutesGeojson}>
+            <Mapbox.LineLayer
+              id="transport-route-line"
+              minZoomLevel={11}
+              style={{
+                lineColor: [
+                  'match',
+                  ['get', 'colorIndex'],
+                  0, '#d97706',
+                  1, '#0891b2',
+                  2, '#7c3aed',
+                  3, '#16a34a',
+                  4, '#dc2626',
+                  5, '#2563eb',
+                  '#d97706',
+                ],
+                lineWidth: [
+                  'interpolate', ['linear'], ['zoom'],
+                  11, 1.5,
+                  14, 3,
+                  16, 4,
+                ],
+                lineOpacity: [
+                  'interpolate', ['linear'], ['zoom'],
+                  11, 0.15,
+                  13, 0.25,
+                  16, 0.35,
+                ],
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* OSM transport stops — subtle background dots */}
+        {showTransportLayer && (
+          <Mapbox.ShapeSource id="transport-stops" shape={transportStopsGeojson}>
+            <Mapbox.CircleLayer
+              id="transport-stop-dot"
+              minZoomLevel={13}
+              style={{
+                circleRadius: [
+                  'match',
+                  ['get', 'stopType'],
+                  'lorry_park', 4,
+                  3,
+                ],
+                circleColor: [
+                  'match',
+                  ['get', 'stopType'],
+                  'trotro_stop', isDark ? '#fbbf24' : '#d97706',
+                  'bus_stop', isDark ? '#818cf8' : '#6366f1',
+                  'lorry_park', isDark ? '#4ade80' : '#16a34a',
+                  'taxi_rank', isDark ? '#22d3ee' : '#0891b2',
+                  isDark ? '#fbbf24' : '#d97706',
+                ],
+                circleOpacity: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 0.3,
+                  14, 0.5,
+                  16, 0.7,
+                ],
+                circleStrokeWidth: 0,
+              }}
+            />
+            <Mapbox.SymbolLayer
+              id="transport-stop-labels"
+              minZoomLevel={15}
+              filter={['!=', ['get', 'name'], '']}
+              style={{
+                textField: ['get', 'name'],
+                textSize: 9,
+                textFont: ['Open Sans Regular', 'Arial Unicode MS Regular'],
+                textAnchor: 'top',
+                textOffset: [0, 0.8],
+                textColor: isDark ? c.stone400 : c.stone500,
+                textHaloColor: isDark ? c.stone900 : '#ffffff',
+                textHaloWidth: 1,
+                textAllowOverlap: false,
+                textOptional: true,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
         {/* Station dots — native rendering, no iOS crashes */}
         <Mapbox.ShapeSource
@@ -318,6 +458,22 @@ export default function StationsScreen() {
         <ChevronLeft size={22} color={t.text} />
       </TouchableOpacity>
 
+      {/* Floating layer toggle */}
+      <TouchableOpacity
+        style={[
+          styles.layerBtn,
+          {
+            backgroundColor: t.card,
+            borderColor: showTransportLayer ? c.amber500 : 'transparent',
+            borderWidth: showTransportLayer ? 1.5 : 0,
+          },
+        ]}
+        onPress={() => setShowTransportLayer((v) => !v)}
+        activeOpacity={0.7}
+      >
+        <Layers size={20} color={showTransportLayer ? c.amber500 : t.text} />
+      </TouchableOpacity>
+
       {/* Bottom sheet with station list */}
       <StationBottomSheet
         ref={sheetRef}
@@ -332,6 +488,7 @@ export default function StationsScreen() {
         onRefresh={handleRefresh}
         getDistance={getDistance}
         bestPick={bestPick}
+        nearbyStops={selectedNearbyStops}
       />
     </View>
   )
@@ -348,6 +505,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 56,
     left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  layerBtn: {
+    position: 'absolute',
+    top: 56,
+    right: 16,
     width: 44,
     height: 44,
     borderRadius: 22,

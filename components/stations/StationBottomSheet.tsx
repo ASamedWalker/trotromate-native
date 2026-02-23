@@ -16,6 +16,7 @@ import { SortTabs, type SortTab } from './SortTabs'
 import { StationCard } from './StationCard'
 import { QueueStatusBar } from './QueueStatusBar'
 import type { StationWithQueue } from '@/lib/services/stations'
+import type { NearbyStop } from '@/lib/utils/nearby-stops'
 
 type QueueStatus = 'empty' | 'short' | 'moderate' | 'long' | 'very_long'
 
@@ -63,6 +64,7 @@ interface StationBottomSheetProps {
   onRefresh: () => void
   getDistance: (station: StationWithCoords) => number | null
   bestPick: StationWithCoords | null
+  nearbyStops?: NearbyStop[]
 }
 
 export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBottomSheetProps>(
@@ -79,6 +81,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
       onRefresh,
       getDistance,
       bestPick,
+      nearbyStops,
     },
     ref,
   ) {
@@ -105,9 +108,10 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
           isSelected={item.id === selectedStationId}
           onPress={() => onSelectStation(item)}
           isDark={isDark}
+          nearbyStops={item.id === selectedStationId ? nearbyStops : undefined}
         />
       ),
-      [selectedStationId, onSelectStation, isDark, getDistance],
+      [selectedStationId, onSelectStation, isDark, getDistance, nearbyStops],
     )
 
     const keyExtractor = useCallback((item: StationWithCoords) => item.id, [])
