@@ -13,6 +13,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.troski.app",
       infoPlist: {
+        NSLocationWhenInUseUsageDescription: "Troski uses your location to show nearby stations, queue status, and to help plan routes from your current position.",
         NSCameraUsageDescription: "Troski uses your camera to let you take photos of trotro queues, station conditions, or fare displays to share as Troski Tales with other commuters.",
         NSPhotoLibraryUsageDescription: "Troski accesses your photo library so you can select existing photos to attach to your Troski Tales posts — for example, a photo of a busy station queue or a trotro fare board.",
         NSPhotoLibraryAddUsageDescription: "Troski saves receipt images and fare screenshots to your photo library so you can keep a record of your transport expenses.",
