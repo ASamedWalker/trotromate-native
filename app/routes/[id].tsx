@@ -142,6 +142,7 @@ export default function RouteDetailScreen() {
           isLoading={trendLoading}
           selectedPeriod={trendDays}
           onPeriodChange={setTrendDays}
+          routeName={`${route.from_location} → ${route.to_location}`}
         />
 
         {/* Traffic Conditions */}
