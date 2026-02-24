@@ -1,49 +1,48 @@
-# TrotroMate Native
+# Troski
 
-A native mobile app for Ghana's trotro (minibus) commuters. Search routes, check fares, report conditions, and earn rewards for contributing to the community.
+Community-powered transit for Ghana. Know your trotro fare, beat the queue.
 
-Built with **Expo** and **React Native** for Android and iOS.
+Troski gives commuters real-time information about Ghana's trotro (minibus) transport system — crowdsourced fares, station queue status, route planning, and a full interactive transport map. Built by people who ride trotro, for people who ride trotro.
+
+## Features
+
+- **Route Search & Planning** — Find trotro/okada routes with current fares and multi-leg transfer options
+- **Crowdsourced Reports** — Submit and view fare reports, queue status, road incidents
+- **Interactive Transport Map** — 2,386 transport stops and 566 route corridors from OpenStreetMap, with distinct icons for trotro, train, taxi, and lorry parks
+- **Train System** — Tema-Accra commuter line with crowdsourced delay/crowd reports
+- **Trotro Tales** — Photo sharing for the commuter community
+- **Rewards Engine** — Points, streaks, levels, badges, and leaderboards for contributors
+- **Offline Support** — Reports queue locally when offline and sync when back online
+- **Push Notifications** — Fare drop alerts, queue updates, streak reminders
 
 ## Tech Stack
 
-- **Expo SDK 54** - Latest Expo with New Architecture
-- **React Native 0.81** - Latest React Native
-- **Expo Router** - File-based navigation
-- **NativeWind v4** - Tailwind CSS for React Native
-- **Supabase** - Backend (shared with PWA)
-- **Lucide React Native** - Icon library
-- **React Native Reanimated** - Animations
-
-## Features (MVP)
-
-- **Route Search** - Find trotro routes with current fares
-- **Popular Routes** - Quick access to frequently traveled routes
-- **Fare Reports** - Crowdsourced fare data from commuters
-- **Queue Status** - Real-time station queue reports
-- **Rewards System** - Points, levels, and leaderboards for contributors
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native 0.81 + Expo SDK 54 (New Architecture) |
+| Navigation | Expo Router v6 (file-based) |
+| Styling | NativeWind v4 (Tailwind CSS) |
+| Backend | Supabase (Postgres + Auth + Storage + Realtime) |
+| State | React Query v5 + React Context |
+| Maps | Mapbox GL (@rnmapbox/maps v10.2) |
+| Icons | Lucide React Native |
+| OTA Updates | EAS Update |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js >= 20.19.4
-- Expo Go app on your phone ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779))
+- Node.js >= 20
+- Expo Go on your phone — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) | [iOS](https://apps.apple.com/app/expo-go/id982107779)
 
 ### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/ASamedWalker/trotromate-native.git
 cd trotromate-native
-
-# Install dependencies
 npm install
-
-# Create .env file
 cp .env.example .env
 # Edit .env with your Supabase credentials
-
-# Start the development server
 npx expo start
 ```
 
@@ -52,52 +51,54 @@ Scan the QR code with Expo Go to run on your device.
 ### Running on Emulator
 
 ```bash
-# Android
-npx expo start --android
-
-# iOS (macOS only)
-npx expo start --ios
+npx expo start --android    # Android
+npx expo start --ios        # iOS (macOS only)
 ```
 
 ## Project Structure
 
 ```
-trotromate-native/
-├── app/                    # Screens (Expo Router)
-│   ├── (tabs)/             # Tab navigation
-│   │   ├── index.tsx       # Home - Route search
-│   │   ├── routes.tsx      # Routes - Browse & search
-│   │   ├── report.tsx      # Report - Contribute data
-│   │   └── rewards.tsx     # Rewards - Points & leaderboard
-│   ├── report/             # Report modals
-│   │   ├── fare.tsx        # Fare report form
-│   │   └── queue.tsx       # Queue status form
-│   ├── routes/             # Route details
-│   │   └── [id].tsx        # Single route view
-│   └── _layout.tsx         # Root layout
-├── components/             # Reusable components
-├── lib/                    # Shared utilities
-│   ├── hooks/              # Custom hooks
-│   ├── supabase/           # Supabase client
-│   ├── types/              # TypeScript types
-│   └── constants/          # App constants
-├── assets/                 # Images, fonts
-├── metro.config.js         # Metro bundler config (NativeWind)
-├── tailwind.config.js      # Tailwind configuration
-└── global.css              # Tailwind base styles
+app/              Screens (Expo Router)
+  (tabs)/           Bottom tab navigation (home, routes, report, rewards, activity, tales)
+  report/           Report forms (fare, queue, incident, train, photo)
+  routes/           Route details & planner
+  stations/         Interactive transport map
+  train/            Train system screens
+  profile/          User profiles & followers
+  settings/         App settings
+components/       Reusable UI components
+lib/
+  services/         Business logic & API calls (15 service modules)
+  hooks/            Custom React hooks (25+ hooks)
+  types/            TypeScript definitions
+  constants/        App constants (rewards, train schedules)
+  contexts/         React Context (AppContext)
+  supabase/         Database client & migrations
+  utils/            Utility functions (distance, time, navigation)
+assets/data/      Bundled transport data (OSM fallback)
+scripts/          Data pipeline (OSM fetch, Supabase seed)
+docs/             Documentation
 ```
 
-## Relationship to TrotroMate PWA
+## Documentation
 
-This native app shares the same **Supabase backend** as the [TrotroMate PWA](https://github.com/ASamedWalker/trotromate). Both apps read/write to the same database, so data is consistent across platforms.
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | Comprehensive technical architecture — layers, data flow, schemas, patterns |
+| [Vision & Roadmap](docs/VISION.md) | Business vision, 4-phase roadmap, scalability principles |
+| [Contributing](docs/CONTRIBUTING.md) | How to set up, contribute, and submit PRs |
 
-| Feature | PWA | Native |
-|---------|-----|--------|
+## Shared Backend
+
+Troski Native shares the same Supabase database as the [TrotroMate PWA](https://github.com/ASamedWalker/trotromate). Data is consistent across both platforms.
+
+| Capability | PWA | Native |
+|-----------|-----|--------|
 | Route Search | Yes | Yes |
-| Fare Reports | Yes | Yes |
-| Queue Status | Yes | Yes |
+| Fare/Queue Reports | Yes | Yes |
 | Rewards System | Yes | Yes |
-| Trotro Tales | Yes | Coming soon |
+| Trotro Tales | Yes | Yes |
+| Transport Map | — | Mapbox GL |
 | Push Notifications | Limited | Full FCM/APNs |
 | Offline Mode | Service Worker | AsyncStorage |
 | Distribution | Web | Play Store / App Store |
@@ -105,23 +106,23 @@ This native app shares the same **Supabase backend** as the [TrotroMate PWA](htt
 ## Building for Production
 
 ```bash
-# Install EAS CLI
 npm install -g eas-cli
-
-# Configure EAS
-eas build:configure
-
-# Build for Android
 eas build --platform android
-
-# Build for iOS
 eas build --platform ios
-
-# Submit to stores
-eas submit --platform android
-eas submit --platform ios
 ```
+
+### OTA Updates
+
+```bash
+npx eas update --branch preview --platform android --message "Description"
+npx eas update --branch production --platform android --message "Description"
+npx eas update --branch production --platform ios --message "Description"
+```
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup instructions, code style, and areas where we need help.
 
 ## License
 
-Private - All rights reserved.
+Private — All rights reserved.
