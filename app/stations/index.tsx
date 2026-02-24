@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Layers, Bus } from 'lucide-react-native'
+import { ChevronLeft, Layers, BusFront, TrainFront, Car } from 'lucide-react-native'
 import Mapbox from '@rnmapbox/maps'
 import * as Haptics from 'expo-haptics'
 import { c, themed } from '@/lib/theme'
@@ -286,14 +286,24 @@ export default function StationsScreen() {
 
         {/* Custom transport icons rendered from React Native views */}
         <Mapbox.Images>
-          <Mapbox.Image name="trotro-stop">
+          <Mapbox.Image name="trotro-icon">
             <View style={styles.trotroIcon}>
-              <Bus size={14} color="#78350f" />
+              <BusFront size={14} color="#78350f" />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="lorry-park-icon">
             <View style={styles.lorryParkIcon}>
-              <Bus size={18} color="#052e16" />
+              <BusFront size={18} color="#052e16" />
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="train-icon">
+            <View style={styles.trainIcon}>
+              <TrainFront size={16} color="#ffffff" />
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="taxi-icon">
+            <View style={styles.taxiIcon}>
+              <Car size={14} color="#713f12" />
             </View>
           </Mapbox.Image>
         </Mapbox.Images>
@@ -408,15 +418,15 @@ export default function StationsScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* OSM transport stops — custom bus icons */}
+        {/* OSM transport stops — distinct icons per mode */}
         {showTransportLayer && (
           <Mapbox.ShapeSource id="transport-stops" shape={transportStopsGeojson}>
-            {/* Ambient dots at zoom 13-14 for network density */}
+            {/* Ambient dots at zoom 13-14 for trotro/bus network density */}
             <Mapbox.CircleLayer
               id="transport-stop-ambient"
               minZoomLevel={13}
               maxZoomLevel={15}
-              filter={['!=', ['get', 'stopType'], 'lorry_park']}
+              filter={['match', ['get', 'stopType'], ['bus_stop', 'trotro_stop'], true, false]}
               style={{
                 circleRadius: 2.5,
                 circleColor: isDark ? '#fbbf24' : '#d97706',
@@ -429,13 +439,13 @@ export default function StationsScreen() {
               }}
             />
 
-            {/* Regular stops — bus icons at zoom 15+ */}
+            {/* Trotro/bus stops — bus front icons at zoom 15+ */}
             <Mapbox.SymbolLayer
-              id="transport-stop-icons"
+              id="transport-trotro-icons"
               minZoomLevel={15}
-              filter={['!=', ['get', 'stopType'], 'lorry_park']}
+              filter={['match', ['get', 'stopType'], ['bus_stop', 'trotro_stop'], true, false]}
               style={{
-                iconImage: 'trotro-stop',
+                iconImage: 'trotro-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
                   15, 0.65,
@@ -457,7 +467,7 @@ export default function StationsScreen() {
               }}
             />
 
-            {/* Lorry parks — bus icons from zoom 13 (important landmarks) */}
+            {/* Lorry parks — larger bus icons from zoom 13 */}
             <Mapbox.SymbolLayer
               id="transport-lorry-icons"
               minZoomLevel={13}
@@ -484,6 +494,66 @@ export default function StationsScreen() {
                 textColor: isDark ? '#4ade80' : '#15803d',
                 textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
                 textHaloWidth: 1.5,
+                textAllowOverlap: false,
+                textOptional: true,
+                textMaxWidth: 8,
+              }}
+            />
+
+            {/* Train stations — blue train icons from zoom 12 */}
+            <Mapbox.SymbolLayer
+              id="transport-train-icons"
+              minZoomLevel={12}
+              filter={['==', ['get', 'stopType'], 'train_station']}
+              style={{
+                iconImage: 'train-icon',
+                iconSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  12, 0.7,
+                  15, 1.0,
+                  17, 1.2,
+                ],
+                iconAllowOverlap: true,
+                textField: ['get', 'name'],
+                textSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  12, 9,
+                  15, 11,
+                ],
+                textFont: ['Open Sans Semibold', 'Arial Unicode MS Regular'],
+                textAnchor: 'top',
+                textOffset: [0, 1.4],
+                textColor: isDark ? '#93c5fd' : '#1d4ed8',
+                textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+                textHaloWidth: 1.5,
+                textAllowOverlap: false,
+                textOptional: true,
+                textMaxWidth: 8,
+              }}
+            />
+
+            {/* Taxi ranks — yellow car icons from zoom 14 */}
+            <Mapbox.SymbolLayer
+              id="transport-taxi-icons"
+              minZoomLevel={14}
+              filter={['==', ['get', 'stopType'], 'taxi_rank']}
+              style={{
+                iconImage: 'taxi-icon',
+                iconSize: [
+                  'interpolate', ['linear'], ['zoom'],
+                  14, 0.65,
+                  17, 0.9,
+                ],
+                iconAllowOverlap: false,
+                iconPadding: 6,
+                textField: ['get', 'name'],
+                textSize: 9,
+                textFont: ['Open Sans Regular', 'Arial Unicode MS Regular'],
+                textAnchor: 'top',
+                textOffset: [0, 1.2],
+                textColor: isDark ? '#fde047' : '#a16207',
+                textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+                textHaloWidth: 1,
                 textAllowOverlap: false,
                 textOptional: true,
                 textMaxWidth: 8,
@@ -666,6 +736,26 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: '#4ade80',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  trainIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2563eb',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  taxiIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#facc15',
     borderWidth: 2,
     borderColor: '#ffffff',
     alignItems: 'center' as const,

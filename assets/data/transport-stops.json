@@ -1,7 +1,7 @@
 {
-  "generated": "2026-02-23T17:22:14.596Z",
+  "generated": "2026-02-24T03:13:03.930Z",
   "bbox": "5.4,-0.5,5.9,0.1",
-  "count": 2357,
+  "count": 2386,
   "stops": [
     {
       "osm_id": 30729987,
@@ -9531,10 +9531,10 @@
       "type": "bus_stop"
     },
     {
-      "osm_id": 5041737432,
-      "name": "Vulcanizer",
-      "lat": 5.6228929,
-      "lng": -0.2788759,
+      "osm_id": 5043131246,
+      "name": "Pentecost",
+      "lat": 5.6227111,
+      "lng": -0.2788002,
       "type": "bus_stop"
     },
     {
@@ -16501,6 +16501,209 @@
       "lat": 5.5535522,
       "lng": -0.2241515,
       "type": "lorry_park"
+    },
+    {
+      "osm_id": 1616146875,
+      "name": "Last Jericho Stop",
+      "lat": 5.6960297,
+      "lng": -0.0446341,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 4558008435,
+      "name": "Kingsby Taxi Rank",
+      "lat": 5.6222186,
+      "lng": -0.2423474,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 4588974833,
+      "name": "Greda Estate Taxi Rank",
+      "lat": 5.6190362,
+      "lng": -0.1011138,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 5262192202,
+      "name": "Berekuso Taxi station",
+      "lat": 5.7601126,
+      "lng": -0.2251643,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 5677761096,
+      "name": "Newtown Manheam",
+      "lat": 5.6491835,
+      "lng": 0.0004233,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 5705935922,
+      "name": "Ecobank",
+      "lat": 5.6283587,
+      "lng": -0.0902745,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 5732865708,
+      "name": "Agbogba",
+      "lat": 5.6782981,
+      "lng": -0.1735007,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 6772267957,
+      "name": null,
+      "lat": 5.6805552,
+      "lng": -0.1727518,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 6855092032,
+      "name": null,
+      "lat": 5.6195554,
+      "lng": -0.1083964,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 6855105445,
+      "name": null,
+      "lat": 5.6154173,
+      "lng": -0.11289,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 6865182195,
+      "name": null,
+      "lat": 5.6261536,
+      "lng": -0.1077052,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 6938491642,
+      "name": null,
+      "lat": 5.6199809,
+      "lng": -0.1001271,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 7441273196,
+      "name": "Taxi Station",
+      "lat": 5.6062499,
+      "lng": -0.0770488,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 10285963298,
+      "name": "UN Taxi Rank",
+      "lat": 5.6807344,
+      "lng": -0.1839436,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 10289599253,
+      "name": "SDA Taxi Rank",
+      "lat": 5.6784522,
+      "lng": -0.1868191,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 10302271032,
+      "name": "Boi Taxi Rank",
+      "lat": 5.729865,
+      "lng": -0.2069268,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 10608637314,
+      "name": null,
+      "lat": 5.6796305,
+      "lng": -0.1742822,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 10685078124,
+      "name": null,
+      "lat": 5.5885186,
+      "lng": -0.1802474,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 1375249822,
+      "name": "Accra",
+      "lat": 5.5489157,
+      "lng": -0.2110196,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 2360467122,
+      "name": "Amasaman",
+      "lat": 5.7049254,
+      "lng": -0.3026856,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 7046135590,
+      "name": "Addogonno",
+      "lat": 5.6195292,
+      "lng": -0.0919544,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937562411,
+      "name": "Nsawam",
+      "lat": 5.8107263,
+      "lng": -0.3533591,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937562413,
+      "name": "Dome",
+      "lat": 5.6482793,
+      "lng": -0.2378126,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937596017,
+      "name": "Achimota Junction",
+      "lat": 5.6073991,
+      "lng": -0.2237278,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937916699,
+      "name": "Community 1 Train Station",
+      "lat": 5.6524526,
+      "lng": 0.003563,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937916700,
+      "name": "Tema Fishing Harbour Train Station",
+      "lat": 5.6446393,
+      "lng": 0.0115442,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937916704,
+      "name": "Tema Harbour Train Station",
+      "lat": 5.6312847,
+      "lng": 0.0018083,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937963686,
+      "name": "Asaprochona",
+      "lat": 5.6143974,
+      "lng": -0.055086,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 9937963687,
+      "name": "Baatsona",
+      "lat": 5.6198657,
+      "lng": -0.1196171,
+      "type": "train_station"
     }
   ]
 }

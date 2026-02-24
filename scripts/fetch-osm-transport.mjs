@@ -49,6 +49,10 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function categorizeStop(tags) {
+  // Train/rail stations
+  if (tags.railway === 'station' || tags.railway === 'halt' || tags.railway === 'tram_stop') {
+    return 'train_station'
+  }
   if (tags.amenity === 'bus_station') return 'lorry_park'
   if (tags.amenity === 'taxi') return 'taxi_rank'
   if (tags.highway === 'bus_stop') {
@@ -134,6 +138,9 @@ async function fetchTransportStops() {
     { label: 'platform', q: `[out:json][timeout:60];node["public_transport"="platform"](${BBOX});out body;` },
     { label: 'taxi', q: `[out:json][timeout:60];node["amenity"="taxi"](${BBOX});out body;` },
     { label: 'station', q: `[out:json][timeout:60];node["public_transport"="station"](${BBOX});out body;` },
+    { label: 'railway_station', q: `[out:json][timeout:60];node["railway"="station"](${BBOX});out body;` },
+    { label: 'railway_halt', q: `[out:json][timeout:60];node["railway"="halt"](${BBOX});out body;` },
+    { label: 'tram_stop', q: `[out:json][timeout:60];node["railway"="tram_stop"](${BBOX});out body;` },
   ]
 
   const allElements = []
@@ -194,7 +201,7 @@ async function fetchTransportStops() {
   console.log(`After deduplication: ${deduped.length} stops\n`)
 
   // Categorize
-  const counts = { trotro_stop: 0, bus_stop: 0, lorry_park: 0, taxi_rank: 0 }
+  const counts = { trotro_stop: 0, bus_stop: 0, lorry_park: 0, taxi_rank: 0, train_station: 0 }
   for (const s of deduped) counts[s.type]++
   console.log('By type:')
   for (const [type, count] of Object.entries(counts)) {

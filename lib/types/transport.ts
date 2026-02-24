@@ -1,4 +1,4 @@
-export type TransportStopType = 'trotro_stop' | 'bus_stop' | 'lorry_park' | 'taxi_rank'
+export type TransportStopType = 'trotro_stop' | 'bus_stop' | 'lorry_park' | 'taxi_rank' | 'train_station'
 
 export interface TransportStop {
   osm_id: number

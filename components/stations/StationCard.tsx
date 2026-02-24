@@ -29,7 +29,8 @@ const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
   trotro_stop: '#d97706',
   bus_stop: '#d97706',    // Same as trotro — in Ghana, bus_stop = trotro stop
   lorry_park: '#16a34a',
-  taxi_rank: '#d97706',
+  taxi_rank: '#eab308',
+  train_station: '#2563eb',
 }
 
 // Display name: "37 Military Hospital" → "37 Station", others append "Station"
