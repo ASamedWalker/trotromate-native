@@ -15,6 +15,7 @@ import { getStationCoords } from '@/lib/utils/station-coords'
 import { useTransportStops, useTransportRoutes } from '@/lib/hooks/useTransportData'
 import { findNearbyStops, type NearbyStop } from '@/lib/utils/nearby-stops'
 import { StationBottomSheet, type StationBottomSheetRef } from '@/components/stations/StationBottomSheet'
+import { RouteInfoCard } from '@/components/stations/RouteInfoCard'
 import type { SortTab } from '@/components/stations/SortTabs'
 import type { StationWithQueue } from '@/lib/services/stations'
 
@@ -65,6 +66,7 @@ export default function StationsScreen() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<SortTab>('nearest')
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null)
   const [showTransportLayer, setShowTransportLayer] = useState(true)
 
   const cameraRef = useRef<Mapbox.Camera>(null)
@@ -183,7 +185,11 @@ export default function StationsScreen() {
           coordinates: route.coordinates,
         },
         properties: {
+          osmId: route.osm_id,
           name: route.name || route.ref || '',
+          ref: route.ref || '',
+          from: route.from || '',
+          to: route.to || '',
           routeType: route.type,
           colorIndex: idx % 6,
         },
@@ -200,12 +206,46 @@ export default function StationsScreen() {
     return findNearbyStops(station._lat, station._lng, transportStops)
   }, [selectedStationId, stationsWithCoords, transportStops])
 
+  // Selected route object for info card
+  const selectedRoute = useMemo(() => {
+    if (!selectedRouteId) return null
+    return transportRoutes.find((r) => r.osm_id === selectedRouteId) ?? null
+  }, [selectedRouteId, transportRoutes])
+
   // Distance calculator (Phase 1: no GPS, return null)
   const getDistance = useCallback((_station: StationWithCoords) => {
     return null as number | null
   }, [])
 
   // ── Bidirectional selection ──
+
+  // Route corridor tap → select + fit camera to route bounds
+  const handleRoutePress = useCallback(
+    (event: any) => {
+      const feature = event?.features?.[0]
+      if (!feature?.properties?.osmId) return
+
+      const osmId = feature.properties.osmId
+      const route = transportRoutes.find((r) => r.osm_id === osmId)
+      if (!route) return
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      setSelectedStationId(null)
+      setSelectedRouteId(osmId)
+      sheetRef.current?.snapToIndex(0)
+
+      // Fit camera to route bounds
+      const lngs = route.coordinates.map((coord) => coord[0])
+      const lats = route.coordinates.map((coord) => coord[1])
+      cameraRef.current?.fitBounds(
+        [Math.max(...lngs), Math.max(...lats)],
+        [Math.min(...lngs), Math.min(...lats)],
+        [60, 60, 200, 60],
+        500,
+      )
+    },
+    [transportRoutes],
+  )
 
   // Map dot tap → select + scroll sheet to card
   const handleShapePress = useCallback(
@@ -218,6 +258,7 @@ export default function StationsScreen() {
       if (!station) return
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      setSelectedRouteId(null)
       setSelectedStationId(stationId)
 
       // Zoom map to station with 3D tilt
@@ -244,6 +285,7 @@ export default function StationsScreen() {
   const handleSelectStation = useCallback(
     (station: StationWithCoords) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      setSelectedRouteId(null)
       setSelectedStationId(station.id)
 
       cameraRef.current?.setCamera({
@@ -273,7 +315,7 @@ export default function StationsScreen() {
         attributionEnabled={false}
         compassEnabled
         scaleBarEnabled={false}
-        onPress={() => setSelectedStationId(null)}
+        onPress={() => { setSelectedStationId(null); setSelectedRouteId(null) }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -381,36 +423,66 @@ export default function StationsScreen() {
         {/* User location blue dot */}
         <Mapbox.UserLocation visible animated />
 
-        {/* Transport route corridors — subtle lines below everything */}
+        {/* Transport route corridors — tappable lines */}
         {showTransportLayer && (
-          <Mapbox.ShapeSource id="transport-routes" shape={transportRoutesGeojson}>
+          <Mapbox.ShapeSource
+            id="transport-routes"
+            shape={transportRoutesGeojson}
+            onPress={handleRoutePress}
+            hitbox={{ width: 20, height: 20 }}
+          >
+            {/* Glow behind selected route (filter matches nothing when no selection) */}
+            <Mapbox.LineLayer
+              id="transport-route-glow"
+              minZoomLevel={11}
+              filter={['==', ['get', 'osmId'], selectedRouteId ?? -1]}
+              style={{
+                lineColor: '#fbbf24',
+                lineWidth: [
+                  'interpolate', ['linear'], ['zoom'],
+                  11, 6,
+                  14, 10,
+                  16, 14,
+                ],
+                lineOpacity: 0.3,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+            {/* Main route lines with conditional highlight */}
             <Mapbox.LineLayer
               id="transport-route-line"
               minZoomLevel={11}
               style={{
                 lineColor: [
-                  'match',
-                  ['get', 'colorIndex'],
-                  0, '#d97706',
-                  1, '#0891b2',
-                  2, '#7c3aed',
-                  3, '#16a34a',
-                  4, '#dc2626',
-                  5, '#2563eb',
-                  '#d97706',
+                  'case',
+                  ['==', ['get', 'osmId'], selectedRouteId ?? -1],
+                  '#fbbf24',
+                  [
+                    'match',
+                    ['get', 'colorIndex'],
+                    0, '#d97706', 1, '#0891b2', 2, '#7c3aed',
+                    3, '#16a34a', 4, '#dc2626', 5, '#2563eb',
+                    '#d97706',
+                  ],
                 ],
                 lineWidth: [
-                  'interpolate', ['linear'], ['zoom'],
-                  11, 1.5,
-                  14, 3,
-                  16, 4,
+                  'case',
+                  ['==', ['get', 'osmId'], selectedRouteId ?? -1],
+                  ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 16, 7],
+                  ['interpolate', ['linear'], ['zoom'], 11, 1.5, 14, 3, 16, 4],
                 ],
-                lineOpacity: [
-                  'interpolate', ['linear'], ['zoom'],
-                  11, 0.15,
-                  13, 0.25,
-                  16, 0.35,
-                ],
+                lineOpacity: selectedRouteId !== null
+                  ? [
+                    'case',
+                    ['==', ['get', 'osmId'], selectedRouteId],
+                    0.9,
+                    0.08,
+                  ] as any
+                  : [
+                    'interpolate', ['linear'], ['zoom'],
+                    11, 0.15, 13, 0.25, 16, 0.35,
+                  ],
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -680,6 +752,16 @@ export default function StationsScreen() {
         bestPick={bestPick}
         nearbyStops={selectedNearbyStops}
       />
+
+      {/* Route info overlay */}
+      {selectedRoute && (
+        <RouteInfoCard
+          key={selectedRoute.osm_id}
+          route={selectedRoute}
+          isDark={isDark}
+          onClose={() => setSelectedRouteId(null)}
+        />
+      )}
     </View>
   )
 }
