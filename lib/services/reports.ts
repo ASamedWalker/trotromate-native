@@ -36,15 +36,18 @@ export async function submitQueueReport(params: {
   stationName: string
   queueStatus: string
   deviceId: string
+  stationId?: string
+  vehicleCount?: number
 }): Promise<{ reportId: string } | null> {
-  const { stationName, queueStatus } = params
+  const { stationName, queueStatus, stationId, vehicleCount } = params
 
   const { data: report, error } = await supabase
     .from('queue_reports')
     .insert({
-      station_id: null,
+      station_id: stationId || null,
       station_name: stationName,
       queue_status: queueStatus,
+      vehicle_count: vehicleCount ?? null,
       reporter_phone: null,
     })
     .select('id')

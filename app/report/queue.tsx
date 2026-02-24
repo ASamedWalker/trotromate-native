@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { Users, MapPin, Check, Clock } from 'lucide-react-native'
+import { Users, MapPin, Check, Clock, Bus, X } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
+import { useStations } from '@/lib/hooks/useStations'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 
@@ -22,6 +23,14 @@ const QUEUE_LEVELS = [
   { id: 'short', label: 'Short', emoji: '🙂', description: '1-2 trotros waiting', color: c.amber500 },
   { id: 'moderate', label: 'Moderate', emoji: '😐', description: '3-5 trotros, ~15 min wait', color: '#f97316' },
   { id: 'long', label: 'Long', emoji: '😫', description: '5+ trotros, 30+ min wait', color: c.red500 },
+]
+
+const VEHICLE_COUNTS = [
+  { label: '0', value: 0 },
+  { label: '1-2', value: 2 },
+  { label: '3-5', value: 4 },
+  { label: '5-10', value: 8 },
+  { label: '10+', value: 12 },
 ]
 
 export default function QueueReportScreen() {
@@ -34,17 +43,47 @@ export default function QueueReportScreen() {
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
+  const { stations } = useStations()
 
-  const [station, setStation] = useState('')
+  const [stationQuery, setStationQuery] = useState('')
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
+  const [selectedStationName, setSelectedStationName] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
+  const [selectedVehicleCount, setSelectedVehicleCount] = useState<number | null>(null)
+
+  // Filter stations for autocomplete
+  const filteredStations = useMemo(() => {
+    if (!stationQuery.trim() || stationQuery.length < 2) return []
+    const q = stationQuery.toLowerCase()
+    return stations
+      .filter((s) => s.name.toLowerCase().includes(q))
+      .slice(0, 5)
+  }, [stationQuery, stations])
+
+  const handleStationSelect = (station: { id: string; name: string }) => {
+    setSelectedStationId(station.id)
+    setSelectedStationName(station.name)
+    setStationQuery(station.name)
+    setShowSuggestions(false)
+    haptics.light()
+  }
+
+  const handleClearStation = () => {
+    setSelectedStationId(null)
+    setSelectedStationName('')
+    setStationQuery('')
+    setShowSuggestions(false)
+  }
 
   const handleSubmit = async () => {
-    if (!station.trim() || !selectedLevel) {
+    const name = selectedStationName || stationQuery.trim()
+    if (!name || !selectedLevel) {
       Alert.alert('Missing Info', 'Please select a station and queue level')
       return
     }
 
-    const result = await submit(station.trim(), selectedLevel)
+    const result = await submit(name, selectedLevel, selectedStationId ?? undefined, selectedVehicleCount ?? undefined)
     if (result) {
       haptics.success()
       await refreshProfile()
@@ -57,7 +96,7 @@ export default function QueueReportScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Header Card */}
         <View style={s.headerCard}>
           <View style={s.headerRow}>
@@ -76,18 +115,64 @@ export default function QueueReportScreen() {
 
         {/* Form */}
         <View style={s.formCard}>
-          {/* Station */}
+          {/* Station with autocomplete */}
           <Text style={s.label}>Station</Text>
           <View style={s.inputBox}>
             <MapPin size={20} color={c.violet500} />
             <TextInput
-              value={station}
-              onChangeText={setStation}
-              placeholder="e.g. Circle Station"
+              value={stationQuery}
+              onChangeText={(text) => {
+                setStationQuery(text)
+                setShowSuggestions(true)
+                if (selectedStationId) {
+                  setSelectedStationId(null)
+                  setSelectedStationName('')
+                }
+              }}
+              placeholder="Search stations..."
               placeholderTextColor={t.textSecondary}
               style={s.input}
             />
+            {stationQuery.length > 0 && (
+              <TouchableOpacity onPress={handleClearStation}>
+                <X size={16} color={t.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* Station suggestions dropdown */}
+          {showSuggestions && filteredStations.length > 0 && !selectedStationId && (
+            <View style={s.suggestions}>
+              {filteredStations.map((station) => (
+                <TouchableOpacity
+                  key={station.id}
+                  style={s.suggestionRow}
+                  onPress={() => handleStationSelect(station)}
+                  activeOpacity={0.7}
+                >
+                  <Bus size={14} color={c.amber500} />
+                  <Text style={s.suggestionText} numberOfLines={1}>
+                    {station.name}
+                  </Text>
+                  {station.location ? (
+                    <Text style={s.suggestionLocation} numberOfLines={1}>
+                      {station.location}
+                    </Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Selected station badge */}
+          {selectedStationId && (
+            <View style={s.selectedBadge}>
+              <Check size={12} color={c.emerald500} />
+              <Text style={s.selectedBadgeText}>
+                Linked to {selectedStationName}
+              </Text>
+            </View>
+          )}
 
           {/* Queue Level */}
           <Text style={s.label}>How's the queue?</Text>
@@ -115,6 +200,35 @@ export default function QueueReportScreen() {
                       <Check size={14} color={c.white} />
                     </View>
                   )}
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* Vehicle count picker */}
+          <Text style={s.label}>Vehicles waiting (optional)</Text>
+          <View style={s.vehicleRow}>
+            {VEHICLE_COUNTS.map((vc) => {
+              const isSelected = selectedVehicleCount === vc.value
+              return (
+                <TouchableOpacity
+                  key={vc.value}
+                  onPress={() => {
+                    setSelectedVehicleCount(isSelected ? null : vc.value)
+                    haptics.light()
+                  }}
+                  activeOpacity={0.7}
+                  style={[
+                    s.vehicleBtn,
+                    isSelected ? s.vehicleBtnSelected : s.vehicleBtnDefault,
+                  ]}
+                >
+                  <Text style={[
+                    s.vehicleBtnText,
+                    { color: isSelected ? c.white : t.textSecondary },
+                  ]}>
+                    {vc.label}
+                  </Text>
                 </TouchableOpacity>
               )
             })}
@@ -183,10 +297,49 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 16,
       paddingHorizontal: 16,
       paddingVertical: 14,
-      marginBottom: 24,
+      marginBottom: 8,
       backgroundColor: t.cardAlt,
     },
     input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
+    suggestions: {
+      marginBottom: 16,
+      borderRadius: 12,
+      backgroundColor: t.cardAlt,
+      overflow: 'hidden',
+    },
+    suggestionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? c.stone700 : c.stone200,
+    },
+    suggestionText: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: t.text,
+      flexShrink: 1,
+    },
+    suggestionLocation: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      marginLeft: 'auto',
+    },
+    selectedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    selectedBadgeText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: c.emerald500,
+    },
     levelBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -209,6 +362,30 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: c.violet500,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    vehicleRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 24,
+    },
+    vehicleBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      alignItems: 'center',
+    },
+    vehicleBtnSelected: {
+      backgroundColor: c.amber500,
+      borderColor: c.amber500,
+    },
+    vehicleBtnDefault: {
+      borderColor: isDark ? c.stone700 : c.stone200,
+      backgroundColor: isDark ? c.stone800 : c.stone50,
+    },
+    vehicleBtnText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
     },
     submitBtn: {
       flexDirection: 'row',

@@ -1,13 +1,12 @@
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
-import { Navigation, Users, Clock, MapPin } from 'lucide-react-native'
+import { Navigation, Users, Clock, MapPin, Bus } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import type { NearbyStop } from '@/lib/utils/nearby-stops'
 import type { TransportStopType } from '@/lib/types/transport'
 import { QueueStatusBar } from './QueueStatusBar'
 import { formatDistance } from '@/lib/utils/distance'
 import { openDirections } from '@/lib/utils/navigation'
-
-type QueueStatus = 'empty' | 'short' | 'moderate' | 'long' | 'very_long'
+import { type QueueStatus, type QueueStat, getWaitEstimate } from '@/lib/services/stations'
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
   empty: '#22c55e',
@@ -17,23 +16,22 @@ const QUEUE_COLORS: Record<QueueStatus, string> = {
   very_long: '#ef4444',
 }
 
-const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
-  empty: { label: 'Empty', estimate: 'No wait' },
-  short: { label: 'Short', estimate: '~5 min' },
-  moderate: { label: 'Moderate', estimate: '~15 min' },
-  long: { label: 'Long', estimate: '~30 min' },
-  very_long: { label: 'Very Long', estimate: '45+ min' },
+const QUEUE_LABELS: Record<QueueStatus, string> = {
+  empty: 'Empty',
+  short: 'Short',
+  moderate: 'Moderate',
+  long: 'Long',
+  very_long: 'Very Long',
 }
 
 const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
   trotro_stop: '#d97706',
-  bus_stop: '#d97706',    // Same as trotro — in Ghana, bus_stop = trotro stop
+  bus_stop: '#d97706',
   lorry_park: '#16a34a',
   taxi_rank: '#eab308',
   train_station: '#2563eb',
 }
 
-// Display name: "37 Military Hospital" → "37 Station", others append "Station"
 function stationLabel(name: string): string {
   if (name === '37 Military Hospital') return '37 Station'
   if (name.endsWith('Station')) return name
@@ -57,11 +55,7 @@ interface StationCardProps {
     is_major: boolean
     _lat: number
     _lng: number
-    queue_stats?: {
-      current_status: string
-      report_count_last_hour: number
-      last_report_at: string
-    }[]
+    queue_stats?: QueueStat[]
   }
   distanceKm: number | null
   isSelected: boolean
@@ -72,11 +66,14 @@ interface StationCardProps {
 
 export function StationCard({ station, distanceKm, isSelected, onPress, isDark, nearbyStops }: StationCardProps) {
   const t = themed(isDark)
-  const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
-  const queueConfig = queueStatus ? QUEUE_CONFIG[queueStatus] : null
+  const stat = station.queue_stats?.[0]
+  const queueStatus = stat?.current_status as QueueStatus | undefined
   const queueColor = queueStatus ? QUEUE_COLORS[queueStatus] : undefined
-  const reportCount = station.queue_stats?.[0]?.report_count_last_hour ?? 0
-  const lastReport = station.queue_stats?.[0]?.last_report_at
+  const queueLabel = queueStatus ? QUEUE_LABELS[queueStatus] : null
+  const waitEstimate = stat ? getWaitEstimate(stat) : null
+  const reportCount = stat?.report_count_last_hour ?? 0
+  const lastReport = stat?.last_report_at
+  const vehicleCount = stat?.avg_vehicle_count
 
   return (
     <TouchableOpacity
@@ -122,16 +119,24 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
         <QueueStatusBar status={queueStatus ?? null} isDark={isDark} />
       </View>
 
-      {/* Queue label + estimate */}
-      {queueConfig && queueColor ? (
+      {/* Queue label + dynamic estimate */}
+      {queueLabel && queueColor ? (
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, { backgroundColor: queueColor }]} />
           <Text style={[styles.statusLabel, { color: queueColor }]}>
-            {queueConfig.label}
+            {queueLabel}
           </Text>
+          {vehicleCount != null && vehicleCount > 0 && (
+            <>
+              <Bus size={11} color={t.textSecondary} />
+              <Text style={[styles.vehicleCount, { color: t.textSecondary }]}>
+                ~{Math.round(vehicleCount)}
+              </Text>
+            </>
+          )}
           <Clock size={12} color={t.textSecondary} />
           <Text style={[styles.statusEstimate, { color: t.textSecondary }]}>
-            {queueConfig.estimate}
+            {waitEstimate}
           </Text>
         </View>
       ) : (
@@ -237,6 +242,10 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 13,
     fontFamily: font.semibold,
+  },
+  vehicleCount: {
+    fontSize: 11,
+    fontFamily: font.medium,
   },
   statusEstimate: {
     fontSize: 12,

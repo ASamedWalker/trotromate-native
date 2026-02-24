@@ -15,17 +15,15 @@ import { c, themed, font } from '@/lib/theme'
 import { SortTabs, type SortTab } from './SortTabs'
 import { StationCard } from './StationCard'
 import { QueueStatusBar } from './QueueStatusBar'
-import type { StationWithQueue } from '@/lib/services/stations'
+import { type QueueStatus, type StationWithQueue, getWaitEstimate } from '@/lib/services/stations'
 import type { NearbyStop } from '@/lib/utils/nearby-stops'
 
-type QueueStatus = 'empty' | 'short' | 'moderate' | 'long' | 'very_long'
-
-const QUEUE_CONFIG: Record<QueueStatus, { label: string; estimate: string }> = {
-  empty: { label: 'Empty', estimate: 'No wait' },
-  short: { label: 'Short', estimate: '~5 min' },
-  moderate: { label: 'Moderate', estimate: '~15 min' },
-  long: { label: 'Long', estimate: '~30 min' },
-  very_long: { label: 'Very Long', estimate: '45+ min' },
+const QUEUE_LABELS: Record<QueueStatus, string> = {
+  empty: 'Empty',
+  short: 'Short',
+  moderate: 'Moderate',
+  long: 'Long',
+  very_long: 'Very Long',
 }
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
@@ -117,9 +115,11 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
     const keyExtractor = useCallback((item: StationWithCoords) => item.id, [])
 
     // Best pick queue info
-    const bestPickStatus = bestPick?.queue_stats?.[0]?.current_status as QueueStatus | undefined
-    const bestPickConfig = bestPickStatus ? QUEUE_CONFIG[bestPickStatus] : null
+    const bestPickStat = bestPick?.queue_stats?.[0]
+    const bestPickStatus = bestPickStat?.current_status as QueueStatus | undefined
+    const bestPickLabel = bestPickStatus ? QUEUE_LABELS[bestPickStatus] : null
     const bestPickColor = bestPickStatus ? QUEUE_COLORS[bestPickStatus] : undefined
+    const bestPickWait = bestPickStat ? getWaitEstimate(bestPickStat) : null
 
     const ListHeader = useMemo(
       () => (
@@ -158,7 +158,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
                 <View style={styles.bestPickBadge}>
                   <Zap size={12} color={c.amber500} />
                   <Text style={styles.bestPickBadgeText}>
-                    {bestPickConfig ? 'BEST RIGHT NOW' : 'TOP STATION'}
+                    {bestPickLabel ? 'BEST RIGHT NOW' : 'TOP STATION'}
                   </Text>
                 </View>
                 {bestPick.is_major && (
@@ -173,7 +173,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
               <Text style={[styles.bestPickLocation, { color: t.textSecondary }]}>
                 {bestPick.location}
               </Text>
-              {bestPickConfig && bestPickColor ? (
+              {bestPickLabel && bestPickColor ? (
                 <>
                   <View style={styles.bestPickBarRow}>
                     <QueueStatusBar status={bestPickStatus ?? null} isDark={isDark} />
@@ -181,10 +181,10 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
                   <View style={styles.bestPickStatus}>
                     <View style={[styles.bestPickDot, { backgroundColor: bestPickColor }]} />
                     <Text style={[styles.bestPickLabel, { color: bestPickColor }]}>
-                      {bestPickConfig.label} queue
+                      {bestPickLabel} queue
                     </Text>
                     <Text style={[styles.bestPickEstimate, { color: t.textSecondary }]}>
-                      · {bestPickConfig.estimate}
+                      · {bestPickWait}
                     </Text>
                   </View>
                 </>
@@ -207,7 +207,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
           </Text>
         </View>
       ),
-      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length, bestPick, bestPickConfig, bestPickColor, bestPickStatus, onSelectStation],
+      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length, bestPick, bestPickLabel, bestPickWait, bestPickColor, bestPickStatus, onSelectStation],
     )
 
     const ListEmpty = useMemo(

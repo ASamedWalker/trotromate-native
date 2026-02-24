@@ -10,6 +10,7 @@ export async function fetchTransportStops(): Promise<TransportStop[]> {
     const { data, error } = await supabase
       .from('transport_stops')
       .select('osm_id, name, latitude, longitude, stop_type')
+      .limit(5000)
 
     if (!error && data && data.length > 0) {
       return data.map((s) => ({
@@ -32,17 +33,24 @@ export async function fetchTransportRoutes(): Promise<TransportRoute[]> {
     const { data, error } = await supabase
       .from('transport_routes')
       .select('osm_id, name, ref, route_from, route_to, route_type, coordinates')
+      .limit(1000)
 
     if (!error && data && data.length > 0) {
-      return data.map((r) => ({
-        osm_id: r.osm_id,
-        name: r.name,
-        ref: r.ref,
-        from: r.route_from,
-        to: r.route_to,
-        type: r.route_type,
-        coordinates: r.coordinates,
-      }))
+      return data.map((r) => {
+        // Supabase may return jsonb as string or parsed object
+        const coords = typeof r.coordinates === 'string'
+          ? JSON.parse(r.coordinates)
+          : r.coordinates
+        return {
+          osm_id: r.osm_id,
+          name: r.name,
+          ref: r.ref,
+          from: r.route_from,
+          to: r.route_to,
+          type: r.route_type,
+          coordinates: coords,
+        }
+      })
     }
   } catch {
     // Fall through to bundled data

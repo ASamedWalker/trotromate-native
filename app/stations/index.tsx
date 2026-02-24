@@ -440,11 +440,11 @@ export default function StationsScreen() {
                 lineColor: '#fbbf24',
                 lineWidth: [
                   'interpolate', ['linear'], ['zoom'],
-                  11, 6,
-                  14, 10,
-                  16, 14,
+                  11, 8,
+                  14, 12,
+                  16, 16,
                 ],
-                lineOpacity: 0.3,
+                lineOpacity: 0.35,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -454,34 +454,47 @@ export default function StationsScreen() {
               id="transport-route-line"
               minZoomLevel={11}
               style={{
-                lineColor: [
-                  'case',
-                  ['==', ['get', 'osmId'], selectedRouteId ?? -1],
-                  '#fbbf24',
-                  [
+                lineColor: selectedRouteId !== null
+                  ? [
+                    'case',
+                    ['==', ['get', 'osmId'], selectedRouteId],
+                    '#fbbf24',
+                    [
+                      'match',
+                      ['get', 'colorIndex'],
+                      0, '#d97706', 1, '#0891b2', 2, '#7c3aed',
+                      3, '#16a34a', 4, '#dc2626', 5, '#2563eb',
+                      '#d97706',
+                    ],
+                  ] as any
+                  : [
                     'match',
                     ['get', 'colorIndex'],
                     0, '#d97706', 1, '#0891b2', 2, '#7c3aed',
                     3, '#16a34a', 4, '#dc2626', 5, '#2563eb',
                     '#d97706',
                   ],
-                ],
-                lineWidth: [
-                  'case',
-                  ['==', ['get', 'osmId'], selectedRouteId ?? -1],
-                  ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 16, 7],
-                  ['interpolate', ['linear'], ['zoom'], 11, 1.5, 14, 3, 16, 4],
-                ],
+                lineWidth: selectedRouteId !== null
+                  ? [
+                    'case',
+                    ['==', ['get', 'osmId'], selectedRouteId],
+                    6,
+                    2,
+                  ] as any
+                  : [
+                    'interpolate', ['linear'], ['zoom'],
+                    11, 2.5, 14, 4, 16, 5,
+                  ],
                 lineOpacity: selectedRouteId !== null
                   ? [
                     'case',
                     ['==', ['get', 'osmId'], selectedRouteId],
-                    0.9,
-                    0.08,
+                    0.95,
+                    0.06,
                   ] as any
                   : [
                     'interpolate', ['linear'], ['zoom'],
-                    11, 0.15, 13, 0.25, 16, 0.35,
+                    11, 0.35, 13, 0.5, 16, 0.65,
                   ],
                 lineCap: 'round',
                 lineJoin: 'round',
