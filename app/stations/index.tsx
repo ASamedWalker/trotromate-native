@@ -394,47 +394,60 @@ export default function StationsScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* OSM transport stops — icons like Uber/Bolt style */}
+        {/* OSM transport stops — circles that scale into labeled markers */}
         {showTransportLayer && (
           <Mapbox.ShapeSource id="transport-stops" shape={transportStopsGeojson}>
-            {/* Ambient dots at zoom 13-14 for network density feel */}
+            {/* Regular stops — white border ring (visible at zoom 15+) */}
             <Mapbox.CircleLayer
-              id="transport-stop-dot"
-              minZoomLevel={13}
-              maxZoomLevel={15}
-              filter={['!=', ['get', 'stopType'], 'lorry_park']}
-              style={{
-                circleRadius: 2.5,
-                circleColor: isDark ? '#fbbf24' : '#d97706',
-                circleOpacity: [
-                  'interpolate', ['linear'], ['zoom'],
-                  13, 0.25,
-                  14, 0.4,
-                  15, 0.2,
-                ],
-              }}
-            />
-
-            {/* Bus icons for regular stops at zoom 15+ */}
-            <Mapbox.SymbolLayer
-              id="transport-stop-icons"
+              id="transport-stop-border"
               minZoomLevel={15}
               filter={['!=', ['get', 'stopType'], 'lorry_park']}
               style={{
-                iconImage: 'bus-15',
-                iconSize: [
+                circleRadius: [
                   'interpolate', ['linear'], ['zoom'],
-                  15, 0.7,
-                  17, 1.0,
+                  15, 4.5,
+                  17, 6.5,
                 ],
-                iconColor: isDark ? '#fbbf24' : '#b45309',
-                iconAllowOverlap: false,
-                iconPadding: 8,
+                circleColor: isDark ? '#1c1917' : '#ffffff',
+                circleOpacity: 0.9,
+              }}
+            />
+            {/* Regular stops — amber fill circle */}
+            <Mapbox.CircleLayer
+              id="transport-stop-fill"
+              minZoomLevel={13}
+              filter={['!=', ['get', 'stopType'], 'lorry_park']}
+              style={{
+                circleRadius: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 2,
+                  15, 3.5,
+                  17, 5,
+                ],
+                circleColor: isDark ? '#fbbf24' : '#d97706',
+                circleOpacity: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 0.3,
+                  14, 0.5,
+                  15, 0.85,
+                  17, 1,
+                ],
+              }}
+            />
+            {/* Regular stop labels at zoom 16+ */}
+            <Mapbox.SymbolLayer
+              id="transport-stop-labels"
+              minZoomLevel={16}
+              filter={['all',
+                ['!=', ['get', 'stopType'], 'lorry_park'],
+                ['!=', ['get', 'name'], ''],
+              ]}
+              style={{
                 textField: ['get', 'name'],
                 textSize: 9,
                 textFont: ['Open Sans Regular', 'Arial Unicode MS Regular'],
                 textAnchor: 'top',
-                textOffset: [0, 1.0],
+                textOffset: [0, 0.8],
                 textColor: isDark ? c.stone400 : c.stone500,
                 textHaloColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
                 textHaloWidth: 1,
@@ -444,22 +457,48 @@ export default function StationsScreen() {
               }}
             />
 
-            {/* Lorry park icons — larger, visible from zoom 13 */}
-            <Mapbox.SymbolLayer
-              id="transport-lorry-park-icons"
+            {/* Lorry parks — white border ring */}
+            <Mapbox.CircleLayer
+              id="transport-lorry-border"
               minZoomLevel={13}
               filter={['==', ['get', 'stopType'], 'lorry_park']}
               style={{
-                iconImage: 'bus-15',
-                iconSize: [
+                circleRadius: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 6,
+                  15, 8,
+                  17, 10,
+                ],
+                circleColor: isDark ? '#1c1917' : '#ffffff',
+                circleOpacity: 0.9,
+              }}
+            />
+            {/* Lorry parks — green fill */}
+            <Mapbox.CircleLayer
+              id="transport-lorry-fill"
+              minZoomLevel={13}
+              filter={['==', ['get', 'stopType'], 'lorry_park']}
+              style={{
+                circleRadius: [
+                  'interpolate', ['linear'], ['zoom'],
+                  13, 4.5,
+                  15, 6,
+                  17, 8,
+                ],
+                circleColor: isDark ? '#4ade80' : '#16a34a',
+                circleOpacity: [
                   'interpolate', ['linear'], ['zoom'],
                   13, 0.8,
-                  15, 1.1,
-                  17, 1.4,
+                  15, 1,
                 ],
-                iconColor: isDark ? '#4ade80' : '#16a34a',
-                iconAllowOverlap: false,
-                iconPadding: 4,
+              }}
+            />
+            {/* Lorry park labels from zoom 13 */}
+            <Mapbox.SymbolLayer
+              id="transport-lorry-labels"
+              minZoomLevel={13}
+              filter={['==', ['get', 'stopType'], 'lorry_park']}
+              style={{
                 textField: ['get', 'name'],
                 textSize: [
                   'interpolate', ['linear'], ['zoom'],
