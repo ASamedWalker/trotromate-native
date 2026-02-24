@@ -288,22 +288,22 @@ export default function StationsScreen() {
         <Mapbox.Images>
           <Mapbox.Image name="trotro-icon">
             <View style={styles.trotroIcon}>
-              <BusFront size={14} color="#78350f" />
+              <BusFront size={20} color="#78350f" />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="lorry-park-icon">
             <View style={styles.lorryParkIcon}>
-              <BusFront size={18} color="#052e16" />
+              <BusFront size={24} color="#052e16" />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="train-icon">
             <View style={styles.trainIcon}>
-              <TrainFront size={16} color="#ffffff" />
+              <TrainFront size={22} color="#ffffff" />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="taxi-icon">
             <View style={styles.taxiIcon}>
-              <Car size={14} color="#713f12" />
+              <Car size={20} color="#713f12" />
             </View>
           </Mapbox.Image>
         </Mapbox.Images>
@@ -448,8 +448,8 @@ export default function StationsScreen() {
                 iconImage: 'trotro-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  15, 0.65,
-                  17, 0.9,
+                  15, 0.85,
+                  17, 1.1,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 6,
@@ -476,9 +476,9 @@ export default function StationsScreen() {
                 iconImage: 'lorry-park-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  13, 0.7,
-                  15, 0.9,
-                  17, 1.1,
+                  13, 0.85,
+                  15, 1.05,
+                  17, 1.3,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 4,
@@ -509,9 +509,9 @@ export default function StationsScreen() {
                 iconImage: 'train-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  12, 0.7,
-                  15, 1.0,
-                  17, 1.2,
+                  12, 0.85,
+                  15, 1.1,
+                  17, 1.35,
                 ],
                 iconAllowOverlap: true,
                 textField: ['get', 'name'],
@@ -541,8 +541,8 @@ export default function StationsScreen() {
                 iconImage: 'taxi-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  14, 0.65,
-                  17, 0.9,
+                  14, 0.85,
+                  17, 1.1,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 6,
@@ -722,41 +722,41 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   trotroIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#fbbf24',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#ffffff',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   lorryParkIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#4ade80',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#ffffff',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   trainIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#2563eb',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#ffffff',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   taxiIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#facc15',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#ffffff',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
