@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   View,
   Text,
@@ -49,7 +49,7 @@ export function FareTrendChart({
   const s = getStyles(isDark)
 
   const screenWidth = Dimensions.get('window').width
-  const chartWidth = screenWidth - 40 // 20px margin on each side
+  const chartWidth = screenWidth - 40 - 32 // 20px margin + 16px padding on each side
 
   const drawWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right
   const drawHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
