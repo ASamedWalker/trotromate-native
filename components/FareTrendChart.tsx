@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Share,
-  Pressable,
 } from 'react-native'
 import Svg, { Path, Line, Circle, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { TrendingUp, BarChart3, Share2 } from 'lucide-react-native'
@@ -52,6 +51,13 @@ export function FareTrendChart({
   const t = themed(isDark)
   const s = getStyles(isDark)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const chartRef = useRef<View>(null)
+  const chartLayoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 })
+
+  // Reset selection when data changes (e.g., switching 30D → 7D)
+  useEffect(() => {
+    setSelectedIdx(null)
+  }, [data])
 
   const screenWidth = Dimensions.get('window').width
   const chartWidth = screenWidth - 40 - 32 // 20px margin + 16px padding on each side
@@ -188,147 +194,157 @@ export function FareTrendChart({
         </View>
       </View>
 
-      {/* Chart with tooltip overlay */}
-      <Pressable onPress={() => setSelectedIdx(null)}>
-        <View style={{ position: 'relative' }}>
-          <Svg width={chartWidth} height={CHART_HEIGHT}>
-            <Defs>
-              <LinearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={c.amber500} stopOpacity={isDark ? '0.15' : '0.12'} />
-                <Stop offset="1" stopColor={c.amber500} stopOpacity="0.02" />
-              </LinearGradient>
-            </Defs>
+      {/* Chart with touch-based point selection */}
+      <View
+        style={{ position: 'relative' }}
+        ref={chartRef}
+        onLayout={(e) => {
+          chartLayoutRef.current = e.nativeEvent.layout
+        }}
+        onStartShouldSetResponder={() => true}
+        onResponderRelease={(e) => {
+          const touchX = e.nativeEvent.locationX
+          const touchY = e.nativeEvent.locationY
+          // Find nearest point within 30px tap radius
+          let nearest = -1
+          let nearestDist = 30
+          for (let i = 0; i < points.length; i++) {
+            const dx = touchX - points[i].x
+            const dy = touchY - points[i].y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            if (dist < nearestDist) {
+              nearestDist = dist
+              nearest = i
+            }
+          }
+          setSelectedIdx(nearest === -1 ? null : nearest === selectedIdx ? null : nearest)
+        }}
+      >
+        <Svg width={chartWidth} height={CHART_HEIGHT}>
+          <Defs>
+            <LinearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={c.amber500} stopOpacity={isDark ? '0.15' : '0.12'} />
+              <Stop offset="1" stopColor={c.amber500} stopOpacity="0.02" />
+            </LinearGradient>
+          </Defs>
 
-            {/* Y-axis grid lines + labels */}
-            {yTicks.map((tick, i) => (
-              <Line
-                key={i}
-                x1={CHART_PADDING.left}
-                y1={tick.y}
-                x2={chartWidth - CHART_PADDING.right}
-                y2={tick.y}
-                stroke={gridColor}
-                strokeWidth={1}
-                strokeDasharray="4,4"
-              />
-            ))}
-            {yTicks.map((tick, i) => (
-              <SvgText
-                key={`label-${i}`}
-                x={CHART_PADDING.left - 6}
-                y={tick.y + 4}
-                textAnchor="end"
-                fill={textColor}
-                fontSize={10}
-              >
-                {tick.val.toFixed(1)}
-              </SvgText>
-            ))}
-
-            {/* Official fare reference line */}
+          {/* Y-axis grid lines + labels */}
+          {yTicks.map((tick, i) => (
             <Line
+              key={i}
               x1={CHART_PADDING.left}
-              y1={officialY}
+              y1={tick.y}
               x2={chartWidth - CHART_PADDING.right}
-              y2={officialY}
-              stroke={isDark ? '#34d399' : '#059669'}
+              y2={tick.y}
+              stroke={gridColor}
               strokeWidth={1}
-              strokeDasharray="6,4"
+              strokeDasharray="4,4"
             />
+          ))}
+          {yTicks.map((tick, i) => (
             <SvgText
-              x={chartWidth - CHART_PADDING.right}
-              y={officialY - 6}
+              key={`label-${i}`}
+              x={CHART_PADDING.left - 6}
+              y={tick.y + 4}
               textAnchor="end"
-              fill={isDark ? '#34d399' : '#059669'}
-              fontSize={9}
+              fill={textColor}
+              fontSize={10}
             >
-              Official
+              {tick.val.toFixed(1)}
             </SvgText>
+          ))}
 
-            {/* Min-max range area */}
-            <Path d={rangePath} fill="url(#rangeGrad)" />
+          {/* Official fare reference line */}
+          <Line
+            x1={CHART_PADDING.left}
+            y1={officialY}
+            x2={chartWidth - CHART_PADDING.right}
+            y2={officialY}
+            stroke={isDark ? '#34d399' : '#059669'}
+            strokeWidth={1}
+            strokeDasharray="6,4"
+          />
+          <SvgText
+            x={chartWidth - CHART_PADDING.right}
+            y={officialY - 6}
+            textAnchor="end"
+            fill={isDark ? '#34d399' : '#059669'}
+            fontSize={9}
+          >
+            Official
+          </SvgText>
 
-            {/* Average fare line */}
-            <Path d={avgPath} fill="none" stroke={c.amber500} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Min-max range area */}
+          <Path d={rangePath} fill="url(#rangeGrad)" />
 
-            {/* Selected point vertical indicator */}
-            {selectedPoint && (
-              <Line
-                x1={selectedPoint.x}
-                y1={CHART_PADDING.top}
-                x2={selectedPoint.x}
-                y2={CHART_HEIGHT - CHART_PADDING.bottom}
-                stroke={c.amber500}
-                strokeWidth={1}
-                strokeOpacity={0.4}
-                strokeDasharray="3,3"
-              />
-            )}
+          {/* Average fare line */}
+          <Path d={avgPath} fill="none" stroke={c.amber500} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
 
-            {/* Data points — visible dots */}
-            {points.map((pt, i) => (
-              <Circle
-                key={i}
-                cx={pt.x}
-                cy={pt.y}
-                r={selectedIdx === i ? 6 : data.length <= 10 ? 4 : 2.5}
-                fill={c.amber500}
-                stroke={isDark ? c.stone900 : c.white}
-                strokeWidth={selectedIdx === i ? 3 : 2}
-              />
-            ))}
-
-            {/* Invisible larger tap targets */}
-            {points.map((pt, i) => (
-              <Circle
-                key={`tap-${i}`}
-                cx={pt.x}
-                cy={pt.y}
-                r={18}
-                fill="transparent"
-                onPress={() => setSelectedIdx(selectedIdx === i ? null : i)}
-              />
-            ))}
-
-            {/* X-axis labels */}
-            {xLabels.map((xl, i) => (
-              <SvgText
-                key={i}
-                x={xl.x}
-                y={CHART_HEIGHT - 4}
-                textAnchor="middle"
-                fill={textColor}
-                fontSize={10}
-              >
-                {xl.label}
-              </SvgText>
-            ))}
-          </Svg>
-
-          {/* Tooltip card */}
+          {/* Selected point vertical indicator */}
           {selectedPoint && (
-            <View
-              style={[
-                s.tooltip,
-                {
-                  left: Math.max(8, Math.min(selectedPoint.x - 65, chartWidth - 138)),
-                  top: Math.max(0, selectedPoint.y - 72),
-                },
-              ]}
-              pointerEvents="none"
-            >
-              <Text style={s.tooltipDate}>
-                {new Date(selectedPoint.day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-              </Text>
-              <Text style={s.tooltipFare}>₵{selectedPoint.avg_fare.toFixed(2)}</Text>
-              <Text style={s.tooltipRange}>
-                Range: ₵{selectedPoint.min_fare.toFixed(2)} – ₵{selectedPoint.max_fare.toFixed(2)}
-              </Text>
-              <Text style={s.tooltipReports}>{selectedPoint.report_count} reports</Text>
-            </View>
+            <Line
+              x1={selectedPoint.x}
+              y1={CHART_PADDING.top}
+              x2={selectedPoint.x}
+              y2={CHART_HEIGHT - CHART_PADDING.bottom}
+              stroke={c.amber500}
+              strokeWidth={1}
+              strokeOpacity={0.4}
+              strokeDasharray="3,3"
+            />
           )}
-        </View>
-      </Pressable>
+
+          {/* Data points — visible dots */}
+          {points.map((pt, i) => (
+            <Circle
+              key={i}
+              cx={pt.x}
+              cy={pt.y}
+              r={selectedIdx === i ? 6 : data.length <= 10 ? 4 : 2.5}
+              fill={c.amber500}
+              stroke={isDark ? c.stone900 : c.white}
+              strokeWidth={selectedIdx === i ? 3 : 2}
+            />
+          ))}
+
+          {/* X-axis labels */}
+          {xLabels.map((xl, i) => (
+            <SvgText
+              key={i}
+              x={xl.x}
+              y={CHART_HEIGHT - 4}
+              textAnchor="middle"
+              fill={textColor}
+              fontSize={10}
+            >
+              {xl.label}
+            </SvgText>
+          ))}
+        </Svg>
+
+        {/* Tooltip card */}
+        {selectedPoint && (
+          <View
+            style={[
+              s.tooltip,
+              {
+                left: Math.max(8, Math.min(selectedPoint.x - 65, chartWidth - 138)),
+                top: Math.max(0, selectedPoint.y - 72),
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={s.tooltipDate}>
+              {new Date(selectedPoint.day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </Text>
+            <Text style={s.tooltipFare}>₵{selectedPoint.avg_fare.toFixed(2)}</Text>
+            <Text style={s.tooltipRange}>
+              Range: ₵{selectedPoint.min_fare.toFixed(2)} – ₵{selectedPoint.max_fare.toFixed(2)}
+            </Text>
+            <Text style={s.tooltipReports}>{selectedPoint.report_count} reports</Text>
+          </View>
+        )}
+      </View>
 
       {/* Summary row */}
       <View style={s.summaryRow}>
