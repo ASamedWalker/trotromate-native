@@ -287,23 +287,23 @@ export default function StationsScreen() {
         {/* Custom transport icons rendered from React Native views */}
         <Mapbox.Images>
           <Mapbox.Image name="trotro-icon">
-            <View style={styles.trotroIcon}>
-              <BusFront size={20} color="#78350f" />
+            <View style={styles.transportIcon}>
+              <BusFront size={32} color="#d97706" strokeWidth={2.5} />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="lorry-park-icon">
-            <View style={styles.lorryParkIcon}>
-              <BusFront size={24} color="#052e16" />
+            <View style={styles.transportIcon}>
+              <BusFront size={36} color="#16a34a" strokeWidth={2.5} />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="train-icon">
-            <View style={styles.trainIcon}>
-              <TrainFront size={22} color="#ffffff" />
+            <View style={styles.transportIcon}>
+              <TrainFront size={36} color="#2563eb" strokeWidth={2.5} />
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="taxi-icon">
-            <View style={styles.taxiIcon}>
-              <Car size={20} color="#713f12" />
+            <View style={styles.transportIcon}>
+              <Car size={32} color="#eab308" strokeWidth={2.5} />
             </View>
           </Mapbox.Image>
         </Mapbox.Images>
@@ -448,8 +448,8 @@ export default function StationsScreen() {
                 iconImage: 'trotro-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  15, 0.85,
-                  17, 1.1,
+                  15, 1.0,
+                  17, 1.3,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 6,
@@ -476,9 +476,9 @@ export default function StationsScreen() {
                 iconImage: 'lorry-park-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  13, 0.85,
-                  15, 1.05,
-                  17, 1.3,
+                  13, 1.0,
+                  15, 1.2,
+                  17, 1.5,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 4,
@@ -509,9 +509,9 @@ export default function StationsScreen() {
                 iconImage: 'train-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  12, 0.85,
-                  15, 1.1,
-                  17, 1.35,
+                  12, 1.0,
+                  15, 1.2,
+                  17, 1.5,
                 ],
                 iconAllowOverlap: true,
                 textField: ['get', 'name'],
@@ -541,8 +541,8 @@ export default function StationsScreen() {
                 iconImage: 'taxi-icon',
                 iconSize: [
                   'interpolate', ['linear'], ['zoom'],
-                  14, 0.85,
-                  17, 1.1,
+                  14, 1.0,
+                  17, 1.3,
                 ],
                 iconAllowOverlap: false,
                 iconPadding: 6,
@@ -721,44 +721,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  trotroIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fbbf24',
-    borderWidth: 2.5,
-    borderColor: '#ffffff',
+  transportIcon: {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-  },
-  lorryParkIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#4ade80',
-    borderWidth: 2.5,
-    borderColor: '#ffffff',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  trainIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#2563eb',
-    borderWidth: 2.5,
-    borderColor: '#ffffff',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  taxiIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#facc15',
-    borderWidth: 2.5,
-    borderColor: '#ffffff',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    padding: 4,
   },
 })
