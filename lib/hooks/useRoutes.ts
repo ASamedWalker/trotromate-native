@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchRoutes, fetchPopularRoutes, fetchRouteById } from '@/lib/services/routes'
+import { fetchRoutes, fetchPopularRoutes, fetchRouteById, fetchFareTrend } from '@/lib/services/routes'
 import type { RouteWithStats, FareReport, TransportType } from '@/lib/types'
 
 export function useRoutes(from?: string, to?: string, transportType?: TransportType) {
@@ -31,4 +32,17 @@ export function useRouteDetail(routeId: string) {
   const recentReports: FareReport[] = data?.recentReports ?? []
 
   return { route, recentReports, isLoading, error: null }
+}
+
+export function useFareTrend(routeId: string) {
+  const [days, setDays] = useState(30)
+
+  const { data: trend = [], isLoading } = useQuery({
+    queryKey: ['fare-trend', routeId, days],
+    queryFn: () => fetchFareTrend(routeId, days),
+    enabled: !!routeId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return { trend, isLoading, days, setDays }
 }

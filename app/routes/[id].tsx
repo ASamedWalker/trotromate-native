@@ -10,13 +10,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MapPin, Clock, TrendingUp, Users } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
-import { useRouteDetail } from '@/lib/hooks/useRoutes'
+import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
 import { TrafficBadge } from '@/components/TrafficBadge'
 import { BusynessMeter } from '@/components/BusynessMeter'
 import { useTrafficInfo } from '@/lib/hooks/useTraffic'
+import { FareTrendChart } from '@/components/FareTrendChart'
 
 const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
   light: { light: '#059669', dark: '#34d399' },
@@ -34,6 +35,7 @@ export default function RouteDetailScreen() {
 
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
+  const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
 
   if (isLoading) {
     return (
@@ -132,6 +134,15 @@ export default function RouteDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Fare Trend Chart */}
+        <FareTrendChart
+          data={trend}
+          officialFare={route.official_fare}
+          isLoading={trendLoading}
+          selectedPeriod={trendDays}
+          onPeriodChange={setTrendDays}
+        />
 
         {/* Traffic Conditions */}
         {traffic && (traffic.traffic_condition || traffic.busyness.confidence > 0) && (

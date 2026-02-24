@@ -117,6 +117,29 @@ export async function fetchRouteById(
   }
 }
 
+export async function fetchFareTrend(
+  routeId: string,
+  days: number = 30
+): Promise<{ day: string; avg_fare: number; min_fare: number; max_fare: number; report_count: number }[]> {
+  const { data, error } = await supabase.rpc('get_fare_trend', {
+    p_route_id: routeId,
+    p_days: days,
+  })
+
+  if (error) {
+    console.error('Error fetching fare trend:', error)
+    return []
+  }
+
+  return (data || []).map((d: { day: string; avg_fare: number; min_fare: number; max_fare: number; report_count: number }) => ({
+    day: d.day,
+    avg_fare: Number(d.avg_fare),
+    min_fare: Number(d.min_fare),
+    max_fare: Number(d.max_fare),
+    report_count: Number(d.report_count),
+  }))
+}
+
 export async function findOrCreateRoute(
   fromLocation: string,
   toLocation: string,
