@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Share,
+  PanResponder,
 } from 'react-native'
 import Svg, { Path, Line, Circle, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { TrendingUp, BarChart3, Share2 } from 'lucide-react-native'
@@ -52,7 +53,12 @@ export function FareTrendChart({
   const s = getStyles(isDark)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
-  // Reset selection when data changes (e.g., switching 30D → 7D)
+  // Keep latest points in a ref so PanResponder always has current data
+  const pointsRef = useRef<{ x: number; y: number }[]>([])
+  const selectedIdxRef = useRef<number | null>(null)
+  selectedIdxRef.current = selectedIdx
+
+  // Reset selection when data changes (switching 30D → 7D)
   useEffect(() => {
     setSelectedIdx(null)
   }, [data])
@@ -63,25 +69,59 @@ export function FareTrendChart({
   const drawWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right
   const drawHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
 
+  // PanResponder for reliable touch handling on both iOS and Android
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onPanResponderRelease: (evt) => {
+      const { locationX, locationY } = evt.nativeEvent
+      const pts = pointsRef.current
+      let nearest = -1
+      let nearestDist = 30
+      for (let i = 0; i < pts.length; i++) {
+        const dx = locationX - pts[i].x
+        const dy = locationY - pts[i].y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          nearest = i
+        }
+      }
+      const prev = selectedIdxRef.current
+      setSelectedIdx(nearest === -1 ? null : nearest === prev ? null : nearest)
+    },
+  }), [])
+
   const { avgPath, rangePath, yTicks, xLabels, officialY, points } = useMemo(() => {
-    if (!data.length) return { avgPath: '', rangePath: '', yTicks: [], xLabels: [], officialY: 0, points: [] }
+    if (!data || !data.length) return { avgPath: '', rangePath: '', yTicks: [], xLabels: [], officialY: 0, points: [] }
+
+    // Filter out bad data points
+    const validData = data.filter(d =>
+      d != null &&
+      typeof d.avg_fare === 'number' && isFinite(d.avg_fare) &&
+      typeof d.min_fare === 'number' && isFinite(d.min_fare) &&
+      typeof d.max_fare === 'number' && isFinite(d.max_fare)
+    )
+    if (!validData.length) return { avgPath: '', rangePath: '', yTicks: [], xLabels: [], officialY: 0, points: [] }
 
     // Y-axis range: include official fare and all reported fares
-    const allValues = data.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(officialFare)
-    const minVal = Math.floor(Math.min(...allValues) * 0.9 * 2) / 2
-    const maxVal = Math.ceil(Math.max(...allValues) * 1.1 * 2) / 2
+    const allValues = validData.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(officialFare)
+    const rawMin = Math.min(...allValues)
+    const rawMax = Math.max(...allValues)
+    const minVal = Math.floor((isFinite(rawMin) ? rawMin : 0) * 0.9 * 2) / 2
+    const maxVal = Math.ceil((isFinite(rawMax) ? rawMax : 10) * 1.1 * 2) / 2
     const yRange = maxVal - minVal || 1
 
-    const toX = (i: number) => CHART_PADDING.left + (i / Math.max(data.length - 1, 1)) * drawWidth
+    const toX = (i: number) => CHART_PADDING.left + (i / Math.max(validData.length - 1, 1)) * drawWidth
     const toY = (v: number) => CHART_PADDING.top + drawHeight - ((v - minVal) / yRange) * drawHeight
 
     // Average line path
-    const avg = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.avg_fare).toFixed(1)}`).join(' ')
+    const avg = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.avg_fare).toFixed(1)}`).join(' ')
 
     // Min-max range area
-    const upper = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.max_fare).toFixed(1)}`).join(' ')
-    const lower = [...data].reverse().map((d, i) => {
-      const origIdx = data.length - 1 - i
+    const upper = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.max_fare).toFixed(1)}`).join(' ')
+    const lower = [...validData].reverse().map((d, i) => {
+      const origIdx = validData.length - 1 - i
       return `L${toX(origIdx).toFixed(1)},${toY(d.min_fare).toFixed(1)}`
     }).join(' ')
     const range = `${upper} ${lower} Z`
@@ -95,18 +135,18 @@ export function FareTrendChart({
 
     // X-axis labels (show first, middle, last)
     const xLabels: { label: string; x: number }[] = []
-    const labelIndices = data.length <= 3
-      ? data.map((_, i) => i)
-      : [0, Math.floor(data.length / 2), data.length - 1]
+    const labelIndices = validData.length <= 3
+      ? validData.map((_, i) => i)
+      : [0, Math.floor(validData.length / 2), validData.length - 1]
 
     for (const idx of labelIndices) {
-      const d = new Date(data[idx].day)
+      const d = new Date(validData[idx].day)
       const label = `${d.getDate()}/${d.getMonth() + 1}`
       xLabels.push({ label, x: toX(idx) })
     }
 
     // Data points for touch targets
-    const pts = data.map((d, i) => ({ x: toX(i), y: toY(d.avg_fare), ...d }))
+    const pts = validData.map((d, i) => ({ x: toX(i), y: toY(d.avg_fare), ...d }))
 
     return {
       avgPath: avg,
@@ -117,6 +157,9 @@ export function FareTrendChart({
       points: pts,
     }
   }, [data, officialFare, drawWidth, drawHeight])
+
+  // Keep ref in sync
+  pointsRef.current = points
 
   if (isLoading) {
     return (
@@ -132,7 +175,7 @@ export function FareTrendChart({
     )
   }
 
-  if (!data.length) {
+  if (!data || !data.length || !points.length) {
     return (
       <View style={s.card}>
         <View style={s.header}>
@@ -150,8 +193,9 @@ export function FareTrendChart({
 
   const gridColor = isDark ? '#292524' : '#e7e5e3'
   const textColor = isDark ? c.stone500 : c.stone400
-  // Bounds-safe: if selectedIdx is stale (e.g., 30D index after switching to 7D), treat as null
-  const selectedPoint = selectedIdx !== null && selectedIdx < points.length ? points[selectedIdx] : null
+  // Bounds-safe: clamp selectedIdx to valid range
+  const safeIdx = selectedIdx !== null && selectedIdx >= 0 && selectedIdx < points.length ? selectedIdx : null
+  const selectedPoint = safeIdx !== null ? points[safeIdx] : null
 
   const handleShare = useCallback(async () => {
     const totalReports = data.reduce((sum, d) => sum + d.report_count, 0)
@@ -193,7 +237,7 @@ export function FareTrendChart({
         </View>
       </View>
 
-      {/* Chart with touch overlay for interactivity */}
+      {/* Interactive chart — PanResponder on overlay for reliable touch */}
       <View style={{ position: 'relative' }}>
         <Svg width={chartWidth} height={CHART_HEIGHT}>
           <Defs>
@@ -275,10 +319,10 @@ export function FareTrendChart({
               key={i}
               cx={pt.x}
               cy={pt.y}
-              r={selectedIdx === i ? 6 : data.length <= 10 ? 4 : 2.5}
+              r={safeIdx === i ? 6 : data.length <= 10 ? 4 : 2.5}
               fill={c.amber500}
               stroke={isDark ? c.stone900 : c.white}
-              strokeWidth={selectedIdx === i ? 3 : 2}
+              strokeWidth={safeIdx === i ? 3 : 2}
             />
           ))}
 
@@ -297,27 +341,11 @@ export function FareTrendChart({
           ))}
         </Svg>
 
-        {/* Transparent touch overlay ON TOP of SVG — SVG intercepts touches so we need this */}
+        {/* Touch overlay using PanResponder — most reliable RN touch mechanism */}
         <View
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          onStartShouldSetResponder={() => true}
-          onResponderRelease={(e) => {
-            const touchX = e.nativeEvent.locationX
-            const touchY = e.nativeEvent.locationY
-            // Find nearest point within 30px tap radius
-            let nearest = -1
-            let nearestDist = 30
-            for (let i = 0; i < points.length; i++) {
-              const dx = touchX - points[i].x
-              const dy = touchY - points[i].y
-              const dist = Math.sqrt(dx * dx + dy * dy)
-              if (dist < nearestDist) {
-                nearestDist = dist
-                nearest = i
-              }
-            }
-            setSelectedIdx(nearest === -1 ? null : nearest === selectedIdx ? null : nearest)
-          }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent' }}
+          collapsable={false}
+          {...panResponder.panHandlers}
         />
 
         {/* Tooltip card */}
