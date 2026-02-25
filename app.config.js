@@ -29,10 +29,8 @@ export default {
       edgeToEdgeEnabled: true,
       permissions: [
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO",
       ],
     },
     web: {
