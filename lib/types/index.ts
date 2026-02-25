@@ -14,6 +14,7 @@ export interface Route {
   distance_km?: number
   is_popular: boolean
   transport_type?: TransportType
+  region?: string // e.g., 'greater_accra', 'central', 'ashanti'
   created_at: string
   updated_at: string
 }

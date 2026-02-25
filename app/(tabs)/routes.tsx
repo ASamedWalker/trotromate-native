@@ -28,6 +28,7 @@ import {
   Bus,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
+import { REGIONS } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
@@ -54,10 +55,12 @@ export default function RoutesScreen() {
   const [activeFilter, setActiveFilter] = useState<Filter>(
     (params.transport as Filter) || 'all'
   )
+  const [activeRegion, setActiveRegion] = useState<string>('all')
   // Derive transport type from unified filter
   const activeTransport = activeFilter === 'trotro' || activeFilter === 'okada' ? activeFilter : undefined
-  const { routes, isLoading, refetch } = useRoutes(params.from, params.to, activeTransport)
-  useRefreshOnFocus([['routes', params.from, params.to, activeTransport]])
+  const regionParam = activeRegion !== 'all' ? activeRegion : undefined
+  const { routes, isLoading, refetch } = useRoutes(params.from, params.to, activeTransport, regionParam)
+  useRefreshOnFocus([['routes', params.from, params.to, activeTransport, regionParam]])
   const [refreshing, setRefreshing] = useState(false)
   const { favorites, isFavorite, toggleFavorite } = useFavorites()
   const { isAlerted, toggleAlert } = useRouteAlerts()
@@ -228,12 +231,39 @@ export default function RoutesScreen() {
           )}
         </View>
 
-        {/* Unified filter chips */}
+        {/* Region filter chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.filterChipRow}
           style={s.filterChipScroll}
+        >
+          {REGIONS.map((region) => (
+            <TouchableOpacity
+              key={region.key}
+              onPress={() => { haptics.light(); setActiveRegion(region.key) }}
+              activeOpacity={0.7}
+              style={[
+                s.regionChip,
+                activeRegion === region.key && s.regionChipActive,
+              ]}
+            >
+              <Text style={[
+                s.regionChipText,
+                activeRegion === region.key && s.regionChipTextActive,
+              ]}>
+                {region.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Transport filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.filterChipRow}
+          style={{ marginTop: 8 }}
         >
           {filters.map((filter) => {
             const active = activeFilter === filter.key
@@ -393,7 +423,24 @@ const getStyles = (isDark: boolean) => {
     },
     searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
     filterChipScroll: {
-      marginTop: 16,
+      marginTop: 12,
+    },
+    regionChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 20,
+      backgroundColor: t.card,
+    },
+    regionChipActive: {
+      backgroundColor: isDark ? c.stone200 : c.stone800,
+    },
+    regionChipText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.textSecondary,
+    },
+    regionChipTextActive: {
+      color: isDark ? c.stone900 : c.white,
     },
     filterChipRow: {
       flexDirection: 'row' as const,

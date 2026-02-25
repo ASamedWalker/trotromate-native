@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchRoutes, fetchPopularRoutes, fetchRouteById, fetchFareTrend } from '@/lib/services/routes'
 import type { RouteWithStats, FareReport, TransportType } from '@/lib/types'
 
-export function useRoutes(from?: string, to?: string, transportType?: TransportType) {
+export function useRoutes(from?: string, to?: string, transportType?: TransportType, region?: string) {
   const { data: routes = [], isLoading, refetch } = useQuery({
-    queryKey: ['routes', from, to, transportType],
-    queryFn: () => fetchRoutes(from, to, transportType),
+    queryKey: ['routes', from, to, transportType, region],
+    queryFn: () => fetchRoutes(from, to, transportType, region),
   })
 
   return { routes, isLoading, error: null, refetch }
