@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -51,8 +51,6 @@ export function FareTrendChart({
   const t = themed(isDark)
   const s = getStyles(isDark)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const chartRef = useRef<View>(null)
-  const chartLayoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 })
 
   // Reset selection when data changes (e.g., switching 30D → 7D)
   useEffect(() => {
@@ -152,7 +150,8 @@ export function FareTrendChart({
 
   const gridColor = isDark ? '#292524' : '#e7e5e3'
   const textColor = isDark ? c.stone500 : c.stone400
-  const selectedPoint = selectedIdx !== null ? points[selectedIdx] : null
+  // Bounds-safe: if selectedIdx is stale (e.g., 30D index after switching to 7D), treat as null
+  const selectedPoint = selectedIdx !== null && selectedIdx < points.length ? points[selectedIdx] : null
 
   const handleShare = useCallback(async () => {
     const totalReports = data.reduce((sum, d) => sum + d.report_count, 0)
@@ -194,32 +193,8 @@ export function FareTrendChart({
         </View>
       </View>
 
-      {/* Chart with touch-based point selection */}
-      <View
-        style={{ position: 'relative' }}
-        ref={chartRef}
-        onLayout={(e) => {
-          chartLayoutRef.current = e.nativeEvent.layout
-        }}
-        onStartShouldSetResponder={() => true}
-        onResponderRelease={(e) => {
-          const touchX = e.nativeEvent.locationX
-          const touchY = e.nativeEvent.locationY
-          // Find nearest point within 30px tap radius
-          let nearest = -1
-          let nearestDist = 30
-          for (let i = 0; i < points.length; i++) {
-            const dx = touchX - points[i].x
-            const dy = touchY - points[i].y
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            if (dist < nearestDist) {
-              nearestDist = dist
-              nearest = i
-            }
-          }
-          setSelectedIdx(nearest === -1 ? null : nearest === selectedIdx ? null : nearest)
-        }}
-      >
+      {/* Chart with touch overlay for interactivity */}
+      <View style={{ position: 'relative' }}>
         <Svg width={chartWidth} height={CHART_HEIGHT}>
           <Defs>
             <LinearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
@@ -321,6 +296,29 @@ export function FareTrendChart({
             </SvgText>
           ))}
         </Svg>
+
+        {/* Transparent touch overlay ON TOP of SVG — SVG intercepts touches so we need this */}
+        <View
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={(e) => {
+            const touchX = e.nativeEvent.locationX
+            const touchY = e.nativeEvent.locationY
+            // Find nearest point within 30px tap radius
+            let nearest = -1
+            let nearestDist = 30
+            for (let i = 0; i < points.length; i++) {
+              const dx = touchX - points[i].x
+              const dy = touchY - points[i].y
+              const dist = Math.sqrt(dx * dx + dy * dy)
+              if (dist < nearestDist) {
+                nearestDist = dist
+                nearest = i
+              }
+            }
+            setSelectedIdx(nearest === -1 ? null : nearest === selectedIdx ? null : nearest)
+          }}
+        />
 
         {/* Tooltip card */}
         {selectedPoint && (
