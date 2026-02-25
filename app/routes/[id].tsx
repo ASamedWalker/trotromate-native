@@ -137,7 +137,6 @@ export default function RouteDetailScreen() {
 
         {/* Fare Trend Chart */}
         <FareTrendChart
-          key={trendDays}
           data={trend}
           officialFare={route.official_fare}
           isLoading={trendLoading}
