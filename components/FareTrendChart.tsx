@@ -92,69 +92,77 @@ export function FareTrendChart({
     },
   }), [])
 
+  const emptyResult = { avgPath: '', rangePath: '', yTicks: [] as { val: number; y: number }[], xLabels: [] as { label: string; x: number }[], officialY: 0, points: [] as { x: number; y: number; day: string; avg_fare: number; min_fare: number; max_fare: number; report_count: number }[] }
+
   const { avgPath, rangePath, yTicks, xLabels, officialY, points } = useMemo(() => {
-    if (!data || !data.length) return { avgPath: '', rangePath: '', yTicks: [], xLabels: [], officialY: 0, points: [] }
+    try {
+      if (!data || !Array.isArray(data) || !data.length) return emptyResult
 
-    // Filter out bad data points
-    const validData = data.filter(d =>
-      d != null &&
-      typeof d.avg_fare === 'number' && isFinite(d.avg_fare) &&
-      typeof d.min_fare === 'number' && isFinite(d.min_fare) &&
-      typeof d.max_fare === 'number' && isFinite(d.max_fare)
-    )
-    if (!validData.length) return { avgPath: '', rangePath: '', yTicks: [], xLabels: [], officialY: 0, points: [] }
+      // Filter out bad data points — check every field
+      const validData = data.filter(d =>
+        d != null &&
+        typeof d.day === 'string' && d.day.length > 0 &&
+        typeof d.avg_fare === 'number' && isFinite(d.avg_fare) &&
+        typeof d.min_fare === 'number' && isFinite(d.min_fare) &&
+        typeof d.max_fare === 'number' && isFinite(d.max_fare) &&
+        typeof d.report_count === 'number' && isFinite(d.report_count)
+      )
+      if (!validData.length) return emptyResult
 
-    // Y-axis range: include official fare and all reported fares
-    const allValues = validData.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(officialFare)
-    const rawMin = Math.min(...allValues)
-    const rawMax = Math.max(...allValues)
-    const minVal = Math.floor((isFinite(rawMin) ? rawMin : 0) * 0.9 * 2) / 2
-    const maxVal = Math.ceil((isFinite(rawMax) ? rawMax : 10) * 1.1 * 2) / 2
-    const yRange = maxVal - minVal || 1
+      // Y-axis range: include official fare and all reported fares
+      const allValues = validData.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(officialFare)
+      const rawMin = Math.min(...allValues)
+      const rawMax = Math.max(...allValues)
+      const minVal = Math.floor((isFinite(rawMin) ? rawMin : 0) * 0.9 * 2) / 2
+      const maxVal = Math.ceil((isFinite(rawMax) ? rawMax : 10) * 1.1 * 2) / 2
+      const yRange = maxVal - minVal || 1
 
-    const toX = (i: number) => CHART_PADDING.left + (i / Math.max(validData.length - 1, 1)) * drawWidth
-    const toY = (v: number) => CHART_PADDING.top + drawHeight - ((v - minVal) / yRange) * drawHeight
+      const toX = (i: number) => CHART_PADDING.left + (i / Math.max(validData.length - 1, 1)) * drawWidth
+      const toY = (v: number) => CHART_PADDING.top + drawHeight - ((v - minVal) / yRange) * drawHeight
 
-    // Average line path
-    const avg = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.avg_fare).toFixed(1)}`).join(' ')
+      // Average line path
+      const avg = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.avg_fare).toFixed(1)}`).join(' ')
 
-    // Min-max range area
-    const upper = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.max_fare).toFixed(1)}`).join(' ')
-    const lower = [...validData].reverse().map((d, i) => {
-      const origIdx = validData.length - 1 - i
-      return `L${toX(origIdx).toFixed(1)},${toY(d.min_fare).toFixed(1)}`
-    }).join(' ')
-    const range = `${upper} ${lower} Z`
+      // Min-max range area
+      const upper = validData.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.max_fare).toFixed(1)}`).join(' ')
+      const lower = [...validData].reverse().map((d, i) => {
+        const origIdx = validData.length - 1 - i
+        return `L${toX(origIdx).toFixed(1)},${toY(d.min_fare).toFixed(1)}`
+      }).join(' ')
+      const range = `${upper} ${lower} Z`
 
-    // Y-axis ticks (3-4 ticks)
-    const tickCount = 4
-    const yTicks = Array.from({ length: tickCount }, (_, i) => {
-      const val = minVal + (yRange * i) / (tickCount - 1)
-      return { val: Math.round(val * 100) / 100, y: toY(val) }
-    })
+      // Y-axis ticks (3-4 ticks)
+      const tickCount = 4
+      const yTicks = Array.from({ length: tickCount }, (_, i) => {
+        const val = minVal + (yRange * i) / (tickCount - 1)
+        return { val: Math.round(val * 100) / 100, y: toY(val) }
+      })
 
-    // X-axis labels (show first, middle, last)
-    const xLabels: { label: string; x: number }[] = []
-    const labelIndices = validData.length <= 3
-      ? validData.map((_, i) => i)
-      : [0, Math.floor(validData.length / 2), validData.length - 1]
+      // X-axis labels (show first, middle, last)
+      const xLabels: { label: string; x: number }[] = []
+      const labelIndices = validData.length <= 3
+        ? validData.map((_, i) => i)
+        : [0, Math.floor(validData.length / 2), validData.length - 1]
 
-    for (const idx of labelIndices) {
-      const d = new Date(validData[idx].day)
-      const label = `${d.getDate()}/${d.getMonth() + 1}`
-      xLabels.push({ label, x: toX(idx) })
-    }
+      for (const idx of labelIndices) {
+        const d = new Date(validData[idx].day)
+        const label = `${d.getDate()}/${d.getMonth() + 1}`
+        xLabels.push({ label, x: toX(idx) })
+      }
 
-    // Data points for touch targets
-    const pts = validData.map((d, i) => ({ x: toX(i), y: toY(d.avg_fare), ...d }))
+      // Data points for touch targets
+      const pts = validData.map((d, i) => ({ x: toX(i), y: toY(d.avg_fare), ...d }))
 
-    return {
-      avgPath: avg,
-      rangePath: range,
-      yTicks,
-      xLabels,
-      officialY: toY(officialFare),
-      points: pts,
+      return {
+        avgPath: avg,
+        rangePath: range,
+        yTicks,
+        xLabels,
+        officialY: toY(officialFare),
+        points: pts,
+      }
+    } catch {
+      return emptyResult
     }
   }, [data, officialFare, drawWidth, drawHeight])
 
@@ -225,7 +233,10 @@ export function FareTrendChart({
             {PERIODS.map((p) => (
               <TouchableOpacity
                 key={p.days}
-                onPress={() => onPeriodChange?.(p.days)}
+                onPress={() => {
+                  setSelectedIdx(null)
+                  onPeriodChange?.(p.days)
+                }}
                 style={[s.periodBtn, selectedPeriod === p.days && s.periodBtnActive]}
               >
                 <Text style={[s.periodText, selectedPeriod === p.days && s.periodTextActive]}>
@@ -349,25 +360,25 @@ export function FareTrendChart({
         />
 
         {/* Tooltip card */}
-        {selectedPoint && (
+        {selectedPoint && typeof selectedPoint.avg_fare === 'number' && (
           <View
             style={[
               s.tooltip,
               {
-                left: Math.max(8, Math.min(selectedPoint.x - 65, chartWidth - 138)),
-                top: Math.max(0, selectedPoint.y - 72),
+                left: Math.max(8, Math.min((selectedPoint.x || 0) - 65, chartWidth - 138)),
+                top: Math.max(0, (selectedPoint.y || 0) - 72),
               },
             ]}
             pointerEvents="none"
           >
             <Text style={s.tooltipDate}>
-              {new Date(selectedPoint.day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              {(() => { try { return new Date(selectedPoint.day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) } catch { return selectedPoint.day || '' } })()}
             </Text>
-            <Text style={s.tooltipFare}>₵{selectedPoint.avg_fare.toFixed(2)}</Text>
+            <Text style={s.tooltipFare}>₵{(selectedPoint.avg_fare ?? 0).toFixed(2)}</Text>
             <Text style={s.tooltipRange}>
-              Range: ₵{selectedPoint.min_fare.toFixed(2)} – ₵{selectedPoint.max_fare.toFixed(2)}
+              Range: ₵{(selectedPoint.min_fare ?? 0).toFixed(2)} – ₵{(selectedPoint.max_fare ?? 0).toFixed(2)}
             </Text>
-            <Text style={s.tooltipReports}>{selectedPoint.report_count} reports</Text>
+            <Text style={s.tooltipReports}>{selectedPoint.report_count ?? 0} reports</Text>
           </View>
         )}
       </View>
