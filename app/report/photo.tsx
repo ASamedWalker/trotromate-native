@@ -73,11 +73,6 @@ export default function TrotroTalesPostScreen() {
       Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images`)
       return
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'Photo library access is required to pick images.')
-      return
-    }
     const remaining = MAX_IMAGES - imageUris.length
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],

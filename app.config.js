@@ -47,6 +47,7 @@ export default {
         {
           photosPermission: "Troski accesses your photo library so you can select existing photos to attach to your Troski Tales posts — for example, a photo of a busy station queue or a trotro fare board.",
           cameraPermission: "Troski uses your camera to let you take photos of trotro queues, station conditions, or fare displays to share as Troski Tales with other commuters.",
+          androidImagePickerMode: "system",
         },
       ],
       [
