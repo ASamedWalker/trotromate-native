@@ -32,6 +32,10 @@ export default {
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
       ],
+      blockedPermissions: [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+      ],
     },
     web: {
       bundler: "metro",
