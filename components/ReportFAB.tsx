@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike, MapPin } from 'lucide-react-native'
+import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike, MapPin, Route } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 
 const REPORT_OPTIONS = [
@@ -69,6 +69,14 @@ const REPORT_OPTIONS = [
     icon: TrainFront,
     color: '#0ea5e9',
     route: '/report/train',
+  },
+  {
+    id: 'add-route',
+    title: 'Add New Route',
+    subtitle: '+10 pts',
+    icon: Route,
+    color: '#16a34a',
+    route: '/report/fare',
   },
 ]
 

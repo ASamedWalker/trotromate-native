@@ -26,6 +26,7 @@ import {
   X,
   Bike,
   Bus,
+  Plus,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { REGIONS } from '@/lib/config/regions'
@@ -393,7 +394,29 @@ export default function RoutesScreen() {
                   : 'Try a different search or filter'
                 }
               </Text>
+              {activeFilter !== 'saved' && (
+                <TouchableOpacity
+                  onPress={() => router.push('/report/fare' as Href)}
+                  activeOpacity={0.7}
+                  style={s.addRouteBtn}
+                >
+                  <Plus size={16} color={c.amber500} />
+                  <Text style={s.addRouteBtnText}>Add This Route</Text>
+                </TouchableOpacity>
+              )}
             </View>
+          }
+          ListFooterComponent={
+            filteredRoutes.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => router.push('/report/fare' as Href)}
+                activeOpacity={0.7}
+                style={s.footerCta}
+              >
+                <Plus size={16} color={c.amber500} />
+                <Text style={s.footerCtaText}>Can't find your route? Add it</Text>
+              </TouchableOpacity>
+            ) : null
           }
         />
       )}
@@ -501,6 +524,28 @@ const getStyles = (isDark: boolean) => {
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
     emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },
+    addRouteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#fde68a',
+    },
+    addRouteBtnText: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
+    footerCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 16,
+      marginBottom: 80,
+    },
+    footerCtaText: { fontSize: 14, fontFamily: font.medium, color: c.amber500 },
     // Suggestions & Recent
     suggestionsSection: { marginBottom: 16 },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
