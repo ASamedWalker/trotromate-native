@@ -7,6 +7,15 @@ import type {
   TrainLineWithStats,
   TrainReportWithNames,
 } from '@/lib/types'
+import {
+  validateEnum,
+  validateFare,
+  validateIntRange,
+  validateNotes,
+  TRAIN_REPORT_TYPES,
+  TRAIN_DIRECTIONS,
+  CROWD_LEVELS,
+} from '@/lib/security/validate'
 
 export async function fetchTrainLines(): Promise<TrainLineWithStats[]> {
   const { data: lines, error } = await supabase
@@ -108,17 +117,26 @@ export async function submitTrainReport(params: {
   notes?: string
   deviceId: string
 }): Promise<{ reportId: string } | null> {
+  const reportType = validateEnum(params.reportType, TRAIN_REPORT_TYPES)
+  if (!reportType) return null
+
+  const direction = params.direction ? validateEnum(params.direction, TRAIN_DIRECTIONS) : null
+  const crowdLevel = params.crowdLevel ? validateEnum(params.crowdLevel, CROWD_LEVELS) : null
+  const reportedFare = params.reportedFare != null ? validateFare(params.reportedFare) : null
+  const delayMins = params.delayMins != null ? validateIntRange(params.delayMins, 0, 300) : null
+  const notes = validateNotes(params.notes)
+
   const { data: report, error } = await supabase
     .from('train_reports')
     .insert({
       line_id: params.lineId,
       station_id: params.stationId,
-      report_type: params.reportType,
-      direction: params.direction || null,
-      crowd_level: params.crowdLevel || null,
-      reported_fare: params.reportedFare || null,
-      delay_mins: params.delayMins || null,
-      notes: params.notes || null,
+      report_type: reportType,
+      direction,
+      crowd_level: crowdLevel,
+      reported_fare: reportedFare,
+      delay_mins: delayMins,
+      notes,
       device_id: params.deviceId,
     })
     .select('id')

@@ -1,13 +1,24 @@
 import { File } from 'expo-file-system'
 import { supabase } from '@/lib/supabase/client'
 import type { TalePost, TalePostType } from '@/lib/types'
+import {
+  validateDisplayName,
+  validateCaption,
+  validateLocation,
+  validateEnum,
+  sanitizeString,
+  TALE_POST_TYPES,
+} from '@/lib/security/validate'
+
+const MAX_IMAGES = 5
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
 
 export async function fetchTales(params: {
   limit?: number
   cursor?: string
   deviceId?: string | null
 }): Promise<{ posts: TalePost[]; nextCursor: string | null }> {
-  const { limit = 20, cursor, deviceId } = params
+  const { limit = 20, cursor } = params
 
   let query = supabase
     .from('tale_posts')
@@ -83,15 +94,32 @@ export async function submitTale(params: {
   location: string
   postType?: TalePostType
 }): Promise<{ postId: string } | null> {
-  const { deviceId, displayName, imageUris, caption, location, postType = 'tale' } = params
+  const { deviceId, imageUris } = params
+
+  // Validate inputs
+  const displayName = validateDisplayName(params.displayName)
+  const caption = validateCaption(params.caption) || null
+  const location = validateLocation(params.location)
+  const postType = validateEnum(params.postType || 'tale', TALE_POST_TYPES) || 'tale'
+
+  if (!location) return null
+  if (imageUris.length === 0 || imageUris.length > MAX_IMAGES) return null
 
   try {
     // Upload all images in parallel
     const imageUrls = await Promise.all(
       imageUris.map(async (uri, index) => {
-        const fileName = `${deviceId}-${Date.now()}-${index}.jpg`
+        // Sanitize filename — only allow device_id + timestamp
+        const safeDeviceId = sanitizeString(deviceId, 32).replace(/[^a-f0-9]/g, '')
+        const fileName = `${safeDeviceId}-${Date.now()}-${index}.jpg`
         const file = new File(uri)
         const arrayBuffer = await file.arrayBuffer()
+
+        // Reject oversized files
+        if (arrayBuffer.byteLength > MAX_IMAGE_SIZE) {
+          console.warn(`Image ${index} too large (${arrayBuffer.byteLength} bytes)`)
+          return null
+        }
 
         const { error: uploadError } = await supabase.storage
           .from('tale-images')
@@ -99,7 +127,7 @@ export async function submitTale(params: {
 
         if (uploadError) {
           console.warn(`Image ${index} upload failed:`, uploadError.message)
-          return `https://placehold.co/600x450/f59e0b/white?text=Troski+Tale`
+          return null
         }
 
         const { data: urlData } = supabase.storage
@@ -109,6 +137,10 @@ export async function submitTale(params: {
       })
     )
 
+    // Filter out failed uploads
+    const validUrls = imageUrls.filter(Boolean) as string[]
+    if (validUrls.length === 0) return null
+
     // Insert tale post
     const { data, error: insertError } = await supabase
       .from('tale_posts')
@@ -116,11 +148,11 @@ export async function submitTale(params: {
         device_id: deviceId,
         display_name: displayName,
         is_anonymous: false,
-        image_url: imageUrls[0],
-        image_urls: imageUrls.length > 1 ? imageUrls : null,
-        caption: caption.trim() || null,
+        image_url: validUrls[0],
+        image_urls: validUrls.length > 1 ? validUrls : null,
+        caption,
         post_type: postType,
-        location_name: location.trim(),
+        location_name: location,
       })
       .select('id')
       .single()

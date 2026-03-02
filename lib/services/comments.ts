@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { validateDisplayName, validateComment } from '@/lib/security/validate'
 
 export interface TaleComment {
   id: string
@@ -31,7 +32,11 @@ export async function postComment(params: {
   displayName: string | null
   content: string
 }): Promise<TaleComment | null> {
-  const { postId, deviceId, displayName, content } = params
+  const { postId, deviceId } = params
+
+  const displayName = validateDisplayName(params.displayName)
+  const content = validateComment(params.content)
+  if (!content) return null
 
   const { data, error } = await supabase
     .from('tale_comments')

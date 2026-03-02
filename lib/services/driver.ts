@@ -1,4 +1,13 @@
 import { supabase } from '@/lib/supabase'
+import {
+  validateDisplayName,
+  validateLocation,
+  validateFare,
+  validateIntRange,
+  validateEnum,
+  validateVehicleNumber,
+  DRIVER_ROLES,
+} from '@/lib/security/validate'
 
 export interface DriverProfile {
   id: string
@@ -40,14 +49,20 @@ export async function registerDriver(
   role: 'driver' | 'mate',
   vehicleNumber?: string
 ): Promise<DriverProfile | null> {
+  const name = validateDisplayName(displayName)
+  const validRole = validateEnum(role, DRIVER_ROLES)
+  const vehicle = validateVehicleNumber(vehicleNumber)
+
+  if (!name || !validRole) return null
+
   const { data, error } = await supabase
     .from('driver_profiles')
     .upsert(
       {
         device_id: deviceId,
-        display_name: displayName,
-        role,
-        vehicle_number: vehicleNumber || null,
+        display_name: name,
+        role: validRole,
+        vehicle_number: vehicle,
       },
       { onConflict: 'device_id' }
     )
@@ -106,15 +121,22 @@ export async function logTrip(
   fareCollected: number,
   routeId?: string
 ): Promise<DriverTrip | null> {
+  const fromClean = validateLocation(from)
+  const toClean = validateLocation(to)
+  const validPassengers = validateIntRange(passengers, 0, 200)
+  const validFare = validateFare(fareCollected)
+
+  if (!fromClean || !toClean || validPassengers === null || validFare === null) return null
+
   const { data, error } = await supabase
     .from('driver_trips')
     .insert({
       driver_device_id: deviceId,
       route_id: routeId || null,
-      from_location: from,
-      to_location: to,
-      passengers,
-      fare_collected: fareCollected,
+      from_location: fromClean,
+      to_location: toClean,
+      passengers: validPassengers,
+      fare_collected: validFare,
     })
     .select()
     .single()

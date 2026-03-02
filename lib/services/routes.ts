@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Route, RouteWithStats, RouteFareStats, FareReport, TransportType } from '@/lib/types'
 import { detectRegion } from '@/lib/config/regions'
+import { validateLocation, validateFare, validateEnum, sanitizeString, TRANSPORT_TYPES } from '@/lib/security/validate'
 
 export async function fetchRoutes(from?: string, to?: string, transportType?: TransportType, region?: string): Promise<RouteWithStats[]> {
   let query = supabase
@@ -9,8 +10,9 @@ export async function fetchRoutes(from?: string, to?: string, transportType?: Tr
     .order('is_popular', { ascending: false })
     .order('from_location')
 
-  if (from) query = query.ilike('from_location', `%${from}%`)
-  if (to) query = query.ilike('to_location', `%${to}%`)
+  // Sanitize search inputs to prevent injection via ilike patterns
+  if (from) query = query.ilike('from_location', `%${sanitizeString(from, 200)}%`)
+  if (to) query = query.ilike('to_location', `%${sanitizeString(to, 200)}%`)
   if (transportType) query = query.eq('transport_type', transportType)
   if (region) query = query.eq('region', region)
 
@@ -148,12 +150,19 @@ export async function findOrCreateRoute(
   fare: number,
   transportType: TransportType = 'trotro'
 ): Promise<string | null> {
+  const from = validateLocation(fromLocation)
+  const to = validateLocation(toLocation)
+  const validFare = validateFare(fare)
+  const transport = validateEnum(transportType, TRANSPORT_TYPES) || 'trotro'
+
+  if (!from || !to || validFare === null) return null
+
   const { data: existing } = await supabase
     .from('routes')
     .select('id')
-    .eq('from_location', fromLocation)
-    .eq('to_location', toLocation)
-    .eq('transport_type', transportType)
+    .eq('from_location', from)
+    .eq('to_location', to)
+    .eq('transport_type', transport)
     .single()
 
   if (existing) return existing.id
@@ -161,12 +170,12 @@ export async function findOrCreateRoute(
   const { data: newRoute, error } = await supabase
     .from('routes')
     .insert({
-      from_location: fromLocation,
-      to_location: toLocation,
-      official_fare: fare,
+      from_location: from,
+      to_location: to,
+      official_fare: validFare,
       is_popular: false,
-      transport_type: transportType,
-      region: detectRegion(fromLocation),
+      transport_type: transport,
+      region: detectRegion(from),
     })
     .select('id')
     .single()
