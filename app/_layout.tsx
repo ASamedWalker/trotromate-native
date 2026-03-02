@@ -26,6 +26,7 @@ import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
 import AppErrorBoundary from '@/components/AppErrorBoundary'
 import AppUpdateBanner from '@/components/AppUpdateBanner'
+import StoreUpdateModal from '@/components/StoreUpdateModal'
 
 import '../global.css'
 
@@ -177,6 +178,7 @@ function AppInner() {
       </Stack>
       <StatusBar style="auto" />
       <AppUpdateBanner />
+      <StoreUpdateModal />
       <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>
   )
