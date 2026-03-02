@@ -25,6 +25,7 @@ import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
 import AppErrorBoundary from '@/components/AppErrorBoundary'
+import AppUpdateBanner from '@/components/AppUpdateBanner'
 
 import '../global.css'
 
@@ -175,6 +176,7 @@ function AppInner() {
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
+      <AppUpdateBanner />
       <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>
   )
