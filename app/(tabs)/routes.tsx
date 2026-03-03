@@ -46,7 +46,7 @@ type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
 
 export default function RoutesScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -56,7 +56,7 @@ export default function RoutesScreen() {
   const [activeFilter, setActiveFilter] = useState<Filter>(
     (params.transport as Filter) || 'all'
   )
-  const [activeRegion, setActiveRegion] = useState<string>('all')
+  const [activeRegion, setActiveRegion] = useState<string>(params.region || 'all')
   // Derive transport type from unified filter
   const activeTransport = activeFilter === 'trotro' || activeFilter === 'okada' ? activeFilter : undefined
   const regionParam = activeRegion !== 'all' ? activeRegion : undefined

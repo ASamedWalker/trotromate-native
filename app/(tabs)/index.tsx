@@ -41,6 +41,7 @@ import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { MyCommuteWidget } from '@/components/MyCommuteWidget'
 import { WeatherBadge, WeatherRainAlert } from '@/components/WeatherBadge'
 import HappeningNow from '@/components/HappeningNow'
+import ExploreGhana from '@/components/ExploreGhana'
 import type { RouteWithStats } from '@/lib/types'
 
 /* ── Quick Actions ────────────────────────────────────── */
@@ -297,6 +298,9 @@ export default function HomeScreen() {
             )
           })}
         </View>
+
+        {/* ── Explore Ghana ── */}
+        <ExploreGhana />
 
         {/* ── My Commute ── */}
         <MyCommuteWidget />
