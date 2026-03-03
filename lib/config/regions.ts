@@ -66,16 +66,16 @@ export const REGION_HEROES: RegionHero[] = [
   {
     key: 'western',
     label: 'Takoradi',
-    tagline: 'The oil city by the coast',
-    heroImage: `${PEXELS_BASE}/13221990/pexels-photo-13221990.jpeg${PEXELS_PARAMS}`,
-    placeholderColor: '#276749',
+    tagline: 'Home of the vibrant Ankos festival',
+    heroImage: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Takoradi_Masquerade_Festival_15.jpg',
+    placeholderColor: '#7c2d12',
   },
   {
     key: 'eastern',
     label: 'Koforidua',
-    tagline: 'Gateway to the Eastern hills',
-    heroImage: `${PEXELS_BASE}/31881358/pexels-photo-31881358.jpeg${PEXELS_PARAMS}`,
-    placeholderColor: '#22543d',
+    tagline: 'Home of the majestic Boti Falls',
+    heroImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Boti_Falls_%282%29.jpg/960px-Boti_Falls_%282%29.jpg',
+    placeholderColor: '#14532d',
   },
   {
     key: 'volta',
