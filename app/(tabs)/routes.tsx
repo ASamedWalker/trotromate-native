@@ -356,20 +356,22 @@ export default function RoutesScreen() {
                     <History size={16} color={t.textSecondary} />
                     <Text style={s.sectionTitle}>Recent</Text>
                   </View>
-                  {recentSearches.map((entry) => (
-                    <TouchableOpacity
-                      key={entry.routeId + entry.timestamp}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        addSearch({ id: entry.routeId, from: entry.from, to: entry.to, transportType: entry.transportType })
-                        router.push({ pathname: '/routes/[id]', params: { id: entry.routeId } })
-                      }}
-                      style={s.recentItem}
-                    >
-                      <Clock size={16} color={t.textSecondary} />
-                      <Text style={s.recentText}>{entry.from} → {entry.to}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {recentSearches.map((entry) => (
+                      <TouchableOpacity
+                        key={entry.routeId + entry.timestamp}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          addSearch({ id: entry.routeId, from: entry.from, to: entry.to, transportType: entry.transportType })
+                          router.push({ pathname: '/routes/[id]', params: { id: entry.routeId } })
+                        }}
+                        style={s.recentChip}
+                      >
+                        <Clock size={12} color={t.textSecondary} />
+                        <Text style={s.recentChipText} numberOfLines={1}>{entry.from} → {entry.to}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -562,16 +564,17 @@ const getStyles = (isDark: boolean) => {
     suggestionRoute: { fontSize: 14, fontFamily: font.semibold, color: t.text },
     suggestionReason: { fontSize: 12, fontFamily: font.regular, color: c.amber500, marginTop: 4 },
     recentSection: { marginBottom: 16 },
-    recentItem: {
+    recentChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 12,
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
       backgroundColor: t.card,
-      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: isDark ? c.stone700 : c.stone200,
     },
-    recentText: { fontSize: 14, fontFamily: font.regular, color: t.text },
+    recentChipText: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary, maxWidth: 180 },
   })
 }
