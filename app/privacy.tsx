@@ -2,30 +2,24 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   useColorScheme,
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { themed, font } from '@/lib/theme'
 
 const LAST_UPDATED = 'February 6, 2026'
 
 export default function PrivacyScreen() {
-  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={24} color={t.text} />
-        </TouchableOpacity>
+        <GlassBackButton isDark={isDark} />
         <Text style={s.headerTitle}>Privacy Policy</Text>
       </View>
 
@@ -120,7 +114,6 @@ const getStyles = (isDark: boolean) => {
       paddingTop: 12,
       paddingBottom: 8,
     },
-    backBtn: { marginRight: 8, padding: 4 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     scroll: { flex: 1 },
     content: { paddingHorizontal: 20, paddingTop: 16 },

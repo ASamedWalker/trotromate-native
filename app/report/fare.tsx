@@ -52,14 +52,14 @@ export default function FareReportScreen() {
       return
     }
 
-    const result = await submit(from.trim(), to.trim(), fareValue, transportType)
-    if (result) {
+    const { reward, errorMsg } = await submit(from.trim(), to.trim(), fareValue, transportType)
+    if (reward) {
       haptics.success()
       await refreshProfile()
-      setLastReward(result)
+      setLastReward(reward)
       router.back()
     } else {
-      Alert.alert('Error', 'Failed to submit report. Please try again.')
+      Alert.alert('Error', `Failed to submit report. ${errorMsg || 'Please try again.'}`)
     }
   }
 

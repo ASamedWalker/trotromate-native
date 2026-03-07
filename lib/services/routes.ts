@@ -155,9 +155,11 @@ export async function findOrCreateRoute(
   const validFare = validateFare(fare)
   const transport = validateEnum(transportType, TRANSPORT_TYPES) || 'trotro'
 
-  if (!from || !to || validFare === null) return null
+  if (!from || !to || validFare === null) {
+    throw new Error(`Route validation failed: from=${!!from}, to=${!!to}, fare=${validFare}`)
+  }
 
-  const { data: existing } = await supabase
+  const { data: existing, error: findError } = await supabase
     .from('routes')
     .select('id')
     .eq('from_location', from)
@@ -166,6 +168,11 @@ export async function findOrCreateRoute(
     .single()
 
   if (existing) return existing.id
+
+  // Not found (PGRST116) is expected — create new route
+  if (findError && findError.code !== 'PGRST116') {
+    throw new Error(`Route lookup: ${findError.message}`)
+  }
 
   const { data: newRoute, error } = await supabase
     .from('routes')
@@ -181,8 +188,7 @@ export async function findOrCreateRoute(
     .single()
 
   if (error) {
-    console.error('Error creating route:', error)
-    return null
+    throw new Error(`Route insert: ${error.message}`)
   }
 
   return newRoute?.id || null

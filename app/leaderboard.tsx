@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  TouchableOpacity,
   FlatList,
   useColorScheme,
   ActivityIndicator,
@@ -10,8 +9,8 @@ import {
 } from 'react-native'
 import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { ChevronLeft, Medal } from 'lucide-react-native'
+import { Medal } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard } from '@/lib/hooks/useRewards'
@@ -22,7 +21,6 @@ import type { LeaderboardEntry } from '@/lib/types'
 const PODIUM_EMOJI = ['🥇', '🥈', '🥉']
 
 export default function LeaderboardScreen() {
-  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -75,9 +73,7 @@ export default function LeaderboardScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={24} color={t.text} />
-        </TouchableOpacity>
+        <GlassBackButton isDark={isDark} />
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>Weekly Leaderboard</Text>
           {userRank && (
@@ -128,7 +124,6 @@ const getStyles = (isDark: boolean) => {
       paddingTop: 12,
       paddingBottom: 12,
     },
-    backBtn: { marginRight: 8, padding: 4 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     headerSub: { fontSize: 13, color: c.amber500, fontFamily: font.medium, marginTop: 2 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },

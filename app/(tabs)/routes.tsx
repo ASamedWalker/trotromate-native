@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   Search,
   MapPin,
@@ -28,8 +28,10 @@ import {
   Bus,
   Plus,
 } from 'lucide-react-native'
+import { Image } from 'expo-image'
+import { LinearGradient } from 'expo-linear-gradient'
 import { c, themed, font } from '@/lib/theme'
-import { REGIONS } from '@/lib/config/regions'
+import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
@@ -321,10 +323,35 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={showSuggestions ? (
+          ListHeaderComponent={(showSuggestions || activeRegion !== 'all') ? (
             <View>
+              {/* Region Hero Banner */}
+              {activeRegion !== 'all' && (() => {
+                const hero = REGION_HEROES.find(h => h.key === activeRegion)
+                if (!hero) return null
+                return (
+                  <View style={s.heroBanner}>
+                    <Image
+                      source={{ uri: hero.heroImage }}
+                      style={[StyleSheet.absoluteFillObject, { backgroundColor: hero.placeholderColor }]}
+                      contentFit="cover"
+                      transition={400}
+                      cachePolicy="disk"
+                    />
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.6)']}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    <View style={s.heroBannerContent}>
+                      <Text style={s.heroBannerCity}>{hero.label}</Text>
+                      <Text style={s.heroBannerTagline}>{hero.tagline}</Text>
+                    </View>
+                  </View>
+                )
+              })()}
+
               {/* Smart Suggestions */}
-              {suggestions.length > 0 && (
+              {showSuggestions && suggestions.length > 0 && (
                 <View style={s.suggestionsSection}>
                   <View style={s.sectionHeader}>
                     <Sparkles size={16} color={c.amber500} />
@@ -350,7 +377,7 @@ export default function RoutesScreen() {
               )}
 
               {/* Recent Searches */}
-              {recentSearches.length > 0 && (
+              {showSuggestions && recentSearches.length > 0 && (
                 <View style={s.recentSection}>
                   <View style={s.sectionHeader}>
                     <History size={16} color={t.textSecondary} />
@@ -445,6 +472,8 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       backgroundColor: t.card,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: t.border,
     },
     searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
     filterChipScroll: {
@@ -455,6 +484,8 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 7,
       borderRadius: 20,
       backgroundColor: t.card,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: t.border,
     },
     regionChipActive: {
       backgroundColor: isDark ? c.stone200 : c.stone800,
@@ -480,6 +511,8 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 20,
       backgroundColor: t.card,
       gap: 6,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: t.border,
     },
     filterChipText: {
       fontSize: 13,
@@ -498,6 +531,8 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 16,
       marginBottom: 12,
       backgroundColor: t.card,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: t.border,
     },
     routeIcon: {
       width: 48,
@@ -576,5 +611,28 @@ const getStyles = (isDark: boolean) => {
       borderColor: isDark ? c.stone700 : c.stone200,
     },
     recentChipText: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary, maxWidth: 180 },
+    // Region Hero Banner
+    heroBanner: {
+      height: 130,
+      borderRadius: 16,
+      overflow: 'hidden' as const,
+      marginBottom: 16,
+    },
+    heroBannerContent: {
+      flex: 1,
+      justifyContent: 'flex-end' as const,
+      padding: 16,
+    },
+    heroBannerCity: {
+      fontSize: 22,
+      fontFamily: font.bold,
+      color: c.white,
+    },
+    heroBannerTagline: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: 'rgba(255,255,255,0.8)',
+      marginTop: 2,
+    },
   })
 }

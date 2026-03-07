@@ -146,6 +146,7 @@ export default function ReportScreen() {
             </View>
           </View>
         </View>
+        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   )

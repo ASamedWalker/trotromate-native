@@ -1,5 +1,4 @@
 import React from 'react'
-import { Platform } from 'react-native'
 import { Tabs } from 'expo-router'
 import { useColorScheme } from 'react-native'
 import { Home, MapPin, Camera, Trophy, ReceiptText } from 'lucide-react-native'
@@ -11,8 +10,6 @@ export default function TabLayout() {
 
   const activeColor = '#f59e0b'
   const inactiveColor = isDark ? '#a8a29e' : '#78716c'
-  const backgroundColor = isDark ? '#1c1917' : '#ffffff'
-  const borderColor = isDark ? '#292524' : '#e7e5e3'
 
   return (
     <Tabs
@@ -20,12 +17,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
-          backgroundColor,
-          borderTopColor: borderColor,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 72,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 14,
-          paddingTop: 8,
+          backgroundColor: isDark ? '#1c1917' : '#ffffff',
+          borderTopColor: isDark ? '#292524' : '#e7e5e3',
         },
         tabBarLabelStyle: {
           fontSize: 10,

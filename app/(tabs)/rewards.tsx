@@ -403,6 +403,7 @@ export default function RewardsScreen() {
             </View>
           )}
         </View>
+        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   )

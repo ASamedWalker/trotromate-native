@@ -90,8 +90,10 @@ function AppInner() {
     return <OnboardingFlow onComplete={completeOnboarding} />
   }
 
+  const isDark = colorScheme === 'dark'
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? TrotroDarkTheme : TrotroLightTheme}>
+    <ThemeProvider value={isDark ? TrotroDarkTheme : TrotroLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
@@ -100,7 +102,6 @@ function AppInner() {
           options={{
             title: 'Route Details',
             headerBackTitle: 'Routes',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#f59e0b',
           }}
         />
@@ -109,7 +110,6 @@ function AppInner() {
           options={{
             title: 'Report Fare',
             presentation: 'modal',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#f59e0b',
           }}
         />
@@ -118,7 +118,6 @@ function AppInner() {
           options={{
             title: 'Queue Status',
             presentation: 'modal',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#f59e0b',
           }}
         />
@@ -127,7 +126,6 @@ function AppInner() {
           options={{
             title: 'Incident Report',
             presentation: 'modal',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#ef4444',
           }}
         />
@@ -136,7 +134,6 @@ function AppInner() {
           options={{
             title: 'Trotro Tales',
             presentation: 'modal',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#ec4899',
           }}
         />
@@ -145,7 +142,6 @@ function AppInner() {
           options={{
             title: 'Train Report',
             presentation: 'modal',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#0ea5e9',
           }}
         />
@@ -155,7 +151,6 @@ function AppInner() {
             title: 'Train Lines',
             headerBackTitle: 'Home',
             headerTitleAlign: 'center',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#0ea5e9',
           }}
         />
@@ -164,7 +159,6 @@ function AppInner() {
           options={{
             title: 'Line Details',
             headerBackTitle: 'Lines',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1c1917' : '#ffffff' },
             headerTintColor: '#0ea5e9',
           }}
         />
@@ -200,12 +194,8 @@ export default function RootLayout() {
     if (error) throw error
   }, [error])
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync()
-    }
-  }, [loaded])
-
+  // Don't hide native splash here — TroskiSplash will hide it
+  // once mounted, preventing the flash between the two splashes
   if (!loaded) {
     return null
   }

@@ -5,8 +5,8 @@ import {
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import { useRouter } from 'expo-router'
-import { ChevronLeft, Layers, BusFront, TrainFront, Car } from 'lucide-react-native'
+import { Layers, BusFront, TrainFront, Car } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import Mapbox from '@rnmapbox/maps'
 import * as Haptics from 'expo-haptics'
 import { c, themed } from '@/lib/theme'
@@ -55,7 +55,6 @@ interface StationWithCoords extends StationWithQueue {
 /* ── Main Screen ────────────────────────────────────── */
 
 export default function StationsScreen() {
-  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -725,13 +724,9 @@ export default function StationsScreen() {
       </Mapbox.MapView>
 
       {/* Floating back button */}
-      <TouchableOpacity
-        style={[styles.backBtn, { backgroundColor: t.card }]}
-        onPress={() => router.back()}
-        activeOpacity={0.7}
-      >
-        <ChevronLeft size={22} color={t.text} />
-      </TouchableOpacity>
+      <View style={{ position: 'absolute', top: 56, left: 16 }}>
+        <GlassBackButton isDark={isDark} size={44} />
+      </View>
 
       {/* Floating layer toggle */}
       <TouchableOpacity
@@ -785,21 +780,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  backBtn: {
-    position: 'absolute',
-    top: 56,
-    left: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
   },
   layerBtn: {
     position: 'absolute',

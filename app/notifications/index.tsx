@@ -10,9 +10,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
 import {
-  ChevronLeft,
   Bell,
   TrendingDown,
   Users,
@@ -21,6 +19,7 @@ import {
   Star,
   MessageCircle,
 } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -37,7 +36,6 @@ const ICON_MAP: Record<NotificationType, { icon: typeof Bell; color: string }> =
 }
 
 export default function NotificationsScreen() {
-  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -83,9 +81,7 @@ export default function NotificationsScreen() {
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={24} color={t.text} />
-          </TouchableOpacity>
+          <GlassBackButton isDark={isDark} />
           <Text style={s.headerTitle}>Notifications</Text>
         </View>
         {unreadCount > 0 && (
@@ -141,7 +137,6 @@ const getStyles = (isDark: boolean) => {
       paddingBottom: 8,
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
-    backBtn: { marginRight: 8, padding: 4 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     markAllText: { fontSize: 14, fontFamily: font.medium, color: c.amber500 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },

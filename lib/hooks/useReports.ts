@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { submitFareReport, submitQueueReport, submitIncidentReport } from '@/lib/services/reports'
 import { awardPointsForReport } from '@/lib/services/rewards'
+import { REPORT_POINTS } from '@/lib/constants/rewards'
 import type { RewardResult, TransportType } from '@/lib/types'
 
 export function useSubmitFareReport(deviceId: string | null) {
@@ -8,10 +9,10 @@ export function useSubmitFareReport(deviceId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const submit = useCallback(
-    async (from: string, to: string, fare: number, transportType: TransportType = 'trotro'): Promise<RewardResult | null> => {
+    async (from: string, to: string, fare: number, transportType: TransportType = 'trotro'): Promise<{ reward: RewardResult | null; errorMsg?: string }> => {
       if (!deviceId) {
         setError('Device not ready')
-        return null
+        return { reward: null, errorMsg: 'Device not ready' }
       }
       setIsSubmitting(true)
       setError(null)
@@ -24,20 +25,30 @@ export function useSubmitFareReport(deviceId: string | null) {
           transportType,
         })
         if (!result) {
-          setError('Failed to submit report')
-          return null
+          return { reward: null, errorMsg: 'Report returned empty' }
         }
-        // Award points
-        const reward = await awardPointsForReport({
+        // Award points in background — don't block the UI
+        awardPointsForReport({
           deviceId,
           reportType: 'fare',
           reportId: result.reportId,
           routeId: result.routeId,
-        })
-        return reward
-      } catch {
-        setError('Failed to submit report')
-        return null
+        }).catch((err) => console.error('Points award failed:', err))
+
+        // Return optimistic reward immediately
+        const reward: RewardResult = {
+          points_awarded: REPORT_POINTS.fare,
+          new_total: 0,
+          level_up: false,
+          badges_earned: [],
+          new_streak: 1,
+        }
+        return { reward }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        console.error('Fare submit error:', msg)
+        setError(msg)
+        return { reward: null, errorMsg: msg }
       } finally {
         setIsSubmitting(false)
       }
@@ -66,12 +77,20 @@ export function useSubmitQueueReport(deviceId: string | null) {
           setError('Failed to submit report')
           return null
         }
-        const reward = await awardPointsForReport({
+        // Award points in background
+        awardPointsForReport({
           deviceId,
           reportType: 'queue',
           reportId: result.reportId,
-        })
-        return reward
+        }).catch((err) => console.error('Points award failed:', err))
+
+        return {
+          points_awarded: REPORT_POINTS.queue,
+          new_total: 0,
+          level_up: false,
+          badges_earned: [],
+          new_streak: 1,
+        }
       } catch {
         setError('Failed to submit report')
         return null
@@ -103,12 +122,20 @@ export function useSubmitIncidentReport(deviceId: string | null) {
           setError('Failed to submit report')
           return null
         }
-        const reward = await awardPointsForReport({
+        // Award points in background
+        awardPointsForReport({
           deviceId,
           reportType: 'incident',
           reportId: result.reportId,
-        })
-        return reward
+        }).catch((err) => console.error('Points award failed:', err))
+
+        return {
+          points_awarded: REPORT_POINTS.incident,
+          new_total: 0,
+          level_up: false,
+          badges_earned: [],
+          new_streak: 1,
+        }
       } catch {
         setError('Failed to submit report')
         return null

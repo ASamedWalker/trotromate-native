@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
@@ -19,6 +20,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "@tanstack/react-query": "^5.90.20",
     "expo": "~54.0.33",
+    "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",
@@ -53,6 +55,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~10.0.0",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },

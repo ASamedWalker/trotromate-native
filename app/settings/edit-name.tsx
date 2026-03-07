@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { useQueryClient } from '@tanstack/react-query'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -57,9 +57,7 @@ export default function EditNameScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={24} color={t.text} />
-        </TouchableOpacity>
+        <GlassBackButton isDark={isDark} />
         <Text style={s.headerTitle}>Edit Name</Text>
       </View>
 
@@ -104,7 +102,6 @@ const getStyles = (isDark: boolean) => {
       paddingTop: 12,
       paddingBottom: 8,
     },
-    backBtn: { marginRight: 8, padding: 4 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     content: { paddingHorizontal: 20, marginTop: 24 },
     label: {

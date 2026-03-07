@@ -1,7 +1,8 @@
 import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { ChevronLeft, MapPin } from 'lucide-react-native'
+import { MapPin } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { usePublicProfile } from '@/lib/hooks/usePublicProfile'
@@ -49,9 +50,7 @@ export default function PublicProfileScreen() {
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-            <ChevronLeft size={20} color={t.text} />
-          </TouchableOpacity>
+          <GlassBackButton isDark={isDark} />
           <Text style={s.headerTitle} numberOfLines={1}>{displayName}</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -129,14 +128,6 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 8,
-    },
-    backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     headerTitle: {
       flex: 1,

@@ -427,7 +427,7 @@ export default function HomeScreen() {
           </>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 20 }} />
       </ScrollView>
       <ReportFAB />
     </SafeAreaView>

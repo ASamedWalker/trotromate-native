@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, FlatList, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { useLocalSearchParams } from 'expo-router'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
@@ -11,9 +11,7 @@ import type { PublicProfile } from '@/lib/types'
 
 export default function FollowersScreen() {
   const { id: profileDeviceId, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>()
-  const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
   const { deviceId: myDeviceId } = useApp()
 
@@ -109,9 +107,7 @@ export default function FollowersScreen() {
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ChevronLeft size={20} color={t.text} />
-        </TouchableOpacity>
+        <GlassBackButton isDark={isDark} />
         <Text style={s.headerTitle}>{tab === 'followers' ? 'Followers' : 'Following'}</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -173,14 +169,6 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 8,
-    },
-    backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     headerTitle: {
       flex: 1,

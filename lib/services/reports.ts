@@ -23,10 +23,14 @@ export async function submitFareReport(params: {
   const fare = validateFare(params.fare)
   const transport = validateEnum(params.transportType || 'trotro', TRANSPORT_TYPES) || 'trotro'
 
-  if (!from || !to || fare === null) return null
+  if (!from || !to || fare === null) {
+    throw new Error(`Validation failed: from=${!!from}, to=${!!to}, fare=${fare}`)
+  }
 
   const routeId = await findOrCreateRoute(from, to, fare, transport)
-  if (!routeId) return null
+  if (!routeId) {
+    throw new Error('Route creation failed')
+  }
 
   const { data: report, error } = await supabase
     .from('fare_reports')
@@ -39,8 +43,7 @@ export async function submitFareReport(params: {
     .single()
 
   if (error) {
-    console.error('Error submitting fare report:', error)
-    return null
+    throw new Error(`Fare report insert: ${error.message}`)
   }
 
   return { reportId: report.id, routeId }

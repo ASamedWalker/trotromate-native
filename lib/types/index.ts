@@ -160,7 +160,7 @@ export interface RewardResult {
   badges_earned: Badge[]
   streak_bonus?: number
   new_streak: number
-  profile: ContributorProfile
+  profile?: ContributorProfile
 }
 
 export interface LeaderboardEntry {

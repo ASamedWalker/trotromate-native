@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import {
-  ChevronLeft,
   ChevronRight,
   Bell,
   Eye,
@@ -23,6 +22,7 @@ import {
   Moon,
   Smartphone,
 } from 'lucide-react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { Appearance } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { c, themed, font } from '@/lib/theme'
@@ -81,9 +81,7 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={24} color={t.text} />
-          </TouchableOpacity>
+          <GlassBackButton isDark={isDark} />
           <Text style={s.headerTitle}>Settings</Text>
         </View>
 
@@ -248,7 +246,6 @@ const getStyles = (isDark: boolean) => {
       paddingTop: 12,
       paddingBottom: 8,
     },
-    backBtn: { marginRight: 8, padding: 4 },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     section: { paddingHorizontal: 20, marginBottom: 24 },
     sectionLabel: {

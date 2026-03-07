@@ -284,6 +284,7 @@ export default function TalesScreen() {
               <ActivityIndicator size="small" color={c.amber500} style={{ paddingVertical: 20 }} />
             ) : null
           }
+          contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         />
       )}

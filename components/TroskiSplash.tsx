@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, Animated, StyleSheet } from 'react-native'
+import * as SplashScreen from 'expo-splash-screen'
 import { c } from '@/lib/theme'
 
 interface TroskiSplashProps {
@@ -41,6 +42,10 @@ export default function TroskiSplash({ onFinish }: TroskiSplashProps) {
   const logoScale = useRef(new Animated.Value(0.5)).current
 
   useEffect(() => {
+    // Hide the native splash now that this component is mounted
+    // Both share the same amber background so transition is seamless
+    SplashScreen.hideAsync()
+
     // Bounce the logo in
     Animated.spring(logoScale, {
       toValue: 1,

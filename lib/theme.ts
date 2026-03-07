@@ -42,6 +42,12 @@ export const font = {
   black: 'Poppins_900Black',
 }
 
+// Glass surface constants
+export const glass = {
+  dark: { background: 'rgba(12,10,9,0.82)', border: 'rgba(255,255,255,0.06)' },
+  light: { background: 'rgba(250,250,249,0.82)', border: 'rgba(0,0,0,0.04)' },
+}
+
 // Helper to get theme-aware colors
 export const themed = (isDark: boolean) => ({
   bg: isDark ? c.stone950 : c.stone50,

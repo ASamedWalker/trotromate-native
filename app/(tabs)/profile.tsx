@@ -138,6 +138,7 @@ export default function ProfileScreen() {
           <Text style={s.version}>Troski v1.0.0</Text>
           <Text style={s.footerText}>Made with love in Accra</Text>
         </View>
+        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   )
