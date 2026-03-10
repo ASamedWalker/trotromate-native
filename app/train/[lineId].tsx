@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import {
   Sunrise,
   Sunset,
   Calendar,
+  ChevronDown,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
@@ -67,6 +68,7 @@ export default function LineDetailScreen() {
   const s = getStyles(isDark)
 
   const { line, stations, recentReports, isLoading, refetch } = useTrainLineDetail(lineId!)
+  const [expandedStation, setExpandedStation] = useState<string | null>(null)
 
   const lineColor = line?.color || '#0ea5e9'
 
@@ -93,6 +95,16 @@ export default function LineDetailScreen() {
       if (r.report_type === 'crowd' && r.crowd_level && !map[r.station_id]) {
         map[r.station_id] = r
       }
+    }
+    return map
+  }, [recentReports])
+
+  // Group reports by station
+  const stationReportsMap = useMemo(() => {
+    const map: Record<string, TrainReportWithNames[]> = {}
+    for (const r of recentReports) {
+      if (!map[r.station_id]) map[r.station_id] = []
+      map[r.station_id].push(r)
     }
     return map
   }, [recentReports])
@@ -147,59 +159,113 @@ export default function LineDetailScreen() {
       const crowdColor = crowdReport
         ? CROWD_COLORS[crowdReport.crowd_level as CrowdLevel]
         : undefined
+      const isExpanded = expandedStation === station.id
+      const stationReports = stationReportsMap[station.id] || []
 
       return (
-        <View key={station.id} style={s.stationRow}>
-          {/* Metro timeline connector */}
-          <View style={s.connector}>
-            {/* Top line */}
-            {!isFirst && (
-              <View style={[s.lineSegTop, { backgroundColor: lineColor }]} />
-            )}
-            {/* Station dot — terminals are larger and filled */}
-            {isTerminal ? (
-              <View style={[s.terminalDot, { backgroundColor: lineColor }]}>
-                <View style={s.terminalInner} />
-              </View>
-            ) : (
-              <View style={[s.stationDot, { borderColor: lineColor, backgroundColor: t.card }]}>
-                {crowdColor && (
-                  <View style={[s.crowdDotInner, { backgroundColor: crowdColor }]} />
-                )}
-              </View>
-            )}
-            {/* Bottom line */}
-            {!isLast && (
-              <View style={[s.lineSegBottom, { backgroundColor: lineColor }]} />
-            )}
-          </View>
-
-          {/* Station info */}
-          <View style={s.stationInfo}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.stationName, isTerminal && s.stationNameTerminal]}>
-                {station.name}
-              </Text>
-              {isFirst && (
-                <Text style={s.stationHint}>Origin</Text>
+        <View key={station.id}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setExpandedStation(isExpanded ? null : station.id)}
+            style={s.stationRow}
+          >
+            {/* Metro timeline connector */}
+            <View style={s.connector}>
+              {!isFirst && (
+                <View style={[s.lineSegTop, { backgroundColor: lineColor }]} />
               )}
-              {isLast && (
-                <Text style={s.stationHint}>Terminus</Text>
+              {isTerminal ? (
+                <View style={[s.terminalDot, { backgroundColor: lineColor }]}>
+                  <View style={s.terminalInner} />
+                </View>
+              ) : (
+                <View style={[s.stationDot, { borderColor: lineColor, backgroundColor: t.card }]}>
+                  {crowdColor && (
+                    <View style={[s.crowdDotInner, { backgroundColor: crowdColor }]} />
+                  )}
+                </View>
+              )}
+              {!isLast && (
+                <View style={[s.lineSegBottom, { backgroundColor: lineColor }]} />
               )}
             </View>
-            {crowdColor && crowdReport && (
-              <View style={[s.crowdChip, { backgroundColor: `${crowdColor}18` }]}>
-                <View style={[s.crowdChipDot, { backgroundColor: crowdColor }]} />
-                <Text style={[s.crowdChipText, { color: crowdColor }]}>
-                  {CROWD_LABELS[crowdReport.crowd_level as CrowdLevel]}
+
+            {/* Station info */}
+            <View style={s.stationInfo}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.stationName, isTerminal && s.stationNameTerminal]}>
+                  {station.name}
                 </Text>
+                {isFirst && (
+                  <Text style={s.stationHint}>Origin</Text>
+                )}
+                {isLast && (
+                  <Text style={s.stationHint}>Terminus</Text>
+                )}
               </View>
-            )}
-          </View>
+              {crowdColor && crowdReport && (
+                <View style={[s.crowdChip, { backgroundColor: `${crowdColor}18` }]}>
+                  <View style={[s.crowdChipDot, { backgroundColor: crowdColor }]} />
+                  <Text style={[s.crowdChipText, { color: crowdColor }]}>
+                    {CROWD_LABELS[crowdReport.crowd_level as CrowdLevel]}
+                  </Text>
+                </View>
+              )}
+              <ChevronDown
+                size={14}
+                color={t.textTertiary}
+                style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Expanded reports */}
+          {isExpanded && (
+            <View style={s.expandedSection}>
+              {stationReports.length > 0 ? (
+                stationReports.slice(0, 5).map((report) => {
+                  const config = REPORT_CONFIG[report.report_type] || REPORT_CONFIG.schedule
+                  let detail = ''
+                  if (report.report_type === 'crowd' && report.crowd_level) {
+                    detail = `${CROWD_EMOJI[report.crowd_level as CrowdLevel] || ''} ${CROWD_LABELS[report.crowd_level as CrowdLevel] || report.crowd_level}`
+                  } else if (report.report_type === 'delay' && report.delay_mins) {
+                    detail = `${report.delay_mins} min late`
+                  } else if (report.report_type === 'schedule' && report.direction) {
+                    detail = report.direction === 'inbound' ? '→ Accra' : '→ Tema'
+                  }
+                  return (
+                    <View key={report.id} style={s.expandedReport}>
+                      <View style={[s.expandedReportDot, { backgroundColor: config.color }]} />
+                      <Text style={s.expandedReportLabel}>{config.label}</Text>
+                      {detail ? (
+                        <Text style={[s.expandedReportDetail, { color: config.color }]}>{detail}</Text>
+                      ) : null}
+                      <Text style={s.expandedReportTime}>{timeAgo(report.reported_at)}</Text>
+                    </View>
+                  )
+                })
+              ) : (
+                <Text style={s.expandedEmpty}>No reports for this station yet</Text>
+              )}
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/report/train',
+                    params: { lineId: line!.id, stationId: station.id },
+                  })
+                }
+                activeOpacity={0.8}
+                style={[s.expandedAddBtn, { backgroundColor: `${lineColor}15` }]}
+              >
+                <Plus size={12} color={lineColor} />
+                <Text style={[s.expandedAddText, { color: lineColor }]}>Add Report</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )
     },
-    [stations, lineColor, stationCrowdMap, isDark, s, t]
+    [stations, lineColor, stationCrowdMap, stationReportsMap, expandedStation, isDark, s, t, line, router]
   )
 
   if (isLoading) {
@@ -596,6 +662,7 @@ const getStyles = (isDark: boolean) => {
     connector: {
       width: 48,
       alignItems: 'center',
+      justifyContent: 'center',
       alignSelf: 'stretch',
       position: 'relative',
     },
@@ -661,6 +728,38 @@ const getStyles = (isDark: boolean) => {
     },
     crowdChipDot: { width: 6, height: 6, borderRadius: 3 },
     crowdChipText: { fontSize: 11, fontFamily: font.semibold },
+
+    // ── Expanded Station ──
+    expandedSection: {
+      marginLeft: 48,
+      marginRight: 16,
+      paddingLeft: 12,
+      paddingBottom: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: t.border,
+    },
+    expandedReport: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 6,
+    },
+    expandedReportDot: { width: 6, height: 6, borderRadius: 3 },
+    expandedReportLabel: { fontFamily: font.medium, fontSize: 12, color: t.textSecondary },
+    expandedReportDetail: { fontFamily: font.semibold, fontSize: 11 },
+    expandedReportTime: { fontFamily: font.regular, fontSize: 10, color: t.textTertiary, marginLeft: 'auto' },
+    expandedEmpty: { fontFamily: font.regular, fontSize: 12, color: t.textTertiary, paddingVertical: 8 },
+    expandedAddBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      marginTop: 6,
+    },
+    expandedAddText: { fontFamily: font.semibold, fontSize: 11 },
 
     // ── Schedule Timetable ──
     schedDaysBadge: {
