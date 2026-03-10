@@ -20,6 +20,7 @@ import { Camera, Image as ImageIcon, MapPin, X, Send, Plus } from 'lucide-react-
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useSubmitTale } from '@/lib/hooks/useTales'
 
 const MAX_IMAGES = 10
@@ -39,6 +40,7 @@ export default function TrotroTalesPostScreen() {
 
   const { deviceId, profile, setLastReward, refreshProfile } = useApp()
   const haptics = useHaptics()
+  const { maybePromptReview } = useStoreReview()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
 
   const [imageUris, setImageUris] = useState<string[]>([])
@@ -116,6 +118,7 @@ export default function TrotroTalesPostScreen() {
       haptics.success()
       setLastReward(reward)
       refreshProfile()
+      await maybePromptReview()
       Alert.alert(
         'Tale Posted! +' + reward.points_awarded + ' pts',
         'Your Trotro Tale has been shared with the community.',

@@ -18,6 +18,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import type { TransportType } from '@/lib/types'
 
 export default function FareReportScreen() {
@@ -30,6 +31,7 @@ export default function FareReportScreen() {
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
+  const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitFareReport(deviceId)
 
   const [from, setFrom] = useState('')
@@ -57,6 +59,7 @@ export default function FareReportScreen() {
       haptics.success()
       await refreshProfile()
       setLastReward(reward)
+      await maybePromptReview()
       router.back()
     } else {
       Alert.alert('Error', `Failed to submit report. ${errorMsg || 'Please try again.'}`)

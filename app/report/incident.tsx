@@ -24,6 +24,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useSubmitIncidentReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useStoreReview } from '@/lib/hooks/useStoreReview'
 
 const LOCATIONS = [
   { name: 'Circle', area: 'Accra' },
@@ -87,6 +88,7 @@ export default function IncidentReportScreen() {
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
+  const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitIncidentReport(deviceId)
 
   const [step, setStep] = useState(1)
@@ -116,6 +118,7 @@ export default function IncidentReportScreen() {
       haptics.success()
       await refreshProfile()
       setLastReward(result)
+      await maybePromptReview()
       router.back()
     } else {
       Alert.alert('Error', 'Failed to submit report. Please try again.')

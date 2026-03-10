@@ -31,6 +31,7 @@ import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useSubmitTrainReport } from '@/lib/hooks/useTrain'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { fetchTrainLineDetail } from '@/lib/services/train'
 import type { TrainStation, TrainLine } from '@/lib/types'
 
@@ -61,6 +62,7 @@ export default function TrainReportScreen() {
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
+  const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitTrainReport(deviceId)
   const { lines, isLoading: linesLoading } = useTrainLines()
 
@@ -122,6 +124,7 @@ export default function TrainReportScreen() {
       haptics.success()
       await refreshProfile()
       setLastReward(result)
+      await maybePromptReview()
       router.back()
     } else {
       Alert.alert('Error', 'Failed to submit report. Please try again.')

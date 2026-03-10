@@ -17,6 +17,7 @@ import { useSubmitQueueReport } from '@/lib/hooks/useReports'
 import { useStations } from '@/lib/hooks/useStations'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useStoreReview } from '@/lib/hooks/useStoreReview'
 
 const QUEUE_LEVELS = [
   { id: 'empty', label: 'Empty', emoji: '😊', description: 'No queue, board immediately', color: c.emerald500 },
@@ -42,6 +43,7 @@ export default function QueueReportScreen() {
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
+  const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
   const { stations } = useStations()
 
@@ -88,6 +90,7 @@ export default function QueueReportScreen() {
       haptics.success()
       await refreshProfile()
       setLastReward(result)
+      await maybePromptReview()
       router.back()
     } else {
       Alert.alert('Error', 'Failed to submit report. Please try again.')
