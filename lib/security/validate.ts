@@ -151,13 +151,13 @@ export type TripStatus = (typeof TRIP_STATUSES)[number]
 export const DRIVER_ROLES = ['driver', 'mate'] as const
 export type DriverRole = (typeof DRIVER_ROLES)[number]
 
-export const TRAIN_REPORT_TYPES = ['arrival', 'departure', 'delay', 'status', 'fare'] as const
+export const TRAIN_REPORT_TYPES = ['schedule', 'crowd', 'delay'] as const
 export type TrainReportType = (typeof TRAIN_REPORT_TYPES)[number]
 
-export const TRAIN_DIRECTIONS = ['northbound', 'southbound', 'eastbound', 'westbound'] as const
+export const TRAIN_DIRECTIONS = ['inbound', 'outbound'] as const
 export type TrainDirection = (typeof TRAIN_DIRECTIONS)[number]
 
-export const CROWD_LEVELS = ['empty', 'light', 'moderate', 'crowded', 'packed'] as const
+export const CROWD_LEVELS = ['empty', 'few_seats', 'standing', 'packed'] as const
 export type CrowdLevel = (typeof CROWD_LEVELS)[number]
 
 export const TALE_POST_TYPES = ['tale', 'queue_update', 'fare_receipt', 'station_photo'] as const

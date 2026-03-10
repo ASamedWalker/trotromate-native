@@ -15,7 +15,6 @@ import {
   TrainFront,
   Clock,
   Users,
-  Coins,
   Timer,
   Plus,
   BarChart3,
@@ -56,7 +55,6 @@ const CROWD_EMOJI: Record<CrowdLevel, string> = {
 const REPORT_CONFIG: Record<string, { Icon: typeof Clock; label: string; color: string }> = {
   schedule: { Icon: Clock, label: 'Train Spotted', color: '#0ea5e9' },
   crowd: { Icon: Users, label: 'Crowd Report', color: '#8b5cf6' },
-  fare: { Icon: Coins, label: 'Fare Report', color: '#f59e0b' },
   delay: { Icon: Timer, label: 'Delay Report', color: '#ef4444' },
 }
 
@@ -76,12 +74,6 @@ export default function LineDetailScreen() {
   const liveStats = useMemo(() => {
     if (!recentReports.length) return null
 
-    const fareReports = recentReports.filter((r) => r.report_type === 'fare' && r.reported_fare)
-    const avgFare =
-      fareReports.length > 0
-        ? fareReports.reduce((sum, r) => sum + (r.reported_fare || 0), 0) / fareReports.length
-        : null
-
     const delayReports = recentReports.filter((r) => r.report_type === 'delay' && r.delay_mins)
     const avgDelay =
       delayReports.length > 0
@@ -91,7 +83,7 @@ export default function LineDetailScreen() {
     // Latest overall crowd level
     const latestCrowd = recentReports.find((r) => r.report_type === 'crowd' && r.crowd_level)
 
-    return { avgFare, avgDelay, latestCrowd, totalReports: recentReports.length }
+    return { avgDelay, latestCrowd, totalReports: recentReports.length }
   }, [recentReports])
 
   // Get latest crowd level per station
@@ -113,8 +105,6 @@ export default function LineDetailScreen() {
       let detail = ''
       if (report.report_type === 'crowd' && report.crowd_level) {
         detail = `${CROWD_EMOJI[report.crowd_level as CrowdLevel] || ''} ${CROWD_LABELS[report.crowd_level as CrowdLevel] || report.crowd_level}`
-      } else if (report.report_type === 'fare' && report.reported_fare) {
-        detail = `₵${report.reported_fare.toFixed(2)}`
       } else if (report.report_type === 'delay' && report.delay_mins) {
         detail = `${report.delay_mins} min late`
       } else if (report.report_type === 'schedule' && report.direction) {
@@ -287,7 +277,7 @@ export default function LineDetailScreen() {
         </View>
 
         {/* ─── Live Stats Row ──────────────────────────────── */}
-        {liveStats && (liveStats.avgFare || liveStats.avgDelay || liveStats.latestCrowd) && (
+        {liveStats && (liveStats.avgDelay || liveStats.latestCrowd) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -305,15 +295,6 @@ export default function LineDetailScreen() {
                   {CROWD_LABELS[liveStats.latestCrowd.crowd_level as CrowdLevel]}
                 </Text>
                 <Text style={s.statLabel}>Live Crowd</Text>
-              </View>
-            )}
-            {liveStats.avgFare && (
-              <View style={s.statCard}>
-                <View style={[s.statIconBox, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
-                  <Coins size={18} color="#f59e0b" />
-                </View>
-                <Text style={s.statValue}>₵{liveStats.avgFare.toFixed(2)}</Text>
-                <Text style={s.statLabel}>Avg Fare</Text>
               </View>
             )}
             {liveStats.avgDelay !== null && (
@@ -447,7 +428,7 @@ export default function LineDetailScreen() {
               <TrainFront size={32} color={t.textTertiary} />
               <Text style={s.emptyCardTitle}>No reports yet</Text>
               <Text style={s.emptyCardText}>
-                Be the first to share schedule, crowding, or fare info
+                Be the first to share schedule, crowding, or delay info
               </Text>
               <TouchableOpacity
                 onPress={() =>

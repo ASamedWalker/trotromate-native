@@ -16,7 +16,6 @@ import {
   TrainFront,
   Clock,
   Users,
-  Coins,
   Timer,
   Check,
   ChevronRight,
@@ -47,7 +46,6 @@ const CROWD_LEVELS = [
 const REPORT_TYPES = [
   { id: 'schedule', label: 'Train Spotted', description: 'Train just arrived or left', Icon: Clock, color: SKY },
   { id: 'crowd', label: 'How Full?', description: 'Report crowding level', Icon: Users, color: '#8b5cf6' },
-  { id: 'fare', label: 'Report Fare', description: 'What did you pay?', Icon: Coins, color: '#f59e0b' },
   { id: 'delay', label: 'Running Late', description: 'Report a delay', Icon: Timer, color: '#ef4444' },
 ]
 
@@ -75,7 +73,6 @@ export default function TrainReportScreen() {
   // Report type-specific fields
   const [direction, setDirection] = useState<string | null>(null)
   const [crowdLevel, setCrowdLevel] = useState<string | null>(null)
-  const [fare, setFare] = useState('')
   const [delayMins, setDelayMins] = useState('')
 
   // Pre-select line if passed via params
@@ -104,14 +101,6 @@ export default function TrainReportScreen() {
       return
     }
 
-    if (reportType === 'fare') {
-      const fareVal = parseFloat(fare)
-      if (isNaN(fareVal) || fareVal <= 0) {
-        Alert.alert('Invalid Fare', 'Please enter a valid fare amount')
-        return
-      }
-    }
-
     if (reportType === 'delay') {
       const delayVal = parseInt(delayMins, 10)
       if (isNaN(delayVal) || delayVal <= 0) {
@@ -126,7 +115,6 @@ export default function TrainReportScreen() {
       reportType,
       direction: direction || undefined,
       crowdLevel: crowdLevel || undefined,
-      reportedFare: reportType === 'fare' ? parseFloat(fare) : undefined,
       delayMins: reportType === 'delay' ? parseInt(delayMins, 10) : undefined,
     })
 
@@ -473,52 +461,6 @@ export default function TrainReportScreen() {
                       </TouchableOpacity>
                     )
                   })}
-                </View>
-              </View>
-            )}
-
-            {reportType === 'fare' && (
-              <View style={s.detailSection}>
-                <Text style={s.detailLabel}>Fare Amount (GH₵)</Text>
-                <View style={s.fareCard}>
-                  <View style={s.fareInputRow}>
-                    <View style={s.cediBox}>
-                      <Text style={s.cediSign}>₵</Text>
-                    </View>
-                    <TextInput
-                      value={fare}
-                      onChangeText={setFare}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={t.textTertiary}
-                      style={s.fareInput}
-                    />
-                  </View>
-                  <View style={s.fareQuickRow}>
-                    {['1.00', '2.00', '3.00', '5.00'].map((amount) => {
-                      const isActive = fare === amount
-                      return (
-                        <TouchableOpacity
-                          key={amount}
-                          onPress={() => setFare(amount)}
-                          activeOpacity={0.7}
-                          style={[
-                            s.fareChip,
-                            isActive && { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              s.fareChipText,
-                              isActive && { color: c.white },
-                            ]}
-                          >
-                            ₵{amount}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </View>
                 </View>
               </View>
             )}
@@ -965,59 +907,6 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-
-    // ── Fare Input ──
-    fareCard: {
-      backgroundColor: t.card,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: t.border,
-    },
-    fareInputRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: t.cardAlt,
-      borderRadius: 14,
-      paddingRight: 16,
-      marginBottom: 14,
-    },
-    cediBox: {
-      width: 48,
-      height: 52,
-      backgroundColor: '#f59e0b',
-      borderTopLeftRadius: 14,
-      borderBottomLeftRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cediSign: { color: c.white, fontFamily: font.bold, fontSize: 20 },
-    fareInput: {
-      flex: 1,
-      marginLeft: 14,
-      fontSize: 22,
-      fontFamily: font.bold,
-      color: t.text,
-      paddingVertical: 12,
-    },
-    fareQuickRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    fareChip: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: t.border,
-      backgroundColor: t.cardAlt,
-      alignItems: 'center',
-    },
-    fareChipText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: isDark ? c.stone300 : c.stone600,
     },
 
     // ── Delay Input ──
