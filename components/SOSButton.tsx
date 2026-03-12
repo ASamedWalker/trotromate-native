@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   Modal,
   Linking,
@@ -66,7 +67,10 @@ export function SOSButton({ from, to }: { from?: string; to?: string }) {
       </TouchableOpacity>
 
       <Modal visible={showSetup} transparent animationType="slide">
-        <View style={s.overlay}>
+        <View style={s.container}>
+          <TouchableWithoutFeedback onPress={() => setShowSetup(false)}>
+            <View style={s.overlay} />
+          </TouchableWithoutFeedback>
           <View style={s.modal}>
             <View style={s.modalHeader}>
               <View style={s.modalIcon}>
@@ -133,9 +137,12 @@ const getStyles = (isDark: boolean) => {
       color: '#ef4444',
     },
 
-    overlay: {
+    container: {
       flex: 1,
       justifyContent: 'flex-end',
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.4)',
     },
     modal: {

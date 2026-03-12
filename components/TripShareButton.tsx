@@ -26,7 +26,7 @@ export function TripShareButton({ routeId, from, to, estimatedMins }: TripShareB
       const trip = await createTripShare(deviceId, from, to, routeId, estimatedMins)
       if (!trip) throw new Error('Failed')
 
-      const shareUrl = `https://troski.app/share/${trip.share_token}`
+      const shareUrl = `https://www.troski.me/share/${trip.share_token}`
       const message = `I'm taking a trotro from ${from} to ${to}. Track my trip: ${shareUrl}`
 
       await Share.share({ message, title: 'My Troski Trip' })
