@@ -21,7 +21,10 @@ import {
   Sun,
   Moon,
   Smartphone,
+  Camera,
+  Globe,
 } from 'lucide-react-native'
+import { Linking } from 'react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { Appearance } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -221,6 +224,32 @@ export default function SettingsScreen() {
             <TouchableOpacity onPress={handleClearData} activeOpacity={0.7} style={s.linkRow}>
               <Trash2 size={18} color={c.red500} />
               <Text style={[s.linkLabel, { color: c.red500 }]}>Clear Local Data</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Follow Us */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Follow Us</Text>
+          <View style={s.card}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://www.instagram.com/troski.app/')}
+              activeOpacity={0.7}
+              style={s.linkRow}
+            >
+              <Camera size={18} color="#E4405F" />
+              <Text style={s.linkLabel}>Instagram</Text>
+              <ChevronRight size={18} color={t.textTertiary} />
+            </TouchableOpacity>
+            <View style={s.divider} />
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://www.facebook.com/troski.me')}
+              activeOpacity={0.7}
+              style={s.linkRow}
+            >
+              <Globe size={18} color="#1877F2" />
+              <Text style={s.linkLabel}>Facebook</Text>
+              <ChevronRight size={18} color={t.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
