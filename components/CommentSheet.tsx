@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -12,13 +12,13 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
-import { X, Send } from 'lucide-react-native'
+import { X, Send, CornerDownRight } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useComments } from '@/lib/hooks/useComments'
 import { useApp } from '@/lib/contexts/AppContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { timeAgo } from '@/lib/utils/time'
-import type { TaleComment } from '@/lib/services/comments'
+import type { TaleComment } from '@/lib/types'
 
 interface CommentSheetProps {
   postId: string | null
@@ -33,34 +33,100 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
   const s = getStyles(isDark)
 
   const { deviceId, profile } = useApp()
-  const { comments, isLoading, isPosting, addComment } = useComments(postId, deviceId)
+  const {
+    comments, repliesMap, isLoading, isPosting,
+    loadingReplies, addComment, loadReplies,
+  } = useComments(postId, deviceId)
+
   const [text, setText] = useState('')
+  const [replyTarget, setReplyTarget] = useState<TaleComment | null>(null)
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
 
   const handleSend = async () => {
     if (!text.trim()) return
-    const success = await addComment(text.trim(), profile?.display_name ?? null)
-    if (success) setText('')
+    const success = await addComment(
+      text.trim(),
+      profile?.display_name ?? null,
+      replyTarget?.id ?? null
+    )
+    if (success) {
+      setText('')
+      // Auto-expand replies for the parent we just replied to
+      if (replyTarget) {
+        setExpandedReplies((prev) => new Set(prev).add(replyTarget.id))
+      }
+      setReplyTarget(null)
+    }
   }
+
+  const handleReply = useCallback((comment: TaleComment) => {
+    setReplyTarget(comment)
+  }, [])
+
+  const toggleReplies = useCallback((commentId: string, replyCount: number) => {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev)
+      if (next.has(commentId)) {
+        next.delete(commentId)
+      } else {
+        next.add(commentId)
+        // Fetch replies if not already loaded
+        if (!repliesMap.has(commentId) && replyCount > 0) {
+          loadReplies(commentId)
+        }
+      }
+      return next
+    })
+  }, [repliesMap, loadReplies])
 
   const renderComment = ({ item }: { item: TaleComment }) => {
     const isOwn = item.device_id === deviceId
+    const isExpanded = expandedReplies.has(item.id)
+    const replies = repliesMap.get(item.id) || []
+    const isLoadingReplies = loadingReplies.has(item.id)
+
     return (
-      <View style={s.commentRow}>
-        <InitialsAvatar
-          name={item.display_name}
-          deviceId={item.device_id}
-          size={32}
+      <View>
+        {/* Parent comment */}
+        <CommentRow
+          comment={item}
+          isOwn={isOwn}
+          onReply={() => handleReply(item)}
+          styles={s}
         />
-        <View style={s.commentContent}>
-          <View style={s.commentHeader}>
-            <Text style={s.commentName}>
-              {item.display_name ?? `User-${item.device_id.slice(-4).toUpperCase()}`}
+
+        {/* Reply count toggle */}
+        {item.reply_count > 0 && (
+          <TouchableOpacity
+            onPress={() => toggleReplies(item.id, item.reply_count)}
+            style={s.repliesToggle}
+            activeOpacity={0.7}
+          >
+            <CornerDownRight size={14} color={c.amber500} />
+            <Text style={s.repliesToggleText}>
+              {isExpanded ? 'Hide' : 'View'} {item.reply_count} repl{item.reply_count === 1 ? 'y' : 'ies'}
             </Text>
-            {isOwn && <Text style={s.youBadge}>You</Text>}
-            <Text style={s.commentTime}>{timeAgo(item.created_at)}</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Expanded replies */}
+        {isExpanded && (
+          <View style={s.repliesContainer}>
+            {isLoadingReplies ? (
+              <ActivityIndicator size="small" color={c.amber500} style={{ paddingVertical: 8 }} />
+            ) : (
+              replies.map((reply) => (
+                <CommentRow
+                  key={reply.id}
+                  comment={reply}
+                  isOwn={reply.device_id === deviceId}
+                  styles={s}
+                  isReply
+                />
+              ))
+            )}
           </View>
-          <Text style={s.commentText}>{item.content}</Text>
-        </View>
+        )}
       </View>
     )
   }
@@ -103,6 +169,21 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
             />
           )}
 
+          {/* Reply indicator */}
+          {replyTarget && (
+            <View style={s.replyIndicator}>
+              <Text style={s.replyIndicatorText} numberOfLines={1}>
+                Replying to{' '}
+                <Text style={s.replyIndicatorName}>
+                  {replyTarget.display_name ?? `User-${replyTarget.device_id.slice(-4).toUpperCase()}`}
+                </Text>
+              </Text>
+              <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={8}>
+                <X size={16} color={t.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Input */}
           <View style={s.inputRow}>
             <InitialsAvatar
@@ -113,7 +194,7 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
             <TextInput
               value={text}
               onChangeText={(val) => setText(val.slice(0, 280))}
-              placeholder="Add a comment..."
+              placeholder={replyTarget ? 'Write a reply...' : 'Add a comment...'}
               placeholderTextColor={t.textSecondary}
               style={s.input}
               multiline
@@ -134,6 +215,47 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
   )
 }
 
+function CommentRow({
+  comment,
+  isOwn,
+  onReply,
+  styles: s,
+  isReply,
+}: {
+  comment: TaleComment
+  isOwn: boolean
+  isDark?: boolean
+  onReply?: () => void
+  styles: ReturnType<typeof getStyles>
+  themed?: ReturnType<typeof themed>
+  isReply?: boolean
+}) {
+  return (
+    <View style={[s.commentRow, isReply && s.replyRow]}>
+      <InitialsAvatar
+        name={comment.display_name}
+        deviceId={comment.device_id}
+        size={isReply ? 26 : 32}
+      />
+      <View style={s.commentContent}>
+        <View style={s.commentHeader}>
+          <Text style={[s.commentName, isReply && s.commentNameSmall]}>
+            {comment.display_name ?? `User-${comment.device_id.slice(-4).toUpperCase()}`}
+          </Text>
+          {isOwn && <Text style={s.youBadge}>You</Text>}
+          <Text style={s.commentTime}>{timeAgo(comment.created_at)}</Text>
+        </View>
+        <Text style={[s.commentText, isReply && s.commentTextSmall]}>{comment.content}</Text>
+        {onReply && !isReply && (
+          <TouchableOpacity onPress={onReply} activeOpacity={0.7} style={s.replyBtn}>
+            <Text style={s.replyBtnText}>Reply</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  )
+}
+
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
@@ -143,7 +265,7 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: t.card,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      maxHeight: '70%',
+      maxHeight: '75%',
       minHeight: 300,
       paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     },
@@ -182,14 +304,21 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 40,
     },
     emptyText: { color: t.textSecondary, fontSize: 14 },
+
+    // Comment rows
     commentRow: {
       flexDirection: 'row',
-      marginBottom: 16,
+      marginBottom: 14,
       alignItems: 'flex-start',
+    },
+    replyRow: {
+      marginBottom: 10,
+      marginLeft: 8,
     },
     commentContent: { flex: 1, marginLeft: 10 },
     commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     commentName: { fontFamily: font.semibold, fontSize: 13, color: t.text },
+    commentNameSmall: { fontSize: 12 },
     youBadge: {
       fontSize: 10,
       fontFamily: font.semibold,
@@ -201,6 +330,54 @@ const getStyles = (isDark: boolean) => {
     },
     commentTime: { fontSize: 11, color: t.textTertiary },
     commentText: { fontSize: 14, color: t.text, marginTop: 2, lineHeight: 20 },
+    commentTextSmall: { fontSize: 13, lineHeight: 18 },
+
+    // Reply button
+    replyBtn: { marginTop: 4 },
+    replyBtnText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.textTertiary,
+    },
+
+    // Replies toggle
+    repliesToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginLeft: 42,
+      marginBottom: 10,
+    },
+    repliesToggleText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: c.amber500,
+    },
+
+    // Replies container
+    repliesContainer: {
+      marginLeft: 42,
+      borderLeftWidth: 2,
+      borderLeftColor: isDark ? 'rgba(245,158,11,0.2)' : c.amber100,
+      paddingLeft: 12,
+      marginBottom: 6,
+    },
+
+    // Reply indicator
+    replyIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : c.amber50,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    replyIndicatorText: { fontSize: 13, color: t.textSecondary },
+    replyIndicatorName: { fontFamily: font.semibold, color: c.amber500 },
+
+    // Input
     inputRow: {
       flexDirection: 'row',
       alignItems: 'center',

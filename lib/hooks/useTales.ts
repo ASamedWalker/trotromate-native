@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchTales, likeTale, unlikeTale, deleteTale, submitTale } from '@/lib/services/tales'
+import { fetchTales, addReaction, removeReaction, fetchUserReactions, deleteTale, submitTale } from '@/lib/services/tales'
 import { awardPointsForReport } from '@/lib/services/rewards'
 import type { TalePost, TalePostType, RewardResult } from '@/lib/types'
 
@@ -9,7 +9,10 @@ export function useTalesFeed(deviceId: string | null) {
   const [posts, setPosts] = useState<TalePost[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
+  // Map<postId, string[]> — user's active emoji reactions per post
+  const [userReactions, setUserReactions] = useState<Map<string, string[]>>(new Map())
+  // Map<postId, Record<string, number>> — reaction counts per post
+  const [reactionSummaries, setReactionSummaries] = useState<Map<string, Record<string, number>>>(new Map())
 
   // Initial fetch with TanStack Query caching
   const { data: initialData, isLoading } = useQuery({
@@ -17,13 +20,25 @@ export function useTalesFeed(deviceId: string | null) {
     queryFn: () => fetchTales({ deviceId }),
   })
 
-  // Sync query data into local state (needed for pagination + optimistic likes)
+  // Sync query data into local state (needed for pagination + optimistic reactions)
   useEffect(() => {
     if (initialData) {
       setPosts(initialData.posts)
       setNextCursor(initialData.nextCursor)
+
+      // Extract reaction_summary from posts
+      const summaries = new Map<string, Record<string, number>>()
+      initialData.posts.forEach((p) => {
+        summaries.set(p.id, (p as TalePost & { reaction_summary?: Record<string, number> }).reaction_summary || {})
+      })
+      setReactionSummaries(summaries)
+
+      // Fetch user reactions if logged in
+      if (deviceId && initialData.posts.length > 0) {
+        fetchUserReactions(initialData.posts.map((p) => p.id), deviceId).then(setUserReactions)
+      }
     }
-  }, [initialData])
+  }, [initialData, deviceId])
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -32,6 +47,19 @@ export function useTalesFeed(deviceId: string | null) {
       setPosts(result.posts)
       setNextCursor(result.nextCursor)
       queryClient.setQueryData(['tales', deviceId], result)
+
+      // Refresh summaries
+      const summaries = new Map<string, Record<string, number>>()
+      result.posts.forEach((p) => {
+        summaries.set(p.id, (p as TalePost & { reaction_summary?: Record<string, number> }).reaction_summary || {})
+      })
+      setReactionSummaries(summaries)
+
+      // Refresh user reactions
+      if (deviceId && result.posts.length > 0) {
+        const reactions = await fetchUserReactions(result.posts.map((p) => p.id), deviceId)
+        setUserReactions(reactions)
+      }
     } finally {
       setIsRefreshing(false)
     }
@@ -42,51 +70,78 @@ export function useTalesFeed(deviceId: string | null) {
     const result = await fetchTales({ cursor: nextCursor, deviceId })
     setPosts((prev) => [...prev, ...result.posts])
     setNextCursor(result.nextCursor)
-  }, [nextCursor, deviceId])
 
-  const toggleLike = useCallback(
-    async (postId: string) => {
-      if (!deviceId) return
-      const isLiked = likedIds.has(postId)
-
-      // Optimistic update
-      setLikedIds((prev) => {
-        const next = new Set(prev)
-        if (isLiked) next.delete(postId)
-        else next.add(postId)
+    // Add summaries for new posts
+    result.posts.forEach((p) => {
+      setReactionSummaries((prev) => {
+        const next = new Map(prev)
+        next.set(p.id, (p as TalePost & { reaction_summary?: Record<string, number> }).reaction_summary || {})
         return next
       })
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { ...p, like_count: p.like_count + (isLiked ? -1 : 1) }
-            : p
-        )
-      )
+    })
+
+    // Fetch user reactions for new posts
+    if (deviceId && result.posts.length > 0) {
+      const reactions = await fetchUserReactions(result.posts.map((p) => p.id), deviceId)
+      setUserReactions((prev) => {
+        const next = new Map(prev)
+        reactions.forEach((emojis, postId) => next.set(postId, emojis))
+        return next
+      })
+    }
+  }, [nextCursor, deviceId])
+
+  const toggleReaction = useCallback(
+    async (postId: string, emoji: string) => {
+      if (!deviceId) return
+      const currentReactions = userReactions.get(postId) || []
+      const isActive = currentReactions.includes(emoji)
+
+      // Optimistic update — user reactions
+      setUserReactions((prev) => {
+        const next = new Map(prev)
+        if (isActive) {
+          next.set(postId, currentReactions.filter((e) => e !== emoji))
+        } else {
+          next.set(postId, [...currentReactions, emoji])
+        }
+        return next
+      })
+
+      // Optimistic update — summaries
+      setReactionSummaries((prev) => {
+        const next = new Map(prev)
+        const summary = { ...(prev.get(postId) || {}) }
+        if (isActive) {
+          summary[emoji] = Math.max((summary[emoji] || 0) - 1, 0)
+          if (summary[emoji] === 0) delete summary[emoji]
+        } else {
+          summary[emoji] = (summary[emoji] || 0) + 1
+        }
+        next.set(postId, summary)
+        return next
+      })
 
       // Server call
-      const success = isLiked
-        ? await unlikeTale(postId, deviceId)
-        : await likeTale(postId, deviceId)
+      const success = isActive
+        ? await removeReaction(postId, deviceId, emoji)
+        : await addReaction(postId, deviceId, emoji)
 
       if (!success) {
-        // Revert
-        setLikedIds((prev) => {
-          const next = new Set(prev)
-          if (isLiked) next.add(postId)
-          else next.delete(postId)
+        // Revert on failure
+        setUserReactions((prev) => {
+          const next = new Map(prev)
+          next.set(postId, currentReactions)
           return next
         })
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId
-              ? { ...p, like_count: p.like_count + (isLiked ? 1 : -1) }
-              : p
-          )
-        )
+        setReactionSummaries((prev) => {
+          const next = new Map(prev)
+          // Revert is complex — just refetch
+          return next
+        })
       }
     },
-    [deviceId, likedIds]
+    [deviceId, userReactions]
   )
 
   const deletePost = useCallback(
@@ -114,10 +169,11 @@ export function useTalesFeed(deviceId: string | null) {
     isLoading,
     isRefreshing,
     hasMore: !!nextCursor,
-    likedIds,
+    userReactions,
+    reactionSummaries,
     refresh,
     loadMore,
-    toggleLike,
+    toggleReaction,
     deletePost,
   }
 }

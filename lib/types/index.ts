@@ -238,4 +238,21 @@ export interface TalePost {
 export interface TalePostWithMeta extends TalePost {
   is_liked: boolean
   is_own: boolean
+  reaction_summary: Record<string, number>
+  user_reactions: string[]
+}
+
+export interface TaleComment {
+  id: string
+  post_id: string
+  device_id: string
+  display_name: string | null
+  content: string
+  created_at: string
+  parent_comment_id: string | null
+  reply_count: number
+}
+
+export interface TaleCommentWithMeta extends TaleComment {
+  is_own: boolean
 }

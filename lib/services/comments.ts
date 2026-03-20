@@ -1,20 +1,17 @@
 import { supabase } from '@/lib/supabase/client'
 import { validateDisplayName, validateComment } from '@/lib/security/validate'
+import type { TaleComment } from '@/lib/types'
 
-export interface TaleComment {
-  id: string
-  post_id: string
-  device_id: string
-  display_name: string | null
-  content: string
-  created_at: string
-}
+export type { TaleComment }
 
+/** Fetch top-level comments (parent_comment_id IS NULL) */
 export async function fetchComments(postId: string): Promise<TaleComment[]> {
   const { data, error } = await supabase
     .from('tale_comments')
     .select('*')
     .eq('post_id', postId)
+    .eq('is_hidden', false)
+    .is('parent_comment_id', null)
     .order('created_at', { ascending: true })
     .limit(50)
 
@@ -26,11 +23,31 @@ export async function fetchComments(postId: string): Promise<TaleComment[]> {
   return (data ?? []) as TaleComment[]
 }
 
+/** Fetch replies for a specific parent comment */
+export async function fetchReplies(postId: string, parentId: string): Promise<TaleComment[]> {
+  const { data, error } = await supabase
+    .from('tale_comments')
+    .select('*')
+    .eq('post_id', postId)
+    .eq('parent_comment_id', parentId)
+    .eq('is_hidden', false)
+    .order('created_at', { ascending: true })
+    .limit(50)
+
+  if (error) {
+    console.error('Error fetching replies:', error)
+    return []
+  }
+
+  return (data ?? []) as TaleComment[]
+}
+
 export async function postComment(params: {
   postId: string
   deviceId: string
   displayName: string | null
   content: string
+  parentCommentId?: string | null
 }): Promise<TaleComment | null> {
   const { postId, deviceId } = params
 
@@ -45,6 +62,7 @@ export async function postComment(params: {
       device_id: deviceId,
       display_name: displayName,
       content,
+      parent_comment_id: params.parentCommentId || null,
     })
     .select()
     .single()

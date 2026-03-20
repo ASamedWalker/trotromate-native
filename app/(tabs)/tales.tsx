@@ -14,13 +14,14 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Heart, MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
+import { MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
 import { timeAgo } from '@/lib/utils/time'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import CommentSheet from '@/components/CommentSheet'
+import ReactionBar from '@/components/ReactionBar'
 import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -35,9 +36,10 @@ function getDisplayName(post: TalePost): string {
 function TaleCard({
   post,
   isDark,
-  isLiked,
+  reactionSummary,
+  userReactions,
   isOwn,
-  onLike,
+  onReact,
   onComment,
   onDelete,
   onReport,
@@ -45,9 +47,10 @@ function TaleCard({
 }: {
   post: TalePost
   isDark: boolean
-  isLiked: boolean
+  reactionSummary: Record<string, number>
+  userReactions: string[]
   isOwn: boolean
-  onLike: () => void
+  onReact: (emoji: string) => void
   onComment: () => void
   onDelete?: () => void
   onReport: () => void
@@ -151,21 +154,20 @@ function TaleCard({
         />
       ) : null}
 
-      {/* Actions */}
+      {/* Reactions */}
+      <ReactionBar
+        reactionSummary={reactionSummary}
+        userReactions={userReactions}
+        onReact={onReact}
+      />
+
+      {/* Comment button */}
       <View style={s.actions}>
-        <TouchableOpacity onPress={onLike} style={s.actionBtn} activeOpacity={0.7}>
-          <Heart
-            size={22}
-            color={isLiked ? c.red500 : t.textSecondary}
-            fill={isLiked ? c.red500 : 'none'}
-          />
-          <Text style={[s.actionCount, isLiked && { color: c.red500 }]}>
-            {post.like_count}
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={onComment} style={s.actionBtn} activeOpacity={0.7}>
           <MessageCircle size={22} color={t.textSecondary} />
-          <Text style={s.actionCount}>{post.comment_count}</Text>
+          <Text style={s.actionCount}>
+            {post.comment_count} comment{post.comment_count !== 1 ? 's' : ''}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -197,16 +199,19 @@ export default function TalesScreen() {
   const t = themed(isDark)
 
   const { deviceId } = useApp()
-  const { posts, isLoading, isRefreshing, hasMore, likedIds, refresh, loadMore, toggleLike, deletePost } =
-    useTalesFeed(deviceId)
+  const {
+    posts, isLoading, isRefreshing, hasMore,
+    userReactions, reactionSummaries,
+    refresh, loadMore, toggleReaction, deletePost,
+  } = useTalesFeed(deviceId)
   useRefreshOnFocus([['tales', deviceId]])
   const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
 
-  const handleLike = (id: string) => {
+  const handleReact = (postId: string, emoji: string) => {
     haptics.light()
-    toggleLike(id)
+    toggleReaction(postId, emoji)
   }
 
   const handleReport = (postId: string) => {
@@ -223,9 +228,10 @@ export default function TalesScreen() {
     <TaleCard
       post={item}
       isDark={isDark}
-      isLiked={likedIds.has(item.id)}
+      reactionSummary={reactionSummaries.get(item.id) || {}}
+      userReactions={userReactions.get(item.id) || []}
       isOwn={item.device_id === deviceId}
-      onLike={() => handleLike(item.id)}
+      onReact={(emoji) => handleReact(item.id, emoji)}
       onComment={() => setCommentPostId(item.id)}
       onDelete={() => deletePost(item.id)}
       onReport={() => handleReport(item.id)}

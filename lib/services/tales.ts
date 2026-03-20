@@ -44,38 +44,73 @@ export async function fetchTales(params: {
   return { posts, nextCursor }
 }
 
-export async function likeTale(postId: string, deviceId: string): Promise<boolean> {
+export async function addReaction(
+  postId: string,
+  deviceId: string,
+  emoji: string
+): Promise<boolean> {
   const { error } = await supabase
-    .from('tale_likes')
-    .insert({ post_id: postId, device_id: deviceId })
+    .from('tale_reactions')
+    .insert({ post_id: postId, device_id: deviceId, emoji })
 
   if (error) {
-    // Unique constraint = already liked
-    if (error.code === '23505') return true
-    console.error('Error liking tale:', error)
+    if (error.code === '23505') return true // Already reacted
+    console.error('Error adding reaction:', error)
     return false
   }
   return true
 }
 
-export async function unlikeTale(postId: string, deviceId: string): Promise<boolean> {
+export async function removeReaction(
+  postId: string,
+  deviceId: string,
+  emoji: string
+): Promise<boolean> {
   const { error } = await supabase
-    .from('tale_likes')
+    .from('tale_reactions')
     .delete()
     .eq('post_id', postId)
     .eq('device_id', deviceId)
+    .eq('emoji', emoji)
 
   if (error) {
-    console.error('Error unliking tale:', error)
+    console.error('Error removing reaction:', error)
     return false
   }
   return true
 }
 
+export async function fetchUserReactions(
+  postIds: string[],
+  deviceId: string
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>()
+  if (postIds.length === 0) return result
+
+  const { data, error } = await supabase
+    .from('tale_reactions')
+    .select('post_id, emoji')
+    .eq('device_id', deviceId)
+    .in('post_id', postIds)
+
+  if (error) {
+    console.error('Error fetching user reactions:', error)
+    return result
+  }
+
+  data?.forEach((r) => {
+    const existing = result.get(r.post_id) || []
+    existing.push(r.emoji)
+    result.set(r.post_id, existing)
+  })
+  return result
+}
+
 export async function deleteTale(postId: string, deviceId: string): Promise<boolean> {
+  // Soft-delete (RLS no longer allows hard DELETE)
   const { error } = await supabase
     .from('tale_posts')
-    .delete()
+    .update({ is_hidden: true })
     .eq('id', postId)
     .eq('device_id', deviceId)
 
