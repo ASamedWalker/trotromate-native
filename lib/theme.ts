@@ -44,8 +44,23 @@ export const font = {
 
 // Glass surface constants
 export const glass = {
-  dark: { background: 'rgba(12,10,9,0.82)', border: 'rgba(255,255,255,0.06)' },
-  light: { background: 'rgba(250,250,249,0.82)', border: 'rgba(0,0,0,0.04)' },
+  dark: {
+    background: 'rgba(12,10,9,0.65)',
+    border: 'rgba(255,255,255,0.08)',
+    tint: 'rgba(12,10,9,0.3)',
+    fallback: '#1c1917',
+  },
+  light: {
+    background: 'rgba(250,250,249,0.55)',
+    border: 'rgba(0,0,0,0.06)',
+    tint: 'rgba(255,255,255,0.25)',
+    fallback: '#ffffff',
+  },
+  blur: {
+    card: 50,
+    nav: 80,
+    sheet: 70,
+  },
 }
 
 // Helper to get theme-aware colors
@@ -53,9 +68,34 @@ export const themed = (isDark: boolean) => ({
   bg: isDark ? c.stone950 : c.stone50,
   card: isDark ? c.stone900 : c.white,
   cardAlt: isDark ? c.stone800 : c.stone100,
-  text: isDark ? c.stone50 : c.stone900,
-  textSecondary: isDark ? c.stone400 : c.stone500,
-  textTertiary: isDark ? c.stone600 : c.stone400,
-  border: isDark ? c.stone800 : c.stone200,
+  text: isDark ? c.white : c.stone950,
+  textSecondary: isDark ? c.stone400 : c.stone600,
+  textTertiary: isDark ? c.stone500 : c.stone400,
+  border: isDark ? c.stone700 : c.stone300,
   primary: c.amber500,
 })
+
+// Shadow presets for card sharpness (TikTok/Instagram-level depth)
+export const shadow = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardStrong: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  float: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+}

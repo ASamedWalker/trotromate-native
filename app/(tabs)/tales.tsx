@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, shadow } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
 import { timeAgo } from '@/lib/utils/time'
@@ -26,6 +26,7 @@ import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
+import VideoPlayer from '@/components/VideoPlayer'
 import type { TalePost } from '@/lib/types'
 
 function getDisplayName(post: TalePost): string {
@@ -39,6 +40,7 @@ function TaleCard({
   reactionSummary,
   userReactions,
   isOwn,
+  isVisible,
   onReact,
   onComment,
   onDelete,
@@ -50,6 +52,7 @@ function TaleCard({
   reactionSummary: Record<string, number>
   userReactions: string[]
   isOwn: boolean
+  isVisible: boolean
   onReact: (emoji: string) => void
   onComment: () => void
   onDelete?: () => void
@@ -146,11 +149,19 @@ function TaleCard({
         </>
       )}
 
-      {/* Image(s) */}
-      {post.image_url ? (
+      {/* Media — video or image(s) */}
+      {post.media_type === 'video' && post.video_url ? (
+        <VideoPlayer
+          uri={post.video_url}
+          thumbnailUri={post.video_thumbnail_url}
+          width={Dimensions.get('window').width - 24}
+          isVisible={isVisible}
+          durationSecs={post.video_duration_secs}
+        />
+      ) : post.image_url ? (
         <ImageCarousel
-          images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url]}
-          width={Dimensions.get('window').width - 32}
+          images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
+          width={Dimensions.get('window').width - 24}
         />
       ) : null}
 
@@ -208,6 +219,13 @@ export default function TalesScreen() {
   const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
+  const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set())
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    setVisiblePostIds(new Set(viewableItems.map((v: any) => v.item.id)))
+  }).current
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current
 
   const handleReact = (postId: string, emoji: string) => {
     haptics.light()
@@ -231,6 +249,7 @@ export default function TalesScreen() {
       reactionSummary={reactionSummaries.get(item.id) || {}}
       userReactions={userReactions.get(item.id) || []}
       isOwn={item.device_id === deviceId}
+      isVisible={visiblePostIds.has(item.id)}
       onReact={(emoji) => handleReact(item.id, emoji)}
       onComment={() => setCommentPostId(item.id)}
       onDelete={() => deletePost(item.id)}
@@ -285,12 +304,14 @@ export default function TalesScreen() {
           }
           onEndReached={hasMore ? loadMore : undefined}
           onEndReachedThreshold={0.5}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           ListFooterComponent={
             hasMore ? (
               <ActivityIndicator size="small" color={c.amber500} style={{ paddingVertical: 20 }} />
             ) : null
           }
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -310,19 +331,22 @@ const cardStyles = (isDark: boolean) => {
   return StyleSheet.create({
     card: {
       backgroundColor: t.card,
-      marginHorizontal: 16,
-      marginBottom: 16,
-      borderRadius: 20,
+      marginHorizontal: 12,
+      marginBottom: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
       overflow: 'hidden',
+      ...shadow.card,
     },
     cardHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 14,
     },
-    name: { fontFamily: font.semibold, fontSize: 14, color: t.text, flexShrink: 1 },
+    name: { fontFamily: font.bold, fontSize: 14, color: t.text, flexShrink: 1 },
     typeEmoji: { fontSize: 14, marginLeft: 6 },
-    location: { fontSize: 12, color: t.textTertiary, marginLeft: 4, flexShrink: 1 },
+    location: { fontSize: 12, color: t.textSecondary, marginLeft: 4, flexShrink: 1 },
     timeText: { fontSize: 12, color: t.textTertiary },
     image: {
       height: (Dimensions.get('window').width - 32) * 3 / 4,
@@ -334,17 +358,17 @@ const cardStyles = (isDark: boolean) => {
       gap: 16,
     },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    actionCount: { fontSize: 14, color: t.textSecondary, fontFamily: font.medium },
+    actionCount: { fontSize: 14, color: t.textSecondary, fontFamily: font.semibold },
     captionRow: {
       flexDirection: 'row',
       paddingHorizontal: 14,
       paddingBottom: 6,
       flexWrap: 'wrap',
     },
-    captionName: { fontFamily: font.semibold, fontSize: 14, color: t.text },
-    captionText: { fontSize: 14, color: t.text },
+    captionName: { fontFamily: font.bold, fontSize: 14, color: t.text },
+    captionText: { fontSize: 14, color: t.text, lineHeight: 20 },
     viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
-    viewCommentsText: { fontSize: 13, color: t.textTertiary },
+    viewCommentsText: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary },
     menuBtn: {
       width: 36,
       height: 36,
@@ -373,16 +397,12 @@ const cardStyles = (isDark: boolean) => {
       top: 54,
       zIndex: 20,
       backgroundColor: isDark ? '#292524' : '#ffffff',
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: isDark ? '#44403c' : '#e7e5e4',
+      borderColor: isDark ? '#44403c' : '#d6d3d1',
       paddingVertical: 4,
       minWidth: 140,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
+      ...shadow.cardStrong,
     },
     menuItem: {
       flexDirection: 'row' as const,

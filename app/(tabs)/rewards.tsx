@@ -24,7 +24,7 @@ import {
   Lock,
 } from 'lucide-react-native'
 import { useRouter, type Href } from 'expo-router'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, shadow } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard, useAllBadges, usePointsHistory } from '@/lib/hooks/useRewards'
 import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
@@ -403,7 +403,8 @@ export default function RewardsScreen() {
             </View>
           )}
         </View>
-        <View style={{ height: 20 }} />
+        {/* Extra padding for absolute tab bar */}
+        <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>
   )
@@ -424,7 +425,7 @@ const getStyles = (isDark: boolean) => {
     },
 
     // Profile card
-    profileCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
+    profileCard: { padding: 20, borderRadius: 24, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, ...shadow.cardStrong },
     profileRow: { flexDirection: 'row', alignItems: 'center' },
     levelCircle: {
       width: 64,
@@ -476,7 +477,7 @@ const getStyles = (isDark: boolean) => {
     tabActive: { backgroundColor: c.amber500 },
     tabText: { fontSize: 13, fontFamily: font.medium, color: isDark ? c.stone400 : c.stone600 },
     tabTextActive: { color: c.white, fontFamily: font.semibold },
-    tabContent: { padding: 16, borderRadius: 20, backgroundColor: t.card },
+    tabContent: { padding: 16, borderRadius: 20, backgroundColor: t.card, borderWidth: 1, borderColor: t.border },
     tabContentTitle: { fontSize: 16, fontFamily: font.semibold, color: t.text, marginBottom: 14 },
 
     // Badges
@@ -598,6 +599,8 @@ const getStyles = (isDark: boolean) => {
       padding: 14,
       borderRadius: 16,
       gap: 8,
+      borderWidth: 1,
+      borderColor: t.border,
     },
     earnToggleText: { flex: 1, fontSize: 15, fontFamily: font.semibold, color: t.text },
     earnCard: {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchTales, addReaction, removeReaction, fetchUserReactions, deleteTale, submitTale } from '@/lib/services/tales'
 import { awardPointsForReport } from '@/lib/services/rewards'
-import type { TalePost, TalePostType, RewardResult } from '@/lib/types'
+import type { TalePost, TalePostType, TaleMediaType, RewardResult } from '@/lib/types'
 
 export function useTalesFeed(deviceId: string | null) {
   const queryClient = useQueryClient()
@@ -190,6 +190,11 @@ export function useSubmitTale(deviceId: string | null) {
       location: string
       displayName: string | null
       postType?: TalePostType
+      mediaType?: TaleMediaType
+      videoUri?: string
+      videoThumbnailUri?: string
+      videoDurationSecs?: number
+      onProgress?: (progress: number) => void
     }): Promise<RewardResult | null> => {
       if (!deviceId) {
         setError('Device not ready')
@@ -205,6 +210,11 @@ export function useSubmitTale(deviceId: string | null) {
           caption: params.caption,
           location: params.location,
           postType: params.postType,
+          mediaType: params.mediaType,
+          videoUri: params.videoUri,
+          videoThumbnailUri: params.videoThumbnailUri,
+          videoDurationSecs: params.videoDurationSecs,
+          onProgress: params.onProgress,
         })
         if (!result) {
           setError('Failed to post tale')

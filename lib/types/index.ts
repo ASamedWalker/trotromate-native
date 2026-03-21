@@ -219,12 +219,14 @@ export interface IncidentReport {
 
 export type TalePostType = 'trip' | 'queue' | 'tale'
 
+export type TaleMediaType = 'image' | 'video'
+
 export interface TalePost {
   id: string
   device_id: string
   display_name: string | null
   is_anonymous: boolean
-  image_url: string
+  image_url: string | null
   image_urls: string[] | null
   caption: string | null
   post_type: TalePostType
@@ -233,6 +235,10 @@ export interface TalePost {
   comment_count: number
   created_at: string
   is_hidden: boolean
+  media_type: TaleMediaType
+  video_url: string | null
+  video_thumbnail_url: string | null
+  video_duration_secs: number | null
 }
 
 export interface TalePostWithMeta extends TalePost {

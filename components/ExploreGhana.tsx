@@ -203,11 +203,10 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      backgroundColor: 'rgba(0,0,0,0.35)',
       paddingHorizontal: 10,
       paddingVertical: 5,
+      backgroundColor: 'rgba(0,0,0,0.45)',
       borderRadius: 20,
-      backdropFilter: 'blur(8)',
     },
     badgeText: {
       fontSize: 11,

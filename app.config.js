@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "Troski",
     slug: "troski",
-    version: "1.0.0",
+    version: "1.1.0",
     description: "Know your trotro fare, beat the queue. Community-powered transit updates for Ghana.",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -34,7 +34,6 @@ export default {
       ],
       blockedPermissions: [
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
       ],
     },
     web: {
@@ -75,6 +74,7 @@ export default {
           RNMapboxMapsDownloadToken: process.env.MAPBOX_SECRET_TOKEN || "MAPBOX_SECRET_TOKEN",
         },
       ],
+      "expo-video",
     ],
     experiments: {
       typedRoutes: true,

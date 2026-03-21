@@ -26,7 +26,7 @@ import {
   Calendar,
   ChevronDown,
 } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, shadow } from '@/lib/theme'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
@@ -779,6 +779,7 @@ const getStyles = (isDark: boolean) => {
       borderColor: t.border,
       marginBottom: 12,
       overflow: 'hidden',
+      ...shadow.card,
     },
     schedHeader: {
       flexDirection: 'row',

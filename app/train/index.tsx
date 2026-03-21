@@ -20,7 +20,7 @@ import {
   Clock,
   ArrowRight,
 } from 'lucide-react-native'
-import { themed, font } from '@/lib/theme'
+import { themed, font, shadow } from '@/lib/theme'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { timeAgo, getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
@@ -477,6 +477,7 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 24,
       padding: 20,
       overflow: 'hidden',
+      ...shadow.cardStrong,
     },
     boardGlow: {
       position: 'absolute',

@@ -1,8 +1,9 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
-import { useColorScheme } from 'react-native'
+import { useColorScheme, StyleSheet } from 'react-native'
 import { Home, MapPin, Camera, Trophy, ReceiptText } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { font, glass } from '@/lib/theme'
+import GlassCard from '@/components/GlassCard'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
@@ -17,9 +18,18 @@ export default function TabLayout() {
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
-          backgroundColor: isDark ? '#1c1917' : '#ffffff',
-          borderTopColor: isDark ? '#292524' : '#e7e5e3',
+          position: 'absolute',
+          borderTopWidth: 0,
+          elevation: 0,
+          backgroundColor: 'transparent',
         },
+        tabBarBackground: () => (
+          <GlassCard
+            intensity={glass.blur.nav}
+            style={StyleSheet.absoluteFillObject}
+            fallbackBg={isDark ? '#1c1917' : '#ffffff'}
+          />
+        ),
         tabBarLabelStyle: {
           fontSize: 10,
           fontFamily: font.semibold,

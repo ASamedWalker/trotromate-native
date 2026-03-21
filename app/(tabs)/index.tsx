@@ -29,7 +29,7 @@ import {
   Map,
   MapPin,
 } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, shadow } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -427,7 +427,8 @@ export default function HomeScreen() {
           </>
         )}
 
-        <View style={{ height: 20 }} />
+        {/* Extra padding for absolute tab bar */}
+        <View style={{ height: 90 }} />
       </ScrollView>
       <ReportFAB />
     </SafeAreaView>
@@ -504,6 +505,7 @@ const getStyles = (isDark: boolean) => {
       borderWidth: 1,
       borderColor: t.border,
       gap: 12,
+      ...shadow.card,
     },
     searchText: {
       fontSize: 15,

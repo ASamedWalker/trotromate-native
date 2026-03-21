@@ -132,6 +132,8 @@ function SwipeableRow({
           borderRadius: 16,
           marginBottom: 10,
           backgroundColor: t.card,
+          borderWidth: 1,
+          borderColor: t.border,
         }}
       >
         <View style={[swipeStyles.iconBox, { backgroundColor: `${config.color}20` }]}>
@@ -248,7 +250,7 @@ export default function ActivityScreen() {
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
           ListFooterComponent={renderFooter}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
         />
       )}

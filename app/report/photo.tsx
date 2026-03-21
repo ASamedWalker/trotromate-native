@@ -16,14 +16,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import { Camera, Image as ImageIcon, MapPin, X, Send, Plus } from 'lucide-react-native'
+import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video } from 'lucide-react-native'
+import * as VideoThumbnails from 'expo-video-thumbnails'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useSubmitTale } from '@/lib/hooks/useTales'
+import type { TaleMediaType } from '@/lib/types'
 
 const MAX_IMAGES = 10
+const MAX_VIDEO_DURATION = 60 // seconds
 
 const LOCATIONS = [
   'Circle', 'Madina', 'Lapaz', 'Achimota', 'Kaneshie',
@@ -46,6 +49,11 @@ export default function TrotroTalesPostScreen() {
   const [imageUris, setImageUris] = useState<string[]>([])
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
+  const [mediaType, setMediaType] = useState<TaleMediaType>('image')
+  const [videoUri, setVideoUri] = useState<string | null>(null)
+  const [videoThumbnailUri, setVideoThumbnailUri] = useState<string | null>(null)
+  const [videoDuration, setVideoDuration] = useState<number | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   const canAddMore = imageUris.length < MAX_IMAGES
 
@@ -93,8 +101,43 @@ export default function TrotroTalesPostScreen() {
     setImageUris((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const pickVideo = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      quality: 0.8,
+      videoMaxDuration: MAX_VIDEO_DURATION,
+    })
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0]
+      setVideoUri(asset.uri)
+      setVideoDuration(asset.duration ? Math.round(asset.duration / 1000) : null)
+      setMediaType('video')
+      setImageUris([])
+
+      try {
+        const thumb = await VideoThumbnails.getThumbnailAsync(asset.uri, { time: 1000 })
+        setVideoThumbnailUri(thumb.uri)
+      } catch {
+        console.warn('Failed to generate video thumbnail')
+      }
+    }
+  }
+
+  const removeVideo = () => {
+    setVideoUri(null)
+    setVideoThumbnailUri(null)
+    setVideoDuration(null)
+    setMediaType('image')
+    setUploadProgress(null)
+  }
+
   const handleSubmit = async () => {
-    if (imageUris.length === 0) {
+    if (mediaType === 'video') {
+      if (!videoUri) {
+        Alert.alert('Missing Video', 'Please select a video')
+        return
+      }
+    } else if (imageUris.length === 0) {
       Alert.alert('Missing Photo', 'Please take or choose a photo')
       return
     }
@@ -112,6 +155,11 @@ export default function TrotroTalesPostScreen() {
       caption,
       location,
       displayName: profile?.display_name ?? null,
+      mediaType,
+      videoUri: videoUri ?? undefined,
+      videoThumbnailUri: videoThumbnailUri ?? undefined,
+      videoDurationSecs: videoDuration ?? undefined,
+      onProgress: (p) => setUploadProgress(p),
     })
 
     if (reward) {
@@ -149,16 +197,42 @@ export default function TrotroTalesPostScreen() {
             </View>
           </View>
 
-          {/* Photo Section */}
+          {/* Media Section */}
           <View style={s.formCard}>
             <View style={s.labelRow}>
-              <Text style={s.label}>Photos</Text>
-              {imageUris.length > 0 && (
+              <Text style={s.label}>{mediaType === 'video' ? 'Video' : 'Photos'}</Text>
+              {mediaType === 'image' && imageUris.length > 0 && (
                 <Text style={s.counter}>{imageUris.length}/{MAX_IMAGES}</Text>
               )}
             </View>
 
-            {imageUris.length > 0 ? (
+            {/* Video preview */}
+            {mediaType === 'video' && videoUri ? (
+              <View style={{ marginBottom: 12 }}>
+                <View style={s.thumbContainer}>
+                  {videoThumbnailUri ? (
+                    <Image source={{ uri: videoThumbnailUri }} style={s.videoPreview} />
+                  ) : (
+                    <View style={[s.videoPreview, { backgroundColor: c.stone800, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Video size={32} color={c.stone400} />
+                    </View>
+                  )}
+                  <TouchableOpacity onPress={removeVideo} style={s.thumbRemove}>
+                    <X size={12} color={c.white} />
+                  </TouchableOpacity>
+                  {videoDuration && (
+                    <View style={s.videoDurationBadge}>
+                      <Text style={s.videoDurationText}>{videoDuration}s</Text>
+                    </View>
+                  )}
+                </View>
+                {uploadProgress !== null && uploadProgress < 1 && (
+                  <View style={s.progressBar}>
+                    <View style={[s.progressFill, { width: `${Math.round(uploadProgress * 100)}%` }]} />
+                  </View>
+                )}
+              </View>
+            ) : imageUris.length > 0 ? (
               <>
                 {/* Thumbnail strip */}
                 <FlatList
@@ -233,6 +307,14 @@ export default function TrotroTalesPostScreen() {
                     Gallery
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={pickVideo}
+                  activeOpacity={0.7}
+                  style={[s.photoBtn, { backgroundColor: isDark ? c.stone700 : c.stone300 }]}
+                >
+                  <Video size={28} color={c.pink500} />
+                  <Text style={[s.photoBtnText, { color: c.pink500 }]}>Video</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -299,7 +381,9 @@ export default function TrotroTalesPostScreen() {
               <Send size={20} color={c.white} />
               <Text style={s.submitText}>
                 {isSubmitting
-                  ? `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
+                  ? mediaType === 'video'
+                    ? `Uploading video${uploadProgress ? ` ${Math.round(uploadProgress * 100)}%` : ''}...`
+                    : `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
                   : 'Share Tale'}
               </Text>
             </TouchableOpacity>
@@ -456,6 +540,29 @@ const getStyles = (isDark: boolean) => {
     quickBtnText: { fontSize: 13, fontFamily: font.medium },
     quickBtnTextActive: { color: c.white },
     quickBtnTextInactive: { color: isDark ? c.stone300 : c.stone600 },
+    videoPreview: { width: '100%', height: 200, borderRadius: 12 },
+    videoDurationBadge: {
+      position: 'absolute',
+      bottom: 8,
+      left: 8,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    videoDurationText: { color: c.white, fontSize: 11, fontFamily: font.semibold },
+    progressBar: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? c.stone700 : c.stone200,
+      marginTop: 8,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: c.pink500,
+      borderRadius: 2,
+    },
     submitBtn: {
       flexDirection: 'row',
       alignItems: 'center',

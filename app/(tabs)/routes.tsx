@@ -30,7 +30,7 @@ import {
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, shadow } from '@/lib/theme'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -321,7 +321,7 @@ export default function RoutesScreen() {
           data={filteredRoutes}
           renderItem={renderRoute}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={(showSuggestions || activeRegion !== 'all') ? (
             <View>
@@ -472,8 +472,9 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
+      borderWidth: 1,
       borderColor: t.border,
+      ...shadow.card,
     },
     searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
     filterChipScroll: {
@@ -531,7 +532,7 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 16,
       marginBottom: 12,
       backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
+      borderWidth: 1,
       borderColor: t.border,
     },
     routeIcon: {
@@ -617,6 +618,7 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 16,
       overflow: 'hidden' as const,
       marginBottom: 16,
+      ...shadow.cardStrong,
     },
     heroBannerContent: {
       flex: 1,
