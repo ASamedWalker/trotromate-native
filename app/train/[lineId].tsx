@@ -27,6 +27,7 @@ import {
   ChevronDown,
 } from 'lucide-react-native'
 import { c, themed, font, shadow } from '@/lib/theme'
+import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
@@ -330,6 +331,7 @@ export default function LineDetailScreen() {
               </View>
               {line.official_fare && (
                 <View style={s.heroChip}>
+                  <GRDABadge size="small" />
                   <Text style={s.heroChipText}>₵{line.official_fare.toFixed(2)} fare</Text>
                 </View>
               )}
@@ -399,6 +401,7 @@ export default function LineDetailScreen() {
               <View style={[s.sectionHeader, { marginTop: 28 }]}>
                 <Clock size={16} color={lineColor} />
                 <Text style={s.sectionTitle}>Schedule</Text>
+                <GRDABadge label="GRDA Official" />
                 <View style={s.schedDaysBadge}>
                   <Calendar size={10} color={t.textSecondary} />
                   <Text style={s.schedDaysText}>

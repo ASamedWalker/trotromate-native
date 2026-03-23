@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   Dimensions,
   StyleSheet,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag } from 'lucide-react-native'
+import { useIsFocused } from '@react-navigation/native'
+import { MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag, Video } from 'lucide-react-native'
 import { c, themed, font, shadow } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -41,11 +43,13 @@ function TaleCard({
   userReactions,
   isOwn,
   isVisible,
+  isMounted,
   onReact,
   onComment,
   onDelete,
   onReport,
   onProfilePress,
+  onVideoPress,
 }: {
   post: TalePost
   isDark: boolean
@@ -53,11 +57,13 @@ function TaleCard({
   userReactions: string[]
   isOwn: boolean
   isVisible: boolean
+  isMounted: boolean
   onReact: (emoji: string) => void
   onComment: () => void
   onDelete?: () => void
   onReport: () => void
   onProfilePress: () => void
+  onVideoPress?: () => void
 }) {
   const t = themed(isDark)
   const s = cardStyles(isDark)
@@ -101,6 +107,12 @@ function TaleCard({
               <Text style={s.name} numberOfLines={1}>{displayName}</Text>
             </TouchableOpacity>
             <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
+            {post.media_type === 'video' && (
+              <View style={s.videoBadge}>
+                <Video size={10} color={c.white} />
+                <Text style={s.videoBadgeText}>VIDEO</Text>
+              </View>
+            )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MapPin size={12} color={t.textTertiary} />
@@ -156,7 +168,9 @@ function TaleCard({
           thumbnailUri={post.video_thumbnail_url}
           width={Dimensions.get('window').width - 24}
           isVisible={isVisible}
+          isMounted={isMounted}
           durationSecs={post.video_duration_secs}
+          onExpand={onVideoPress}
         />
       ) : post.image_url ? (
         <ImageCarousel
@@ -209,6 +223,7 @@ export default function TalesScreen() {
   const s = getStyles(isDark)
   const t = themed(isDark)
 
+  const isFocused = useIsFocused()
   const { deviceId } = useApp()
   const {
     posts, isLoading, isRefreshing, hasMore,
@@ -220,6 +235,14 @@ export default function TalesScreen() {
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
   const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set())
+
+  // Listen for comment open signal from reel screen
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('openComment', (postId: string) => {
+      setTimeout(() => setCommentPostId(postId), 300) // slight delay for navigation to settle
+    })
+    return () => sub.remove()
+  }, [])
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     setVisiblePostIds(new Set(viewableItems.map((v: any) => v.item.id)))
@@ -242,21 +265,38 @@ export default function TalesScreen() {
     ])
   }
 
-  const renderItem = ({ item }: { item: TalePost }) => (
-    <TaleCard
-      post={item}
-      isDark={isDark}
-      reactionSummary={reactionSummaries.get(item.id) || {}}
-      userReactions={userReactions.get(item.id) || []}
-      isOwn={item.device_id === deviceId}
-      isVisible={visiblePostIds.has(item.id)}
-      onReact={(emoji) => handleReact(item.id, emoji)}
-      onComment={() => setCommentPostId(item.id)}
-      onDelete={() => deletePost(item.id)}
-      onReport={() => handleReport(item.id)}
-      onProfilePress={() => router.push(`/profile/${item.device_id}` as Href)}
-    />
-  )
+  const renderItem = ({ item, index }: { item: TalePost; index: number }) => {
+    // Videos >3 positions from any visible post get unmounted to save memory
+    // When screen loses focus (reel opened), pause all videos
+    const isVisible = isFocused && visiblePostIds.has(item.id)
+    const isMounted = item.media_type !== 'video' || isVisible ||
+      posts.some((p, i) => visiblePostIds.has(p.id) && Math.abs(i - index) <= 3)
+
+    return (
+      <TaleCard
+        post={item}
+        isDark={isDark}
+        reactionSummary={reactionSummaries.get(item.id) || {}}
+        userReactions={userReactions.get(item.id) || []}
+        isOwn={item.device_id === deviceId}
+        isVisible={isVisible}
+        isMounted={isMounted}
+        onReact={(emoji) => handleReact(item.id, emoji)}
+        onComment={() => setCommentPostId(item.id)}
+        onDelete={() => deletePost(item.id)}
+        onReport={() => handleReport(item.id)}
+        onProfilePress={() => router.push(`/profile/${item.device_id}` as Href)}
+        onVideoPress={item.media_type === 'video' && item.video_url ? () => {
+          const displayName = item.display_name || `User-${item.device_id.slice(-4).toUpperCase()}`
+          const summary = reactionSummaries.get(item.id) || {}
+          const likeCount = Object.values(summary).reduce((a, b) => a + b, 0)
+          router.push(
+            `/reel?postId=${item.id}&videoUrl=${encodeURIComponent(item.video_url!)}&thumbnailUrl=${encodeURIComponent(item.video_thumbnail_url ?? '')}&durationSecs=${item.video_duration_secs ?? 0}&displayName=${encodeURIComponent(displayName)}&deviceId=${item.device_id}&locationName=${encodeURIComponent(item.location_name)}&caption=${encodeURIComponent(item.caption ?? '')}&timeAgo=${encodeURIComponent(timeAgo(item.created_at))}&commentCount=${item.comment_count}&likeCount=${likeCount}` as Href
+          )
+        } : undefined}
+      />
+    )
+  }
 
   return (
     <SafeAreaView style={s.container}>
@@ -346,6 +386,22 @@ const cardStyles = (isDark: boolean) => {
     },
     name: { fontFamily: font.bold, fontSize: 14, color: t.text, flexShrink: 1 },
     typeEmoji: { fontSize: 14, marginLeft: 6 },
+    videoBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 3,
+      backgroundColor: c.red500,
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginLeft: 6,
+    },
+    videoBadgeText: {
+      color: c.white,
+      fontSize: 9,
+      fontFamily: font.bold,
+      letterSpacing: 0.5,
+    },
     location: { fontSize: 12, color: t.textSecondary, marginLeft: 4, flexShrink: 1 },
     timeText: { fontSize: 12, color: t.textTertiary },
     image: {

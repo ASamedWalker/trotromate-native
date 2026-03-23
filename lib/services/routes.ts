@@ -148,7 +148,8 @@ export async function findOrCreateRoute(
   fromLocation: string,
   toLocation: string,
   fare: number,
-  transportType: TransportType = 'trotro'
+  transportType: TransportType = 'trotro',
+  region?: string
 ): Promise<string | null> {
   const from = validateLocation(fromLocation)
   const to = validateLocation(toLocation)
@@ -182,7 +183,7 @@ export async function findOrCreateRoute(
       official_fare: validFare,
       is_popular: false,
       transport_type: transport,
-      region: detectRegion(from),
+      region: region || detectRegion(from),
     })
     .select('id')
     .single()

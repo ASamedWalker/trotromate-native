@@ -17,6 +17,7 @@ export async function submitFareReport(params: {
   fare: number
   deviceId: string
   transportType?: TransportType
+  region?: string
 }): Promise<{ reportId: string; routeId: string } | null> {
   const from = validateLocation(params.fromLocation)
   const to = validateLocation(params.toLocation)
@@ -27,7 +28,7 @@ export async function submitFareReport(params: {
     throw new Error(`Validation failed: from=${!!from}, to=${!!to}, fare=${fare}`)
   }
 
-  const routeId = await findOrCreateRoute(from, to, fare, transport)
+  const routeId = await findOrCreateRoute(from, to, fare, transport, params.region)
   if (!routeId) {
     throw new Error('Route creation failed')
   }

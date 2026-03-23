@@ -10,13 +10,13 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike, MapPin, Route } from 'lucide-react-native'
+import { Plus, X, TrendingUp, Users, AlertTriangle, Camera, TrainFront, Bike } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 
 const REPORT_OPTIONS = [
   {
     id: 'fare',
-    title: 'Report Fare',
+    title: 'Fare',
     subtitle: '+10 pts',
     icon: TrendingUp,
     color: c.amber500,
@@ -24,7 +24,7 @@ const REPORT_OPTIONS = [
   },
   {
     id: 'okada',
-    title: 'Okada Fare',
+    title: 'Okada',
     subtitle: '+10 pts',
     icon: Bike,
     color: c.orange500,
@@ -32,19 +32,11 @@ const REPORT_OPTIONS = [
   },
   {
     id: 'queue',
-    title: 'Queue Status',
+    title: 'Queue',
     subtitle: '+5 pts',
     icon: Users,
     color: c.violet500,
     route: '/report/queue',
-  },
-  {
-    id: 'station-queues',
-    title: 'Station Queues',
-    subtitle: 'View queues',
-    icon: MapPin,
-    color: '#e88a3a',
-    route: '/stations',
   },
   {
     id: 'incident',
@@ -56,27 +48,19 @@ const REPORT_OPTIONS = [
   },
   {
     id: 'photo',
-    title: 'Trotro Tale',
-    subtitle: 'Share photo',
+    title: 'Tale',
+    subtitle: '+8 pts',
     icon: Camera,
     color: c.pink500,
     route: '/report/photo',
   },
   {
     id: 'train',
-    title: 'Train Report',
+    title: 'Train',
     subtitle: '+10 pts',
     icon: TrainFront,
     color: '#0ea5e9',
     route: '/report/train',
-  },
-  {
-    id: 'add-route',
-    title: 'Add New Route',
-    subtitle: '+10 pts',
-    icon: Route,
-    color: '#16a34a',
-    route: '/report/fare',
   },
 ]
 
@@ -88,7 +72,7 @@ export default function ReportFAB() {
 
   const [isOpen, setIsOpen] = useState(false)
   const rotation = useRef(new Animated.Value(0)).current
-  const optionsOpacity = useRef(new Animated.Value(0)).current
+  const sheetSlide = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.parallel([
@@ -97,9 +81,10 @@ export default function ReportFAB() {
         duration: 200,
         useNativeDriver: true,
       }),
-      Animated.timing(optionsOpacity, {
+      Animated.spring(sheetSlide, {
         toValue: isOpen ? 1 : 0,
-        duration: 200,
+        damping: 20,
+        stiffness: 200,
         useNativeDriver: true,
       }),
     ]).start()
@@ -110,6 +95,11 @@ export default function ReportFAB() {
     outputRange: ['0deg', '45deg'],
   })
 
+  const sheetTranslate = sheetSlide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [300, 0],
+  })
+
   const handleSelect = (route: string) => {
     setIsOpen(false)
     router.push(route as Href)
@@ -117,32 +107,44 @@ export default function ReportFAB() {
 
   return (
     <>
-      {/* Overlay Modal */}
+      {/* Bottom Sheet Modal */}
       <Modal visible={isOpen} transparent animationType="fade">
         <Pressable style={s.overlay} onPress={() => setIsOpen(false)}>
-          <View style={s.menuContainer}>
-            {REPORT_OPTIONS.map((option) => {
-              const Icon = option.icon
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  onPress={() => handleSelect(option.route)}
-                  activeOpacity={0.8}
-                  style={s.menuItem}
-                >
-                  <View style={s.menuRow}>
-                    <View style={[s.menuIcon, { backgroundColor: option.color }]}>
-                      <Icon size={20} color={c.white} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.menuTitle}>{option.title}</Text>
-                    </View>
-                    <Text style={[s.menuPts, { color: option.color }]}>{option.subtitle}</Text>
-                  </View>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+          <Animated.View
+            style={[
+              s.sheet,
+              { transform: [{ translateY: sheetTranslate }] },
+            ]}
+          >
+            <Pressable>
+              {/* Handle bar */}
+              <View style={s.handleRow}>
+                <View style={s.handle} />
+              </View>
+              <Text style={s.sheetTitle}>Report</Text>
+
+              {/* 3x2 Grid */}
+              <View style={s.grid}>
+                {REPORT_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      onPress={() => handleSelect(option.route)}
+                      activeOpacity={0.7}
+                      style={s.gridItem}
+                    >
+                      <View style={[s.gridIcon, { backgroundColor: `${option.color}18` }]}>
+                        <Icon size={22} color={option.color} />
+                      </View>
+                      <Text style={s.gridLabel}>{option.title}</Text>
+                      <Text style={[s.gridPts, { color: option.color }]}>{option.subtitle}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
 
@@ -169,7 +171,7 @@ const getStyles = (isDark: boolean) => {
   return StyleSheet.create({
     fab: {
       position: 'absolute',
-      bottom: 16,
+      bottom: 90,
       right: 20,
       width: 56,
       height: 56,
@@ -186,39 +188,65 @@ const getStyles = (isDark: boolean) => {
     },
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.4)',
       justifyContent: 'flex-end',
-      paddingBottom: 150,
-      paddingHorizontal: 20,
     },
-    menuContainer: {
+    sheet: {
       backgroundColor: t.card,
-      borderRadius: 24,
-      padding: 8,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingBottom: 40,
       elevation: 10,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
+      shadowOffset: { width: 0, height: -4 },
       shadowOpacity: 0.15,
-      shadowRadius: 12,
+      shadowRadius: 16,
     },
-    menuItem: {
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderRadius: 16,
-    },
-    menuRow: {
-      flexDirection: 'row',
+    handleRow: {
       alignItems: 'center',
+      paddingTop: 10,
+      paddingBottom: 4,
     },
-    menuIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? c.stone600 : c.stone300,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: t.text,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 16,
+    },
+    gridItem: {
+      width: '33.33%',
+      alignItems: 'center',
+      paddingVertical: 14,
+    },
+    gridIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 14,
+      marginBottom: 8,
     },
-    menuTitle: { fontFamily: font.semibold, fontSize: 16, color: t.text },
-    menuPts: { fontSize: 13, fontFamily: font.semibold },
+    gridLabel: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+    gridPts: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      marginTop: 2,
+    },
   })
 }

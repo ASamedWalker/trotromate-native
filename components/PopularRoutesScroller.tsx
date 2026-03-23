@@ -10,6 +10,7 @@ import { Navigation, Zap, TrendingUp, Users } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
 import type { RouteWithStats } from '@/lib/types'
+import { GPRTUBadge } from '@/components/GPRTUBadge'
 
 const CARD_HEIGHT = 72
 const CARD_GAP = 10
@@ -139,7 +140,10 @@ function RouteCardContent({
       </View>
 
       {/* Fare */}
-      <Text style={cardStyles.fare}>₵{fare.toFixed(2)}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        {route.is_gprtu_verified && <GPRTUBadge size="small" />}
+        <Text style={cardStyles.fare}>₵{fare.toFixed(2)}</Text>
+      </View>
     </View>
   )
 }

@@ -7,6 +7,7 @@ import type { TalePost, TalePostType, TaleMediaType, RewardResult } from '@/lib/
 export function useTalesFeed(deviceId: string | null) {
   const queryClient = useQueryClient()
   const [posts, setPosts] = useState<TalePost[]>([])
+  const [hasSynced, setHasSynced] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   // Map<postId, string[]> — user's active emoji reactions per post
@@ -24,6 +25,7 @@ export function useTalesFeed(deviceId: string | null) {
   useEffect(() => {
     if (initialData) {
       setPosts(initialData.posts)
+      setHasSynced(true)
       setNextCursor(initialData.nextCursor)
 
       // Extract reaction_summary from posts
@@ -148,24 +150,35 @@ export function useTalesFeed(deviceId: string | null) {
     async (postId: string) => {
       if (!deviceId) return
 
-      // Optimistic removal
+      // Optimistic removal from local state
       const removedPost = posts.find((p) => p.id === postId)
       setPosts((prev) => prev.filter((p) => p.id !== postId))
+
+      // Also update React Query cache so refetch doesn't bring it back
+      queryClient.setQueryData(['tales', deviceId], (old: typeof initialData) => {
+        if (!old) return old
+        return { ...old, posts: old.posts.filter((p: TalePost) => p.id !== postId) }
+      })
 
       const success = await deleteTale(postId, deviceId)
 
       if (!success && removedPost) {
-        // Revert
+        // Revert both local state and query cache
         setPosts((prev) => [...prev, removedPost].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         ))
+        queryClient.invalidateQueries({ queryKey: ['tales'] })
       }
     },
-    [deviceId, posts]
+    [deviceId, posts, queryClient, initialData]
   )
 
+  // Before first sync, fall back to cached query data to prevent flash of empty state
+  // After sync, always use local posts (even if empty — that means mutations happened)
+  const displayPosts = hasSynced ? posts : (initialData?.posts ?? [])
+
   return {
-    posts,
+    posts: displayPosts,
     isLoading,
     isRefreshing,
     hasMore: !!nextCursor,

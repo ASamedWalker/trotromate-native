@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,24 +9,23 @@ import {
   useColorScheme,
   RefreshControl,
   StyleSheet,
-  Share,
-  Alert,
+  Modal,
+  Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { GPRTUBadge } from '@/components/GPRTUBadge'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   Search,
   MapPin,
   Clock,
   Heart,
-  ChevronLeft,
-  Bell,
-  BellOff,
-  Share2,
   X,
   Bike,
   Bus,
   Plus,
+  ChevronDown,
+  Check,
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -35,14 +34,12 @@ import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
-import type { RouteWithStats, TransportType } from '@/lib/types'
+import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
+import ExploreGhana from '@/components/ExploreGhana'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
-import { useRouteAlerts } from '@/lib/hooks/useRouteAlerts'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
-import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
-import { Sparkles, History } from 'lucide-react-native'
 
 type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
 
@@ -59,25 +56,23 @@ export default function RoutesScreen() {
     (params.transport as Filter) || 'all'
   )
   const [activeRegion, setActiveRegion] = useState<string>(params.region || 'all')
-  // Derive transport type from unified filter
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false)
+
   const activeTransport = activeFilter === 'trotro' || activeFilter === 'okada' ? activeFilter : undefined
   const regionParam = activeRegion !== 'all' ? activeRegion : undefined
   const { routes, isLoading, refetch } = useRoutes(params.from, params.to, activeTransport, regionParam)
   useRefreshOnFocus([['routes', params.from, params.to, activeTransport, regionParam]])
   const [refreshing, setRefreshing] = useState(false)
-  const { favorites, isFavorite, toggleFavorite } = useFavorites()
-  const { isAlerted, toggleAlert } = useRouteAlerts()
+  const { favorites } = useFavorites()
   const haptics = useHaptics()
-  const { addSearch, getRecentSearches } = useSearchHistory()
-  const { suggestions } = useSmartSuggestions()
+  const { addSearch } = useSearchHistory()
 
-  const recentSearches = getRecentSearches(5)
-  const showSuggestions = !searchQuery && activeFilter === 'all' && !params.from && !params.to
+  const activeRegionLabel = REGIONS.find((r) => r.key === activeRegion)?.label ?? 'All Regions'
+  const showExplore = !searchQuery && activeFilter === 'all' && activeRegion === 'all' && !params.from && !params.to
 
   const filteredRoutes = useMemo(() => {
     let result = routes
 
-    // Category filter
     if (activeFilter === 'popular') {
       result = result.filter((r) => r.is_popular)
     } else if (activeFilter === 'saved') {
@@ -85,7 +80,6 @@ export default function RoutesScreen() {
       result = result.filter((r) => favIds.has(r.id))
     }
 
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
@@ -98,31 +92,6 @@ export default function RoutesScreen() {
     return result
   }, [routes, activeFilter, searchQuery, favorites])
 
-  const handleShare = async (route: RouteWithStats) => {
-    haptics.light()
-    try {
-      const fare = route.fare_stats?.avg_reported_fare ?? route.official_fare
-      await Share.share({
-        message: `Check the fare from ${route.from_location} to ${route.to_location} - ₵${fare.toFixed(2)} on Troski! 🚐`,
-      })
-    } catch {
-      // User cancelled share
-    }
-  }
-
-  const handleAlert = (route: RouteWithStats) => {
-    haptics.light()
-    const alerted = isAlerted(route.id)
-    toggleAlert(route.id)
-    if (!alerted) {
-      Alert.alert(
-        'Fare Alert On',
-        `You'll be notified when the fare for ${route.from_location} → ${route.to_location} changes.`,
-        [{ text: 'OK' }]
-      )
-    }
-  }
-
   const filters: { key: Filter; label: string; icon: typeof Bus | null; color: string }[] = [
     { key: 'all', label: 'All', icon: null, color: c.amber500 },
     { key: 'trotro', label: 'Trotro', icon: Bus, color: c.amber500 },
@@ -131,11 +100,14 @@ export default function RoutesScreen() {
     { key: 'saved', label: 'Saved', icon: Heart, color: c.red500 },
   ]
 
-  const renderRoute = ({ item }: { item: RouteWithStats }) => {
-    const fav = isFavorite(item.id)
-    const alerted = isAlerted(item.id)
+  const selectRegion = useCallback((key: string) => {
+    haptics.light()
+    setActiveRegion(key)
+    setRegionPickerOpen(false)
+  }, [haptics])
+
+  const renderRoute = useCallback(({ item }: { item: RouteWithStats }) => {
     const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
-    const reportCount = item.fare_stats?.report_count ?? 0
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
 
     return (
@@ -149,9 +121,9 @@ export default function RoutesScreen() {
       >
         <View style={[s.routeIcon, item.transport_type === 'okada' && s.routeIconOkada]}>
           {item.transport_type === 'okada' ? (
-            <Bike size={24} color={c.orange500} />
+            <Bike size={22} color={c.orange500} />
           ) : (
-            <MapPin size={24} color={c.amber500} />
+            <MapPin size={22} color={c.amber500} />
           )}
         </View>
 
@@ -160,64 +132,38 @@ export default function RoutesScreen() {
             {item.from_location} → {item.to_location}
           </Text>
           <View style={s.routeMeta}>
-            <Clock size={12} color={t.textSecondary} />
+            <Clock size={11} color={t.textSecondary} />
             <Text style={s.routeMetaText}>{lastUpdated}</Text>
-            <Text style={[s.routeMetaText, { marginLeft: 12 }]}>
-              {reportCount} reports
-            </Text>
           </View>
         </View>
 
         <View style={s.routeRight}>
-          <Text style={s.routeFare}>₵{displayFare.toFixed(2)}</Text>
-          <View style={s.actionRow}>
-            <TouchableOpacity
-              onPress={() => handleAlert(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              {alerted ? (
-                <Bell size={16} color={c.amber500} fill={c.amber500} />
-              ) : (
-                <BellOff size={16} color={t.textTertiary} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleShare(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Share2 size={16} color={t.textTertiary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light()
-                toggleFavorite({ id: item.id, from: item.from_location, to: item.to_location })
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Heart
-                size={16}
-                color={fav ? c.red500 : t.textTertiary}
-                fill={fav ? c.red500 : 'transparent'}
-              />
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {item.is_gprtu_verified && <GPRTUBadge size="small" />}
+            <Text style={s.routeFare}>₵{displayFare.toFixed(2)}</Text>
           </View>
         </View>
       </TouchableOpacity>
     )
-  }
+  }, [isDark])
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
+      {/* Header: Title + Region dropdown */}
       <View style={s.header}>
         <View style={s.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
-            <ChevronLeft size={24} color={t.text} />
-          </TouchableOpacity>
           <Text style={s.headerTitle}>Routes</Text>
-          <View style={{ width: 32 }} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
+            style={s.regionDropdown}
+          >
+            <Text style={s.regionDropdownText}>{activeRegionLabel}</Text>
+            <ChevronDown size={16} color={c.amber500} />
+          </TouchableOpacity>
         </View>
 
+        {/* Search */}
         <View style={s.searchBox}>
           <Search size={20} color={t.textSecondary} />
           <TextInput
@@ -234,39 +180,12 @@ export default function RoutesScreen() {
           )}
         </View>
 
-        {/* Region filter chips */}
+        {/* Single filter row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.filterChipRow}
           style={s.filterChipScroll}
-        >
-          {REGIONS.map((region) => (
-            <TouchableOpacity
-              key={region.key}
-              onPress={() => { haptics.light(); setActiveRegion(region.key) }}
-              activeOpacity={0.7}
-              style={[
-                s.regionChip,
-                activeRegion === region.key && s.regionChipActive,
-              ]}
-            >
-              <Text style={[
-                s.regionChipText,
-                activeRegion === region.key && s.regionChipTextActive,
-              ]}>
-                {region.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Transport filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filterChipRow}
-          style={{ marginTop: 8 }}
         >
           {filters.map((filter) => {
             const active = activeFilter === filter.key
@@ -323,7 +242,7 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={(showSuggestions || activeRegion !== 'all') ? (
+          ListHeaderComponent={(showExplore || activeRegion !== 'all') ? (
             <View>
               {/* Region Hero Banner */}
               {activeRegion !== 'all' && (() => {
@@ -350,55 +269,10 @@ export default function RoutesScreen() {
                 )
               })()}
 
-              {/* Smart Suggestions */}
-              {showSuggestions && suggestions.length > 0 && (
-                <View style={s.suggestionsSection}>
-                  <View style={s.sectionHeader}>
-                    <Sparkles size={16} color={c.amber500} />
-                    <Text style={s.sectionTitle}>Suggested for you</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {suggestions.map((sg) => (
-                      <TouchableOpacity
-                        key={sg.routeId}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          addSearch({ id: sg.routeId, from: sg.from, to: sg.to, transportType: sg.transportType })
-                          router.push({ pathname: '/routes/[id]', params: { id: sg.routeId } })
-                        }}
-                        style={s.suggestionCard}
-                      >
-                        <Text style={s.suggestionRoute} numberOfLines={1}>{sg.from} → {sg.to}</Text>
-                        <Text style={s.suggestionReason}>{sg.reason}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {/* Recent Searches */}
-              {showSuggestions && recentSearches.length > 0 && (
-                <View style={s.recentSection}>
-                  <View style={s.sectionHeader}>
-                    <History size={16} color={t.textSecondary} />
-                    <Text style={s.sectionTitle}>Recent</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {recentSearches.map((entry) => (
-                      <TouchableOpacity
-                        key={entry.routeId + entry.timestamp}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          addSearch({ id: entry.routeId, from: entry.from, to: entry.to, transportType: entry.transportType })
-                          router.push({ pathname: '/routes/[id]', params: { id: entry.routeId } })
-                        }}
-                        style={s.recentChip}
-                      >
-                        <Clock size={12} color={t.textSecondary} />
-                        <Text style={s.recentChipText} numberOfLines={1}>{entry.from} → {entry.to}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              {/* Explore Ghana — only when browsing without filters */}
+              {showExplore && (
+                <View style={{ marginBottom: 20 }}>
+                  <ExploreGhana />
                 </View>
               )}
             </View>
@@ -419,7 +293,7 @@ export default function RoutesScreen() {
               </Text>
               <Text style={s.emptySubtitle}>
                 {activeFilter === 'saved'
-                  ? 'Tap the heart icon on any route to save it'
+                  ? 'Tap the heart on a route detail to save it'
                   : 'Try a different search or filter'
                 }
               </Text>
@@ -449,6 +323,36 @@ export default function RoutesScreen() {
           }
         />
       )}
+
+      {/* Region Picker Modal */}
+      <Modal
+        visible={regionPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRegionPickerOpen(false)}
+      >
+        <Pressable style={s.modalOverlay} onPress={() => setRegionPickerOpen(false)}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>Select Region</Text>
+            {REGIONS.map((region) => {
+              const isActive = activeRegion === region.key
+              return (
+                <TouchableOpacity
+                  key={region.key}
+                  activeOpacity={0.7}
+                  onPress={() => selectRegion(region.key)}
+                  style={[s.modalOption, isActive && s.modalOptionActive]}
+                >
+                  <Text style={[s.modalOptionText, isActive && s.modalOptionTextActive]}>
+                    {region.label}
+                  </Text>
+                  {isActive && <Check size={18} color={c.amber500} />}
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -457,6 +361,8 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
+
+    // Header
     header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
     headerRow: {
       flexDirection: 'row',
@@ -464,7 +370,27 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'space-between',
       marginBottom: 16,
     },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    headerTitle: { fontSize: 26, fontFamily: font.bold, color: t.text },
+
+    // Region dropdown
+    regionDropdown: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
+    },
+    regionDropdownText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: c.amber500,
+    },
+
+    // Search
     searchBox: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -477,28 +403,9 @@ const getStyles = (isDark: boolean) => {
       ...shadow.card,
     },
     searchInput: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
-    filterChipScroll: {
-      marginTop: 12,
-    },
-    regionChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 7,
-      borderRadius: 20,
-      backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
-    },
-    regionChipActive: {
-      backgroundColor: isDark ? c.stone200 : c.stone800,
-    },
-    regionChipText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.textSecondary,
-    },
-    regionChipTextActive: {
-      color: isDark ? c.stone900 : c.white,
-    },
+
+    // Filter chips
+    filterChipScroll: { marginTop: 12 },
     filterChipRow: {
       flexDirection: 'row' as const,
       gap: 8,
@@ -525,21 +432,23 @@ const getStyles = (isDark: boolean) => {
     },
     filterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginTop: 12 },
     filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
+
+    // Route cards
     routeCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
+      padding: 14,
       borderRadius: 16,
-      marginBottom: 12,
+      marginBottom: 10,
       backgroundColor: t.card,
       borderWidth: 1,
       borderColor: t.border,
     },
     routeIcon: {
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       borderRadius: 12,
-      backgroundColor: c.amber100,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : c.amber100,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginRight: 12,
@@ -548,20 +457,16 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed',
     },
     routeInfo: { flex: 1 },
-    routeName: { fontFamily: font.semibold, fontSize: 15, color: t.text },
-    routeMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    routeMetaText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
+    routeName: { fontFamily: font.semibold, fontSize: 14, color: t.text },
+    routeMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 },
+    routeMetaText: { fontSize: 11, color: t.textSecondary, fontFamily: font.regular },
     routeRight: { alignItems: 'flex-end', marginLeft: 8 },
-    routeFare: { color: c.amber500, fontFamily: font.bold, fontSize: 18 },
-    actionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 8,
-      gap: 12,
-    },
+    routeFare: { color: c.amber500, fontFamily: font.bold, fontSize: 17 },
+
+    // Empty
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
-    emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },
+    emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary, textAlign: 'center' },
     addRouteBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -584,34 +489,7 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 80,
     },
     footerCtaText: { fontSize: 14, fontFamily: font.medium, color: c.amber500 },
-    // Suggestions & Recent
-    suggestionsSection: { marginBottom: 16 },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    sectionTitle: { fontSize: 14, fontFamily: font.semibold, color: t.text },
-    suggestionCard: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#fde68a',
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      minWidth: 160,
-    },
-    suggestionRoute: { fontSize: 14, fontFamily: font.semibold, color: t.text },
-    suggestionReason: { fontSize: 12, fontFamily: font.regular, color: c.amber500, marginTop: 4 },
-    recentSection: { marginBottom: 16 },
-    recentChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: t.card,
-      borderWidth: 1,
-      borderColor: isDark ? c.stone700 : c.stone200,
-    },
-    recentChipText: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary, maxWidth: 180 },
+
     // Region Hero Banner
     heroBanner: {
       height: 130,
@@ -635,6 +513,50 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.regular,
       color: 'rgba(255,255,255,0.8)',
       marginTop: 2,
+    },
+
+    // Region picker modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: 40,
+    },
+    modalContent: {
+      width: '100%' as const,
+      backgroundColor: t.card,
+      borderRadius: 20,
+      padding: 20,
+      maxWidth: 340,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: t.text,
+      marginBottom: 16,
+      textAlign: 'center' as const,
+    },
+    modalOption: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      marginBottom: 4,
+    },
+    modalOptionActive: {
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.06)',
+    },
+    modalOptionText: {
+      fontSize: 15,
+      fontFamily: font.medium,
+      color: t.text,
+    },
+    modalOptionTextActive: {
+      fontFamily: font.semibold,
+      color: c.amber500,
     },
   })
 }

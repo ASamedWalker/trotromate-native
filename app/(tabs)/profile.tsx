@@ -8,7 +8,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin } from 'lucide-react-native'
+import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -49,14 +49,24 @@ export default function ProfileScreen() {
 
         {/* Avatar Card */}
         <View style={s.avatarCard}>
-          <InitialsAvatar
-            name={profile?.display_name}
-            deviceId={deviceId ?? undefined}
-            size={60}
-          />
+          <View style={[s.avatarRing, { borderColor: levelInfo.color }]}>
+            <InitialsAvatar
+              name={profile?.display_name}
+              deviceId={deviceId ?? undefined}
+              size={64}
+            />
+            {(profile?.current_streak ?? 0) > 0 && (
+              <View style={s.streakBadge}>
+                <Flame size={10} color={c.white} />
+              </View>
+            )}
+          </View>
           <View style={s.avatarInfo}>
             <Text style={s.avatarName}>{profile?.display_name ?? 'Commuter'}</Text>
-            <Text style={s.avatarSub}>{levelInfo.emoji} {levelInfo.name}</Text>
+            <View style={[s.levelPill, { backgroundColor: `${levelInfo.color}18` }]}>
+              <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
+              <Text style={[s.levelText, { color: levelInfo.color }]}>{levelInfo.name}</Text>
+            </View>
           </View>
         </View>
 
@@ -108,6 +118,7 @@ export default function ProfileScreen() {
 
         {/* Monthly Spending Summary */}
         <SpendingSummary />
+        <View style={{ height: 16 }} />
 
         {/* Menu */}
         <View style={s.menuCard}>
@@ -136,9 +147,10 @@ export default function ProfileScreen() {
         {/* App Info */}
         <View style={s.footer}>
           <Text style={s.version}>Troski v1.0.0</Text>
-          <Text style={s.footerText}>Made with love in Accra</Text>
+          <Text style={s.footerText}>Troski Technologies</Text>
+          <Text style={s.footerSub}>Accra, Ghana</Text>
         </View>
-        <View style={{ height: 20 }} />
+        <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>
   )
@@ -174,9 +186,41 @@ const getStyles = (isDark: boolean) =>
       borderRadius: 20,
       backgroundColor: isDark ? '#1c1917' : '#ffffff',
     },
+    avatarRing: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      borderWidth: 3,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    streakBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#f97316',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: isDark ? '#1c1917' : '#ffffff',
+    },
     avatarInfo: { marginLeft: 16, flex: 1 },
     avatarName: { fontSize: 18, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917' },
-    avatarSub: { fontSize: 13, color: isDark ? '#a8a29e' : '#78716c', marginTop: 2 },
+    levelPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      marginTop: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    levelEmoji: { fontSize: 13 },
+    levelText: { fontSize: 12, fontFamily: font.semibold },
     bioCard: {
       marginHorizontal: 20,
       marginTop: 8,
@@ -243,5 +287,6 @@ const getStyles = (isDark: boolean) =>
     },
     footer: { alignItems: 'center', paddingVertical: 32 },
     version: { fontSize: 13, fontFamily: font.semibold, color: '#f59e0b' },
-    footerText: { fontSize: 12, color: isDark ? '#57534e' : '#a8a29e', marginTop: 4 },
+    footerText: { fontSize: 12, fontFamily: font.medium, color: isDark ? '#78716c' : '#a8a29e', marginTop: 4 },
+    footerSub: { fontSize: 11, color: isDark ? '#44403c' : '#d6d3d1', marginTop: 2 },
   })

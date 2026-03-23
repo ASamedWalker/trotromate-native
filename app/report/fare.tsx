@@ -13,12 +13,13 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { Coins, MapPin, Navigation, Check, Bus, Bike } from 'lucide-react-native'
+import { Coins, MapPin, Navigation, Check, Bus, Bike, Globe } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
+import { detectRegionOrNull, REGIONS } from '@/lib/config/regions'
 import type { TransportType } from '@/lib/types'
 
 export default function FareReportScreen() {
@@ -42,6 +43,16 @@ export default function FareReportScreen() {
   )
   const isOkada = transportType === 'okada'
 
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const [showRegionPicker, setShowRegionPicker] = useState(false)
+
+  // Auto-detect region from "From" location (only when user hasn't manually picked)
+  const autoRegion = from.trim().length >= 2 ? detectRegionOrNull(from.trim()) : null
+  const activeRegion = selectedRegion ?? autoRegion
+  const activeRegionLabel = activeRegion
+    ? REGIONS.find(r => r.key === activeRegion)?.label ?? null
+    : null
+
   const handleSubmit = async () => {
     if (!from.trim() || !to.trim() || !fare.trim()) {
       Alert.alert('Missing Info', 'Please fill in all fields')
@@ -54,7 +65,7 @@ export default function FareReportScreen() {
       return
     }
 
-    const { reward, errorMsg } = await submit(from.trim(), to.trim(), fareValue, transportType)
+    const { reward, errorMsg } = await submit(from.trim(), to.trim(), fareValue, transportType, activeRegion ?? undefined)
     if (reward) {
       haptics.success()
       await refreshProfile()
@@ -121,6 +132,37 @@ export default function FareReportScreen() {
                 style={s.input}
               />
             </View>
+
+            {/* Region picker */}
+            <TouchableOpacity
+              style={[s.regionChip, activeRegion && s.regionChipActive]}
+              onPress={() => setShowRegionPicker(!showRegionPicker)}
+              activeOpacity={0.7}
+            >
+              <Globe size={12} color={activeRegion ? c.emerald500 : t.textSecondary} />
+              <Text style={[s.regionChipText, activeRegion && s.regionChipTextActive]}>
+                {activeRegionLabel ?? 'Select region'}
+              </Text>
+              {autoRegion && !selectedRegion && (
+                <Text style={s.regionAutoTag}>auto</Text>
+              )}
+            </TouchableOpacity>
+            {showRegionPicker && (
+              <View style={s.regionGrid}>
+                {REGIONS.filter(r => r.key !== 'all').map(r => (
+                  <TouchableOpacity
+                    key={r.key}
+                    style={[s.regionOption, activeRegion === r.key && s.regionOptionActive]}
+                    onPress={() => { setSelectedRegion(r.key); setShowRegionPicker(false) }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.regionOptionText, activeRegion === r.key && s.regionOptionTextActive]}>
+                      {r.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {/* To */}
             <Text style={s.label}>To</Text>
@@ -290,5 +332,62 @@ const getStyles = (isDark: boolean) => {
     },
     submitBtnDisabled: { backgroundColor: c.stone400 },
     submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
+    regionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 10,
+      backgroundColor: t.cardAlt,
+      marginBottom: 12,
+      marginTop: -8,
+    },
+    regionChipActive: {
+      backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)',
+    },
+    regionChipText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
+    regionChipTextActive: {
+      color: c.emerald500,
+    },
+    regionAutoTag: {
+      fontSize: 9,
+      fontFamily: font.medium,
+      color: isDark ? c.stone500 : c.stone400,
+      backgroundColor: isDark ? c.stone800 : c.stone200,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderRadius: 4,
+      marginLeft: 2,
+    },
+    regionGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+      marginTop: -4,
+    },
+    regionOption: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: t.cardAlt,
+    },
+    regionOptionActive: {
+      backgroundColor: c.emerald500,
+    },
+    regionOptionText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: isDark ? c.stone300 : c.stone600,
+    },
+    regionOptionTextActive: {
+      color: c.white,
+    },
   })
 }

@@ -20,7 +20,8 @@ import {
   Clock,
   ArrowRight,
 } from 'lucide-react-native'
-import { themed, font, shadow } from '@/lib/theme'
+import { themed, font, shadow, c } from '@/lib/theme'
+import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { timeAgo, getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
@@ -228,8 +229,11 @@ export default function TrainLinesScreen() {
               <Text style={s.statText}>{item.stats?.total_reports ?? 0} reports</Text>
             </View>
             {item.official_fare != null && (
-              <View style={s.fareBadge}>
-                <Text style={s.fareText}>₵{item.official_fare.toFixed(2)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <GRDABadge size="small" />
+                <View style={s.fareBadge}>
+                  <Text style={s.fareText}>₵{item.official_fare.toFixed(2)}</Text>
+                </View>
               </View>
             )}
           </View>
@@ -422,11 +426,12 @@ export default function TrainLinesScreen() {
 
             {/* Bottom info strip */}
             <View style={s.boardStrip}>
+              <GRDABadge size="small" />
+              <Text style={s.stripText}>GRDA Official</Text>
+              <View style={s.stripDot} />
               <Text style={s.stripText}>Mon – Sat</Text>
               <View style={s.stripDot} />
               <Text style={s.stripText}>GH₵5.00</Text>
-              <View style={s.stripDot} />
-              <Text style={s.stripText}>360 seats</Text>
             </View>
           </View>
         )}

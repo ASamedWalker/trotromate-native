@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -7,10 +7,24 @@ import {
   FlatList,
   StyleSheet,
   Animated,
+  Image,
+  ActivityIndicator,
   type ViewToken,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { MapPin, Bell, ChevronRight } from 'lucide-react-native'
+import {
+  Bell,
+  BellRing,
+  ChevronRight,
+  Check,
+  X,
+  Zap,
+  Coins,
+  Camera,
+  Trophy,
+  MapPin,
+} from 'lucide-react-native'
+import * as Notifications from 'expo-notifications'
 import { c } from '@/lib/theme'
 
 const { width } = Dimensions.get('window')
@@ -20,17 +34,17 @@ interface OnboardingSlide {
   title: string
   subtitle: string
   description: string
-  icon: typeof MapPin
   gradientColors: [string, string, string]
   accentColor: string
-  features: string[]
+  isNotificationSlide?: boolean
 }
 
-// Animated bell that rocks back and forth like the PWA onboarding
-function AnimatedBellIcon() {
+// Animated bell that rocks back and forth
+function AnimatedBellIcon({ granted, denied }: { granted: boolean; denied: boolean }) {
   const rotation = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    if (granted || denied) return
     const ring = Animated.sequence([
       Animated.timing(rotation, { toValue: -8, duration: 75, useNativeDriver: true }),
       Animated.timing(rotation, { toValue: 8, duration: 75, useNativeDriver: true }),
@@ -43,16 +57,19 @@ function AnimatedBellIcon() {
     )
     animation.start()
     return () => animation.stop()
-  }, [rotation])
+  }, [rotation, granted, denied])
 
   const spin = rotation.interpolate({
     inputRange: [-10, 10],
     outputRange: ['-10deg', '10deg'],
   })
 
+  if (granted) return <Check size={48} color={c.white} strokeWidth={2} />
+  if (denied) return <X size={48} color={c.white} strokeWidth={2} />
+
   return (
     <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <Bell size={52} color={c.white} strokeWidth={1.5} />
+      <BellRing size={48} color={c.white} strokeWidth={1.5} />
     </Animated.View>
   )
 }
@@ -60,25 +77,44 @@ function AnimatedBellIcon() {
 const SLIDES: OnboardingSlide[] = [
   {
     id: 'welcome',
-    title: 'Welcome to\nTroski',
+    title: 'Welcome to Troski',
     subtitle: 'Your trotro companion',
     description:
-      'Fares, queues, train times, and community reports \u2014 all in one place. Let\u2019s go!',
-    icon: MapPin,
+      'Fares, queues, train times, and community reports — all in one place. Let\u2019s go!',
     gradientColors: ['#f59e0b', '#f97316', '#ef4444'],
     accentColor: '#fbbf24',
-    features: ['Fares', 'Tales', 'Rewards', 'Live updates'],
   },
   {
-    id: 'activity',
-    title: 'Stay in\nthe Loop',
+    id: 'notifications',
+    title: 'Stay in the Loop',
     subtitle: 'One last thing',
     description:
       'Get alerts when fares change or traffic builds up on your routes.',
-    icon: Bell,
     gradientColors: ['#3b82f6', '#6366f1', '#8b5cf6'],
     accentColor: '#60a5fa',
-    features: ['Fare changes', 'Traffic alerts'],
+    isNotificationSlide: true,
+  },
+]
+
+const FEATURES = [
+  { label: 'Fares', icon: Coins, color: '#fbbf24' },
+  { label: 'Tales', icon: Camera, color: '#f472b6' },
+  { label: 'Rewards', icon: Trophy, color: '#a78bfa' },
+  { label: 'Live updates', icon: Zap, color: '#38bdf8' },
+]
+
+const ALERT_EXAMPLES = [
+  {
+    title: 'Fare changes',
+    subtitle: 'Know when prices change',
+    icon: Zap,
+    gradientColors: ['#f59e0b', '#f97316'] as [string, string],
+  },
+  {
+    title: 'Traffic alerts',
+    subtitle: 'Avoid delays on your route',
+    icon: MapPin,
+    gradientColors: ['#ef4444', '#f43f5e'] as [string, string],
   },
 ]
 
@@ -88,6 +124,7 @@ interface OnboardingFlowProps {
 
 export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [notifStatus, setNotifStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle')
   const flatListRef = useRef<FlatList>(null)
 
   const onViewableItemsChanged = useRef(
@@ -100,56 +137,131 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current
 
-  const goNext = () => {
+  const goNext = useCallback(() => {
     if (currentIndex < SLIDES.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true })
     } else {
       onComplete()
     }
-  }
+  }, [currentIndex, onComplete])
 
-  const isLast = currentIndex === SLIDES.length - 1
+  const handleEnableNotifications = useCallback(async () => {
+    setNotifStatus('loading')
+    try {
+      const { status } = await Notifications.requestPermissionsAsync()
+      setNotifStatus(status === 'granted' ? 'granted' : 'denied')
+    } catch {
+      setNotifStatus('denied')
+    }
+  }, [])
+
   const currentSlide = SLIDES[currentIndex]
+  const isNotifSlide = currentSlide.isNotificationSlide
 
   const renderSlide = ({ item }: { item: OnboardingSlide }) => {
-    const Icon = item.icon
     return (
       <LinearGradient
-        colors={item.gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={['#0c0a09', '#0c0a09']}
         style={[styles.slide, { width }]}
       >
-        {/* Floating orbs for depth */}
-        <View style={[styles.orb, styles.orbTopRight, { backgroundColor: `${item.accentColor}30` }]} />
+        {/* Background gradient overlay */}
+        <LinearGradient
+          colors={[
+            `${item.gradientColors[0]}30`,
+            `${item.gradientColors[1]}20`,
+            `${item.gradientColors[2]}30`,
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Floating orbs */}
+        <View style={[styles.orb, styles.orbTopRight, { backgroundColor: `${item.accentColor}40` }]} />
         <View style={[styles.orb, styles.orbBottomLeft, { backgroundColor: `${item.accentColor}20` }]} />
 
-        {/* Icon */}
-        <View style={styles.iconCircle}>
-          {item.id === 'activity' ? (
-            <AnimatedBellIcon />
-          ) : (
-            <Icon size={52} color={c.white} strokeWidth={1.5} />
-          )}
+        {/* Icon with glow */}
+        <View style={styles.iconContainer}>
+          <View style={[styles.iconGlow, { shadowColor: item.gradientColors[0] }]}>
+            <LinearGradient
+              colors={item.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconBox}
+            >
+              {/* Inner shine */}
+              <LinearGradient
+                colors={['rgba(255,255,255,0.25)', 'transparent', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              {item.id === 'welcome' ? (
+                <Image
+                  source={require('@/assets/images/logo.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <AnimatedBellIcon
+                  granted={notifStatus === 'granted'}
+                  denied={notifStatus === 'denied'}
+                />
+              )}
+            </LinearGradient>
+          </View>
         </View>
+
+        {/* Subtitle (above title, small uppercase) */}
+        <Text style={[styles.subtitleLabel, { color: item.accentColor }]}>
+          {item.subtitle}
+        </Text>
 
         {/* Title */}
         <Text style={styles.title}>{item.title}</Text>
 
-        {/* Subtitle */}
-        <Text style={[styles.subtitle, { color: item.accentColor }]}>{item.subtitle}</Text>
-
         {/* Description */}
         <Text style={styles.description}>{item.description}</Text>
 
-        {/* Feature badges */}
-        <View style={styles.featureRow}>
-          {item.features.map((f) => (
-            <View key={f} style={styles.featureBadge}>
-              <Text style={styles.featureText}>{f}</Text>
-            </View>
-          ))}
-        </View>
+        {/* Welcome slide: colored feature pills */}
+        {item.id === 'welcome' && (
+          <View style={styles.featureRow}>
+            {FEATURES.map((f) => {
+              const Icon = f.icon
+              return (
+                <View key={f.label} style={styles.featureBadge}>
+                  <Icon size={16} color={f.color} strokeWidth={2} />
+                  <Text style={styles.featureText}>{f.label}</Text>
+                </View>
+              )
+            })}
+          </View>
+        )}
+
+        {/* Notification slide: example alert cards */}
+        {item.id === 'notifications' && (
+          <View style={styles.alertCardsContainer}>
+            {ALERT_EXAMPLES.map((alert) => {
+              const Icon = alert.icon
+              return (
+                <View key={alert.title} style={styles.alertCard}>
+                  <LinearGradient
+                    colors={alert.gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.alertIconBox}
+                  >
+                    <Icon size={20} color={c.white} strokeWidth={2} />
+                  </LinearGradient>
+                  <View style={styles.alertTextContainer}>
+                    <Text style={styles.alertTitle}>{alert.title}</Text>
+                    <Text style={styles.alertSubtitle}>{alert.subtitle}</Text>
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+        )}
       </LinearGradient>
     )
   }
@@ -184,25 +296,91 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               key={slide.id}
               style={[
                 styles.dot,
-                i === currentIndex
-                  ? styles.dotActive
-                  : styles.dotInactive,
+                i === currentIndex ? styles.dotActive : styles.dotInactive,
               ]}
             />
           ))}
         </View>
 
-        {/* Next/Get Started button */}
-        <TouchableOpacity
-          onPress={goNext}
-          activeOpacity={0.85}
-          style={styles.nextBtn}
-        >
-          <Text style={[styles.nextText, { color: currentSlide.gradientColors[0] }]}>
-            {isLast ? "Let's Go!" : 'Next'}
-          </Text>
-          {!isLast && <ChevronRight size={20} color={currentSlide.gradientColors[0]} />}
-        </TouchableOpacity>
+        {/* Buttons */}
+        {isNotifSlide ? (
+          <View style={styles.notifButtonsContainer}>
+            {notifStatus === 'idle' || notifStatus === 'loading' ? (
+              <>
+                <TouchableOpacity
+                  onPress={handleEnableNotifications}
+                  disabled={notifStatus === 'loading'}
+                  activeOpacity={0.85}
+                  style={styles.gradientBtnWrap}
+                >
+                  <LinearGradient
+                    colors={currentSlide.gradientColors}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.gradientBtn}
+                  >
+                    {notifStatus === 'loading' ? (
+                      <ActivityIndicator color={c.white} size="small" />
+                    ) : (
+                      <>
+                        <Bell size={20} color={c.white} strokeWidth={2} />
+                        <Text style={styles.gradientBtnText}>Enable Notifications</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={goNext}
+                  activeOpacity={0.7}
+                  style={styles.maybeLaterBtn}
+                >
+                  <Text style={styles.maybeLaterText}>Maybe Later</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                onPress={goNext}
+                activeOpacity={0.85}
+                style={styles.gradientBtnWrap}
+              >
+                <LinearGradient
+                  colors={
+                    notifStatus === 'granted'
+                      ? ['#10b981', '#22c55e']
+                      : currentSlide.gradientColors
+                  }
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.gradientBtn}
+                >
+                  {notifStatus === 'granted' && (
+                    <Check size={20} color={c.white} strokeWidth={2.5} />
+                  )}
+                  <Text style={styles.gradientBtnText}>Let&apos;s Go!</Text>
+                  {notifStatus !== 'granted' && (
+                    <ChevronRight size={20} color={c.white} strokeWidth={2} />
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={goNext}
+            activeOpacity={0.85}
+            style={styles.gradientBtnWrap}
+          >
+            <LinearGradient
+              colors={currentSlide.gradientColors}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.gradientBtn}
+            >
+              <Text style={styles.gradientBtnText}>Continue</Text>
+              <ChevronRight size={20} color={c.white} strokeWidth={2} />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   )
@@ -211,6 +389,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0c0a09',
   },
   skipBtn: {
     position: 'absolute',
@@ -220,11 +399,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   skipText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 15,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
     fontFamily: 'Poppins_700Bold',
     letterSpacing: 0.5,
   },
@@ -232,7 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   orb: {
     position: 'absolute',
@@ -250,72 +429,106 @@ const styles = StyleSheet.create({
     bottom: -80,
     left: -100,
   },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+  iconContainer: {
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  iconGlow: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 15,
+  },
+  iconBox: {
+    width: 112,
+    height: 112,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 10,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 72,
+    height: 72,
+  },
+  subtitleLabel: {
+    fontSize: 11,
+    fontFamily: 'Poppins_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 36,
+    fontSize: 34,
     fontFamily: 'Poppins_800ExtraBold',
     color: c.white,
     textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 44,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
-  subtitle: {
-    fontSize: 17,
-    fontFamily: 'Poppins_600SemiBold',
-    marginBottom: 16,
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    marginBottom: 12,
+    lineHeight: 42,
+    letterSpacing: -0.5,
   },
   description: {
-    fontSize: 16,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 24,
     fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
     marginBottom: 28,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    maxWidth: 320,
   },
   featureRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
   },
   featureBadge: {
-    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   featureText: {
     fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  alertCardsContainer: {
+    width: '100%',
+    gap: 8,
+  },
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  alertIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertTextContainer: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: c.white,
-    letterSpacing: 0.3,
+  },
+  alertSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 1,
   },
   bottom: {
     position: 'absolute',
@@ -342,26 +555,37 @@ const styles = StyleSheet.create({
   },
   dotInactive: {
     width: 8,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
-  nextBtn: {
+  gradientBtnWrap: {
+    width: '100%',
+  },
+  gradientBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     paddingVertical: 18,
     borderRadius: 20,
-    backgroundColor: c.white,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    gap: 8,
   },
-  nextText: {
-    fontSize: 18,
+  gradientBtnText: {
+    fontSize: 17,
     fontFamily: 'Poppins_700Bold',
-    letterSpacing: 0.5,
+    color: c.white,
+    letterSpacing: 0.3,
+  },
+  notifButtonsContainer: {
+    width: '100%',
+    gap: 8,
+  },
+  maybeLaterBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  maybeLaterText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(255,255,255,0.4)',
   },
 })

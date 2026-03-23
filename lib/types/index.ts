@@ -15,6 +15,10 @@ export interface Route {
   is_popular: boolean
   transport_type?: TransportType
   region?: string // e.g., 'greater_accra', 'central', 'ashanti'
+  // GPRTU fare verification
+  fare_approved_at: string | null
+  fare_approved_by: string | null
+  is_gprtu_verified: boolean
   created_at: string
   updated_at: string
 }

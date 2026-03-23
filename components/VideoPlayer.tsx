@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   ActivityIndicator,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Volume2, VolumeX, Play } from 'lucide-react-native'
+import { Volume2, VolumeX, Play, Pause, Maximize2 } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 
 interface VideoPlayerProps {
@@ -18,7 +18,9 @@ interface VideoPlayerProps {
   thumbnailUri?: string | null
   width: number
   isVisible: boolean
+  isMounted?: boolean
   durationSecs?: number | null
+  onExpand?: () => void
 }
 
 export default function VideoPlayer({
@@ -26,28 +28,33 @@ export default function VideoPlayer({
   thumbnailUri,
   width,
   isVisible,
+  isMounted = true,
   durationSecs,
+  onExpand,
 }: VideoPlayerProps) {
   const [isMuted, setIsMuted] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
   const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(durationSecs ?? 0)
   const [progress, setProgress] = useState(0)
-  const controlsOpacity = useRef(new Animated.Value(1)).current
-  const height = width * (4 / 3)
+  const height = Math.round(width * (4 / 3)) // tall video like X/Twitter
 
-  const player = useVideoPlayer(uri, (p) => {
+  const player = useVideoPlayer(isMounted ? uri : null, (p) => {
     p.loop = true
     p.muted = true
-    p.play()
+    if (isVisible) p.play()
   })
 
   // Sync muted state
   useEffect(() => {
+    if (!player) return
     player.muted = isMuted
   }, [isMuted, player])
 
   // Visibility-based play/pause
   useEffect(() => {
+    if (!player) return
     if (isVisible && !isPaused) {
       player.play()
     } else {
@@ -55,10 +62,13 @@ export default function VideoPlayer({
     }
   }, [isVisible, isPaused, player])
 
-  // Track playback progress
+  // Track playback progress + remaining time
   useEffect(() => {
+    if (!player) return
     const interval = setInterval(() => {
       if (player.duration > 0) {
+        setDuration(player.duration)
+        setCurrentTime(player.currentTime)
         setProgress(player.currentTime / player.duration)
       }
     }, 250)
@@ -70,6 +80,7 @@ export default function VideoPlayer({
   }, [])
 
   const togglePlayPause = useCallback(() => {
+    if (!player) return
     setIsPaused((prev) => {
       const next = !prev
       if (next) {
@@ -82,9 +93,37 @@ export default function VideoPlayer({
   }, [player])
 
   const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60)
-    const s = Math.floor(secs % 60)
+    const m = Math.floor(Math.abs(secs) / 60)
+    const s = Math.floor(Math.abs(secs) % 60)
     return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  const remaining = duration - currentTime
+
+  // If not mounted, show thumbnail only (memory-saving for distant posts)
+  if (!isMounted) {
+    return (
+      <View style={[styles.container, { width, height }]}>
+        {thumbnailUri && (
+          <Image
+            source={{ uri: thumbnailUri }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            cachePolicy="disk"
+          />
+        )}
+        <View style={styles.playOverlay}>
+          <View style={styles.playBtnLarge}>
+            <Play size={36} color={c.white} fill={c.white} />
+          </View>
+        </View>
+        {durationSecs != null && (
+          <View style={styles.thumbnailDuration}>
+            <Text style={styles.thumbnailDurationText}>{formatTime(durationSecs)}</Text>
+          </View>
+        )}
+      </View>
+    )
   }
 
   return (
@@ -99,10 +138,17 @@ export default function VideoPlayer({
         />
       )}
 
-      {/* Loading spinner */}
+      {/* Play icon + spinner on thumbnail while loading */}
       {!hasRenderedFirstFrame && (
-        <View style={styles.loader}>
-          <ActivityIndicator size="small" color={c.white} />
+        <View style={styles.playOverlay}>
+          <View style={styles.playBtnLarge}>
+            <Play size={36} color={c.white} fill={c.white} />
+          </View>
+          <ActivityIndicator
+            size="small"
+            color={c.white}
+            style={styles.loadingSpinner}
+          />
         </View>
       )}
 
@@ -115,57 +161,86 @@ export default function VideoPlayer({
         onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
       />
 
-      {/* Bottom gradient for sharp overlay contrast */}
+      {/* Bottom gradient for control bar readability */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.5)']}
+        colors={['transparent', 'rgba(0,0,0,0.6)']}
         style={styles.bottomGradient}
         pointerEvents="none"
       />
 
-      {/* Tap to play/pause overlay */}
+      {/* Tap to play/pause — full overlay */}
       <TouchableOpacity
-        style={StyleSheet.absoluteFillObject}
+        style={styles.tapArea}
         activeOpacity={1}
         onPress={togglePlayPause}
       >
         {isPaused && (
           <View style={styles.playOverlay}>
-            <View style={styles.playBtn}>
-              <Play size={32} color={c.white} fill={c.white} />
+            <View style={styles.playBtnLarge}>
+              <Play size={36} color={c.white} fill={c.white} />
             </View>
           </View>
         )}
       </TouchableOpacity>
 
-      {/* Bottom controls row */}
-      <Animated.View style={[styles.controlsRow, { opacity: controlsOpacity }]}>
-        {/* Duration badge */}
-        {durationSecs != null && (
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{formatTime(durationSecs)}</Text>
-          </View>
-        )}
-
-        <View style={{ flex: 1 }} />
-
-        {/* Mute/unmute button */}
-        <TouchableOpacity
-          style={styles.muteBtn}
-          onPress={toggleMute}
-          activeOpacity={0.8}
-          hitSlop={8}
-        >
-          {isMuted ? (
-            <VolumeX size={16} color={c.white} />
-          ) : (
-            <Volume2 size={16} color={c.white} />
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Progress bar — thin line at bottom */}
+      {/* Progress bar — thin line above control bar */}
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+      </View>
+
+      {/* X/Twitter-style glass control bar */}
+      <View style={styles.controlBar}>
+        <BlurView
+          intensity={40}
+          tint="dark"
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.controlBarContent}>
+          {/* Play/Pause */}
+          <TouchableOpacity
+            onPress={togglePlayPause}
+            activeOpacity={0.7}
+            hitSlop={6}
+          >
+            {isPaused ? (
+              <Play size={18} color={c.white} fill={c.white} />
+            ) : (
+              <Pause size={18} color={c.white} fill={c.white} />
+            )}
+          </TouchableOpacity>
+
+          {/* Remaining time (countdown like X) */}
+          <Text style={styles.timeText}>
+            -{formatTime(remaining)}
+          </Text>
+
+          <View style={{ flex: 1 }} />
+
+          {/* Mute/unmute */}
+          <TouchableOpacity
+            onPress={toggleMute}
+            activeOpacity={0.7}
+            hitSlop={6}
+          >
+            {isMuted ? (
+              <VolumeX size={18} color={c.white} />
+            ) : (
+              <Volume2 size={18} color={c.white} />
+            )}
+          </TouchableOpacity>
+
+          {/* Expand to fullscreen reel */}
+          {onExpand && (
+            <TouchableOpacity
+              onPress={onExpand}
+              activeOpacity={0.7}
+              hitSlop={6}
+            >
+              <Maximize2 size={16} color={c.white} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   )
@@ -176,76 +251,89 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     overflow: 'hidden',
   },
-  loader: {
+  playOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    zIndex: 2,
+  },
+  playBtnLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  loadingSpinner: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+  },
+  thumbnailDuration: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  thumbnailDurationText: {
+    color: c.white,
+    fontSize: 12,
+    fontFamily: font.semibold,
   },
   bottomGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 100,
+    height: 80,
+    zIndex: 1,
   },
-  playOverlay: {
+  tapArea: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  playBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  controlsRow: {
-    position: 'absolute',
-    bottom: 8,
-    left: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  durationBadge: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  durationText: {
-    color: c.white,
-    fontSize: 11,
-    fontFamily: font.semibold,
-  },
-  muteBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    zIndex: 3,
   },
   progressTrack: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 42,
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    zIndex: 5,
   },
   progressFill: {
     height: '100%',
     backgroundColor: c.white,
-    borderRadius: 1.5,
+  },
+  controlBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 42,
+    overflow: 'hidden',
+    zIndex: 4,
+  },
+  controlBarContent: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 14,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  timeText: {
+    color: c.white,
+    fontSize: 13,
+    fontFamily: font.semibold,
+    minWidth: 40,
   },
 })

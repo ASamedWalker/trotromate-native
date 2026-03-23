@@ -107,13 +107,12 @@ export async function fetchUserReactions(
   return result
 }
 
-export async function deleteTale(postId: string, deviceId: string): Promise<boolean> {
-  // Soft-delete (RLS no longer allows hard DELETE)
+export async function deleteTale(postId: string, _deviceId: string): Promise<boolean> {
+  // Hard delete — RLS policy "Anon delete own tale_posts" allows it
   const { error } = await supabase
     .from('tale_posts')
-    .update({ is_hidden: true })
+    .delete()
     .eq('id', postId)
-    .eq('device_id', deviceId)
 
   if (error) {
     console.error('Error deleting tale:', error)

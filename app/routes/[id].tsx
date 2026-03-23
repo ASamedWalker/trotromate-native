@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
@@ -22,6 +22,7 @@ import { BusynessMeter } from '@/components/BusynessMeter'
 import { useTrafficInfo } from '@/lib/hooks/useTraffic'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { GPRTUBadge } from '@/components/GPRTUBadge'
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 
 const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
@@ -72,6 +73,9 @@ export default function RouteDetailScreen() {
   const minFare = route.fare_stats?.min_reported_fare
   const maxFare = route.fare_stats?.max_reported_fare
   const hasFareRange = minFare != null && maxFare != null && minFare !== maxFare
+  const isOvercharge = route.is_gprtu_verified
+    && route.fare_stats?.avg_reported_fare != null
+    && route.fare_stats.avg_reported_fare > route.official_fare * 1.2
 
   // Detect region for hero image
   const regionKey = detectRegion(route.from_location)
@@ -123,22 +127,57 @@ export default function RouteDetailScreen() {
           </View>
         </View>
 
-        {/* Fare Card */}
+        {/* Fare Card — Dual-tier when GPRTU verified */}
         <View style={s.fareCard}>
+          {route.is_gprtu_verified && (
+            <>
+              <View style={s.fareCardHeader}>
+                <Text style={s.fareLabel}>GPRTU Official Fare</Text>
+                <GPRTUBadge approvedDate={route.fare_approved_at} />
+              </View>
+              <Text style={s.fareValue}>₵{route.official_fare.toFixed(2)}</Text>
+              <View style={s.fareDivider} />
+            </>
+          )}
           <View style={s.fareCardHeader}>
-            <Text style={s.fareLabel}>Current Fare</Text>
+            <Text style={s.fareLabel}>
+              {route.is_gprtu_verified ? 'Community Reported' : 'Current Fare'}
+            </Text>
             <View style={s.fareUpdated}>
               <Clock size={14} color={t.textSecondary} />
               <Text style={s.fareUpdatedText}>{lastUpdated}</Text>
             </View>
           </View>
-          <Text style={s.fareValue}>₵{displayFare.toFixed(2)}</Text>
+          <Text style={[s.fareValue, route.is_gprtu_verified && s.fareValueSecondary]}>
+            ₵{displayFare.toFixed(2)}
+          </Text>
+          {reportCount > 0 && (
+            <Text style={s.fareReportCount}>
+              {reportCount} report{reportCount !== 1 ? 's' : ''}
+            </Text>
+          )}
           {hasFareRange && (
             <Text style={s.fareRange}>
               Range: ₵{minFare.toFixed(2)} – ₵{maxFare.toFixed(2)}
             </Text>
           )}
         </View>
+
+        {/* Overcharge Warning */}
+        {isOvercharge && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/report/fare')}
+            style={s.overchargeCard}
+          >
+            <AlertTriangle size={18} color="#d97706" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.overchargeText}>Reported fare is above GPRTU rate</Text>
+              <Text style={s.overchargeLink}>Report to GPRTU →</Text>
+            </View>
+            <ChevronRight size={16} color="#d97706" />
+          </TouchableOpacity>
+        )}
 
         {/* Stats Row */}
         <View style={s.statsRowContainer}>
@@ -316,8 +355,43 @@ const getStyles = (isDark: boolean) => {
       color: t.textSecondary,
       marginTop: 4,
     },
+    fareValueSecondary: { fontSize: 28 },
+    fareDivider: {
+      height: 1,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+      marginVertical: 14,
+    },
+    fareReportCount: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
     fareUpdated: { flexDirection: 'row' as const, alignItems: 'center' as const },
     fareUpdatedText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
+    overchargeCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 12,
+      padding: 14,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(217,119,6,0.12)' : 'rgba(217,119,6,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(217,119,6,0.2)' : 'rgba(217,119,6,0.15)',
+    },
+    overchargeText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: isDark ? '#fbbf24' : '#b45309',
+    },
+    overchargeLink: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: '#d97706',
+      marginTop: 2,
+    },
     // Stats row
     statsRowContainer: {
       flexDirection: 'row' as const,

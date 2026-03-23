@@ -88,6 +88,7 @@ export function ReferralCard() {
         padding: 20,
         marginHorizontal: 20,
         marginTop: 16,
+        marginBottom: 24,
         overflow: 'hidden',
         backgroundColor: c.amber500,
       }}

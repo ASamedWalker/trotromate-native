@@ -14,13 +14,24 @@ export type RegionKey = typeof REGIONS[number]['key']
 
 // Location patterns for auto-detecting region from route location names
 const REGION_PATTERNS: { region: string; patterns: string[] }[] = [
-  { region: 'tema', patterns: ['tema', 'ashaiman'] },
-  { region: 'central', patterns: ['cape coast', 'winneba', 'elmina', 'mankessim', 'saltpond', 'swedru'] },
-  { region: 'ashanti', patterns: ['kumasi', 'obuasi', 'ejisu', 'mampong', 'konongo', 'bekwai'] },
-  { region: 'western', patterns: ['takoradi', 'sekondi', 'tarkwa', 'axim', 'prestea'] },
-  { region: 'eastern', patterns: ['koforidua', 'nkawkaw', 'akosombo', 'nsawam', 'akim oda', 'suhum'] },
-  { region: 'volta', patterns: ['ho ', 'keta', 'hohoe', 'aflao', 'kpando'] },
-  { region: 'northern', patterns: ['tamale', 'yendi', 'bolgatanga', 'wa ', 'sunyani', 'techiman'] },
+  { region: 'greater_accra', patterns: [
+    'accra', 'circle', 'madina', 'kaneshie', 'lapaz', 'la paz', 'legon', 'achimota',
+    'nungua', 'teshie', 'labadi', 'osu', 'dansoman', 'spintex', 'east legon',
+    'adenta', 'dodowa', 'weija', 'mallam', 'kwashieman', 'abeka', 'darkuman',
+    'odorkor', 'pokuase', 'dome', 'kwabenya', 'haatso', 'ashongman', 'amasaman',
+    'kasoa', 'ablekuma',
+  ]},
+  { region: 'tema', patterns: ['tema', 'ashaiman', 'sakumono', 'batsonaa', 'dawhenya', 'prampram'] },
+  { region: 'central', patterns: ['cape coast', 'winneba', 'elmina', 'mankessim', 'saltpond', 'swedru', 'ucc'] },
+  { region: 'ashanti', patterns: [
+    'kumasi', 'obuasi', 'ejisu', 'mampong', 'konongo', 'bekwai', 'knust',
+    'kejetia', 'adum', 'bantama', 'suame', 'asokwa', 'tafo', 'manhyia',
+    'abrepo', 'ayigya', 'bomso', 'offinso', 'agogo',
+  ]},
+  { region: 'western', patterns: ['takoradi', 'sekondi', 'tarkwa', 'axim', 'prestea', 'essikado', 'effia'] },
+  { region: 'eastern', patterns: ['koforidua', 'nkawkaw', 'akosombo', 'nsawam', 'akim oda', 'suhum', 'somanya', 'aburi'] },
+  { region: 'volta', patterns: ['ho ', 'keta', 'hohoe', 'aflao', 'kpando', 'denu', 'sogakope'] },
+  { region: 'northern', patterns: ['tamale', 'yendi', 'bolgatanga', 'wa ', 'sunyani', 'techiman', 'bawku', 'navrongo'] },
 ]
 
 export interface RegionHero {
@@ -95,11 +106,16 @@ export const REGION_HEROES: RegionHero[] = [
 
 /** Detect region from a location name, defaults to 'greater_accra' */
 export function detectRegion(location: string): string {
+  return detectRegionOrNull(location) ?? 'greater_accra'
+}
+
+/** Detect region from a location name, returns null if no pattern matches */
+export function detectRegionOrNull(location: string): string | null {
   const lower = location.toLowerCase()
   for (const { region, patterns } of REGION_PATTERNS) {
     if (patterns.some(p => lower.includes(p))) {
       return region
     }
   }
-  return 'greater_accra'
+  return null
 }
