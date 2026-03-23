@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const ONBOARDING_KEY = 'troski_onboarding_complete'
-const ONBOARDING_VERSION = '1'
+const ONBOARDING_VERSION = '2'
 
 export function useOnboarding() {
   const [isComplete, setIsComplete] = useState(true) // Default to true so it doesn't flash
