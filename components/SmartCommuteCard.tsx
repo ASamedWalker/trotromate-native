@@ -2,13 +2,15 @@ import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import {
-  Sparkles,
+  Sunrise,
+  Sunset,
+  Coffee,
+  Palmtree,
   Navigation,
   TrainFront,
   TrendingUp,
   MapPin,
   ChevronRight,
-  Palmtree,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
@@ -50,7 +52,10 @@ export function SmartCommuteCard() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <Sparkles size={16} color={c.amber500} />
+        {context === 'morning' && <Sunrise size={16} color={c.amber500} />}
+        {context === 'evening' && <Sunset size={16} color="#f97316" />}
+        {context === 'midday' && <Coffee size={16} color={c.amber500} />}
+        {context === 'weekend' && <Palmtree size={16} color="#22c55e" />}
         <Text style={s.headerText}>{TITLES[context]}</Text>
       </View>
 
