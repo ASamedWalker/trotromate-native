@@ -55,6 +55,7 @@ function getCurrentStation(schedule: TrainSchedule, currentMinutes: number) {
 type DepartureInfo =
   | {
       type: 'waiting'
+      lineCode: string
       schedule: TrainSchedule
       remaining: number
       origin: string
@@ -64,6 +65,7 @@ type DepartureInfo =
     }
   | {
       type: 'in-transit'
+      lineCode: string
       schedule: TrainSchedule
       progress: number
       destination: string
@@ -74,85 +76,92 @@ type DepartureInfo =
     }
   | { type: 'no-service' }
 
-function computeDeparture(schedules: TrainSchedule[]): DepartureInfo {
+/** Compute next departure for a single line (direction-agnostic) */
+function computeLineDeparture(
+  lineCode: string,
+  schedules: TrainSchedule[]
+): DepartureInfo {
   const ghana = getGhanaTime()
   const day = ghana.day
   const currentMinutes = ghana.hours * 60 + ghana.minutes
   const currentSeconds = ghana.seconds
   const totalSeconds = currentMinutes * 60 + currentSeconds
 
-  if (day === 0) return { type: 'no-service' }
+  if (day === 0 || schedules.length === 0) return { type: 'no-service' }
 
-  const morning = schedules.find((s) => s.direction === 'inbound')
-  const evening = schedules.find((s) => s.direction === 'outbound')
-  if (!morning || !evening) return { type: 'no-service' }
+  // Sort by departure time (works regardless of direction labels)
+  const sorted = [...schedules].sort(
+    (a, b) => parseTimeToMinutes(a.stops[0].depart!) - parseTimeToMinutes(b.stops[0].depart!)
+  )
 
-  const mDepart = parseTimeToMinutes(morning.stops[0].depart!)
-  const mArrive = parseTimeToMinutes(morning.stops[morning.stops.length - 1].arrive!)
-  const eDepart = parseTimeToMinutes(evening.stops[0].depart!)
-  const eArrive = parseTimeToMinutes(evening.stops[evening.stops.length - 1].arrive!)
+  for (const sched of sorted) {
+    const depart = parseTimeToMinutes(sched.stops[0].depart!)
+    const arrive = parseTimeToMinutes(sched.stops[sched.stops.length - 1].arrive!)
 
-  if (currentMinutes < mDepart) {
-    return {
-      type: 'waiting',
-      schedule: morning,
-      remaining: mDepart * 60 - totalSeconds,
-      origin: morning.stops[0].station,
-      destination: morning.stops[morning.stops.length - 1].station,
-      departTime: morning.stops[0].depart!,
+    if (currentMinutes < depart) {
+      return {
+        type: 'waiting',
+        lineCode,
+        schedule: sched,
+        remaining: depart * 60 - totalSeconds,
+        origin: sched.stops[0].station,
+        destination: sched.stops[sched.stops.length - 1].station,
+        departTime: sched.stops[0].depart!,
+      }
+    }
+
+    if (currentMinutes <= arrive) {
+      const pos = getCurrentStation(sched, currentMinutes)
+      return {
+        type: 'in-transit',
+        lineCode,
+        schedule: sched,
+        progress: (currentMinutes - depart) / (arrive - depart),
+        destination: sched.stops[sched.stops.length - 1].station,
+        currentStation: pos.current,
+        nextStation: pos.next,
+        nextArrival: pos.nextArr,
+        arrivalTime: sched.stops[sched.stops.length - 1].arrive!,
+      }
     }
   }
 
-  if (currentMinutes <= mArrive) {
-    const pos = getCurrentStation(morning, currentMinutes)
-    return {
-      type: 'in-transit',
-      schedule: morning,
-      progress: (currentMinutes - mDepart) / (mArrive - mDepart),
-      destination: morning.stops[morning.stops.length - 1].station,
-      currentStation: pos.current,
-      nextStation: pos.next,
-      nextArrival: pos.nextArr,
-      arrivalTime: morning.stops[morning.stops.length - 1].arrive!,
-    }
-  }
-
-  if (currentMinutes < eDepart) {
-    return {
-      type: 'waiting',
-      schedule: evening,
-      remaining: eDepart * 60 - totalSeconds,
-      origin: evening.stops[0].station,
-      destination: evening.stops[evening.stops.length - 1].station,
-      departTime: evening.stops[0].depart!,
-    }
-  }
-
-  if (currentMinutes <= eArrive) {
-    const pos = getCurrentStation(evening, currentMinutes)
-    return {
-      type: 'in-transit',
-      schedule: evening,
-      progress: (currentMinutes - eDepart) / (eArrive - eDepart),
-      destination: evening.stops[evening.stops.length - 1].station,
-      currentStation: pos.current,
-      nextStation: pos.next,
-      nextArrival: pos.nextArr,
-      arrivalTime: evening.stops[evening.stops.length - 1].arrive!,
-    }
-  }
-
-  // After last service — show next morning
-  const remaining = (24 * 60 - currentMinutes + mDepart) * 60 - currentSeconds
+  // After all services — show next day's first departure
+  const first = sorted[0]
+  const firstDepart = parseTimeToMinutes(first.stops[0].depart!)
+  const remaining = (24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
   return {
     type: 'waiting',
-    schedule: morning,
+    lineCode,
+    schedule: first,
     remaining,
-    origin: morning.stops[0].station,
-    destination: morning.stops[morning.stops.length - 1].station,
-    departTime: morning.stops[0].depart!,
+    origin: first.stops[0].station,
+    destination: first.stops[first.stops.length - 1].station,
+    departTime: first.stops[0].depart!,
     tomorrow: true,
   }
+}
+
+/** Pick the best departure across all lines: in-transit > soonest waiting */
+function getNextDeparture(): DepartureInfo {
+  const codes = Object.keys(TRAIN_SCHEDULES)
+  let bestWaiting: Extract<DepartureInfo, { type: 'waiting' }> | null = null
+  let firstInTransit: Extract<DepartureInfo, { type: 'in-transit' }> | null = null
+
+  for (const code of codes) {
+    const dep = computeLineDeparture(code, TRAIN_SCHEDULES[code])
+    if (dep.type === 'in-transit' && !firstInTransit) {
+      firstInTransit = dep
+    } else if (dep.type === 'waiting') {
+      if (!bestWaiting || dep.remaining < bestWaiting.remaining) {
+        bestWaiting = dep
+      }
+    }
+  }
+
+  if (firstInTransit) return firstInTransit
+  if (bestWaiting) return bestWaiting
+  return { type: 'no-service' }
 }
 
 // ─── Flip-digit component ────────────────────────────────
@@ -183,16 +192,14 @@ export default function TrainLinesScreen() {
     return () => clearInterval(id)
   }, [])
 
-  const scheduleCode = useMemo(() => {
-    if (lines.length > 0 && TRAIN_SCHEDULES[lines[0].code]) return lines[0].code
-    return Object.keys(TRAIN_SCHEDULES)[0] || null
-  }, [lines])
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const departure = useMemo(() => {
-    if (!scheduleCode) return null
-    return computeDeparture(TRAIN_SCHEDULES[scheduleCode])
-  }, [scheduleCode, tick])
+  const departure = useMemo(() => getNextDeparture(), [tick])
+
+  const lineColor = useMemo(() => {
+    if (departure.type === 'no-service') return '#0ea5e9'
+    const line = lines.find((l) => l.code === departure.lineCode)
+    return line?.color || '#0ea5e9'
+  }, [departure, lines])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const currentTime = useMemo(() => formatGhanaTime(), [tick])
@@ -262,7 +269,7 @@ export default function TrainLinesScreen() {
         }
       >
         {/* ─── Departure Board ─────────────────────────── */}
-        {departure && (
+        {(
           <View style={s.board}>
             <View style={s.boardGlow} />
 
@@ -430,8 +437,17 @@ export default function TrainLinesScreen() {
               <Text style={s.stripText}>GRDA Official</Text>
               <View style={s.stripDot} />
               <Text style={s.stripText}>Mon – Sat</Text>
-              <View style={s.stripDot} />
-              <Text style={s.stripText}>GH₵5.00</Text>
+              {departure.type !== 'no-service' && (
+                <>
+                  <View style={s.stripDot} />
+                  <View style={[s.stripLineDot, { backgroundColor: lineColor }]} />
+                  <Text style={s.stripText}>{departure.lineCode}</Text>
+                  <View style={s.stripDot} />
+                  <Text style={s.stripText}>
+                    GH₵{departure.schedule.fare.toFixed(2)}
+                  </Text>
+                </>
+              )}
             </View>
           </View>
         )}
@@ -733,6 +749,11 @@ const getStyles = (isDark: boolean) => {
       height: 3,
       borderRadius: 1.5,
       backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    stripLineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
 
     // ── Section ──
