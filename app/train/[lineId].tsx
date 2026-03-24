@@ -19,7 +19,7 @@ import {
   Plus,
   BarChart3,
   AlertCircle,
-  ArrowDownUp,
+  ArrowRight,
   Gauge,
   Sunrise,
   Sunset,
@@ -72,6 +72,20 @@ export default function LineDetailScreen() {
   const [expandedStation, setExpandedStation] = useState<string | null>(null)
 
   const lineColor = line?.color || '#0ea5e9'
+
+  // Build a map of station name → schedule times (from the first schedule)
+  const stationTimesMap = useMemo(() => {
+    if (!line?.code || !TRAIN_SCHEDULES[line.code]) return {}
+    const map: Record<string, { arrive: string | null; depart: string | null }> = {}
+    // Use first schedule (morning) for default times
+    const sched = TRAIN_SCHEDULES[line.code][0]
+    if (sched) {
+      for (const stop of sched.stops) {
+        map[stop.station] = { arrive: stop.arrive, depart: stop.depart }
+      }
+    }
+    return map
+  }, [line?.code])
 
   // Compute live stats from recent reports
   const liveStats = useMemo(() => {
@@ -162,6 +176,8 @@ export default function LineDetailScreen() {
         : undefined
       const isExpanded = expandedStation === station.id
       const stationReports = stationReportsMap[station.id] || []
+      const times = stationTimesMap[station.name]
+      const displayTime = times?.depart || times?.arrive
 
       return (
         <View key={station.id}>
@@ -177,13 +193,11 @@ export default function LineDetailScreen() {
               )}
               {isTerminal ? (
                 <View style={[s.terminalDot, { backgroundColor: lineColor }]}>
-                  <View style={s.terminalInner} />
+                  <TrainFront size={12} color={c.white} />
                 </View>
               ) : (
-                <View style={[s.stationDot, { borderColor: lineColor, backgroundColor: t.card }]}>
-                  {crowdColor && (
-                    <View style={[s.crowdDotInner, { backgroundColor: crowdColor }]} />
-                  )}
+                <View style={[s.stationDot, { borderColor: crowdColor || lineColor, backgroundColor: crowdColor ? `${crowdColor}15` : t.card }]}>
+                  <TrainFront size={9} color={crowdColor || lineColor} />
                 </View>
               )}
               {!isLast && (
@@ -211,6 +225,9 @@ export default function LineDetailScreen() {
                     {CROWD_LABELS[crowdReport.crowd_level as CrowdLevel]}
                   </Text>
                 </View>
+              )}
+              {displayTime && (
+                <Text style={s.stationTime}>{displayTime}</Text>
               )}
               <ChevronDown
                 size={14}
@@ -266,7 +283,7 @@ export default function LineDetailScreen() {
         </View>
       )
     },
-    [stations, lineColor, stationCrowdMap, stationReportsMap, expandedStation, isDark, s, t, line, router]
+    [stations, lineColor, stationCrowdMap, stationReportsMap, stationTimesMap, expandedStation, isDark, s, t, line, router]
   )
 
   if (isLoading) {
@@ -303,96 +320,82 @@ export default function LineDetailScreen() {
           />
         }
       >
-        {/* ─── Hero Header ─────────────────────────────────── */}
-        <View style={[s.hero, { backgroundColor: lineColor }]}>
-          <View style={s.heroGlow} />
-          <View style={s.heroContent}>
-            <View style={s.heroTopRow}>
-              <View style={s.heroIconBox}>
-                <TrainFront size={28} color={c.white} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.heroCode}>{line.code}</Text>
-                <Text style={s.heroName}>{line.name}</Text>
-              </View>
-            </View>
-            {/* Route summary */}
-            <View style={s.heroRoute}>
-              <Text style={s.heroRouteText}>
-                {stations.length > 0
-                  ? `${stations[0].name}  →  ${stations[stations.length - 1].name}`
-                  : `${stations.length} stations`}
-              </Text>
-            </View>
-            {/* Stat chips */}
-            <View style={s.heroChips}>
-              <View style={s.heroChip}>
-                <Text style={s.heroChipText}>{stations.length} stops</Text>
-              </View>
-              {line.official_fare && (
-                <View style={s.heroChip}>
-                  <GRDABadge size="small" />
-                  <Text style={s.heroChipText}>₵{line.official_fare.toFixed(2)} fare</Text>
-                </View>
-              )}
-              {liveStats && liveStats.totalReports > 0 && (
-                <View style={s.heroChip}>
-                  <Text style={s.heroChipText}>{liveStats.totalReports} reports</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* ─── Live Stats Row ──────────────────────────────── */}
-        {liveStats && (liveStats.avgDelay || liveStats.latestCrowd) && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.statsScroll}
-          >
-            {liveStats.latestCrowd && (
-              <View style={s.statCard}>
-                <View style={[s.statIconBox, { backgroundColor: `${CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel]}15` }]}>
-                  <Gauge
-                    size={18}
-                    color={CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel]}
-                  />
-                </View>
-                <Text style={s.statValue}>
-                  {CROWD_LABELS[liveStats.latestCrowd.crowd_level as CrowdLevel]}
-                </Text>
-                <Text style={s.statLabel}>Live Crowd</Text>
-              </View>
-            )}
-            {liveStats.avgDelay !== null && (
-              <View style={s.statCard}>
-                <View style={[s.statIconBox, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                  <AlertCircle size={18} color="#ef4444" />
-                </View>
-                <Text style={s.statValue}>{liveStats.avgDelay}m</Text>
-                <Text style={s.statLabel}>Avg Delay</Text>
-              </View>
-            )}
-            <View style={s.statCard}>
-              <View style={[s.statIconBox, { backgroundColor: `${lineColor}15` }]}>
-                <BarChart3 size={18} color={lineColor} />
-              </View>
-              <Text style={s.statValue}>{recentReports.length}</Text>
-              <Text style={s.statLabel}>Reports</Text>
-            </View>
-          </ScrollView>
-        )}
-
+        {/* ─── Unified Line Card ─────────────────────────── */}
         <View style={s.body}>
-          {/* ─── Station Timeline ────────────────────────────── */}
-          <View style={s.sectionHeader}>
-            <ArrowDownUp size={16} color={lineColor} />
-            <Text style={s.sectionTitle}>Stations</Text>
-          </View>
-
           <View style={s.stationCard}>
+            {/* Card header — schedule badge + route */}
+            <View style={s.cardHeader}>
+              <View style={s.cardHeaderTop}>
+                <View style={[s.schedBadge, { backgroundColor: lineColor }]}>
+                  <Text style={s.schedBadgeText}>{line.code}</Text>
+                </View>
+                <Text style={s.cardHeaderLabel}>{line.name}</Text>
+              </View>
+              <View style={s.cardHeaderRoute}>
+                <TrainFront size={14} color={lineColor} />
+                <Text style={s.cardHeaderFrom}>
+                  {stations.length > 0 ? stations[0].name : '—'}
+                </Text>
+                <ArrowRight size={14} color={t.textTertiary} />
+                <Text style={s.cardHeaderTo}>
+                  {stations.length > 0 ? stations[stations.length - 1].name : '—'}
+                </Text>
+              </View>
+              {/* Live stat chips */}
+              {liveStats && (liveStats.avgDelay || liveStats.latestCrowd) && (
+                <View style={s.liveChipsRow}>
+                  {liveStats.latestCrowd && (
+                    <View style={[s.liveChip, { backgroundColor: `${CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel]}15` }]}>
+                      <Gauge size={12} color={CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel]} />
+                      <Text style={[s.liveChipText, { color: CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel] }]}>
+                        {CROWD_LABELS[liveStats.latestCrowd.crowd_level as CrowdLevel]}
+                      </Text>
+                    </View>
+                  )}
+                  {liveStats.avgDelay !== null && (
+                    <View style={[s.liveChip, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
+                      <AlertCircle size={12} color="#ef4444" />
+                      <Text style={[s.liveChipText, { color: '#ef4444' }]}>
+                        ~{liveStats.avgDelay}m delay
+                      </Text>
+                    </View>
+                  )}
+                  <View style={[s.liveChip, { backgroundColor: `${lineColor}12` }]}>
+                    <BarChart3 size={12} color={lineColor} />
+                    <Text style={[s.liveChipText, { color: lineColor }]}>
+                      {recentReports.length} reports
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Station timeline — flows directly from header */}
             {stations.map(renderStation)}
+
+            {/* Fare summary bar at bottom */}
+            {line.official_fare && (
+              <View style={s.fareSummary}>
+                <View style={s.fareSummaryLeft}>
+                  <GRDABadge size="small" />
+                  <Text style={s.fareSummaryPrice}>
+                    GHS {line.official_fare.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={[s.fareSummaryBadge, {
+                  backgroundColor: liveStats?.avgDelay ? '#fef3c7' : '#dcfce7',
+                }]}>
+                  <View style={[s.fareSummaryBadgeDot, {
+                    backgroundColor: liveStats?.avgDelay ? '#f59e0b' : '#22c55e',
+                  }]} />
+                  <Text style={[s.fareSummaryBadgeText, {
+                    color: liveStats?.avgDelay ? '#92400e' : '#166534',
+                  }]}>
+                    {liveStats?.avgDelay ? `~${liveStats.avgDelay}m Late` : 'On Time'}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* ─── Schedule Timetable ──────────────────────── */}
@@ -549,88 +552,58 @@ const getStyles = (isDark: boolean) => {
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: t.textSecondary, marginTop: 12 },
 
-    // ── Hero ──
-    hero: {
-      paddingBottom: 24,
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
-      overflow: 'hidden',
+    // ── Card Header ──
+    cardHeader: {
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
     },
-    heroGlow: {
-      position: 'absolute',
-      top: -40,
-      right: -40,
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      backgroundColor: 'rgba(255,255,255,0.08)',
-    },
-    heroContent: { paddingHorizontal: 24, paddingTop: 16 },
-    heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    heroIconBox: {
-      width: 56,
-      height: 56,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.18)',
+    cardHeaderTop: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 16,
+      gap: 10,
+      marginBottom: 10,
     },
-    heroCode: {
-      color: 'rgba(255,255,255,0.7)',
+    schedBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    schedBadgeText: {
       fontSize: 13,
       fontFamily: font.bold,
-      letterSpacing: 2,
-      textTransform: 'uppercase',
-    },
-    heroName: { color: c.white, fontSize: 22, fontFamily: font.bold, marginTop: 2 },
-    heroRoute: {
-      backgroundColor: 'rgba(255,255,255,0.12)',
-      borderRadius: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-      marginBottom: 14,
-    },
-    heroRouteText: {
       color: c.white,
-      fontSize: 14,
+      letterSpacing: 1,
+    },
+    cardHeaderLabel: {
+      fontSize: 16,
       fontFamily: font.semibold,
-      textAlign: 'center',
-      letterSpacing: 0.5,
+      color: t.text,
+      flex: 1,
     },
-    heroChips: { flexDirection: 'row', gap: 8 },
-    heroChip: {
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 20,
-    },
-    heroChipText: { color: c.white, fontSize: 12, fontFamily: font.semibold },
-
-    // ── Stats Row ──
-    statsScroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4, gap: 10 },
-    statCard: {
-      backgroundColor: t.card,
-      borderRadius: 16,
-      padding: 14,
-      width: 110,
+    cardHeaderRoute: {
+      flexDirection: 'row',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: t.border,
+      gap: 8,
+      marginBottom: 10,
     },
-    statIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+    cardHeaderFrom: { fontSize: 14, fontFamily: font.medium, color: t.text },
+    cardHeaderTo: { fontSize: 14, fontFamily: font.medium, color: t.text },
+    liveChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    liveChip: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      gap: 4,
     },
-    statValue: { fontSize: 16, fontFamily: font.bold, color: t.text },
-    statLabel: { fontSize: 11, fontFamily: font.regular, color: t.textSecondary, marginTop: 2 },
+    liveChipText: { fontSize: 11, fontFamily: font.semibold },
 
     // ── Body ──
-    body: { paddingHorizontal: 20, paddingTop: 24 },
+    body: { paddingHorizontal: 20, paddingTop: 16 },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -721,6 +694,7 @@ const getStyles = (isDark: boolean) => {
     stationName: { fontFamily: font.medium, fontSize: 15, color: t.text },
     stationNameTerminal: { fontFamily: font.bold, fontSize: 16 },
     stationHint: { fontSize: 11, fontFamily: font.regular, color: t.textTertiary, marginTop: 1 },
+    stationTime: { fontFamily: font.semibold, fontSize: 13, color: t.textSecondary, marginRight: 4 },
     crowdChip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -731,6 +705,29 @@ const getStyles = (isDark: boolean) => {
     },
     crowdChipDot: { width: 6, height: 6, borderRadius: 3 },
     crowdChipText: { fontSize: 11, fontFamily: font.semibold },
+
+    // ── Fare Summary Bar ──
+    fareSummary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    fareSummaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    fareSummaryPrice: { fontFamily: font.bold, fontSize: 16, color: t.text },
+    fareSummaryBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      gap: 6,
+    },
+    fareSummaryBadgeDot: { width: 6, height: 6, borderRadius: 3 },
+    fareSummaryBadgeText: { fontFamily: font.semibold, fontSize: 12 },
 
     // ── Expanded Station ──
     expandedSection: {
