@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   useColorScheme,
   StyleSheet,
   Platform,
+  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
@@ -64,6 +65,50 @@ const TRAIN_STATION_NAMES = new Set(
   Object.values(TRAIN_SCHEDULES)
     .flatMap((scheds) => scheds.flatMap((s) => s.stops.map((st) => st.station.toLowerCase()))),
 )
+
+/* ── Animated search placeholder ───────────────────── */
+
+const SEARCH_HINTS = [
+  'Where are you going?',
+  'Try "Circle to Kasoa"',
+  'Search for a trotro route',
+  'Try "Tema to Accra"',
+  'Find a train near you',
+  'Try "Madina to Legon"',
+]
+
+function AnimatedPlaceholder({ style }: { style: any }) {
+  const [index, setIndex] = useState(0)
+  const fadeAnim = useRef(new Animated.Value(1)).current
+  const slideAnim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out + slide up
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: -8, duration: 200, useNativeDriver: true }),
+      ]).start(() => {
+        setIndex((i) => (i + 1) % SEARCH_HINTS.length)
+        slideAnim.setValue(8)
+        // Fade in + slide down into place
+        Animated.parallel([
+          Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+          Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+        ]).start()
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [fadeAnim, slideAnim])
+
+  return (
+    <Animated.Text
+      style={[style, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+    >
+      {SEARCH_HINTS[index]}
+    </Animated.Text>
+  )
+}
 
 /* ── Helpers ───────────────────────────────────────── */
 
@@ -350,7 +395,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <View style={s.searchTextWrap}>
             <Text style={s.searchGreeting}>{greeting}</Text>
-            <Text style={s.searchPlaceholder}>Where are you going?</Text>
+            <AnimatedPlaceholder style={s.searchPlaceholder} />
           </View>
           <Search size={22} color={c.amber500} />
         </TouchableOpacity>
