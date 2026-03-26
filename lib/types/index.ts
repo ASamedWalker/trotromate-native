@@ -203,6 +203,31 @@ export type {
   TrainReportWithNames,
 } from './train'
 
+// === Completed Trips (Data Collection) ===
+
+export interface CompletedTrip {
+  id: string
+  device_id: string
+  route_id: string | null
+  train_line_id: string | null
+  transport_type: 'trotro' | 'train'
+  from_location: string
+  to_location: string
+  from_lat: number | null
+  from_lng: number | null
+  to_lat: number | null
+  to_lng: number | null
+  started_at: string
+  ended_at: string
+  duration_mins: number | null
+  distance_km: number | null
+  fare_paid: number | null
+  fare_currency: string
+  station_count: number | null
+  reached_destination: boolean
+  created_at: string
+}
+
 // === Incident Reports ===
 
 export type IncidentType = 'traffic' | 'accident' | 'police' | 'roadwork'

@@ -65,7 +65,7 @@ export function useSubmitQueueReport(deviceId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const submit = useCallback(
-    async (stationName: string, queueStatus: string, stationId?: string, vehicleCount?: number): Promise<RewardResult | null> => {
+    async (stationName: string, queueStatus: string, stationId?: string, vehicleCount?: number, waitTimeMins?: number): Promise<RewardResult | null> => {
       if (!deviceId) {
         setError('Device not ready')
         return null
@@ -73,7 +73,7 @@ export function useSubmitQueueReport(deviceId: string | null) {
       setIsSubmitting(true)
       setError(null)
       try {
-        const result = await submitQueueReport({ stationName, queueStatus, deviceId, stationId, vehicleCount })
+        const result = await submitQueueReport({ stationName, queueStatus, deviceId, stationId, vehicleCount, waitTimeMins })
         if (!result) {
           setError('Failed to submit report')
           return null

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import { REPORT_POINTS, STREAK_CONFIG, calculateLevel } from '@/lib/constants/rewards'
+import { REPORT_POINTS, TRIP_POINTS, STREAK_CONFIG, calculateLevel } from '@/lib/constants/rewards'
 import type {
   ContributorProfile,
   Badge,
@@ -183,6 +183,131 @@ export async function awardPointsForReport(params: {
     }
   } catch (error) {
     console.error('Error awarding points:', error)
+    return null
+  }
+}
+
+// Award points after completing a GO Mode trip
+export async function awardPointsForTrip(params: {
+  deviceId: string
+  tripId: string
+  withFare: boolean
+}): Promise<RewardResult | null> {
+  const { deviceId, tripId, withFare } = params
+
+  if (!deviceId) return null
+
+  try {
+    const profile = await getOrCreateProfile(deviceId)
+    if (!profile) return null
+
+    // Calculate points: base + optional fare bonus
+    const basePoints = TRIP_POINTS.completed
+    const fareBonus = withFare ? TRIP_POINTS.fare_bonus : 0
+
+    // Streak logic (same as reports — a trip counts as daily activity)
+    const today = new Date().toISOString().split('T')[0]
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    const lastReportDate = profile.last_report_date
+
+    let newStreak = 1
+    let streakBonus = 0
+
+    if (lastReportDate === yesterday) {
+      newStreak = profile.current_streak + 1
+    } else if (lastReportDate === today) {
+      newStreak = profile.current_streak
+    } else {
+      newStreak = 1
+    }
+
+    if (newStreak >= STREAK_CONFIG.THRESHOLD_DAYS) {
+      streakBonus = STREAK_CONFIG.BONUS_POINTS
+    }
+
+    const totalPoints = basePoints + fareBonus + streakBonus
+    const newTotalPoints = profile.total_points + totalPoints
+
+    // Calculate level
+    const previousLevel = profile.current_level as LevelSlug
+    const newLevel = calculateLevel(newTotalPoints)
+    const levelUp = newLevel !== previousLevel
+
+    // Update profile — increment points, streak, level. Do NOT increment total_reports.
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('contributor_profiles')
+      .update({
+        total_points: newTotalPoints,
+        current_streak: newStreak,
+        longest_streak: Math.max(profile.longest_streak, newStreak),
+        last_report_date: today,
+        current_level: newLevel,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profile.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating profile for trip:', updateError)
+      return null
+    }
+
+    // Log points in history
+    await supabase.from('points_history').insert({
+      contributor_id: profile.id,
+      report_id: tripId,
+      report_type: 'trip',
+      points: totalPoints,
+      reason: withFare ? 'trip_with_fare' : 'trip_completed',
+      metadata: {
+        base_points: basePoints,
+        ...(fareBonus > 0 ? { fare_bonus: fareBonus } : {}),
+        ...(streakBonus > 0 ? { streak_bonus: streakBonus } : {}),
+      },
+    })
+
+    // Check badges (forward-compatible — no trip-specific criteria yet)
+    const badgesEarned = await checkAndAwardBadges(profile.id, {
+      totalReports: updatedProfile.total_reports,
+      fareReports: updatedProfile.fare_reports,
+      queueReports: updatedProfile.queue_reports,
+      incidentReports: updatedProfile.incident_reports,
+      streak: newStreak,
+      reportType: 'trip',
+      reportedAt: new Date().toISOString(),
+    })
+
+    if (badgesEarned.length > 0) {
+      const badgeBonus = badgesEarned.reduce((sum, b) => sum + b.points_bonus, 0)
+      if (badgeBonus > 0) {
+        await supabase
+          .from('contributor_profiles')
+          .update({ total_points: newTotalPoints + badgeBonus })
+          .eq('id', profile.id)
+
+        await supabase.from('points_history').insert({
+          contributor_id: profile.id,
+          points: badgeBonus,
+          reason: 'badge_bonus',
+          metadata: { badges: badgesEarned.map((b) => b.slug) },
+        })
+      }
+    }
+
+    return {
+      points_awarded: totalPoints,
+      new_total: newTotalPoints + badgesEarned.reduce((sum, b) => sum + b.points_bonus, 0),
+      level_up: levelUp,
+      new_level: levelUp ? newLevel : undefined,
+      previous_level: levelUp ? previousLevel : undefined,
+      badges_earned: badgesEarned,
+      streak_bonus: streakBonus > 0 ? streakBonus : undefined,
+      new_streak: newStreak,
+      profile: updatedProfile,
+    }
+  } catch (error) {
+    console.error('Error awarding trip points:', error)
     return null
   }
 }

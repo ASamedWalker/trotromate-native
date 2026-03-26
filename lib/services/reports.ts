@@ -56,11 +56,15 @@ export async function submitQueueReport(params: {
   deviceId: string
   stationId?: string
   vehicleCount?: number
+  waitTimeMins?: number
 }): Promise<{ reportId: string } | null> {
   const stationName = validateLocation(params.stationName)
   const queueStatus = validateEnum(params.queueStatus, QUEUE_STATUSES)
   const vehicleCount = params.vehicleCount != null
     ? validateIntRange(params.vehicleCount, 0, 500)
+    : null
+  const waitTimeMins = params.waitTimeMins != null
+    ? validateIntRange(params.waitTimeMins, 0, 120)
     : null
 
   if (!stationName || !queueStatus) return null
@@ -72,6 +76,7 @@ export async function submitQueueReport(params: {
       station_name: stationName,
       queue_status: queueStatus,
       vehicle_count: vehicleCount,
+      wait_time_estimate_mins: waitTimeMins,
       reporter_phone: null,
     })
     .select('id')

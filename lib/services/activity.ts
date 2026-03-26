@@ -18,7 +18,7 @@ interface TrainReportRow {
 
 export interface ActivityItem {
   id: string
-  type: 'fare' | 'queue' | 'incident' | 'tale' | 'train'
+  type: 'fare' | 'queue' | 'incident' | 'tale' | 'train' | 'trip'
   title: string
   subtitle: string
   timestamp: string
@@ -64,6 +64,12 @@ export async function fetchRecentActivity(
     .order('reported_at', { ascending: false })
     .limit(limit)
 
+  let tripQuery = supabase
+    .from('completed_trips')
+    .select('id, from_location, to_location, transport_type, duration_mins, fare_paid, reached_destination, started_at')
+    .order('started_at', { ascending: false })
+    .limit(limit)
+
   // Cursor-based pagination: fetch only items older than `before`
   if (before) {
     fareQuery = fareQuery.lt('reported_at', before)
@@ -71,14 +77,16 @@ export async function fetchRecentActivity(
     incidentQuery = incidentQuery.lt('reported_at', before)
     taleQuery = taleQuery.lt('created_at', before)
     trainQuery = trainQuery.lt('reported_at', before)
+    tripQuery = tripQuery.lt('started_at', before)
   }
 
-  const [fareRes, queueRes, incidentRes, taleRes, trainRes] = await Promise.all([
+  const [fareRes, queueRes, incidentRes, taleRes, trainRes, tripRes] = await Promise.all([
     fareQuery,
     queueQuery,
     incidentQuery,
     taleQuery,
     trainQuery,
+    tripQuery,
   ])
 
   if (fareRes.data) {
@@ -152,6 +160,21 @@ export async function fetchRecentActivity(
         title: station?.name ?? 'Train Station',
         subtitle: `${trainTypeLabels[r.report_type as string] ?? r.report_type}${line?.name ? ` · ${line.name}` : ''}`,
         timestamp: r.reported_at as string,
+      })
+    }
+  }
+
+  if (tripRes.data) {
+    for (const r of tripRes.data) {
+      const farePart = r.fare_paid ? ` · GH₵${Number(r.fare_paid).toFixed(2)}` : ''
+      const durationPart = r.duration_mins ? `${r.duration_mins} min` : ''
+      items.push({
+        id: `trip-${r.id}`,
+        type: 'trip',
+        title: `${r.from_location} → ${r.to_location}`,
+        subtitle: `${r.transport_type === 'train' ? 'Train' : 'Trotro'} trip${durationPart ? ` · ${durationPart}` : ''}${farePart}`,
+        timestamp: r.started_at as string,
+        meta: r.reached_destination ? 'arrived' : 'ended',
       })
     }
   }

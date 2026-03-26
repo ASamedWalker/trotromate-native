@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
-import { MessageCircle, MapPin, Plus, Camera, ChevronLeft, Trash2, Flag, Video } from 'lucide-react-native'
+import { MessageCircle, MapPin, Plus, Camera, Trash2, Flag, Video } from 'lucide-react-native'
 import { c, themed, font, shadow } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -302,9 +302,6 @@ export default function TalesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
-          <ChevronLeft size={24} color={t.text} />
-        </TouchableOpacity>
         <Text style={s.headerTitle}>Troski Tales</Text>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}

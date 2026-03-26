@@ -15,8 +15,7 @@ import {
 } from 'react-native'
 import { Swipeable } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { TrendingUp, Users, AlertTriangle, Camera, Zap, Trash2, TrainFront, ChevronLeft } from 'lucide-react-native'
-import { useRouter } from 'expo-router'
+import { TrendingUp, Users, AlertTriangle, Camera, Zap, Trash2, TrainFront, Navigation } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useActivity } from '@/lib/hooks/useActivity'
 import { timeAgo } from '@/lib/utils/time'
@@ -30,6 +29,7 @@ const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = 
   incident: { icon: AlertTriangle, color: c.red500 },
   tale: { icon: Camera, color: c.pink500 },
   train: { icon: TrainFront, color: '#0ea5e9' },
+  trip: { icon: Navigation, color: '#22c55e' },
 }
 
 // Enable LayoutAnimation on Android
@@ -114,6 +114,10 @@ function SwipeableRow({
   const t = themed(isDark)
   const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.fare
   const Icon = config.icon
+  // Gray icon for trips that didn't reach destination
+  const iconColor = item.type === 'trip' && item.meta !== 'arrived'
+    ? '#9ca3af'
+    : config.color
 
   return (
     <Swipeable
@@ -136,8 +140,8 @@ function SwipeableRow({
           borderColor: t.border,
         }}
       >
-        <View style={[swipeStyles.iconBox, { backgroundColor: `${config.color}20` }]}>
-          <Icon size={20} color={config.color} />
+        <View style={[swipeStyles.iconBox, { backgroundColor: `${iconColor}20` }]}>
+          <Icon size={20} color={iconColor} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[swipeStyles.title, { color: t.text }]}>{item.title}</Text>
@@ -152,7 +156,6 @@ function SwipeableRow({
 // ─── Main Screen ───────────────────────────────────────────
 
 export default function ActivityScreen() {
-  const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
@@ -209,11 +212,7 @@ export default function ActivityScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4 }}>
-          <ChevronLeft size={24} color={t.text} />
-        </TouchableOpacity>
         <Text style={s.headerTitle}>Activity</Text>
-        <View style={{ width: 32 }} />
       </View>
 
       {isLoading ? (
@@ -229,7 +228,7 @@ export default function ActivityScreen() {
           <Zap size={48} color={t.textTertiary} />
           <Text style={s.emptyTitle}>No activity yet</Text>
           <Text style={s.emptySub}>
-            Reports, tales, and incidents will show up here
+            Reports, trips, tales, and incidents will show up here
           </Text>
         </View>
       ) : (
@@ -297,8 +296,8 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text, textAlign: 'center' },
+    header: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
     sectionHeader: {
       paddingVertical: 8,
       paddingHorizontal: 4,

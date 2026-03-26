@@ -25,6 +25,8 @@ import {
   Sunset,
   Calendar,
   ChevronDown,
+  Navigation,
+  ChevronRight,
 } from 'lucide-react-native'
 import { c, themed, font, shadow } from '@/lib/theme'
 import { GRDABadge } from '@/components/GRDABadge'
@@ -288,7 +290,7 @@ export default function LineDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={s.container} edges={['bottom']}>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={s.centered}>
           <ActivityIndicator size="large" color="#0ea5e9" />
         </View>
@@ -298,7 +300,7 @@ export default function LineDetailScreen() {
 
   if (!line) {
     return (
-      <SafeAreaView style={s.container} edges={['bottom']}>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={s.centered}>
           <TrainFront size={48} color={t.textTertiary} />
           <Text style={s.emptyTitle}>Line not found</Text>
@@ -308,7 +310,7 @@ export default function LineDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -397,6 +399,23 @@ export default function LineDetailScreen() {
               </View>
             )}
           </View>
+
+          {/* ─── GO Mode ──────────────────────────────── */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push({
+              pathname: '/trip/[routeId]',
+              params: { routeId: lineId!, type: 'train', lineId: lineId! },
+            } as any)}
+            style={[s.goModeBtn, { backgroundColor: lineColor }]}
+          >
+            <Navigation size={20} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.goModeBtnTitle}>GO Mode</Text>
+              <Text style={s.goModeBtnSub}>Track your train & get notified at your stop</Text>
+            </View>
+            <ChevronRight size={18} color="rgba(255,255,255,0.6)" />
+          </TouchableOpacity>
 
           {/* ─── Schedule Timetable ──────────────────────── */}
           {line.code && TRAIN_SCHEDULES[line.code] && (
@@ -707,6 +726,26 @@ const getStyles = (isDark: boolean) => {
     crowdChipText: { fontSize: 11, fontFamily: font.semibold },
 
     // ── Fare Summary Bar ──
+    goModeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 16,
+    },
+    goModeBtnTitle: {
+      color: '#fff',
+      fontSize: 16,
+      fontFamily: font.bold,
+    },
+    goModeBtnSub: {
+      color: 'rgba(255,255,255,0.8)',
+      fontSize: 12,
+      fontFamily: font.regular,
+      marginTop: 2,
+    },
     fareSummary: {
       flexDirection: 'row',
       alignItems: 'center',

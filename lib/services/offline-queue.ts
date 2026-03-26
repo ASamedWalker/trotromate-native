@@ -2,12 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import NetInfo from '@react-native-community/netinfo'
 import { submitFareReport, submitQueueReport, submitIncidentReport } from './reports'
 import { submitTale } from './tales'
-import { awardPointsForReport } from './rewards'
+import { awardPointsForReport, awardPointsForTrip } from './rewards'
+import { saveCompletedTripDirect } from './trips'
+import type { CompletedTripPayload } from './trips'
 import type { ReportType } from '@/lib/types'
 
 const QUEUE_KEY = '@troski_offline_queue'
 
-export type QueuedReportType = 'fare' | 'queue' | 'incident' | 'tale'
+export type QueuedReportType = 'fare' | 'queue' | 'incident' | 'tale' | 'trip'
 
 interface QueuedReport {
   id: string
@@ -102,14 +104,31 @@ export async function processQueue(): Promise<number> {
           reportId = result?.postId ?? null
           break
         }
+        case 'trip': {
+          const tripPayload = item.payload as unknown as CompletedTripPayload
+          const tripId = await saveCompletedTripDirect(tripPayload)
+          if (tripId) {
+            // Award points for the synced trip
+            await awardPointsForTrip({
+              deviceId: item.deviceId,
+              tripId,
+              withFare: !!(tripPayload.fare_paid),
+            })
+          }
+          reportId = tripId
+          break
+        }
       }
 
       if (reportId) {
-        await awardPointsForReport({
-          deviceId: item.deviceId,
-          reportType,
-          reportId,
-        })
+        // Award report points (skip for trips — already handled above)
+        if (item.type !== 'trip') {
+          await awardPointsForReport({
+            deviceId: item.deviceId,
+            reportType,
+            reportId,
+          })
+        }
         processed++
       } else {
         remaining.push(item)

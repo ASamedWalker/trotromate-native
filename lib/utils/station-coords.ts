@@ -12,6 +12,7 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Circle':               { latitude: 5.5703, longitude: -0.2133 }, // OSM: Accra Circle bus station
   'Madina':               { latitude: 5.6767, longitude: -0.1716 }, // OSM: Madina trotro station
   'Tema Station':         { latitude: 5.6596, longitude: -0.0097 }, // Tema city lorry park (kept, OSM "Tema station" is Accra-side)
+  'Tema':                 { latitude: 5.6596, longitude: -0.0097 }, // Alias — routes use "Tema", station is "Tema Station"
   'Kaneshie':             { latitude: 5.5641, longitude: -0.2359 }, // OSM: Kaneshie market lorry park
   'Lapaz':                { latitude: 5.6058, longitude: -0.2464 }, // Lapaz Junction
   'Achimota':             { latitude: 5.6133, longitude: -0.2255 }, // OSM: Achimota Overhead
@@ -49,16 +50,44 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Osu':                  { latitude: 5.5541, longitude: -0.1836 }, // OSM: Osu
   'St Johns':             { latitude: 5.6200, longitude: -0.2400 }, // St Johns area (kept)
   'Teshie':               { latitude: 5.5886, longitude: -0.0978 }, // OSM: Teshie First Junction
+
+  // ─── Train stations: Tema–Accra Commuter (TMA) ────────────
+  // OSM Overpass API verified, 2026-03-24
+  'Community 1':          { latitude: 5.6525, longitude: 0.0036 },  // OSM: Community 1 Train Station
+  'Asoprochona':          { latitude: 5.6144, longitude: -0.0551 }, // OSM: Asaprochona station
+  'Batchona':             { latitude: 5.6199, longitude: -0.1196 }, // OSM: Baatsona station
+  'Alajo':                { latitude: 5.5869, longitude: -0.2076 }, // Near railway crossing
+  'Odaw (Circle)':        { latitude: 5.5655, longitude: -0.2191 }, // OSM: Odo station
+
+  // ─── Train stations: Tema–Mpakadan (TMP) ──────────────────
+  // OSM for Tema Harbour + Kpong; Google Maps town centers for rest
+  'Tema Harbour':         { latitude: 5.6313, longitude: 0.0018 },  // OSM: Tema Fishing Harbour Train Station
+  'Tema Industrial Area': { latitude: 5.6420, longitude: -0.0050 }, // Along rail line east of port
+  'Afienya':              { latitude: 5.7960, longitude: 0.0020 },  // Town on N1, rail station east side
+  'Shai Hills':           { latitude: 5.8870, longitude: 0.0400 },  // Near Shai Hills Resource Reserve
+  'Doryumu':              { latitude: 5.9590, longitude: 0.0470 },  // Junction on Accra-Aflao road
+  'Kpong':                { latitude: 6.1759, longitude: 0.0591 },  // OSM verified station node
+  'Juapong':              { latitude: 6.1920, longitude: 0.0740 },  // Across Volta River from Kpong
+  'Mpakadan':             { latitude: 6.3170, longitude: 0.1170 },  // Terminus, east bank Volta Lake
 }
 
 /**
  * Get coordinates for a station. Prefers DB values, falls back to curated list.
  */
+// Pre-built lowercase lookup for case-insensitive fallback matching
+const FALLBACK_LOOKUP: Record<string, { latitude: number; longitude: number }> = {}
+for (const [key, val] of Object.entries(FALLBACK_STATION_COORDS)) {
+  FALLBACK_LOOKUP[key.toLowerCase()] = val
+}
+
 export function getStationCoords(
   station: { name: string; latitude?: number | null; longitude?: number | null }
 ): { latitude: number; longitude: number } | null {
   if (station.latitude && station.longitude) {
     return { latitude: station.latitude, longitude: station.longitude }
   }
-  return FALLBACK_STATION_COORDS[station.name] || null
+  // Exact match first, then case-insensitive
+  return FALLBACK_STATION_COORDS[station.name]
+    ?? FALLBACK_LOOKUP[station.name.toLowerCase()]
+    ?? null
 }

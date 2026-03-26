@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Platform } from 'react-native'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
+import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase/client'
 
 // Configure notification behavior
@@ -40,12 +41,26 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     return null
   }
 
-  // Set notification channel for Android
+  // Set notification channels for Android
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Troski Alerts',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#f59e0b',
+    })
+    await Notifications.setNotificationChannelAsync('commute-alerts', {
+      name: 'Commute Alerts',
+      description: 'Alerts for incidents and long queues on your saved commutes',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#f59e0b',
+    })
+    await Notifications.setNotificationChannelAsync('trip-alerts', {
+      name: 'Trip Alerts',
+      description: 'Get notified when approaching your destination in GO Mode',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 200, 500],
       lightColor: '#f59e0b',
     })
   }
@@ -71,6 +86,7 @@ async function savePushToken(deviceId: string, token: string): Promise<void> {
 }
 
 export function usePushNotifications(deviceId: string | null, enabled: boolean = true) {
+  const router = useRouter()
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [notification, setNotification] = useState<Notifications.Notification | null>(null)
   const [isRegistered, setIsRegistered] = useState(false)
@@ -93,12 +109,23 @@ export function usePushNotifications(deviceId: string | null, enabled: boolean =
       (notif) => setNotification(notif)
     )
 
-    // Listen for user tapping on a notification
+    // Listen for user tapping on a notification — deep-link to relevant screen
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data
-        // Handle navigation based on notification data
-        console.log('Notification tapped:', data)
+        if (data?.screen === 'route-detail' && data.routeId) {
+          router.push(`/routes/${data.routeId}` as any)
+        } else if (data?.screen === 'stations') {
+          router.push('/stations' as any)
+        } else if (data?.screen === 'trip' && data.routeId) {
+          router.push({
+            pathname: '/trip/[routeId]',
+            params: {
+              routeId: data.routeId,
+              ...(data.type === 'train' ? { type: 'train', lineId: data.lineId ?? data.routeId } : {}),
+            },
+          } as any)
+        }
       }
     )
 
@@ -106,7 +133,7 @@ export function usePushNotifications(deviceId: string | null, enabled: boolean =
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [deviceId, enabled])
+  }, [deviceId, enabled, router])
 
   const clearNotification = useCallback(() => setNotification(null), [])
 

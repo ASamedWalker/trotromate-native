@@ -21,11 +21,12 @@ import { queryClient } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
+import { useCommuteAlerts } from '@/lib/hooks/useCommuteAlerts'
 import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
 import AppErrorBoundary from '@/components/AppErrorBoundary'
-import AppUpdateBanner from '@/components/AppUpdateBanner'
+import { useAppUpdate } from '@/lib/hooks/useAppUpdate'
 import StoreUpdateModal from '@/components/StoreUpdateModal'
 
 import '../global.css'
@@ -74,6 +75,12 @@ function AppInner() {
   // Register for push notifications
   usePushNotifications(deviceId, prefs.pushNotifications)
 
+  // Watch for incidents/queues on saved commute routes
+  useCommuteAlerts()
+
+  // Silent OTA updates — download in background, apply on next launch
+  useAppUpdate()
+
   // Apply stored theme preference
   useEffect(() => {
     if (!prefsLoaded) return
@@ -97,14 +104,8 @@ function AppInner() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="routes/[id]"
-          options={{
-            title: 'Route Details',
-            headerBackTitle: 'Routes',
-            headerTintColor: '#f59e0b',
-          }}
-        />
+        <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
         <Stack.Screen
           name="report/fare"
           options={{
@@ -145,23 +146,8 @@ function AppInner() {
             headerTintColor: '#0ea5e9',
           }}
         />
-        <Stack.Screen
-          name="train/index"
-          options={{
-            title: 'Train Lines',
-            headerBackTitle: 'Home',
-            headerTitleAlign: 'center',
-            headerTintColor: '#0ea5e9',
-          }}
-        />
-        <Stack.Screen
-          name="train/[lineId]"
-          options={{
-            title: 'Line Details',
-            headerBackTitle: 'Lines',
-            headerTintColor: '#0ea5e9',
-          }}
-        />
+        <Stack.Screen name="train/index" options={{ headerShown: false }} />
+        <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/edit-name" options={{ headerShown: false }} />
@@ -180,7 +166,6 @@ function AppInner() {
         />
       </Stack>
       <StatusBar style="auto" />
-      <AppUpdateBanner />
       <StoreUpdateModal />
       <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>

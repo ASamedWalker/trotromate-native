@@ -14,6 +14,7 @@ export default {
       bundleIdentifier: "com.troski.app",
       infoPlist: {
         NSLocationWhenInUseUsageDescription: "Troski uses your location to show nearby stations, queue status, and to help plan routes from your current position.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Troski uses your location in the background during GO Mode to notify you when you're approaching your destination stop.",
         NSCameraUsageDescription: "Troski uses your camera to let you take photos of trotro queues, station conditions, or fare displays to share as Troski Tales with other commuters.",
         NSPhotoLibraryUsageDescription: "Troski accesses your photo library so you can select existing photos to attach to your Troski Tales posts — for example, a photo of a busy station queue or a trotro fare board.",
         NSPhotoLibraryAddUsageDescription: "Troski saves receipt images and fare screenshots to your photo library so you can keep a record of your transport expenses.",
@@ -31,6 +32,10 @@ export default {
         "android.permission.CAMERA",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
       ],
       blockedPermissions: [
         "android.permission.READ_MEDIA_IMAGES",
@@ -77,6 +82,15 @@ export default {
         },
       ],
       "expo-video",
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission: "Troski uses your location in the background during GO Mode to notify you when you're approaching your destination stop.",
+          locationWhenInUsePermission: "Troski uses your location to show nearby stations and guide you to your destination.",
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
+        },
+      ],
       "./plugins/removeMediaPermissions",
     ],
     experiments: {

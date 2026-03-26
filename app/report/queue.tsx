@@ -34,6 +34,14 @@ const VEHICLE_COUNTS = [
   { label: '10+', value: 12 },
 ]
 
+const WAIT_TIMES = [
+  { label: '< 5 min', value: 3 },
+  { label: '5-10', value: 8 },
+  { label: '10-20', value: 15 },
+  { label: '20-30', value: 25 },
+  { label: '30+', value: 40 },
+]
+
 export default function QueueReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
@@ -53,6 +61,7 @@ export default function QueueReportScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
   const [selectedVehicleCount, setSelectedVehicleCount] = useState<number | null>(null)
+  const [selectedWaitTime, setSelectedWaitTime] = useState<number | null>(null)
 
   // Filter stations for autocomplete
   const filteredStations = useMemo(() => {
@@ -85,7 +94,7 @@ export default function QueueReportScreen() {
       return
     }
 
-    const result = await submit(name, selectedLevel, selectedStationId ?? undefined, selectedVehicleCount ?? undefined)
+    const result = await submit(name, selectedLevel, selectedStationId ?? undefined, selectedVehicleCount ?? undefined, selectedWaitTime ?? undefined)
     if (result) {
       haptics.success()
       await refreshProfile()
@@ -231,6 +240,35 @@ export default function QueueReportScreen() {
                     { color: isSelected ? c.white : t.textSecondary },
                   ]}>
                     {vc.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* Wait time picker */}
+          <Text style={s.label}>How long did you wait? (optional)</Text>
+          <View style={s.vehicleRow}>
+            {WAIT_TIMES.map((wt) => {
+              const isSelected = selectedWaitTime === wt.value
+              return (
+                <TouchableOpacity
+                  key={wt.value}
+                  onPress={() => {
+                    setSelectedWaitTime(isSelected ? null : wt.value)
+                    haptics.light()
+                  }}
+                  activeOpacity={0.7}
+                  style={[
+                    s.vehicleBtn,
+                    isSelected ? s.vehicleBtnSelected : s.vehicleBtnDefault,
+                  ]}
+                >
+                  <Text style={[
+                    s.vehicleBtnText,
+                    { color: isSelected ? c.white : t.textSecondary },
+                  ]}>
+                    {wt.label}
                   </Text>
                 </TouchableOpacity>
               )

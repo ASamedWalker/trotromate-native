@@ -136,48 +136,44 @@ export default function RewardsScreen() {
           />
         }
       >
-        {/* ═══ Hero Banner ═══ */}
+        {/* ═══ Hero Banner (compact) ═══ */}
         <View style={[s.heroBanner, { backgroundColor: levelInfo.color }]}>
-          {/* Decorative circles */}
           <View style={[s.heroDecor, { top: -20, right: -20, opacity: 0.1, width: 120, height: 120 }]} />
           <View style={[s.heroDecor, { bottom: -30, left: -10, opacity: 0.08, width: 80, height: 80 }]} />
 
-          <Text style={s.heroTitle}>Rewards</Text>
-
-          {/* Level badge — large centered hexagonal */}
-          <View style={s.heroBadgeOuter}>
+          <View style={s.heroRow}>
+            {/* Level badge — compact */}
             <View style={[s.heroBadgeRing, { borderColor: 'rgba(255,255,255,0.3)' }]}>
               <View style={s.heroBadgeInner}>
                 <Text style={s.heroBadgeEmoji}>{levelInfo.emoji}</Text>
               </View>
             </View>
-          </View>
 
-          <Text style={s.heroLevelName}>{levelInfo.name}</Text>
-          {contributorTier && (
-            <View style={{ marginTop: 6 }}>
-              <ContributorBadge tier={contributorTier} />
-            </View>
-          )}
-
-          {/* Points display */}
-          <View style={s.heroPointsRow}>
-            <Zap size={18} color="rgba(255,255,255,0.9)" />
-            <Text style={s.heroPointsValue}>{points}</Text>
-            <Text style={s.heroPointsLabel}>points</Text>
-          </View>
-
-          {/* Progress bar */}
-          {nextLevel && (
-            <View style={s.heroProgressWrap}>
-              <View style={s.heroProgressBg}>
-                <View style={[s.heroProgressFill, { width: `${progressToNext}%` }]} />
+            {/* Level info */}
+            <View style={s.heroInfo}>
+              <View style={s.heroNameRow}>
+                <Text style={s.heroLevelName}>{levelInfo.name}</Text>
+                {contributorTier && <ContributorBadge tier={contributorTier} />}
               </View>
-              <Text style={s.heroProgressText}>
-                {progress?.pointsNeeded ?? 0} pts to {nextLevel.name}
-              </Text>
+              {nextLevel && (
+                <>
+                  <View style={s.heroProgressBg}>
+                    <View style={[s.heroProgressFill, { width: `${progressToNext}%` }]} />
+                  </View>
+                  <Text style={s.heroProgressText}>
+                    {progress?.pointsNeeded ?? 0} pts to {nextLevel.name}
+                  </Text>
+                </>
+              )}
             </View>
-          )}
+
+            {/* Points — right side */}
+            <View style={s.heroPointsCol}>
+              <Zap size={16} color="rgba(255,255,255,0.9)" />
+              <Text style={s.heroPointsValue}>{points}</Text>
+              <Text style={s.heroPointsLabel}>pts</Text>
+            </View>
+          </View>
         </View>
 
         {/* ═══ Stats Row ═══ */}
@@ -462,12 +458,11 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 12,
     },
 
-    // ═══ Hero Banner ═══
+    // ═══ Hero Banner (compact) ═══
     heroBanner: {
       paddingTop: 16,
-      paddingBottom: 28,
+      paddingBottom: 20,
       paddingHorizontal: 20,
-      alignItems: 'center',
       overflow: 'hidden',
       borderBottomLeftRadius: 32,
       borderBottomRightRadius: 32,
@@ -478,73 +473,69 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 999,
       backgroundColor: '#fff',
     },
-    heroTitle: {
-      fontSize: 18,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.8)',
-      marginBottom: 16,
+    heroRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
     },
-    heroBadgeOuter: { alignItems: 'center', marginBottom: 12 },
     heroBadgeRing: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      borderWidth: 4,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 3,
       alignItems: 'center',
       justifyContent: 'center',
     },
     heroBadgeInner: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       backgroundColor: 'rgba(255,255,255,0.2)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    heroBadgeEmoji: { fontSize: 40 },
+    heroBadgeEmoji: { fontSize: 26 },
+    heroInfo: { flex: 1, gap: 6 },
+    heroNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     heroLevelName: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: c.white,
+    },
+    heroPointsCol: {
+      alignItems: 'center',
+      gap: 2,
+    },
+    heroPointsValue: {
       fontSize: 22,
       fontFamily: font.bold,
       color: c.white,
     },
-    heroPointsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 10,
-    },
-    heroPointsValue: {
-      fontSize: 28,
-      fontFamily: font.bold,
-      color: c.white,
-    },
     heroPointsLabel: {
-      fontSize: 16,
+      fontSize: 11,
       fontFamily: font.medium,
       color: 'rgba(255,255,255,0.7)',
     },
-    heroProgressWrap: {
-      width: '100%',
-      marginTop: 16,
-      alignItems: 'center',
-    },
     heroProgressBg: {
-      width: '80%',
-      height: 8,
-      borderRadius: 4,
+      width: '100%',
+      height: 6,
+      borderRadius: 3,
       backgroundColor: 'rgba(255,255,255,0.2)',
       overflow: 'hidden',
     },
     heroProgressFill: {
       height: '100%',
-      borderRadius: 4,
+      borderRadius: 3,
       backgroundColor: 'rgba(255,255,255,0.85)',
     },
     heroProgressText: {
-      fontSize: 12,
+      fontSize: 11,
       fontFamily: font.medium,
       color: 'rgba(255,255,255,0.7)',
-      marginTop: 6,
     },
 
     // ═══ Stats Row ═══

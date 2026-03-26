@@ -8,6 +8,11 @@ export const REPORT_POINTS: Record<ReportType, number> = {
   tale: 8,
 }
 
+export const TRIP_POINTS = {
+  completed: 5,   // base points for completing a GO Mode trip
+  fare_bonus: 3,  // extra if the user submits fare (total 8)
+}
+
 export const STREAK_CONFIG = {
   THRESHOLD_DAYS: 7,
   BONUS_POINTS: 5,

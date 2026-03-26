@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight, Navigation } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
@@ -48,7 +48,7 @@ export default function RouteDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={s.container} edges={['bottom']}>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={c.amber500} />
         </View>
@@ -58,7 +58,7 @@ export default function RouteDetailScreen() {
 
   if (error || !route) {
     return (
-      <SafeAreaView style={s.container} edges={['bottom']}>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <MapPin size={48} color={t.textTertiary} />
           <Text style={[s.emptyTitle, { marginTop: 16 }]}>Route not found</Text>
@@ -249,7 +249,23 @@ export default function RouteDetailScreen() {
           </View>
         )}
 
-        {/* Safety Actions */}
+        {/* GO Mode + Safety Actions */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            haptics.light()
+            router.push(`/trip/${id}` as any)
+          }}
+          style={s.goModeBtn}
+        >
+          <Navigation size={20} color={c.white} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.goModeBtnTitle}>GO Mode</Text>
+            <Text style={s.goModeBtnSub}>Track your trip & get notified at your stop</Text>
+          </View>
+          <ChevronRight size={18} color="rgba(255,255,255,0.6)" />
+        </TouchableOpacity>
+
         <View style={s.safetyRow}>
           <TripShareButton
             routeId={id}
@@ -314,6 +330,18 @@ const getStyles = (isDark: boolean) => {
     heroSection: {
       height: 180,
       overflow: 'hidden' as const,
+    },
+    backBtn: {
+      position: 'absolute' as const,
+      top: 44,
+      left: 16,
+      zIndex: 10,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     heroContent: {
       flex: 1,
@@ -454,6 +482,27 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 4,
     },
     // Safety row
+    goModeBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 16,
+      backgroundColor: c.amber500,
+      padding: 16,
+      borderRadius: 16,
+    },
+    goModeBtnTitle: {
+      color: c.white,
+      fontSize: 16,
+      fontFamily: font.bold,
+    },
+    goModeBtnSub: {
+      color: 'rgba(255,255,255,0.8)',
+      fontSize: 12,
+      fontFamily: font.regular,
+      marginTop: 2,
+    },
     safetyRow: {
       flexDirection: 'row' as const,
       gap: 12,

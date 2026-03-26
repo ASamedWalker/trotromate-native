@@ -256,7 +256,7 @@ export default function TrainLinesScreen() {
   )
 
   return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
