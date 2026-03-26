@@ -30,7 +30,6 @@ import { useUnifiedSearch, type UnifiedResult } from '@/lib/hooks/useUnifiedSear
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
 import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
 import { useFavorites } from '@/lib/hooks/useFavorites'
-import { TRANSPORT_COLORS } from '@/lib/utils/train-search'
 
 /* ── Props ─────────────────────────────────────────── */
 
@@ -102,8 +101,8 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   const showEmpty = query.trim().length === 0
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <SafeAreaView style={s.container} edges={['top']}>
+    <Modal visible={visible} animationType="slide" statusBarTranslucent>
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         {/* ── Search header ── */}
         <View style={s.header}>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={s.backBtn}>
@@ -503,7 +502,6 @@ const getStyles = (isDark: boolean) => {
 /* ── Card styles ──────────────────────────────────── */
 
 const getCardStyles = (isDark: boolean) => {
-  const t = themed(isDark)
   return StyleSheet.create({
     card: {
       flexDirection: 'row',
