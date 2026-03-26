@@ -12,7 +12,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import {
   ArrowLeft,
@@ -47,6 +47,7 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   const s = getStyles(isDark)
 
   const [query, setQuery] = useState('')
+  const insets = useSafeAreaInsets()
   const inputRef = useRef<TextInput>(null)
   const { results, isLoading } = useUnifiedSearch(query)
   const { addSearch, getRecentSearches } = useSearchHistory()
@@ -102,7 +103,7 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
 
   return (
     <Modal visible={visible} animationType="slide" statusBarTranslucent>
-      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         {/* ── Search header ── */}
         <View style={s.header}>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={s.backBtn}>
@@ -257,7 +258,7 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
             }
           />
         )}
-      </SafeAreaView>
+      </View>
     </Modal>
   )
 }
