@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { usePopularRoutes } from '@/lib/hooks/useRoutes'
+import { useQuery } from '@tanstack/react-query'
+import { fetchRoutes } from '@/lib/services/routes'
 import { searchTrainSchedules, TRANSPORT_COLORS } from '@/lib/utils/train-search'
-import type { RouteWithStats } from '@/lib/types'
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -24,7 +24,6 @@ export interface UnifiedResult {
 
 export function useUnifiedSearch(query: string) {
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const { routes, isLoading: routesLoading } = usePopularRoutes()
 
   // 300ms debounce
   useEffect(() => {
@@ -32,17 +31,34 @@ export function useUnifiedSearch(query: string) {
     return () => clearTimeout(timer)
   }, [query])
 
+  // Search routes from Supabase — "from" match
+  const { data: fromRoutes = [], isLoading: fromLoading } = useQuery({
+    queryKey: ['unified-search-from', debouncedQuery],
+    queryFn: () => fetchRoutes(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30_000,
+  })
+
+  // Search routes from Supabase — "to" match
+  const { data: toRoutes = [], isLoading: toLoading } = useQuery({
+    queryKey: ['unified-search-to', debouncedQuery],
+    queryFn: () => fetchRoutes(undefined, debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30_000,
+  })
+
   const results = useMemo(() => {
     const q = debouncedQuery.toLowerCase()
     if (q.length < 2) return []
 
     const unified: UnifiedResult[] = []
+    const seen = new Set<string>()
 
-    // Trotro/okada routes — client-side filter
-    for (const route of routes) {
-      const from = route.from_location.toLowerCase()
-      const to = route.to_location.toLowerCase()
-      if (!from.includes(q) && !to.includes(q)) continue
+    // Merge from + to results, dedup by route id
+    const allRoutes = [...fromRoutes, ...toRoutes]
+    for (const route of allRoutes) {
+      if (seen.has(route.id)) continue
+      seen.add(route.id)
 
       const fare = route.fare_stats?.avg_reported_fare ?? route.official_fare
       const duration = route.traffic?.duration_in_traffic_mins ?? route.estimated_duration_mins
@@ -79,23 +95,22 @@ export function useUnifiedSearch(query: string) {
       })
     }
 
-    // Sort: live trains first, then exact from-match, then partial
+    // Sort: live trains first, then exact from-match, then verified
     unified.sort((a, b) => {
-      // Live trains on top
       if (a.liveTag === 'live' && b.liveTag !== 'live') return -1
       if (b.liveTag === 'live' && a.liveTag !== 'live') return 1
-      // Exact from-match
       const aExact = a.from.toLowerCase().startsWith(q) ? 0 : 1
       const bExact = b.from.toLowerCase().startsWith(q) ? 0 : 1
       if (aExact !== bExact) return aExact - bExact
-      // Verified first
       if (a.isVerified && !b.isVerified) return -1
       if (b.isVerified && !a.isVerified) return 1
       return 0
     })
 
-    return unified.slice(0, 10)
-  }, [debouncedQuery, routes])
+    return unified.slice(0, 15)
+  }, [debouncedQuery, fromRoutes, toRoutes])
 
-  return { results, isLoading: routesLoading && debouncedQuery.length >= 2 }
+  const isLoading = (fromLoading || toLoading) && debouncedQuery.length >= 2
+
+  return { results, isLoading }
 }
