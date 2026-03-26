@@ -6,14 +6,13 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  Modal,
   useColorScheme,
   StyleSheet,
   Animated,
   Keyboard,
   Platform,
 } from 'react-native'
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import {
   ArrowLeft,
@@ -102,10 +101,10 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   const topFavorites = favorites.slice(0, 3)
   const showEmpty = query.trim().length === 0
 
+  if (!visible) return null
+
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent>
-      <SafeAreaProvider>
-      <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[s.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         {/* ── Search header ── */}
         <View style={s.header}>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={s.backBtn}>
@@ -255,9 +254,7 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
             }
           />
         )}
-      </View>
-      </SafeAreaProvider>
-    </Modal>
+    </View>
   )
 }
 
@@ -362,9 +359,10 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
-    container: {
-      flex: 1,
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
       backgroundColor: t.bg,
+      zIndex: 100,
     },
 
     // Header
