@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   Modal,
   useColorScheme,
   StyleSheet,
@@ -131,95 +132,90 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
 
         {showEmpty ? (
           /* ── Empty state: suggestions, recent, saved ── */
-          <FlatList
-            data={[]}
-            renderItem={null}
+          <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={s.emptyContainer}
             keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={
-              <>
-                {/* Smart suggestions */}
-                {suggestions.length > 0 && (
-                  <View style={s.section}>
-                    <View style={s.sectionHeader}>
+          >
+            {/* Smart suggestions */}
+            {suggestions.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <Sparkles size={14} color={c.amber500} />
+                  <Text style={s.sectionTitle}>Suggested</Text>
+                </View>
+                {suggestions.map((sug) => (
+                  <TouchableOpacity
+                    key={sug.routeId}
+                    activeOpacity={0.7}
+                    onPress={() => navigateToRoute(sug.routeId, sug.from, sug.to, sug.transportType)}
+                    style={s.quickRow}
+                  >
+                    <View style={[s.quickIcon, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
                       <Sparkles size={14} color={c.amber500} />
-                      <Text style={s.sectionTitle}>Suggested</Text>
                     </View>
-                    {suggestions.map((sug) => (
-                      <TouchableOpacity
-                        key={sug.routeId}
-                        activeOpacity={0.7}
-                        onPress={() => navigateToRoute(sug.routeId, sug.from, sug.to, sug.transportType)}
-                        style={s.quickRow}
-                      >
-                        <View style={[s.quickIcon, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
-                          <Sparkles size={14} color={c.amber500} />
-                        </View>
-                        <View style={s.quickContent}>
-                          <Text style={s.quickLabel} numberOfLines={1}>{sug.from} → {sug.to}</Text>
-                          <Text style={s.quickSub} numberOfLines={1}>{sug.reason}</Text>
-                        </View>
-                        <ChevronRight size={16} color={t.textTertiary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                    <View style={s.quickContent}>
+                      <Text style={s.quickLabel} numberOfLines={1}>{sug.from} → {sug.to}</Text>
+                      <Text style={s.quickSub} numberOfLines={1}>{sug.reason}</Text>
+                    </View>
+                    <ChevronRight size={16} color={t.textTertiary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
-                {/* Recent searches */}
-                {recentSearches.length > 0 && (
-                  <View style={s.section}>
-                    <View style={s.sectionHeader}>
+            {/* Recent searches */}
+            {recentSearches.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <Clock size={14} color={t.textSecondary} />
+                  <Text style={s.sectionTitle}>Recent</Text>
+                </View>
+                {recentSearches.map((entry) => (
+                  <TouchableOpacity
+                    key={entry.routeId}
+                    activeOpacity={0.7}
+                    onPress={() => navigateToRoute(entry.routeId, entry.from, entry.to, entry.transportType)}
+                    style={s.quickRow}
+                  >
+                    <View style={[s.quickIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
                       <Clock size={14} color={t.textSecondary} />
-                      <Text style={s.sectionTitle}>Recent</Text>
                     </View>
-                    {recentSearches.map((entry) => (
-                      <TouchableOpacity
-                        key={entry.routeId}
-                        activeOpacity={0.7}
-                        onPress={() => navigateToRoute(entry.routeId, entry.from, entry.to, entry.transportType)}
-                        style={s.quickRow}
-                      >
-                        <View style={[s.quickIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
-                          <Clock size={14} color={t.textSecondary} />
-                        </View>
-                        <View style={s.quickContent}>
-                          <Text style={s.quickLabel} numberOfLines={1}>{entry.from} → {entry.to}</Text>
-                        </View>
-                        <ChevronRight size={16} color={t.textTertiary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                    <View style={s.quickContent}>
+                      <Text style={s.quickLabel} numberOfLines={1}>{entry.from} → {entry.to}</Text>
+                    </View>
+                    <ChevronRight size={16} color={t.textTertiary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
-                {/* Saved routes */}
-                {topFavorites.length > 0 && (
-                  <View style={s.section}>
-                    <View style={s.sectionHeader}>
+            {/* Saved routes */}
+            {topFavorites.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <Heart size={14} color="#ef4444" />
+                  <Text style={s.sectionTitle}>Saved</Text>
+                </View>
+                {topFavorites.map((fav) => (
+                  <TouchableOpacity
+                    key={fav.id}
+                    activeOpacity={0.7}
+                    onPress={() => navigateToRoute(fav.id, fav.from, fav.to)}
+                    style={s.quickRow}
+                  >
+                    <View style={[s.quickIcon, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
                       <Heart size={14} color="#ef4444" />
-                      <Text style={s.sectionTitle}>Saved</Text>
                     </View>
-                    {topFavorites.map((fav) => (
-                      <TouchableOpacity
-                        key={fav.id}
-                        activeOpacity={0.7}
-                        onPress={() => navigateToRoute(fav.id, fav.from, fav.to)}
-                        style={s.quickRow}
-                      >
-                        <View style={[s.quickIcon, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
-                          <Heart size={14} color="#ef4444" />
-                        </View>
-                        <View style={s.quickContent}>
-                          <Text style={s.quickLabel} numberOfLines={1}>{fav.from} → {fav.to}</Text>
-                        </View>
-                        <ChevronRight size={16} color={t.textTertiary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </>
-            }
-          />
+                    <View style={s.quickContent}>
+                      <Text style={s.quickLabel} numberOfLines={1}>{fav.from} → {fav.to}</Text>
+                    </View>
+                    <ChevronRight size={16} color={t.textTertiary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
         ) : (
           /* ── Results list ── */
           <FlatList
