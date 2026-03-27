@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  Modal,
   useColorScheme,
   StyleSheet,
   Animated,
@@ -100,11 +101,11 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   const recentSearches = getRecentSearches(5)
   const topFavorites = favorites.slice(0, 3)
   const showEmpty = query.trim().length === 0
-
-  if (!visible) return null
+  const hasEmptyContent = suggestions.length > 0 || recentSearches.length > 0 || topFavorites.length > 0
 
   return (
-    <View style={[s.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <Modal visible={visible} animationType="slide" statusBarTranslucent>
+      <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         {/* ── Search header ── */}
         <View style={s.header}>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={s.backBtn}>
@@ -133,6 +134,7 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
         {showEmpty ? (
           /* ── Empty state: suggestions, recent, saved ── */
           <ScrollView
+            style={s.scrollFill}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={s.emptyContainer}
             keyboardShouldPersistTaps="handled"
@@ -215,10 +217,20 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
                 ))}
               </View>
             )}
+
+            {/* Fallback when no history/suggestions yet */}
+            {!hasEmptyContent && (
+              <View style={s.emptyHint}>
+                <Search size={32} color={t.textTertiary} />
+                <Text style={s.emptyHintTitle}>Search for a route</Text>
+                <Text style={s.emptyHintSub}>Try "Circle to Kasoa" or "Tema"</Text>
+              </View>
+            )}
           </ScrollView>
         ) : (
           /* ── Results list ── */
           <FlatList
+            style={s.scrollFill}
             data={results}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
@@ -254,7 +266,8 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
             }
           />
         )}
-    </View>
+      </View>
+    </Modal>
   )
 }
 
@@ -319,7 +332,7 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
           <View style={s.metaRow}>
             {/* Fare */}
             <Text style={[s.fare, { color: result.color }]}>
-              ₵{result.fare?.toFixed(2) ?? '--'}
+              {'\u20B5'}{result.fare?.toFixed(2) ?? '--'}
             </Text>
 
             {/* GPRTU badge */}
@@ -333,7 +346,7 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
             {/* Time label */}
             {result.timeLabel !== '' && (
               <Text style={[s.timeLabel, { color: t.textSecondary }]}>
-                {result.liveTag === 'live' && '● '}
+                {result.liveTag === 'live' && '\u25CF '}
                 {result.timeLabel}
               </Text>
             )}
@@ -359,10 +372,14 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
-    overlay: {
-      ...StyleSheet.absoluteFillObject,
+    container: {
+      flex: 1,
       backgroundColor: t.bg,
-      zIndex: 100,
+    },
+
+    // Ensures ScrollView/FlatList fills remaining space (critical on iOS)
+    scrollFill: {
+      flex: 1,
     },
 
     // Header
@@ -409,6 +426,7 @@ const getStyles = (isDark: boolean) => {
     // Empty state
     emptyContainer: {
       paddingBottom: 40,
+      flexGrow: 1,
     },
     section: {
       paddingHorizontal: 20,
@@ -453,6 +471,23 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.regular,
       color: t.textSecondary,
       marginTop: 1,
+    },
+
+    // Empty hint (no history yet)
+    emptyHint: {
+      alignItems: 'center',
+      paddingTop: 60,
+      gap: 8,
+    },
+    emptyHintTitle: {
+      fontSize: 17,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    emptyHintSub: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: t.textSecondary,
     },
 
     // Results
