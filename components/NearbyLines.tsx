@@ -1,8 +1,8 @@
 import { useMemo, useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { ChevronRight, ShieldCheck, MapPin } from 'lucide-react-native'
-import { TrotroIcon, TrainIcon } from '@/components/ServiceIcons'
+import { ChevronRight, ShieldCheck, MapPin, Clock, Radio } from 'lucide-react-native'
+// ServiceIcons removed — section headers now use text-only style
 import { c, themed, font } from '@/lib/theme'
 import { getStationCoords } from '@/lib/utils/station-coords'
 import { haversineKm } from '@/lib/utils/distance'
@@ -32,20 +32,20 @@ function abbreviate(name: string): string {
   return words[0].slice(0, 3)
 }
 
-/* ── Animated time component ─────────────────────────── */
+/* ── Large arrival time — Transit-style dominant number ── */
 
-function PulsingTime({ value, unit, color, muted }: {
+function ArrivalTime({ value, unit, color, muted, label }: {
   value: string
   unit: string
   color?: string
   muted?: boolean
+  label?: string
 }) {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
-    // Pulse animation for live/scheduled times
     if (!muted) {
       const loop = Animated.loop(
         Animated.sequence([
@@ -59,31 +59,38 @@ function PulsingTime({ value, unit, color, muted }: {
   }, [muted, pulseAnim])
 
   return (
-    <View style={pStyles.col}>
-      <Animated.Text
-        style={[
-          pStyles.number,
-          { color: color ?? t.text },
-          muted && pStyles.muted,
-          !muted && { opacity: pulseAnim },
-        ]}
-      >
-        {value}
-      </Animated.Text>
-      {unit !== '' && (
-        <Text style={[pStyles.unit, muted && { color: t.textTertiary }]}>
-          {unit}
-        </Text>
+    <View style={timeStyles.col}>
+      <View style={timeStyles.numberRow}>
+        <Animated.Text
+          style={[
+            timeStyles.number,
+            { color: color ?? t.text },
+            muted && timeStyles.muted,
+            !muted && { opacity: pulseAnim },
+          ]}
+        >
+          {value}
+        </Animated.Text>
+        {unit !== '' && !muted && (
+          <Text style={[timeStyles.unit, { color: color ?? t.textSecondary }]}>
+            {unit === 'minutes' ? 'min' : unit}
+          </Text>
+        )}
+      </View>
+      {label && (
+        <Text style={[timeStyles.label, { color: t.textTertiary }]}>{label}</Text>
       )}
     </View>
   )
 }
 
-const pStyles = StyleSheet.create({
-  col: { alignItems: 'flex-end', minWidth: 52 },
-  number: { fontSize: 36, fontFamily: font.bold, lineHeight: 40 },
-  muted: { fontSize: 18, lineHeight: 22 },
-  unit: { fontSize: 12, fontFamily: font.medium, color: '#9ca3af', marginTop: -2 },
+const timeStyles = StyleSheet.create({
+  col: { alignItems: 'flex-end', minWidth: 56 },
+  numberRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  number: { fontSize: 32, fontFamily: font.extrabold, lineHeight: 36 },
+  muted: { fontSize: 16, lineHeight: 20 },
+  unit: { fontSize: 14, fontFamily: font.semibold, marginBottom: 2 },
+  label: { fontSize: 10, fontFamily: font.bold, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 1 },
 })
 
 /* ── Animated card wrapper — staggered entrance ── */
@@ -156,6 +163,7 @@ export function NearbyLines({
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
+  const t = themed(isDark)
 
   const lines = useMemo(() => {
     const result: NearbyLine[] = []
@@ -239,10 +247,12 @@ export function NearbyLines({
 
   const trotroLines = lines.filter((l) => l.type !== 'train')
   const trainLines = lines.filter((l) => l.type === 'train')
+  const hasLiveTrotro = trotroLines.some((l) => l.queueStatus)
+  const hasLiveTrain = trainLines.some((l) => l.liveTag === 'live')
 
   return (
     <View style={s.container}>
-      {/* ── Location banner — shown when permission not granted ── */}
+      {/* ── Location banner ── */}
       {!locationGranted && onRequestLocation && (
         <TouchableOpacity
           activeOpacity={0.8}
@@ -262,64 +272,92 @@ export function NearbyLines({
       {trotroLines.length > 0 && (
         <>
           <View style={s.sectionHeader}>
-            <View style={[s.sectionBadge, { backgroundColor: TRANSPORT_COLORS.trotro }]}>
-              <TrotroIcon size={16} active />
-            </View>
-            <Text style={[s.sectionTitle, { color: TRANSPORT_COLORS.trotro }]}>Trotro Routes</Text>
+            <Text style={s.sectionTitle}>Nearby Routes</Text>
             <View style={{ flex: 1 }} />
-            <TouchableOpacity onPress={() => router.push('/routes')} style={s.seeAllRow}>
-              <Text style={s.seeAllText}>See all</Text>
-              <ChevronRight size={14} color={c.amber500} />
-            </TouchableOpacity>
+            {hasLiveTrotro ? (
+              <View style={s.liveBadge}>
+                <View style={s.livePulse} />
+                <Text style={s.liveBadgeText}>LIVE NOW</Text>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => router.push('/routes')} style={s.seeAllRow}>
+                <Text style={s.seeAllText}>See all</Text>
+                <ChevronRight size={14} color={t.textTertiary} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {trotroLines.map((line, idx) => {
             const queueColor = line.queueStatus ? QUEUE_COLORS[line.queueStatus] : undefined
             const queueLabel = line.queueStatus ? QUEUE_LABELS[line.queueStatus] : undefined
+            const accentColor = TRANSPORT_COLORS.trotro
 
             return (
               <AnimatedCard
                 key={line.id}
                 index={idx}
                 onPress={() => router.push(line.href as Href)}
-                style={[s.card, {
-                  backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.06)',
-                  borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.12)',
-                }]}
+                style={s.card}
               >
-                {/* Route info — left */}
+                {/* Left accent border */}
+                <View style={[s.accentBar, { backgroundColor: accentColor }]} />
+
+                {/* Large route label */}
+                <View style={s.lineIdWrap}>
+                  <Text style={[s.lineId, { color: accentColor }]}>
+                    {line.routeLabel}
+                  </Text>
+                  {line.isVerified && (
+                    <View style={s.verifiedDot}>
+                      <ShieldCheck size={10} color="#16a34a" />
+                    </View>
+                  )}
+                </View>
+
+                {/* Route info — center */}
                 <View style={s.lineInfo}>
-                  <Text style={s.routeName} numberOfLines={1}>
-                    {line.from} → {line.to}
+                  <Text style={s.destination} numberOfLines={1}>
+                    <Text style={s.towardsText}>towards </Text>
+                    <Text style={s.destinationBold}>{line.to}</Text>
                   </Text>
 
-                  {/* Fare — BIG and bold */}
-                  <View style={s.fareRow}>
-                    <Text style={[s.fareBig, { color: TRANSPORT_COLORS.trotro }]}>
-                      ₵{line.fare?.toFixed(2) ?? '--'}
+                  {/* Fare pill */}
+                  <View style={s.metaRow}>
+                    <Text style={[s.farePill, { color: accentColor }]}>
+                      {'\u20B5'}{line.fare?.toFixed(2) ?? '--'}
                     </Text>
                     {line.isVerified && (
                       <View style={s.verifiedPill}>
-                        <ShieldCheck size={12} color="#16a34a" />
+                        <ShieldCheck size={10} color="#16a34a" />
                         <Text style={s.verifiedText}>GPRTU</Text>
                       </View>
                     )}
                   </View>
 
-                  {/* Queue status */}
-                  {queueLabel && (
-                    <View style={s.queueRow}>
-                      <View style={[s.queueDot, { backgroundColor: queueColor }]} />
-                      <Text style={[s.queueText, { color: queueColor }]}>{queueLabel}</Text>
+                  {/* Queue / station meta */}
+                  {queueLabel ? (
+                    <View style={s.statusRow}>
+                      <View style={[s.statusDot, { backgroundColor: queueColor }]} />
+                      <Text style={[s.statusText, { color: queueColor }]}>
+                        {queueLabel.toUpperCase()}
+                      </Text>
+                      <Text style={s.statusSep}>{'\u2022'}</Text>
+                      <Text style={s.stationText}>{line.from}</Text>
+                    </View>
+                  ) : (
+                    <View style={s.statusRow}>
+                      <MapPin size={11} color={t.textTertiary} />
+                      <Text style={s.stationText}>{line.from}</Text>
                     </View>
                   )}
                 </View>
 
-                {/* Time — HUGE animated number */}
-                <PulsingTime
+                {/* Arrival time — dominant */}
+                <ArrivalTime
                   value={line.timeNumber}
                   unit={line.timeUnit}
-                  color={queueColor ?? TRANSPORT_COLORS.trotro}
+                  color={queueColor ?? accentColor}
+                  label={line.timeUnit === 'minutes' ? 'ARRIVAL' : undefined}
                 />
               </AnimatedCard>
             )
@@ -330,63 +368,94 @@ export function NearbyLines({
       {/* ── Train Routes ── */}
       {trainLines.length > 0 && (
         <>
-          <View style={[s.sectionHeader, trotroLines.length > 0 && { marginTop: 20 }]}>
-            <View style={[s.sectionBadge, { backgroundColor: TRANSPORT_COLORS.train }]}>
-              <TrainIcon size={16} active />
-            </View>
+          <View style={[s.sectionHeader, trotroLines.length > 0 && { marginTop: 24 }]}>
             <Text style={[s.sectionTitle, { color: TRANSPORT_COLORS.train }]}>Train Routes</Text>
             <View style={{ flex: 1 }} />
-            <TouchableOpacity onPress={() => router.push('/train')} style={s.seeAllRow}>
-              <Text style={[s.seeAllText, { color: TRANSPORT_COLORS.train }]}>Schedule</Text>
-              <ChevronRight size={14} color={TRANSPORT_COLORS.train} />
-            </TouchableOpacity>
+            {hasLiveTrain ? (
+              <View style={[s.liveBadge, { backgroundColor: 'rgba(14,165,233,0.12)' }]}>
+                <View style={[s.livePulse, { backgroundColor: TRANSPORT_COLORS.train }]} />
+                <Text style={[s.liveBadgeText, { color: TRANSPORT_COLORS.train }]}>LIVE</Text>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => router.push('/train')} style={s.seeAllRow}>
+                <Text style={[s.seeAllText, { color: TRANSPORT_COLORS.train }]}>Schedule</Text>
+                <ChevronRight size={14} color={TRANSPORT_COLORS.train} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {trainLines.map((line, idx) => (
-            <AnimatedCard
-              key={line.id}
-              index={trotroLines.length + idx}
-              onPress={() => router.push(line.href as Href)}
-              style={[s.card, {
-                backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : 'rgba(14,165,233,0.06)',
-                borderColor: isDark ? 'rgba(14,165,233,0.2)' : 'rgba(14,165,233,0.12)',
-              }]}
-            >
-              {/* Route info */}
-              <View style={s.lineInfo}>
-                <View style={s.trainTitleRow}>
-                  {line.lineName && (
-                    <View style={[s.lineBadge, { backgroundColor: TRANSPORT_COLORS.train }]}>
-                      <Text style={s.lineBadgeText}>{line.lineName}</Text>
-                    </View>
-                  )}
-                  <Text style={s.routeName} numberOfLines={1}>
-                    {line.from} → {line.to}
+          {trainLines.map((line, idx) => {
+            const accentColor = TRANSPORT_COLORS.train
+            const isLive = line.liveTag === 'live'
+
+            return (
+              <AnimatedCard
+                key={line.id}
+                index={trotroLines.length + idx}
+                onPress={() => router.push(line.href as Href)}
+                style={s.card}
+              >
+                {/* Left accent border */}
+                <View style={[s.accentBar, { backgroundColor: accentColor }]} />
+
+                {/* Line name — large */}
+                <View style={s.lineIdWrap}>
+                  <Text style={[s.lineId, { color: accentColor }]}>
+                    {line.lineName ?? 'TR'}
                   </Text>
                 </View>
 
-                <Text style={[s.fareBig, { color: TRANSPORT_COLORS.train }]}>
-                  ₵{line.fare?.toFixed(2) ?? '--'}
-                </Text>
+                {/* Route info */}
+                <View style={s.lineInfo}>
+                  <Text style={s.destination} numberOfLines={1}>
+                    <Text style={s.towardsText}>towards </Text>
+                    <Text style={s.destinationBold}>{line.to}</Text>
+                  </Text>
 
-                {line.liveTag === 'live' && (
-                  <View style={s.liveRow}>
-                    <View style={s.liveDot} />
-                    <Text style={s.liveText}>In transit now</Text>
-                  </View>
-                )}
-              </View>
+                  <Text style={[s.farePill, { color: accentColor }]}>
+                    {'\u20B5'}{line.fare?.toFixed(2) ?? '--'}
+                  </Text>
 
-              {/* Time — HUGE animated */}
-              <PulsingTime
-                value={line.timeNumber}
-                unit={line.timeUnit}
-                color={line.liveTag === 'live' ? '#22c55e' : TRANSPORT_COLORS.train}
-                muted={line.liveTag === 'done'}
-              />
-            </AnimatedCard>
-          ))}
+                  {/* Live / schedule status */}
+                  {isLive ? (
+                    <View style={s.statusRow}>
+                      <Radio size={11} color="#22c55e" />
+                      <Text style={[s.statusText, { color: '#22c55e' }]}>IN TRANSIT</Text>
+                      <Text style={s.statusSep}>{'\u2022'}</Text>
+                      <Text style={s.stationText}>{line.from}</Text>
+                    </View>
+                  ) : (
+                    <View style={s.statusRow}>
+                      <Clock size={11} color={t.textTertiary} />
+                      <Text style={s.stationText}>{line.from}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Arrival time */}
+                <ArrivalTime
+                  value={line.timeNumber}
+                  unit={line.timeUnit}
+                  color={isLive ? '#22c55e' : accentColor}
+                  muted={line.liveTag === 'done'}
+                  label={line.liveTag === 'scheduled' ? 'DEPARTS' : undefined}
+                />
+              </AnimatedCard>
+            )
+          })}
         </>
+      )}
+
+      {/* View all routes button */}
+      {lines.length > 0 && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/routes')}
+          style={s.viewAllBtn}
+        >
+          <Text style={s.viewAllText}>VIEW ALL ROUTES</Text>
+          <ChevronRight size={16} color="#fff" />
+        </TouchableOpacity>
       )}
 
       {/* Empty state */}
@@ -437,24 +506,38 @@ const getStyles = (isDark: boolean) => {
       marginTop: 1,
     },
 
-    // Section headers
+    // Section headers — Transit-style
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginBottom: 4,
-    },
-    sectionBadge: {
-      width: 28,
-      height: 28,
-      borderRadius: 9,
-      alignItems: 'center',
-      justifyContent: 'center',
+      marginBottom: 6,
     },
     sectionTitle: {
-      fontSize: 18,
+      fontSize: 20,
+      fontFamily: font.extrabold,
+      color: t.text,
+      letterSpacing: -0.3,
+    },
+    liveBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'rgba(34,197,94,0.12)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 10,
+    },
+    livePulse: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: '#22c55e',
+    },
+    liveBadgeText: {
+      fontSize: 11,
       fontFamily: font.bold,
-      letterSpacing: 0.2,
+      color: '#22c55e',
+      letterSpacing: 0.8,
     },
     seeAllRow: {
       flexDirection: 'row',
@@ -463,103 +546,137 @@ const getStyles = (isDark: boolean) => {
     seeAllText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: c.amber500,
+      color: t.textTertiary,
     },
 
-    // Route cards — colored backgrounds
+    // Cards — Transit-style with left accent
     card: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
+      paddingVertical: 14,
+      paddingRight: 14,
+      paddingLeft: 12,
       borderRadius: 16,
-      borderWidth: 1,
       marginTop: 8,
-      gap: 14,
+      gap: 10,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+      overflow: 'hidden',
+    },
+
+    // Left accent bar
+    accentBar: {
+      width: 4,
+      borderRadius: 2,
+      alignSelf: 'stretch',
+    },
+
+    // Large line identifier
+    lineIdWrap: {
+      alignItems: 'center',
+      minWidth: 44,
+    },
+    lineId: {
+      fontSize: 28,
+      fontFamily: font.extrabold,
+      lineHeight: 32,
+      letterSpacing: -0.5,
+    },
+    verifiedDot: {
+      marginTop: 2,
     },
 
     // Route info
     lineInfo: {
       flex: 1,
-      gap: 4,
+      gap: 2,
     },
-    routeName: {
+    destination: {
+      fontSize: 15,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+    },
+    towardsText: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: t.textTertiary,
+    },
+    destinationBold: {
       fontSize: 16,
       fontFamily: font.bold,
       color: t.text,
-      flexShrink: 1,
     },
-    fareRow: {
+
+    // Fare + verified
+    metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
     },
-    fareBig: {
-      fontSize: 22,
+    farePill: {
+      fontSize: 17,
       fontFamily: font.bold,
     },
     verifiedPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : 'rgba(22,163,74,0.1)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
+      gap: 3,
+      backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : 'rgba(22,163,74,0.08)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
     },
     verifiedText: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: font.bold,
       color: '#16a34a',
     },
-    queueRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-    queueDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-    queueText: {
-      fontSize: 13,
-      fontFamily: font.bold,
-    },
 
-    // Train-specific
-    trainTitleRow: {
+    // Status / meta row
+    statusRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 4,
+      marginTop: 1,
     },
-    lineBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 6,
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
     },
-    lineBadgeText: {
-      fontSize: 11,
+    statusText: {
+      fontSize: 10,
       fontFamily: font.bold,
-      color: '#fff',
       letterSpacing: 0.5,
     },
+    statusSep: {
+      fontSize: 10,
+      color: t.textTertiary,
+      marginHorizontal: 1,
+    },
+    stationText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
 
-    // Live indicator
-    liveRow: {
+    // View all routes button
+    viewAllBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 14,
+      paddingVertical: 14,
+      borderRadius: 16,
+      backgroundColor: c.amber500,
     },
-    liveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#22c55e',
-    },
-    liveText: {
-      fontSize: 13,
+    viewAllText: {
+      fontSize: 14,
       fontFamily: font.bold,
-      color: '#22c55e',
+      color: '#fff',
+      letterSpacing: 0.8,
     },
 
     // Empty state
