@@ -224,11 +224,11 @@ export default function RewardsScreen() {
 
           {sortedBoard.length > 0 ? (
             <View style={s.podiumRow}>
-              <View style={{ marginTop: 24 }}>
+              <View style={{ marginTop: 20 }}>
                 <PodiumAvatar entry={sortedBoard[1]} rank={2} />
               </View>
               <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
-              <View style={{ marginTop: 24 }}>
+              <View style={{ marginTop: 20 }}>
                 <PodiumAvatar entry={sortedBoard[2]} rank={3} />
               </View>
             </View>
@@ -238,12 +238,13 @@ export default function RewardsScreen() {
               <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
             </View>
           )}
-        </View>
 
-        {/* ═══ Ranked List (4–10) ═══ */}
-        {sortedBoard.length > 3 && (
-          <View style={s.rankedSection}>
-            {sortedBoard.slice(3, 10).map((entry, i) => {
+          {/* Ranked List (4–10) — inside hero */}
+          {sortedBoard.length > 3 && (
+            <View style={s.rankedDivider} />
+          )}
+          {sortedBoard.length > 3 &&
+            sortedBoard.slice(3, 10).map((entry, i) => {
               const isMe = entry.device_id === deviceId
               const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length]
               const levelSlug = entry.current_level ?? 'passenger'
@@ -267,18 +268,20 @@ export default function RewardsScreen() {
                   </Text>
                 </View>
               )
-            })}
+            })
+          }
 
+          {sortedBoard.length > 3 && (
             <TouchableOpacity
               onPress={() => router.push('/leaderboard' as Href)}
               activeOpacity={0.7}
               style={s.seeAllRow}
             >
               <Text style={s.seeAllText}>See full leaderboard</Text>
-              <ChevronRight size={16} color={c.amber500} />
+              <ChevronRight size={14} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* ═══ Invite Friends ═══ */}
         <ReferralCard />
@@ -374,7 +377,7 @@ const getStyles = (isDark: boolean) => {
       alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     rankNumber: {
       fontSize: 28,
@@ -386,14 +389,14 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.bold,
       color: '#fff',
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: 12,
     },
 
     periodRow: {
       flexDirection: 'row',
       justifyContent: 'center',
       gap: 24,
-      marginBottom: 20,
+      marginBottom: 14,
     },
     periodTab: {
       paddingBottom: 6,
@@ -431,31 +434,30 @@ const getStyles = (isDark: boolean) => {
       marginTop: 12,
     },
 
-    /* ═══ Ranked List ═══ */
-    rankedSection: {
-      backgroundColor: isDark ? MAROON.dark : '#F5E6E6',
-      marginHorizontal: 16,
-      borderRadius: 20,
-      paddingVertical: 8,
-      paddingHorizontal: 4,
-      marginBottom: 16,
+    /* ═══ Ranked List (inside hero) ═══ */
+    rankedDivider: {
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      marginTop: 16,
+      marginBottom: 4,
     },
     rankedRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
       gap: 12,
     },
     rankedRowMe: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
+      backgroundColor: 'rgba(245,158,11,0.15)',
       borderRadius: 14,
+      paddingHorizontal: 8,
     },
     rankedRankNum: {
       width: 24,
       fontSize: 15,
       fontFamily: font.bold,
-      color: isDark ? 'rgba(255,255,255,0.6)' : MAROON.bg,
+      color: 'rgba(255,255,255,0.6)',
       textAlign: 'center',
     },
     rankedAvatar: {
@@ -463,7 +465,7 @@ const getStyles = (isDark: boolean) => {
       height: 40,
       borderRadius: 20,
       borderWidth: 2.5,
-      backgroundColor: isDark ? MAROON.card : '#E8D0D0',
+      backgroundColor: MAROON.card,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -471,25 +473,26 @@ const getStyles = (isDark: boolean) => {
       flex: 1,
       fontSize: 14,
       fontFamily: font.bold,
-      color: isDark ? '#fff' : MAROON.bg,
+      color: '#fff',
       letterSpacing: 0.3,
     },
     rankedPts: {
       fontSize: 15,
       fontFamily: font.semibold,
-      color: isDark ? 'rgba(255,255,255,0.7)' : MAROON.cardLight,
+      color: 'rgba(255,255,255,0.7)',
     },
     seeAllRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
+      paddingVertical: 10,
       gap: 4,
+      marginTop: 4,
     },
     seeAllText: {
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: font.medium,
-      color: c.amber500,
+      color: 'rgba(255,255,255,0.6)',
     },
 
     /* ═══ Earn Points — M3 ═══ */
