@@ -2,7 +2,6 @@ import { useMemo, useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
 import { ChevronRight, ShieldCheck, MapPin, Clock, Radio } from 'lucide-react-native'
-// ServiceIcons removed — section headers now use text-only style
 import { c, themed, font } from '@/lib/theme'
 import { getStationCoords } from '@/lib/utils/station-coords'
 import { haversineKm } from '@/lib/utils/distance'
@@ -31,67 +30,6 @@ function abbreviate(name: string): string {
   if (words.length === 1) return name.length <= 5 ? name : name.slice(0, 4)
   return words[0].slice(0, 3)
 }
-
-/* ── Large arrival time — Transit-style dominant number ── */
-
-function ArrivalTime({ value, unit, color, muted, label }: {
-  value: string
-  unit: string
-  color?: string
-  muted?: boolean
-  label?: string
-}) {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
-  const pulseAnim = useRef(new Animated.Value(1)).current
-
-  useEffect(() => {
-    if (!muted) {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 0.6, duration: 1200, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        ]),
-      )
-      loop.start()
-      return () => loop.stop()
-    }
-  }, [muted, pulseAnim])
-
-  return (
-    <View style={timeStyles.col}>
-      <View style={timeStyles.numberRow}>
-        <Animated.Text
-          style={[
-            timeStyles.number,
-            { color: color ?? t.text },
-            muted && timeStyles.muted,
-            !muted && { opacity: pulseAnim },
-          ]}
-        >
-          {value}
-        </Animated.Text>
-        {unit !== '' && !muted && (
-          <Text style={[timeStyles.unit, { color: color ?? t.textSecondary }]}>
-            {unit === 'minutes' ? 'min' : unit}
-          </Text>
-        )}
-      </View>
-      {label && (
-        <Text style={[timeStyles.label, { color: t.textTertiary }]}>{label}</Text>
-      )}
-    </View>
-  )
-}
-
-const timeStyles = StyleSheet.create({
-  col: { alignItems: 'flex-end', minWidth: 56 },
-  numberRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  number: { fontSize: 32, fontFamily: font.extrabold, lineHeight: 36 },
-  muted: { fontSize: 16, lineHeight: 20 },
-  unit: { fontSize: 14, fontFamily: font.semibold, marginBottom: 2 },
-  label: { fontSize: 10, fontFamily: font.bold, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 1 },
-})
 
 /* ── Animated card wrapper — staggered entrance ── */
 
@@ -290,75 +228,82 @@ export function NearbyLines({
           {trotroLines.map((line, idx) => {
             const queueColor = line.queueStatus ? QUEUE_COLORS[line.queueStatus] : undefined
             const queueLabel = line.queueStatus ? QUEUE_LABELS[line.queueStatus] : undefined
-            const accentColor = TRANSPORT_COLORS.trotro
+            const accent = TRANSPORT_COLORS.trotro
+            // Card bg tinted towards accent color
+            const cardBg = isDark
+              ? 'rgba(245,158,11,0.06)'
+              : 'rgba(245,158,11,0.04)'
 
             return (
               <AnimatedCard
                 key={line.id}
                 index={idx}
                 onPress={() => router.push(line.href as Href)}
-                style={s.card}
+                style={[s.card, {
+                  backgroundColor: cardBg,
+                  borderLeftColor: accent,
+                }]}
               >
-                {/* Left accent border */}
-                <View style={[s.accentBar, { backgroundColor: accentColor }]} />
-
-                {/* Large route label */}
-                <View style={s.lineIdWrap}>
-                  <Text style={[s.lineId, { color: accentColor }]}>
-                    {line.routeLabel}
-                  </Text>
-                  {line.isVerified && (
-                    <View style={s.verifiedDot}>
-                      <ShieldCheck size={10} color="#16a34a" />
+                {/* Content wrapper — vertical stack */}
+                <View style={s.cardContent}>
+                  {/* Left: stacked info */}
+                  <View style={s.cardLeft}>
+                    {/* Row 1: Large line ID + type badge */}
+                    <View style={s.topRow}>
+                      <Text style={[s.lineId, { color: accent }]}>
+                        {line.routeLabel}
+                      </Text>
+                      {line.isVerified ? (
+                        <View style={[s.typeBadge, { backgroundColor: 'rgba(22,163,74,0.15)', borderColor: 'rgba(22,163,74,0.3)' }]}>
+                          <ShieldCheck size={10} color="#16a34a" />
+                          <Text style={[s.typeBadgeText, { color: '#16a34a' }]}>GPRTU</Text>
+                        </View>
+                      ) : (
+                        <View style={[s.typeBadge, { backgroundColor: `${accent}15`, borderColor: `${accent}30` }]}>
+                          <Text style={[s.typeBadgeText, { color: accent }]}>TROTRO</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
 
-                {/* Route info — center */}
-                <View style={s.lineInfo}>
-                  <Text style={s.destination} numberOfLines={1}>
-                    <Text style={s.towardsText}>towards </Text>
-                    <Text style={s.destinationBold}>{line.to}</Text>
-                  </Text>
-
-                  {/* Fare pill */}
-                  <View style={s.metaRow}>
-                    <Text style={[s.farePill, { color: accentColor }]}>
-                      {'\u20B5'}{line.fare?.toFixed(2) ?? '--'}
+                    {/* Row 2: towards Destination */}
+                    <Text style={s.towardsLine} numberOfLines={1}>
+                      <Text style={s.towardsText}>towards </Text>
+                      <Text style={s.destinationBold}>{line.to}</Text>
                     </Text>
-                    {line.isVerified && (
-                      <View style={s.verifiedPill}>
-                        <ShieldCheck size={10} color="#16a34a" />
-                        <Text style={s.verifiedText}>GPRTU</Text>
+
+                    {/* Row 3: Station meta */}
+                    {queueLabel ? (
+                      <View style={s.metaRow}>
+                        <View style={[s.metaDot, { backgroundColor: queueColor }]} />
+                        <Text style={[s.metaTextBold, { color: queueColor }]}>
+                          {queueLabel.toUpperCase()}
+                        </Text>
+                        <Text style={s.metaSep}>{'\u2022'}</Text>
+                        <Text style={s.metaText}>{line.from}</Text>
+                      </View>
+                    ) : (
+                      <View style={s.metaRow}>
+                        <MapPin size={11} color={t.textTertiary} />
+                        <Text style={s.metaText}>{line.from}</Text>
                       </View>
                     )}
                   </View>
 
-                  {/* Queue / station meta */}
-                  {queueLabel ? (
-                    <View style={s.statusRow}>
-                      <View style={[s.statusDot, { backgroundColor: queueColor }]} />
-                      <Text style={[s.statusText, { color: queueColor }]}>
-                        {queueLabel.toUpperCase()}
+                  {/* Right: Big arrival time */}
+                  <View style={s.cardRight}>
+                    <View style={s.timeRow}>
+                      <Text style={[s.timeNumber, { color: queueColor ?? accent }]}>
+                        {line.timeNumber}
                       </Text>
-                      <Text style={s.statusSep}>{'\u2022'}</Text>
-                      <Text style={s.stationText}>{line.from}</Text>
+                      {line.timeUnit === 'minutes' && (
+                        <Text style={[s.timeUnit, { color: queueColor ?? accent }]}>min</Text>
+                      )}
                     </View>
-                  ) : (
-                    <View style={s.statusRow}>
-                      <MapPin size={11} color={t.textTertiary} />
-                      <Text style={s.stationText}>{line.from}</Text>
-                    </View>
-                  )}
+                    {line.timeUnit === 'minutes' && (
+                      <Text style={s.timeLabel}>ARRIVAL</Text>
+                    )}
+                  </View>
                 </View>
-
-                {/* Arrival time — dominant */}
-                <ArrivalTime
-                  value={line.timeNumber}
-                  unit={line.timeUnit}
-                  color={queueColor ?? accentColor}
-                  label={line.timeUnit === 'minutes' ? 'ARRIVAL' : undefined}
-                />
               </AnimatedCard>
             )
           })}
@@ -385,68 +330,93 @@ export function NearbyLines({
           </View>
 
           {trainLines.map((line, idx) => {
-            const accentColor = TRANSPORT_COLORS.train
+            const accent = TRANSPORT_COLORS.train
             const isLive = line.liveTag === 'live'
+            const cardBg = isDark
+              ? 'rgba(14,165,233,0.06)'
+              : 'rgba(14,165,233,0.04)'
 
             return (
               <AnimatedCard
                 key={line.id}
                 index={trotroLines.length + idx}
                 onPress={() => router.push(line.href as Href)}
-                style={s.card}
+                style={[s.card, {
+                  backgroundColor: cardBg,
+                  borderLeftColor: accent,
+                }]}
               >
-                {/* Left accent border */}
-                <View style={[s.accentBar, { backgroundColor: accentColor }]} />
-
-                {/* Line name — large */}
-                <View style={s.lineIdWrap}>
-                  <Text style={[s.lineId, { color: accentColor }]}>
-                    {line.lineName ?? 'TR'}
-                  </Text>
-                </View>
-
-                {/* Route info */}
-                <View style={s.lineInfo}>
-                  <Text style={s.destination} numberOfLines={1}>
-                    <Text style={s.towardsText}>towards </Text>
-                    <Text style={s.destinationBold}>{line.to}</Text>
-                  </Text>
-
-                  <Text style={[s.farePill, { color: accentColor }]}>
-                    {'\u20B5'}{line.fare?.toFixed(2) ?? '--'}
-                  </Text>
-
-                  {/* Live / schedule status */}
-                  {isLive ? (
-                    <View style={s.statusRow}>
-                      <Radio size={11} color="#22c55e" />
-                      <Text style={[s.statusText, { color: '#22c55e' }]}>IN TRANSIT</Text>
-                      <Text style={s.statusSep}>{'\u2022'}</Text>
-                      <Text style={s.stationText}>{line.from}</Text>
+                <View style={s.cardContent}>
+                  <View style={s.cardLeft}>
+                    {/* Row 1: Line name + status badge */}
+                    <View style={s.topRow}>
+                      <Text style={[s.lineId, { color: accent }]}>
+                        {line.lineName ?? 'TR'}
+                      </Text>
+                      {isLive ? (
+                        <View style={[s.typeBadge, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.3)' }]}>
+                          <View style={[s.livePulse, { backgroundColor: '#22c55e', width: 5, height: 5 }]} />
+                          <Text style={[s.typeBadgeText, { color: '#22c55e' }]}>LIVE</Text>
+                        </View>
+                      ) : (
+                        <View style={[s.typeBadge, { backgroundColor: `${accent}15`, borderColor: `${accent}30` }]}>
+                          <Text style={[s.typeBadgeText, { color: accent }]}>
+                            {line.liveTag === 'scheduled' ? 'SCHEDULED' : 'TRAIN'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  ) : (
-                    <View style={s.statusRow}>
-                      <Clock size={11} color={t.textTertiary} />
-                      <Text style={s.stationText}>{line.from}</Text>
-                    </View>
-                  )}
-                </View>
 
-                {/* Arrival time */}
-                <ArrivalTime
-                  value={line.timeNumber}
-                  unit={line.timeUnit}
-                  color={isLive ? '#22c55e' : accentColor}
-                  muted={line.liveTag === 'done'}
-                  label={line.liveTag === 'scheduled' ? 'DEPARTS' : undefined}
-                />
+                    {/* Row 2: towards Destination */}
+                    <Text style={s.towardsLine} numberOfLines={1}>
+                      <Text style={s.towardsText}>towards </Text>
+                      <Text style={s.destinationBold}>{line.to}</Text>
+                    </Text>
+
+                    {/* Row 3: Meta */}
+                    {isLive ? (
+                      <View style={s.metaRow}>
+                        <Radio size={11} color="#22c55e" />
+                        <Text style={[s.metaTextBold, { color: '#22c55e' }]}>IN TRANSIT</Text>
+                        <Text style={s.metaSep}>{'\u2022'}</Text>
+                        <Text style={s.metaText}>{line.from}</Text>
+                      </View>
+                    ) : (
+                      <View style={s.metaRow}>
+                        <Clock size={11} color={t.textTertiary} />
+                        <Text style={s.metaText}>{line.from}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Right: Big time */}
+                  <View style={s.cardRight}>
+                    <View style={s.timeRow}>
+                      <Text style={[
+                        s.timeNumber,
+                        { color: isLive ? '#22c55e' : accent },
+                        line.liveTag === 'done' && s.timeMuted,
+                      ]}>
+                        {line.timeNumber}
+                      </Text>
+                      {line.timeUnit !== '' && line.liveTag !== 'done' && (
+                        <Text style={[s.timeUnit, { color: isLive ? '#22c55e' : accent }]}>
+                          {line.timeUnit === 'minutes' ? 'min' : line.timeUnit}
+                        </Text>
+                      )}
+                    </View>
+                    {line.liveTag === 'scheduled' && (
+                      <Text style={s.timeLabel}>DEPARTS</Text>
+                    )}
+                  </View>
+                </View>
               </AnimatedCard>
             )
           })}
         </>
       )}
 
-      {/* View all routes button */}
+      {/* View all routes — CTA button */}
       {lines.length > 0 && (
         <TouchableOpacity
           activeOpacity={0.8}
@@ -491,9 +461,7 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 14,
       marginBottom: 16,
     },
-    locationBannerText: {
-      flex: 1,
-    },
+    locationBannerText: { flex: 1 },
     locationBannerTitle: {
       fontSize: 15,
       fontFamily: font.bold,
@@ -506,14 +474,14 @@ const getStyles = (isDark: boolean) => {
       marginTop: 1,
     },
 
-    // Section headers — Transit-style
+    // Section headers
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 6,
     },
     sectionTitle: {
-      fontSize: 20,
+      fontSize: 22,
       fontFamily: font.extrabold,
       color: t.text,
       letterSpacing: -0.3,
@@ -549,111 +517,93 @@ const getStyles = (isDark: boolean) => {
       color: t.textTertiary,
     },
 
-    // Cards — Transit-style with left accent
+    // Cards — thick left border, accent-tinted bg
     card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 14,
-      paddingRight: 14,
-      paddingLeft: 12,
-      borderRadius: 16,
-      marginTop: 8,
-      gap: 10,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+      borderRadius: 18,
+      marginTop: 10,
+      borderLeftWidth: 4,
       overflow: 'hidden',
     },
 
-    // Left accent bar
-    accentBar: {
-      width: 4,
-      borderRadius: 2,
-      alignSelf: 'stretch',
+    // Card internal layout — horizontal: info left, time right
+    cardContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingLeft: 16,
+      paddingRight: 18,
     },
 
-    // Large line identifier
-    lineIdWrap: {
+    // Left content — stacked vertically
+    cardLeft: {
+      flex: 1,
+      gap: 4,
+    },
+
+    // Top row: line ID + type badge
+    topRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      minWidth: 44,
+      gap: 10,
     },
     lineId: {
-      fontSize: 28,
+      fontSize: 38,
       fontFamily: font.extrabold,
-      lineHeight: 32,
-      letterSpacing: -0.5,
+      lineHeight: 42,
+      letterSpacing: -1,
     },
-    verifiedDot: {
-      marginTop: 2,
+    typeBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    typeBadgeText: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      letterSpacing: 0.6,
     },
 
-    // Route info
-    lineInfo: {
-      flex: 1,
-      gap: 2,
-    },
-    destination: {
-      fontSize: 15,
-      fontFamily: font.regular,
-      color: t.textSecondary,
+    // "towards Destination" row
+    towardsLine: {
+      marginTop: 2,
     },
     towardsText: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: font.regular,
       color: t.textTertiary,
     },
     destinationBold: {
-      fontSize: 16,
+      fontSize: 17,
       fontFamily: font.bold,
       color: t.text,
     },
 
-    // Fare + verified
+    // Meta / status row
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 5,
+      marginTop: 4,
     },
-    farePill: {
-      fontSize: 17,
-      fontFamily: font.bold,
-    },
-    verifiedPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-      backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : 'rgba(22,163,74,0.08)',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    verifiedText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#16a34a',
-    },
-
-    // Status / meta row
-    statusRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 1,
-    },
-    statusDot: {
+    metaDot: {
       width: 6,
       height: 6,
       borderRadius: 3,
     },
-    statusText: {
-      fontSize: 10,
+    metaTextBold: {
+      fontSize: 11,
       fontFamily: font.bold,
       letterSpacing: 0.5,
     },
-    statusSep: {
-      fontSize: 10,
+    metaSep: {
+      fontSize: 11,
       color: t.textTertiary,
-      marginHorizontal: 1,
     },
-    stationText: {
+    metaText: {
       fontSize: 11,
       fontFamily: font.medium,
       color: t.textTertiary,
@@ -661,13 +611,46 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 0.3,
     },
 
-    // View all routes button
+    // Right: arrival time — dominant
+    cardRight: {
+      alignItems: 'flex-end',
+      marginLeft: 12,
+    },
+    timeRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 2,
+    },
+    timeNumber: {
+      fontSize: 36,
+      fontFamily: font.extrabold,
+      lineHeight: 40,
+    },
+    timeMuted: {
+      fontSize: 18,
+      lineHeight: 22,
+    },
+    timeUnit: {
+      fontSize: 16,
+      fontFamily: font.semibold,
+      marginBottom: 2,
+    },
+    timeLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: t.textTertiary,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      marginTop: 1,
+    },
+
+    // View all routes CTA
     viewAllBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      marginTop: 14,
+      marginTop: 16,
       paddingVertical: 14,
       borderRadius: 16,
       backgroundColor: c.amber500,
