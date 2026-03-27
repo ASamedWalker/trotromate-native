@@ -71,44 +71,45 @@ function PodiumAvatar({ entry, rank, isFirst }: {
         {RANK_CROWN[rank] ?? ''}
       </Text>
 
-      <View style={{
-        width: size + 8,
-        height: size + 8,
-        borderRadius: (size + 8) / 2,
-        borderWidth: 3,
-        borderColor: ringColor,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
-      }}>
+      {/* Avatar ring + rank pill wrapper */}
+      <View style={{ alignItems: 'center', marginBottom: 14 }}>
         <View style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: MAROON.card,
+          width: size + 8,
+          height: size + 8,
+          borderRadius: (size + 8) / 2,
+          borderWidth: 3,
+          borderColor: ringColor,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <Text style={{ fontSize: emojiSize }}>{levelEmoji}</Text>
+          <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: MAROON.card,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Text style={{ fontSize: emojiSize }}>{levelEmoji}</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={{
-        position: 'absolute',
-        bottom: isFirst ? 46 : 40,
-        backgroundColor: ringColor,
-        paddingHorizontal: 10,
-        paddingVertical: 2,
-        borderRadius: 10,
-        zIndex: 1,
-      }}>
-        <Text style={{
-          fontSize: 11,
-          fontFamily: font.bold,
-          color: rank === 3 ? '#78350F' : '#fff',
+        {/* Rank pill — anchored to bottom of avatar */}
+        <View style={{
+          marginTop: -12,
+          backgroundColor: ringColor,
+          paddingHorizontal: 10,
+          paddingVertical: 2,
+          borderRadius: 10,
         }}>
-          {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
-        </Text>
+          <Text style={{
+            fontSize: 11,
+            fontFamily: font.bold,
+            color: rank === 3 ? '#78350F' : '#fff',
+          }}>
+            {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
+          </Text>
+        </View>
       </View>
 
       <Text
