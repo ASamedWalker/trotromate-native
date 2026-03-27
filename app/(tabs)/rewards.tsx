@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import {
   Star,
   Flame,
   Target,
-  Medal,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -22,9 +21,10 @@ import {
   TrendingUp,
   Lock,
   Zap,
+  Trophy,
 } from 'lucide-react-native'
 import { useRouter, type Href } from 'expo-router'
-import { c, themed, font, shadow } from '@/lib/theme'
+import { c, themed, font } from '@/lib/theme'
 import { ContributorBadge, getContributorTier } from '@/components/ContributorBadge'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard, useAllBadges, usePointsHistory } from '@/lib/hooks/useRewards'
@@ -32,11 +32,36 @@ import { LEVELS, LEVEL_ORDER, calculateProgress } from '@/lib/constants/rewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { ReferralCard } from '@/components/ReferralCard'
 import { timeAgo } from '@/lib/utils/time'
-import type { Badge, EarnedBadge } from '@/lib/types'
+import type { Badge, EarnedBadge, LeaderboardEntry } from '@/lib/types'
+
+/* ── Constants ──────────────────────────────────────── */
 
 const LEVEL_LIST = LEVEL_ORDER.map((slug) => LEVELS[slug])
 
-type TabKey = 'badges' | 'history' | 'top'
+const MAROON = {
+  bg: '#6B1D1D',
+  card: '#7F2828',
+  cardLight: '#923232',
+  dark: '#4A1212',
+  ring: 'rgba(255,255,255,0.12)',
+}
+
+const PODIUM_RING: Record<number, string> = {
+  1: '#4ADE80', // green
+  2: '#A78BFA', // purple
+  3: '#FBBF24', // amber
+}
+
+const RANK_CROWN: Record<number, string> = {
+  1: '💎',
+  2: '💚',
+  3: '👑',
+}
+
+const AVATAR_COLORS = [
+  '#059669', '#7C3AED', '#EA580C', '#0891B2',
+  '#D946EF', '#2563EB', '#DC2626', '#0D9488',
+]
 
 const BADGE_COLORS: Record<string, string> = {
   amber: '#f59e0b',
@@ -59,7 +84,8 @@ const REASON_LABELS: Record<string, string> = {
   referral_bonus: 'Referral Bonus',
 }
 
-/** Diamond-shaped badge icon wrapper (Temu-style) */
+/* ── Diamond Badge Icon ─────────────────────────────── */
+
 function DiamondIcon({ color, earned, children, isDark }: {
   color: string
   earned: boolean
@@ -86,6 +112,106 @@ function DiamondIcon({ color, earned, children, isDark }: {
   )
 }
 
+/* ── Podium Avatar ──────────────────────────────────── */
+
+function PodiumAvatar({ entry, rank, isFirst }: {
+  entry?: LeaderboardEntry
+  rank: number
+  isFirst?: boolean
+}) {
+  const size = isFirst ? 80 : 64
+  const emojiSize = isFirst ? 30 : 22
+  const ringColor = PODIUM_RING[rank] ?? c.stone400
+  const levelSlug = entry?.current_level ?? 'passenger'
+  const levelEmoji = LEVELS[levelSlug as keyof typeof LEVELS]?.emoji ?? '🚶'
+
+  return (
+    <View style={{ alignItems: 'center', width: isFirst ? 120 : 100 }}>
+      {/* Crown/gem above avatar */}
+      <Text style={{ fontSize: isFirst ? 24 : 18, marginBottom: -4 }}>
+        {RANK_CROWN[rank] ?? ''}
+      </Text>
+
+      {/* Avatar circle with ring */}
+      <View style={{
+        width: size + 8,
+        height: size + 8,
+        borderRadius: (size + 8) / 2,
+        borderWidth: 3,
+        borderColor: ringColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+      }}>
+        <View style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: MAROON.card,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Text style={{ fontSize: emojiSize }}>{levelEmoji}</Text>
+        </View>
+      </View>
+
+      {/* Rank pill */}
+      <View style={{
+        position: 'absolute',
+        bottom: isFirst ? 46 : 40,
+        backgroundColor: ringColor,
+        paddingHorizontal: 10,
+        paddingVertical: 2,
+        borderRadius: 10,
+        zIndex: 1,
+      }}>
+        <Text style={{
+          fontSize: 11,
+          fontFamily: font.bold,
+          color: rank === 3 ? '#78350F' : '#fff',
+        }}>
+          {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
+        </Text>
+      </View>
+
+      {/* Name */}
+      <Text
+        style={{
+          fontSize: isFirst ? 13 : 11,
+          fontFamily: font.bold,
+          color: '#fff',
+          textAlign: 'center',
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+        }}
+        numberOfLines={2}
+      >
+        {entry?.display_name ?? '--'}
+      </Text>
+
+      {/* Points */}
+      <Text style={{
+        fontSize: isFirst ? 16 : 13,
+        fontFamily: font.semibold,
+        color: 'rgba(255,255,255,0.7)',
+        marginTop: 2,
+      }}>
+        {entry ? formatPts(entry.weekly_points) : '--'}
+      </Text>
+    </View>
+  )
+}
+
+/* ── Helpers ─────────────────────────────────────────── */
+
+function formatPts(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`
+  return n.toLocaleString()
+}
+
+/* ── Main Screen ─────────────────────────────────────── */
+
 export default function RewardsScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
@@ -98,7 +224,9 @@ export default function RewardsScreen() {
   const { entries: history, isLoading: historyLoading } = usePointsHistory(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId], ['badges'], ['history', deviceId]])
 
-  const [activeTab, setActiveTab] = useState<TabKey>('badges')
+  const [period, setPeriod] = useState<'week' | 'all'>('week')
+  const [showBadges, setShowBadges] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [showEarnInfo, setShowEarnInfo] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -107,6 +235,14 @@ export default function RewardsScreen() {
     await Promise.all([refreshProfile(), refetchLeaderboard()])
     setRefreshing(false)
   }, [refreshProfile, refetchLeaderboard])
+
+  // Sort leaderboard by period
+  const sortedBoard = useMemo(() => {
+    if (period === 'all') {
+      return [...leaderboard].sort((a, b) => b.total_points - a.total_points)
+    }
+    return leaderboard // already sorted by weekly
+  }, [leaderboard, period])
 
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
   const progress = calculateProgress(profile?.total_points ?? 0, profile?.current_level ?? 'passenger')
@@ -121,9 +257,10 @@ export default function RewardsScreen() {
   const earnedCount = earnedBadgeIds.size
   const totalBadgeCount = allBadges.length
   const contributorTier = getContributorTier(totalReports)
+  const pointsKey = period === 'all' ? 'total_points' : 'weekly_points'
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -136,281 +273,295 @@ export default function RewardsScreen() {
           />
         }
       >
-        {/* ═══ Hero Banner (compact) ═══ */}
-        <View style={[s.heroBanner, { backgroundColor: levelInfo.color }]}>
-          <View style={[s.heroDecor, { top: -20, right: -20, opacity: 0.1, width: 120, height: 120 }]} />
-          <View style={[s.heroDecor, { bottom: -30, left: -10, opacity: 0.08, width: 80, height: 80 }]} />
+        {/* ═══ MAROON HERO — Leaderboard ═══ */}
+        <View style={s.hero}>
+          {/* Decorative circles */}
+          <View style={[s.heroDecor, { top: -40, right: -30, width: 160, height: 160 }]} />
+          <View style={[s.heroDecor, { bottom: 40, left: -50, width: 120, height: 120 }]} />
 
-          <View style={s.heroRow}>
-            {/* Level badge — compact */}
-            <View style={[s.heroBadgeRing, { borderColor: 'rgba(255,255,255,0.3)' }]}>
-              <View style={s.heroBadgeInner}>
-                <Text style={s.heroBadgeEmoji}>{levelInfo.emoji}</Text>
-              </View>
-            </View>
-
-            {/* Level info */}
-            <View style={s.heroInfo}>
-              <View style={s.heroNameRow}>
-                <Text style={s.heroLevelName}>{levelInfo.name}</Text>
-                {contributorTier && <ContributorBadge tier={contributorTier} />}
-              </View>
-              {nextLevel && (
-                <>
-                  <View style={s.heroProgressBg}>
-                    <View style={[s.heroProgressFill, { width: `${progressToNext}%` }]} />
-                  </View>
-                  <Text style={s.heroProgressText}>
-                    {progress?.pointsNeeded ?? 0} pts to {nextLevel.name}
-                  </Text>
-                </>
-              )}
-            </View>
-
-            {/* Points — right side */}
-            <View style={s.heroPointsCol}>
-              <Zap size={16} color="rgba(255,255,255,0.9)" />
-              <Text style={s.heroPointsValue}>{points}</Text>
-              <Text style={s.heroPointsLabel}>pts</Text>
-            </View>
+          {/* User rank badge */}
+          <View style={s.rankBadge}>
+            <Text style={s.rankNumber}>{userRank}</Text>
           </View>
+
+          <Text style={s.heroTitle}>Top Contributors</Text>
+
+          {/* Period tabs */}
+          <View style={s.periodRow}>
+            <TouchableOpacity
+              onPress={() => setPeriod('week')}
+              activeOpacity={0.7}
+              style={[s.periodTab, period === 'week' && s.periodTabActive]}
+            >
+              <Text style={[s.periodText, period === 'week' && s.periodTextActive]}>
+                THIS WEEK
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setPeriod('all')}
+              activeOpacity={0.7}
+              style={[s.periodTab, period === 'all' && s.periodTabActive]}
+            >
+              <Text style={[s.periodText, period === 'all' && s.periodTextActive]}>
+                ALL TIME
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Podium — 2nd / 1st / 3rd */}
+          {sortedBoard.length > 0 ? (
+            <View style={s.podiumRow}>
+              <View style={{ marginTop: 24 }}>
+                <PodiumAvatar entry={sortedBoard[1]} rank={2} />
+              </View>
+              <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
+              <View style={{ marginTop: 24 }}>
+                <PodiumAvatar entry={sortedBoard[2]} rank={3} />
+              </View>
+            </View>
+          ) : (
+            <View style={s.emptyPodium}>
+              <Trophy size={40} color="rgba(255,255,255,0.3)" />
+              <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
+            </View>
+          )}
         </View>
 
-        {/* ═══ Stats Row ═══ */}
-        <View style={s.statsRow}>
-          <TouchableOpacity
-            onPress={() => setActiveTab('history')}
-            activeOpacity={0.7}
-            style={s.statCard}
-          >
-            <View style={[s.statIconWrap, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-              <Flame size={16} color="#ef4444" />
-            </View>
-            <Text style={s.statValue}>{streak}</Text>
-            <Text style={s.statLabel}>Streak</Text>
-          </TouchableOpacity>
+        {/* ═══ Ranked List (4–10) ═══ */}
+        {sortedBoard.length > 3 && (
+          <View style={s.rankedSection}>
+            {sortedBoard.slice(3, 10).map((entry, i) => {
+              const isMe = entry.device_id === deviceId
+              const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length]
+              const levelSlug = entry.current_level ?? 'passenger'
+              const emoji = LEVELS[levelSlug as keyof typeof LEVELS]?.emoji ?? '🚶'
 
-          <TouchableOpacity
-            onPress={() => setActiveTab('history')}
-            activeOpacity={0.7}
-            style={s.statCard}
-          >
-            <View style={[s.statIconWrap, { backgroundColor: isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)' }]}>
-              <Target size={16} color={c.violet500} />
-            </View>
-            <Text style={s.statValue}>{totalReports}</Text>
-            <Text style={s.statLabel}>Reports</Text>
-          </TouchableOpacity>
+              return (
+                <View
+                  key={entry.id}
+                  style={[s.rankedRow, isMe && s.rankedRowMe]}
+                >
+                  <Text style={s.rankedRankNum}>{entry.rank}</Text>
 
-          <TouchableOpacity
-            onPress={() => setActiveTab('top')}
-            activeOpacity={0.7}
-            style={s.statCard}
-          >
-            <View style={[s.statIconWrap, { backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)' }]}>
-              <Medal size={16} color={c.emerald500} />
+                  {/* Avatar */}
+                  <View style={[s.rankedAvatar, { borderColor: avatarColor }]}>
+                    <Text style={{ fontSize: 16 }}>{emoji}</Text>
+                  </View>
+
+                  {/* Name */}
+                  <Text style={s.rankedName} numberOfLines={1}>
+                    {entry.display_name?.toUpperCase() ?? 'ANONYMOUS'}
+                    {isMe ? ' (YOU)' : ''}
+                  </Text>
+
+                  {/* Points */}
+                  <Text style={s.rankedPts}>
+                    {formatPts(entry[pointsKey])}
+                  </Text>
+                </View>
+              )
+            })}
+
+            {/* See all link */}
+            <TouchableOpacity
+              onPress={() => router.push('/leaderboard' as Href)}
+              activeOpacity={0.7}
+              style={s.seeAllRow}
+            >
+              <Text style={s.seeAllText}>See full leaderboard</Text>
+              <ChevronRight size={16} color={c.amber500} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ═══ CTA Card ═══ */}
+        <View style={s.ctaCard}>
+          <View style={s.ctaIconWrap}>
+            <Zap size={24} color={c.amber500} />
+          </View>
+          <Text style={s.ctaText}>
+            Use GO on your next trip and start climbing the ranks.
+          </Text>
+        </View>
+
+        {/* ═══ Your Progress ═══ */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Your Progress</Text>
+          <View style={s.progressCard}>
+            {/* Level row */}
+            <View style={s.progressLevelRow}>
+              <View style={[s.progressBadge, { backgroundColor: `${levelInfo.color}20` }]}>
+                <Text style={{ fontSize: 24 }}>{levelInfo.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={s.progressLevelName}>{levelInfo.name}</Text>
+                  {contributorTier && <ContributorBadge tier={contributorTier} />}
+                </View>
+                {nextLevel && (
+                  <>
+                    <View style={s.progressBarBg}>
+                      <View style={[s.progressBarFill, {
+                        width: `${progressToNext}%`,
+                        backgroundColor: levelInfo.color,
+                      }]} />
+                    </View>
+                    <Text style={s.progressBarLabel}>
+                      {progress?.pointsNeeded ?? 0} pts to {nextLevel.name}
+                    </Text>
+                  </>
+                )}
+              </View>
             </View>
-            <Text style={s.statValue}>#{userRank}</Text>
-            <Text style={s.statLabel}>Rank</Text>
-          </TouchableOpacity>
+
+            {/* Stats mini row */}
+            <View style={s.miniStatsRow}>
+              <View style={s.miniStat}>
+                <Zap size={14} color={c.amber500} />
+                <Text style={s.miniStatValue}>{points}</Text>
+                <Text style={s.miniStatLabel}>Points</Text>
+              </View>
+              <View style={s.miniStatDivider} />
+              <View style={s.miniStat}>
+                <Flame size={14} color="#ef4444" />
+                <Text style={s.miniStatValue}>{streak}</Text>
+                <Text style={s.miniStatLabel}>Streak</Text>
+              </View>
+              <View style={s.miniStatDivider} />
+              <View style={s.miniStat}>
+                <Target size={14} color={c.violet500} />
+                <Text style={s.miniStatValue}>{totalReports}</Text>
+                <Text style={s.miniStatLabel}>Reports</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* ═══ Referral Card ═══ */}
         <ReferralCard />
 
-        {/* ═══ Tabs ═══ */}
+        {/* ═══ Badges — Collapsible ═══ */}
         <View style={s.section}>
-          <View style={s.tabRow}>
-            {([
-              { key: 'badges' as TabKey, label: `Badges (${earnedCount}/${totalBadgeCount})` },
-              { key: 'history' as TabKey, label: 'History' },
-              { key: 'top' as TabKey, label: 'Top' },
-            ]).map((tab) => (
-              <TouchableOpacity
-                key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                activeOpacity={0.7}
-                style={[s.tab, activeTab === tab.key && s.tabActive]}
-              >
-                <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Tab Content */}
-          <View style={s.tabContent}>
-            {activeTab === 'badges' && (
-              <View>
-                <Text style={s.tabContentTitle}>Badge Collection</Text>
-                {allBadges.length === 0 ? (
-                  <View style={s.emptyState}>
-                    <Star size={32} color={t.textTertiary} />
-                    <Text style={s.emptyText}>No badges available yet</Text>
-                  </View>
-                ) : (
-                  <View style={s.badgeGrid}>
-                    {allBadges.map((badge: Badge) => {
-                      const earned = earnedBadgeIds.has(badge.id)
-                      const badgeColor = BADGE_COLORS[badge.color] ?? c.amber500
-                      return (
-                        <View key={badge.id} style={[s.badgeItem, !earned && s.badgeItemLocked]}>
-                          <DiamondIcon color={badgeColor} earned={earned} isDark={isDark}>
-                            {earned ? (
-                              <Star size={20} color={badgeColor} />
-                            ) : (
-                              <Lock size={16} color={t.textTertiary} />
-                            )}
-                          </DiamondIcon>
-                          <Text style={[s.badgeName, !earned && { color: t.textTertiary }]} numberOfLines={1}>
-                            {badge.name}
-                          </Text>
-                          <Text style={s.badgeDesc} numberOfLines={2}>
-                            {badge.description}
-                          </Text>
-                          {badge.points_bonus > 0 && (
-                            <Text style={[s.badgeBonus, { color: earned ? c.amber500 : t.textTertiary }]}>
-                              +{badge.points_bonus} pts
-                            </Text>
-                          )}
-                        </View>
-                      )
-                    })}
-                  </View>
-                )}
-              </View>
+          <TouchableOpacity
+            onPress={() => setShowBadges(!showBadges)}
+            activeOpacity={0.7}
+            style={s.collapsibleHeader}
+          >
+            <Star size={18} color={c.amber500} />
+            <Text style={s.collapsibleTitle}>
+              Badges ({earnedCount}/{totalBadgeCount})
+            </Text>
+            <View style={{ flex: 1 }} />
+            {showBadges ? (
+              <ChevronUp size={18} color={t.textSecondary} />
+            ) : (
+              <ChevronDown size={18} color={t.textSecondary} />
             )}
+          </TouchableOpacity>
 
-            {activeTab === 'history' && (
-              <View>
-                <Text style={s.tabContentTitle}>Recent Activity</Text>
-                {historyLoading ? (
-                  <ActivityIndicator size="small" color={c.amber500} style={{ marginVertical: 32 }} />
-                ) : history.length === 0 ? (
-                  <View style={s.emptyState}>
-                    <Clock size={32} color={t.textTertiary} />
-                    <Text style={s.emptyText}>No activity yet</Text>
-                    <Text style={s.emptySubText}>Submit reports to earn points!</Text>
-                  </View>
-                ) : (
-                  <View>
-                    {history.map((entry, index) => (
-                      <View
-                        key={entry.id}
-                        style={[s.historyRow, index < history.length - 1 && s.historyRowBorder]}
-                      >
-                        <View style={s.historyIcon}>
-                          <Star size={16} color={c.amber500} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.historyReason}>
-                            {REASON_LABELS[entry.reason] ?? entry.reason}
-                          </Text>
-                          <Text style={s.historyTime}>{timeAgo(entry.created_at)}</Text>
-                        </View>
-                        <Text style={s.historyPoints}>+{entry.points}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {activeTab === 'top' && (
-              <View>
-                <View style={s.sectionTitleRow}>
-                  <Text style={s.tabContentTitle}>Weekly Top Contributors</Text>
-                  <TouchableOpacity onPress={() => router.push('/leaderboard' as Href)} style={s.seeAllBtn}>
-                    <Text style={s.seeAllText}>See all</Text>
-                    <ChevronRight size={16} color={c.amber500} />
-                  </TouchableOpacity>
+          {showBadges && (
+            <View style={s.collapsibleBody}>
+              {allBadges.length === 0 ? (
+                <View style={s.emptyState}>
+                  <Star size={32} color={t.textTertiary} />
+                  <Text style={s.emptyText}>No badges available yet</Text>
                 </View>
-                {leaderboard.length === 0 ? (
-                  <View style={s.emptyState}>
-                    <TrendingUp size={32} color={t.textTertiary} />
-                    <Text style={s.emptyText}>No activity this week</Text>
-                  </View>
-                ) : (
-                  <View>
-                    {/* Podium */}
-                    <View style={s.podiumRow}>
-                      {/* 2nd Place */}
-                      <View style={s.podiumItem}>
-                        <View style={[s.podiumAvatar, { backgroundColor: c.stone300 }]}>
-                          <Text style={s.podiumEmojiMd}>🥈</Text>
-                        </View>
-                        <View style={[s.podiumBar, s.podiumBar2nd]}>
-                          <Text style={s.podiumBarText}>
-                            {leaderboard[1]?.display_name?.split(' ')[0] ?? '--'}
+              ) : (
+                <View style={s.badgeGrid}>
+                  {allBadges.map((badge: Badge) => {
+                    const earned = earnedBadgeIds.has(badge.id)
+                    const badgeColor = BADGE_COLORS[badge.color] ?? c.amber500
+                    return (
+                      <View key={badge.id} style={[s.badgeItem, !earned && s.badgeItemLocked]}>
+                        <DiamondIcon color={badgeColor} earned={earned} isDark={isDark}>
+                          {earned ? (
+                            <Star size={20} color={badgeColor} />
+                          ) : (
+                            <Lock size={16} color={t.textTertiary} />
+                          )}
+                        </DiamondIcon>
+                        <Text style={[s.badgeName, !earned && { color: t.textTertiary }]} numberOfLines={1}>
+                          {badge.name}
+                        </Text>
+                        <Text style={s.badgeDesc} numberOfLines={2}>
+                          {badge.description}
+                        </Text>
+                        {badge.points_bonus > 0 && (
+                          <Text style={[s.badgeBonus, { color: earned ? c.amber500 : t.textTertiary }]}>
+                            +{badge.points_bonus} pts
                           </Text>
-                        </View>
+                        )}
                       </View>
-                      {/* 1st Place */}
-                      <View style={s.podiumItem}>
-                        <View style={[s.podiumAvatarLg, { backgroundColor: c.amber400 }]}>
-                          <Text style={s.podiumEmojiLg}>🥇</Text>
-                        </View>
-                        <View style={[s.podiumBar, s.podiumBar1st]}>
-                          <Text style={s.podiumBarTextWhite}>
-                            {leaderboard[0]?.display_name?.split(' ')[0] ?? '--'}
-                          </Text>
-                        </View>
-                      </View>
-                      {/* 3rd Place */}
-                      <View style={s.podiumItem}>
-                        <View style={[s.podiumAvatar, { backgroundColor: c.amber700 }]}>
-                          <Text style={s.podiumEmojiMd}>🥉</Text>
-                        </View>
-                        <View style={[s.podiumBar, s.podiumBar3rd]}>
-                          <Text style={s.podiumBarText3rd}>
-                            {leaderboard[2]?.display_name?.split(' ')[0] ?? '--'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* List below podium */}
-                    {leaderboard.slice(3, 10).map((entry) => (
-                      <View
-                        key={entry.id}
-                        style={[
-                          s.leaderboardRow,
-                          entry.device_id === deviceId && s.leaderboardRowHighlight,
-                        ]}
-                      >
-                        <View style={s.leaderboardRank}>
-                          <Text style={s.leaderboardRankText}>{entry.rank}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.leaderboardName} numberOfLines={1}>
-                            {entry.display_name}
-                            {entry.device_id === deviceId ? ' (You)' : ''}
-                          </Text>
-                          <Text style={s.leaderboardMeta}>{entry.badge_count} badges</Text>
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={s.leaderboardPts}>{entry.weekly_points} pts</Text>
-                          <Text style={s.leaderboardMeta}>this week</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
+                    )
+                  })}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
-        {/* How to Earn — collapsible */}
+        {/* ═══ History — Collapsible ═══ */}
+        <View style={s.section}>
+          <TouchableOpacity
+            onPress={() => setShowHistory(!showHistory)}
+            activeOpacity={0.7}
+            style={s.collapsibleHeader}
+          >
+            <Clock size={18} color={c.amber500} />
+            <Text style={s.collapsibleTitle}>Recent Activity</Text>
+            <View style={{ flex: 1 }} />
+            {showHistory ? (
+              <ChevronUp size={18} color={t.textSecondary} />
+            ) : (
+              <ChevronDown size={18} color={t.textSecondary} />
+            )}
+          </TouchableOpacity>
+
+          {showHistory && (
+            <View style={s.collapsibleBody}>
+              {historyLoading ? (
+                <ActivityIndicator size="small" color={c.amber500} style={{ marginVertical: 32 }} />
+              ) : history.length === 0 ? (
+                <View style={s.emptyState}>
+                  <Clock size={32} color={t.textTertiary} />
+                  <Text style={s.emptyText}>No activity yet</Text>
+                  <Text style={s.emptySubText}>Submit reports to earn points!</Text>
+                </View>
+              ) : (
+                <View>
+                  {history.map((entry, index) => (
+                    <View
+                      key={entry.id}
+                      style={[s.historyRow, index < history.length - 1 && s.historyRowBorder]}
+                    >
+                      <View style={s.historyIcon}>
+                        <Star size={16} color={c.amber500} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.historyReason}>
+                          {REASON_LABELS[entry.reason] ?? entry.reason}
+                        </Text>
+                        <Text style={s.historyTime}>{timeAgo(entry.created_at)}</Text>
+                      </View>
+                      <Text style={s.historyPoints}>+{entry.points}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* ═══ How to Earn — Collapsible ═══ */}
         <View style={[s.section, { marginBottom: 32 }]}>
           <TouchableOpacity
             onPress={() => setShowEarnInfo(!showEarnInfo)}
             activeOpacity={0.7}
-            style={s.earnToggle}
+            style={s.collapsibleHeader}
           >
-            <Star size={16} color={c.amber500} />
-            <Text style={s.earnToggleText}>How to Earn Points</Text>
+            <TrendingUp size={18} color={c.amber500} />
+            <Text style={s.collapsibleTitle}>How to Earn Points</Text>
+            <View style={{ flex: 1 }} />
             {showEarnInfo ? (
               <ChevronUp size={18} color={t.textSecondary} />
             ) : (
@@ -419,7 +570,7 @@ export default function RewardsScreen() {
           </TouchableOpacity>
 
           {showEarnInfo && (
-            <View style={s.earnCard}>
+            <View style={s.collapsibleBody}>
               {[
                 { action: 'Report a fare', points: '+10' },
                 { action: 'Report queue status', points: '+5' },
@@ -439,161 +590,302 @@ export default function RewardsScreen() {
             </View>
           )}
         </View>
-        {/* Extra padding for absolute tab bar */}
+
+        {/* Bottom padding for tab bar */}
         <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>
   )
 }
 
+/* ── Styles ──────────────────────────────────────────── */
+
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    section: { paddingHorizontal: 20, marginBottom: 24 },
-    sectionTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    section: { paddingHorizontal: 20, marginBottom: 16 },
+    sectionTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: t.text,
       marginBottom: 12,
     },
 
-    // ═══ Hero Banner (compact) ═══
-    heroBanner: {
-      paddingTop: 16,
-      paddingBottom: 20,
+    /* ═══ MAROON HERO ═══ */
+    hero: {
+      backgroundColor: MAROON.bg,
+      paddingTop: 20,
+      paddingBottom: 28,
       paddingHorizontal: 20,
       overflow: 'hidden',
       borderBottomLeftRadius: 32,
       borderBottomRightRadius: 32,
-      marginBottom: 16,
+      marginBottom: 4,
     },
     heroDecor: {
       position: 'absolute',
       borderRadius: 999,
-      backgroundColor: '#fff',
+      backgroundColor: 'rgba(255,255,255,0.05)',
     },
-    heroRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
-    heroBadgeRing: {
+    rankBadge: {
       width: 64,
       height: 64,
       borderRadius: 32,
+      backgroundColor: MAROON.card,
       borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.2)',
+      alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    heroBadgeInner: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    heroBadgeEmoji: { fontSize: 26 },
-    heroInfo: { flex: 1, gap: 6 },
-    heroNameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    heroLevelName: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: c.white,
-    },
-    heroPointsCol: {
-      alignItems: 'center',
-      gap: 2,
-    },
-    heroPointsValue: {
-      fontSize: 22,
-      fontFamily: font.bold,
-      color: c.white,
-    },
-    heroPointsLabel: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.7)',
-    },
-    heroProgressBg: {
-      width: '100%',
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      overflow: 'hidden',
-    },
-    heroProgressFill: {
-      height: '100%',
-      borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.85)',
-    },
-    heroProgressText: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.7)',
-    },
-
-    // ═══ Stats Row ═══
-    statsRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 20,
-      gap: 10,
-      marginTop: -8,
       marginBottom: 8,
     },
-    statCard: {
-      flex: 1,
+    rankNumber: {
+      fontSize: 28,
+      fontFamily: font.bold,
+      color: '#fff',
+    },
+    heroTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: '#fff',
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+
+    /* Period tabs */
+    periodRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 24,
+      marginBottom: 20,
+    },
+    periodTab: {
+      paddingBottom: 6,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    periodTabActive: {
+      borderBottomColor: '#fff',
+    },
+    periodText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: 'rgba(255,255,255,0.5)',
+      letterSpacing: 1,
+    },
+    periodTextActive: {
+      color: '#fff',
+    },
+
+    /* Podium */
+    podiumRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      gap: 4,
+      paddingTop: 4,
+    },
+    emptyPodium: {
       alignItems: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 8,
-      borderRadius: 18,
+      paddingVertical: 40,
+    },
+    emptyPodiumText: {
+      color: 'rgba(255,255,255,0.5)',
+      fontSize: 14,
+      fontFamily: font.medium,
+      marginTop: 12,
+    },
+
+    /* ═══ Ranked List ═══ */
+    rankedSection: {
+      backgroundColor: isDark ? MAROON.dark : '#F5E6E6',
+      marginHorizontal: 16,
+      borderRadius: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+      marginBottom: 16,
+    },
+    rankedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      gap: 12,
+    },
+    rankedRowMe: {
+      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
+      borderRadius: 14,
+    },
+    rankedRankNum: {
+      width: 24,
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: isDark ? 'rgba(255,255,255,0.6)' : MAROON.bg,
+      textAlign: 'center',
+    },
+    rankedAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 2.5,
+      backgroundColor: isDark ? MAROON.card : '#E8D0D0',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rankedName: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: isDark ? '#fff' : MAROON.bg,
+      letterSpacing: 0.3,
+    },
+    rankedPts: {
+      fontSize: 15,
+      fontFamily: font.semibold,
+      color: isDark ? 'rgba(255,255,255,0.7)' : MAROON.cardLight,
+    },
+    seeAllRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      gap: 4,
+    },
+    seeAllText: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: c.amber500,
+    },
+
+    /* ═══ CTA Card ═══ */
+    ctaCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 20,
+      marginBottom: 20,
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : c.amber50,
+      gap: 12,
+    },
+    ctaIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : c.amber100,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctaText: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: isDark ? c.amber100 : c.amber900,
+      lineHeight: 20,
+    },
+
+    /* ═══ Your Progress ═══ */
+    progressCard: {
+      padding: 16,
+      borderRadius: 20,
       backgroundColor: t.card,
       borderWidth: 1,
       borderColor: t.border,
-      ...shadow.card,
     },
-    statIconWrap: {
-      width: 32,
-      height: 32,
-      borderRadius: 10,
+    progressLevelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 16,
+    },
+    progressBadge: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 6,
     },
-    statValue: {
-      fontSize: 20,
+    progressLevelName: {
+      fontSize: 17,
       fontFamily: font.bold,
       color: t.text,
     },
-    statLabel: {
+    progressBarBg: {
+      width: '100%',
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: isDark ? c.stone700 : c.stone200,
+      overflow: 'hidden',
+      marginTop: 8,
+    },
+    progressBarFill: {
+      height: '100%',
+      borderRadius: 3,
+    },
+    progressBarLabel: {
       fontSize: 11,
       fontFamily: font.medium,
       color: t.textSecondary,
-      marginTop: 1,
+      marginTop: 4,
     },
-
-    // ═══ Tabs ═══
-    tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-    tab: {
-      flex: 1,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 14,
-      backgroundColor: t.card,
+    miniStatsRow: {
+      flexDirection: 'row',
       alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: isDark ? c.stone800 : c.stone100,
+      paddingTop: 14,
     },
-    tabActive: { backgroundColor: c.amber500 },
-    tabText: { fontSize: 13, fontFamily: font.medium, color: isDark ? c.stone400 : c.stone600 },
-    tabTextActive: { color: c.white, fontFamily: font.semibold },
-    tabContent: { padding: 16, borderRadius: 20, backgroundColor: t.card, borderWidth: 1, borderColor: t.border },
-    tabContentTitle: { fontSize: 16, fontFamily: font.semibold, color: t.text, marginBottom: 14 },
+    miniStat: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    miniStatDivider: {
+      width: 1,
+      height: 28,
+      backgroundColor: isDark ? c.stone700 : c.stone200,
+    },
+    miniStatValue: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    miniStatLabel: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
 
-    // ═══ Badges (Diamond grid) ═══
+    /* ═══ Collapsible sections ═══ */
+    collapsibleHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: t.card,
+      padding: 14,
+      borderRadius: 16,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    collapsibleTitle: {
+      fontSize: 15,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+    collapsibleBody: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.card,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+      marginTop: -8,
+      borderWidth: 1,
+      borderTopWidth: 0,
+      borderColor: t.border,
+    },
+
+    /* ═══ Badges ═══ */
     badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     badgeItem: {
       width: '30%',
@@ -607,7 +899,7 @@ const getStyles = (isDark: boolean) => {
     badgeDesc: { fontSize: 10, color: t.textSecondary, textAlign: 'center', marginTop: 2 },
     badgeBonus: { fontSize: 10, fontFamily: font.semibold, marginTop: 4 },
 
-    // ═══ History ═══
+    /* ═══ History ═══ */
     historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
     historyRowBorder: { borderBottomWidth: 1, borderBottomColor: isDark ? c.stone800 : c.stone100 },
     historyIcon: {
@@ -623,99 +915,12 @@ const getStyles = (isDark: boolean) => {
     historyTime: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
     historyPoints: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
 
-    // ═══ Empty state ═══
+    /* ═══ Empty state ═══ */
     emptyState: { alignItems: 'center', paddingVertical: 32 },
     emptyText: { fontSize: 14, color: t.textSecondary, marginTop: 8 },
     emptySubText: { fontSize: 12, color: t.textTertiary, marginTop: 4 },
 
-    // ═══ Leaderboard ═══
-    seeAllBtn: { flexDirection: 'row', alignItems: 'center' },
-    seeAllText: { color: c.amber500, fontSize: 14, fontFamily: font.medium },
-    podiumRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      justifyContent: 'center',
-      paddingVertical: 16,
-    },
-    podiumItem: { alignItems: 'center', marginHorizontal: 8 },
-    podiumAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
-    },
-    podiumAvatarLg: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
-    },
-    podiumEmojiMd: { fontSize: 20 },
-    podiumEmojiLg: { fontSize: 24 },
-    podiumBar: {
-      width: 64,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderTopLeftRadius: 8,
-      borderTopRightRadius: 8,
-    },
-    podiumBar1st: { height: 112, backgroundColor: c.amber500 },
-    podiumBar2nd: { height: 80, backgroundColor: isDark ? c.stone700 : c.stone200 },
-    podiumBar3rd: {
-      height: 64,
-      backgroundColor: isDark ? 'rgba(120, 53, 15, 0.5)' : c.amber100,
-    },
-    podiumBarText: { fontSize: 12, fontFamily: font.medium, color: isDark ? c.stone300 : c.stone600 },
-    podiumBarTextWhite: { fontSize: 12, fontFamily: font.medium, color: c.white },
-    podiumBarText3rd: { fontSize: 12, fontFamily: font.medium, color: isDark ? c.amber400 : c.amber700 },
-    leaderboardRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      gap: 10,
-    },
-    leaderboardRowHighlight: {
-      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : c.amber100,
-    },
-    leaderboardRank: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: isDark ? c.stone700 : c.stone200,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    leaderboardRankText: { fontSize: 13, fontFamily: font.bold, color: isDark ? c.stone300 : c.stone600 },
-    leaderboardName: { fontSize: 14, fontFamily: font.medium, color: t.text },
-    leaderboardMeta: { fontSize: 12, color: t.textSecondary, marginTop: 1 },
-    leaderboardPts: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
-
-    // ═══ How to earn ═══
-    earnToggle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: t.card,
-      padding: 14,
-      borderRadius: 16,
-      gap: 8,
-      borderWidth: 1,
-      borderColor: t.border,
-    },
-    earnToggleText: { flex: 1, fontSize: 15, fontFamily: font.semibold, color: t.text },
-    earnCard: {
-      paddingHorizontal: 16,
-      paddingBottom: 8,
-      backgroundColor: t.card,
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
-      marginTop: -8,
-    },
+    /* ═══ How to earn ═══ */
     earnRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
     earnRowBorder: { borderBottomWidth: 1, borderBottomColor: isDark ? c.stone800 : c.stone200 },
     earnAction: { fontSize: 14, color: isDark ? c.stone300 : c.stone700 },
