@@ -375,7 +375,7 @@ export default function HomeScreen() {
         </Mapbox.ShapeSource>
       </Mapbox.MapView>
 
-      {/* ── Floating search bar only — clean map ── */}
+      {/* ── Floating search bar + service pills ── */}
       <SafeAreaView edges={['top']} style={s.floatingTop} pointerEvents="box-none">
         <TouchableOpacity
           onPress={() => setSearchVisible(true)}
@@ -398,6 +398,13 @@ export default function HomeScreen() {
           </View>
           <Search size={22} color={c.amber500} />
         </TouchableOpacity>
+
+        {/* Service mode pills — under search bar */}
+        <ServiceModePills
+          activeMode={serviceMode}
+          onModeChange={handleModeChange}
+          hasActiveTrip={tripState !== 'idle'}
+        />
       </SafeAreaView>
 
       {/* Recenter button */}
@@ -447,15 +454,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       )}
-
-      {/* ── Service mode pills — floating on map ── */}
-      <View style={s.floatingPills} pointerEvents="box-none">
-        <ServiceModePills
-          activeMode={serviceMode}
-          onModeChange={handleModeChange}
-          hasActiveTrip={tripState !== 'idle'}
-        />
-      </View>
 
       {/* ── Bottom Sheet ── */}
       <BottomSheet
@@ -664,13 +662,5 @@ const getStyles = (isDark: boolean) => {
       color: '#fff',
     },
 
-    // Service pills floating on map
-    floatingPills: {
-      position: 'absolute',
-      bottom: '19%',
-      left: 0,
-      right: 0,
-      zIndex: 5,
-    },
   })
 }
