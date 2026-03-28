@@ -17,7 +17,7 @@ import {
   Navigation,
   Locate,
 } from 'lucide-react-native'
-import { c, themed, font, shadow } from '@/lib/theme'
+import { c, font, shadow, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -131,7 +131,6 @@ function getStationColor(station: StationWithQueue): string {
 export default function HomeScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
 
   const { profile, deviceId } = useApp()
@@ -449,13 +448,22 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
+      {/* ── Service mode pills — floating on map ── */}
+      <View style={s.floatingPills} pointerEvents="box-none">
+        <ServiceModePills
+          activeMode={serviceMode}
+          onModeChange={handleModeChange}
+          hasActiveTrip={tripState !== 'idle'}
+        />
+      </View>
+
       {/* ── Bottom Sheet ── */}
       <BottomSheet
         ref={bottomSheetRef}
         index={0}
         snapPoints={snapPoints}
         backgroundStyle={{
-          backgroundColor: t.card,
+          backgroundColor: isDark ? '#1c1c1e' : '#f5f5f4',
           borderRadius: 24,
           ...shadow.cardStrong,
         }}
@@ -469,13 +477,6 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {/* Service mode pills */}
-          <ServiceModePills
-            activeMode={serviceMode}
-            onModeChange={handleModeChange}
-            hasActiveTrip={tripState !== 'idle'}
-          />
-
           {/* Smart Commute — hero greeting, first thing users see */}
           <SmartCommuteCard />
 
@@ -661,6 +662,15 @@ const getStyles = (isDark: boolean) => {
       fontSize: 12,
       fontFamily: font.semibold,
       color: '#fff',
+    },
+
+    // Service pills floating on map
+    floatingPills: {
+      position: 'absolute',
+      bottom: '19%',
+      left: 0,
+      right: 0,
+      zIndex: 5,
     },
   })
 }

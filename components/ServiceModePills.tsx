@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet } from 'react-native'
-import { c, themed, font } from '@/lib/theme'
+import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, Platform } from 'react-native'
+import { font } from '@/lib/theme'
 import { TrotroIcon, TrainIcon, GoIcon, TalesIcon } from '@/components/ServiceIcons'
 
 export type ServiceMode = 'trotro' | 'train' | 'go' | 'tales'
@@ -33,7 +33,6 @@ interface ServiceModePillsProps {
 export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: ServiceModePillsProps) {
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
-  const t = themed(isDark)
 
   return (
     <ScrollView
@@ -59,14 +58,14 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
             ]}
           >
             <IconComponent
-              size={20}
+              size={18}
               active={isActive}
             />
             <Text
               style={[
                 s.pillText,
                 isActive && s.pillTextActive,
-                !isActive && { color: isGoWithTrip ? pill.color : t.textSecondary },
+                !isActive && { color: isDark ? '#e5e5e5' : '#44403c' },
               ]}
             >
               {pill.label}
@@ -80,31 +79,38 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
   return StyleSheet.create({
     container: {
-      paddingHorizontal: 20,
-      paddingTop: 6,
-      paddingBottom: 4,
-      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      gap: 6,
     },
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 24,
+      gap: 5,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: { elevation: 3 },
+      }),
     },
     pillInactive: {
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      backgroundColor: isDark ? 'rgba(28,28,30,0.88)' : 'rgba(255,255,255,0.92)',
     },
     pillPulse: {
       borderWidth: 1.5,
-      backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)',
+      backgroundColor: isDark ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.1)',
     },
     pillText: {
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: font.semibold,
     },
     pillTextActive: {
