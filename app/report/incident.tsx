@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -8,103 +8,90 @@ import {
   useColorScheme,
   Alert,
   StyleSheet,
+  useWindowDimensions,
+  Modal,
+  Pressable,
+  FlatList,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
 import {
   AlertTriangle,
   MapPin,
   Car,
-  Shield,
+  ShieldCheck,
   Construction,
   Check,
-  ChevronRight,
+  Ban,
+  TriangleAlert,
+  Camera,
+  ChevronDown,
+  Send,
+  Search,
+  X,
 } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { font } from '@/lib/theme'
 import { useSubmitIncidentReport } from '@/lib/hooks/useReports'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
-
-const LOCATIONS = [
-  { name: 'Circle', area: 'Accra' },
-  { name: 'Madina', area: 'Accra' },
-  { name: 'Lapaz', area: 'Accra' },
-  { name: 'Achimota', area: 'Accra' },
-  { name: 'Kaneshie', area: 'Accra' },
-  { name: 'Tema Station', area: 'Accra' },
-  { name: 'Nkrumah Circle', area: 'Accra' },
-  { name: '37 Station', area: 'Accra' },
-  { name: 'Kasoa', area: 'Central' },
-  { name: 'Tema', area: 'Greater Accra' },
-  { name: 'Ashaiman', area: 'Greater Accra' },
-  { name: 'Spintex', area: 'Accra' },
-  { name: 'East Legon', area: 'Accra' },
-  { name: 'Dansoman', area: 'Accra' },
-  { name: 'Teshie', area: 'Accra' },
-]
+import { useStations } from '@/lib/hooks/useStations'
+import { getStationCoords } from '@/lib/utils/station-coords'
 
 const INCIDENT_TYPES = [
-  {
-    id: 'traffic',
-    label: 'Heavy Traffic',
-    emoji: '🚗',
-    description: 'Go slow, cars plenty',
-    color: '#f97316',
-    Icon: Car,
-  },
-  {
-    id: 'accident',
-    label: 'Accident',
-    emoji: '⚠️',
-    description: 'Crash or breakdown',
-    color: c.red500,
-    Icon: AlertTriangle,
-  },
-  {
-    id: 'police',
-    label: 'Police Checkpoint',
-    emoji: '👮',
-    description: 'Officers checking vehicles',
-    color: '#3b82f6',
-    Icon: Shield,
-  },
-  {
-    id: 'roadwork',
-    label: 'Road Work',
-    emoji: '🚧',
-    description: 'Construction or repairs',
-    color: c.amber500,
-    Icon: Construction,
-  },
+  { id: 'traffic', label: 'Traffic', icon: Car, color: '#815100' },
+  { id: 'accident', label: 'Accident', icon: AlertTriangle, color: '#b02500' },
+  { id: 'police_checkpoint', label: 'Police', icon: ShieldCheck, color: '#815100' },
+  { id: 'road_closure', label: 'Road\nClosure', icon: Ban, color: '#815100' },
+  { id: 'flooding', label: 'Hazard', icon: TriangleAlert, color: '#815100' },
+  { id: 'breakdown', label: 'Work', icon: Construction, color: '#815100' },
 ]
 
 export default function IncidentReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
+  const { width } = useWindowDimensions()
+  const gridSize = (width - 48 - 32) / 3 // px-6 + 2 gaps of 16
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitIncidentReport(deviceId)
+  const { stations } = useStations()
 
-  const [step, setStep] = useState(1)
   const [location, setLocation] = useState('')
-  const [search, setSearch] = useState('')
+  const [selectedStation, setSelectedStation] = useState<{ latitude?: number; longitude?: number } | null>(null)
   const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [locationModalVisible, setLocationModalVisible] = useState(false)
+  const [search, setSearch] = useState('')
+  const [photoUri, setPhotoUri] = useState<string | null>(null)
 
-  const filteredLocations = LOCATIONS.filter(
-    (loc) =>
-      loc.name.toLowerCase().includes(search.toLowerCase()) ||
-      loc.area.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredStations = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q || q.length < 2) return stations.slice(0, 15)
+    return stations.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 15)
+  }, [search, stations])
 
-  const handleSelectLocation = (name: string) => {
-    setLocation(name)
-    setStep(2)
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Camera access is required to take photos.')
+      return
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    })
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri)
+    }
   }
 
   const handleSubmit = async () => {
@@ -113,7 +100,16 @@ export default function IncidentReportScreen() {
       return
     }
 
-    const result = await submit(location.trim(), selectedType)
+    // Use DB station coords, fall back to station-coords utility
+    const coords = selectedStation?.latitude && selectedStation?.longitude
+      ? selectedStation
+      : getStationCoords({ name: location.trim() } as any)
+    const result = await submit(
+      location.trim(),
+      selectedType,
+      coords?.latitude,
+      coords?.longitude,
+    )
     if (result) {
       haptics.success()
       await refreshProfile()
@@ -125,295 +121,515 @@ export default function IncidentReportScreen() {
     }
   }
 
-  return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header Card */}
-        <View style={s.headerCard}>
-          <View style={s.headerRow}>
-            <View style={s.headerIcon}>
-              <AlertTriangle size={24} color={c.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.headerTitle}>Incident Report</Text>
-              <Text style={s.headerSub}>Report traffic issues nearby</Text>
-            </View>
-            <View style={s.pointsBadge}>
-              <Text style={s.pointsText}>+15 pts</Text>
-            </View>
-          </View>
+  const canSubmit = location.trim() && selectedType && !isSubmitting
 
-          {/* Progress */}
-          <View style={s.progressRow}>
-            <View style={[s.progressDot, s.progressDotActive]} />
-            <View style={[s.progressLine, step >= 2 && s.progressLineActive]} />
-            <View style={[s.progressDot, step >= 2 && s.progressDotActive]} />
-          </View>
-          <Text style={s.stepText}>Step {step} of 2</Text>
+  return (
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <ScrollView
+        style={s.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
+        {/* Location Pill */}
+        <View style={s.locationPillWrap}>
+          <TouchableOpacity
+            style={s.locationPill}
+            activeOpacity={0.7}
+            onPress={() => setLocationModalVisible(true)}
+          >
+            <MapPin size={16} color="#815100" />
+            <Text style={s.locationPillText} numberOfLines={1}>
+              {location || 'Select location'}
+            </Text>
+            <ChevronDown size={16} color="#815100" />
+          </TouchableOpacity>
         </View>
 
-        {step === 1 ? (
-          /* Step 1: Location */
-          <View style={s.formCard}>
-            <Text style={s.label}>Where is the incident?</Text>
-            <View style={s.inputBox}>
-              <MapPin size={20} color={c.red500} />
+        {/* Hero */}
+        <View style={s.hero}>
+          <View style={s.heroIconBox}>
+            <AlertTriangle size={40} color="#b02500" />
+          </View>
+          <Text style={s.heroTitle}>What's happening?</Text>
+          <Text style={s.heroSubtitle}>
+            Help others navigate safely through the city.
+          </Text>
+        </View>
+
+        {/* Incident Grid 3x2 */}
+        <View style={s.grid}>
+          {INCIDENT_TYPES.map((type) => {
+            const Icon = type.icon
+            const isSelected = selectedType === type.id
+            return (
+              <TouchableOpacity
+                key={type.id}
+                onPress={() => setSelectedType(type.id)}
+                activeOpacity={0.7}
+                style={[
+                  s.gridItem,
+                  { width: gridSize, height: gridSize },
+                  isSelected && s.gridItemSelected,
+                ]}
+              >
+                <Icon
+                  size={28}
+                  color={type.id === 'accident' ? '#b02500' : '#815100'}
+                />
+                <Text style={s.gridLabel}>{type.label}</Text>
+                {isSelected && (
+                  <View style={s.gridCheck}>
+                    <Check size={12} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Camera Section */}
+        {photoUri ? (
+          <View style={s.cameraCard}>
+            <Image
+              source={{ uri: photoUri }}
+              style={s.photoPreview}
+              contentFit="cover"
+            />
+            <TouchableOpacity
+              style={s.photoRemoveBtn}
+              onPress={() => setPhotoUri(null)}
+              activeOpacity={0.7}
+            >
+              <X size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.photoRetakeBtn}
+              onPress={takePhoto}
+              activeOpacity={0.7}
+            >
+              <Camera size={14} color="#fff" />
+              <Text style={s.photoRetakeText}>Retake</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={s.cameraCard} activeOpacity={0.8} onPress={takePhoto}>
+            <View style={s.cameraInner}>
+              <View style={s.cameraCircleOuter}>
+                <View style={s.cameraCircleInner}>
+                  <Camera size={32} color="#fff" />
+                </View>
+              </View>
+              <Text style={s.cameraTitle}>TAP TO PHOTO</Text>
+              <Text style={s.cameraBonus}>+20 XP BONUS</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Fixed Bottom Submit */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          activeOpacity={0.85}
+          style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
+        >
+          <LinearGradient
+            colors={['#815100', '#f8a010']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.submitBtn}
+          >
+            <Text style={s.submitText}>
+              {isSubmitting ? 'SUBMITTING...' : 'SUBMIT INCIDENT'}
+            </Text>
+            <Send size={20} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Location Picker Modal */}
+      <Modal visible={locationModalVisible} transparent animationType="slide">
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setLocationModalVisible(false)}
+        >
+          <Pressable style={s.modalSheet}>
+            <View style={s.modalHandle} />
+            <Text style={s.modalTitle}>Select Location</Text>
+
+            {/* Search */}
+            <View style={s.searchBox}>
+              <Search size={18} color="#815100" />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search locations..."
-                placeholderTextColor={t.textSecondary}
-                style={s.input}
+                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
+                style={s.searchInput}
               />
             </View>
 
-            <View style={{ gap: 8 }}>
-              {filteredLocations.map((loc) => (
+            <FlatList
+              data={filteredStations}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              style={{ maxHeight: 320 }}
+              renderItem={({ item: station }) => (
                 <TouchableOpacity
-                  key={loc.name}
-                  onPress={() => handleSelectLocation(loc.name)}
+                  onPress={() => {
+                    setLocation(station.name)
+                    setSelectedStation({ latitude: station.latitude, longitude: station.longitude })
+                    setLocationModalVisible(false)
+                    setSearch('')
+                  }}
                   activeOpacity={0.7}
-                  style={s.locationBtn}
+                  style={s.locRow}
                 >
-                  <View style={s.locationDot} />
+                  <View style={s.locDot} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.locationName}>{loc.name}</Text>
-                    <Text style={s.locationArea}>{loc.area}</Text>
+                    <Text style={s.locName}>{station.name}</Text>
+                    <Text style={s.locArea}>{station.location}</Text>
                   </View>
-                  <ChevronRight size={18} color={t.textTertiary} />
+                  {location === station.name && (
+                    <Check size={18} color="#815100" />
+                  )}
                 </TouchableOpacity>
-              ))}
-            </View>
+              )}
+            />
 
             {/* Custom location */}
-            <TouchableOpacity
-              onPress={() => {
-                if (search.trim()) {
-                  handleSelectLocation(search.trim())
-                } else {
-                  Alert.alert('Enter Location', 'Type a location name in the search box above')
-                }
-              }}
-              activeOpacity={0.7}
-              style={s.customBtn}
-            >
-              <MapPin size={18} color={c.red500} />
-              <Text style={s.customBtnText}>
-                {search.trim() ? `Use "${search.trim()}"` : 'Enter custom location'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          /* Step 2: Incident Type */
-          <View style={s.formCard}>
-            <View style={s.selectedLocationRow}>
-              <MapPin size={16} color={c.red500} />
-              <Text style={s.selectedLocationText}>{location}</Text>
-              <TouchableOpacity onPress={() => setStep(1)}>
-                <Text style={s.changeText}>Change</Text>
+            {search.trim() && !filteredStations.some((st: { name: string }) => st.name.toLowerCase() === search.trim().toLowerCase()) && (
+              <TouchableOpacity
+                onPress={() => {
+                  setLocation(search.trim())
+                  setSelectedStation(null)
+                  setLocationModalVisible(false)
+                  setSearch('')
+                }}
+                activeOpacity={0.7}
+                style={s.customLocBtn}
+              >
+                <MapPin size={16} color="#815100" />
+                <Text style={s.customLocText}>Use "{search.trim()}"</Text>
               </TouchableOpacity>
-            </View>
-
-            <Text style={[s.label, { marginTop: 16 }]}>What happened?</Text>
-            <View style={{ gap: 12, marginBottom: 24 }}>
-              {INCIDENT_TYPES.map((type) => {
-                const isSelected = selectedType === type.id
-                return (
-                  <TouchableOpacity
-                    key={type.id}
-                    onPress={() => setSelectedType(type.id)}
-                    activeOpacity={0.7}
-                    style={[
-                      s.typeBtn,
-                      isSelected ? { borderColor: type.color } : s.typeBtnDefault,
-                      isSelected && { backgroundColor: isDark ? `${type.color}15` : `${type.color}10` },
-                    ]}
-                  >
-                    <Text style={s.typeEmoji}>{type.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.typeLabel}>{type.label}</Text>
-                      <Text style={s.typeDesc}>{type.description}</Text>
-                    </View>
-                    {isSelected && (
-                      <View style={[s.checkCircle, { backgroundColor: type.color }]}>
-                        <Check size={14} color={c.white} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-
-            {/* Submit */}
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={isSubmitting || !selectedType}
-              activeOpacity={0.8}
-              style={[s.submitBtn, (isSubmitting || !selectedType) && s.submitBtnDisabled]}
-            >
-              <AlertTriangle size={20} color={c.white} />
-              <Text style={s.submitText}>
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#0c0a09' : '#fcf5f2'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const onSurface = isDark ? '#fafaf9' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
-    headerCard: {
-      backgroundColor: c.red500,
-      padding: 20,
-      borderRadius: 24,
+    container: {
+      flex: 1,
+      backgroundColor: surface,
+    },
+    scroll: {
+      flex: 1,
+      paddingTop: 8,
+    },
+
+    // Location pill
+    locationPillWrap: {
+      alignItems: 'center',
+      paddingHorizontal: 24,
       marginBottom: 24,
     },
-    headerRow: { flexDirection: 'row', alignItems: 'center' },
-    headerIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    headerTitle: { color: c.white, fontSize: 18, fontFamily: font.bold },
-    headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-    pointsBadge: {
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-    },
-    pointsText: { color: c.white, fontSize: 12, fontFamily: font.semibold },
-    progressRow: {
+    locationPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 16,
-    },
-    progressDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-    },
-    progressDotActive: { backgroundColor: c.white },
-    progressLine: {
-      height: 2,
-      width: 60,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      marginHorizontal: 8,
-    },
-    progressLineActive: { backgroundColor: c.white },
-    stepText: {
-      color: 'rgba(255,255,255,0.8)',
-      fontSize: 12,
-      textAlign: 'center',
-      marginTop: 8,
-    },
-    formCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
-    label: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      marginBottom: 12,
-      color: isDark ? c.stone300 : c.stone600,
-    },
-    inputBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 16,
+      gap: 8,
       paddingHorizontal: 16,
-      paddingVertical: 14,
-      marginBottom: 16,
-      backgroundColor: t.cardAlt,
+      paddingVertical: 10,
+      borderRadius: 24,
+      backgroundColor: surfaceLow,
+      borderWidth: 1,
+      borderColor: outlineVariant,
     },
-    input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
-    locationBtn: {
+    locationPillText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      maxWidth: 220,
+    },
+
+    // Hero
+    hero: {
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      marginBottom: 32,
+    },
+    heroIconBox: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: isDark ? 'rgba(176,37,0,0.12)' : 'rgba(176,37,0,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(176,37,0,0.15)' : 'rgba(176,37,0,0.05)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    heroTitle: {
+      fontSize: 28,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      letterSpacing: -0.5,
+    },
+    heroSubtitle: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 4,
+    },
+
+    // Grid
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 24,
+      gap: 16,
+      marginBottom: 32,
+    },
+    gridItem: {
+      borderRadius: 20,
+      backgroundColor: surfaceLow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    gridItemSelected: {
+      borderWidth: 2,
+      borderColor: '#815100',
+      backgroundColor: isDark ? 'rgba(129,81,0,0.12)' : 'rgba(129,81,0,0.06)',
+    },
+    gridLabel: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: onSurface,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
+    gridCheck: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#815100',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    // Camera
+    cameraCard: {
+      marginHorizontal: 24,
+      height: 220,
+      borderRadius: 32,
+      overflow: 'hidden',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(129,81,0,0.06)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(129,81,0,0.1)',
+    },
+    cameraInner: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cameraCircleOuter: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      borderWidth: 4,
+      borderColor: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(129,81,0,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    cameraCircleInner: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(129,81,0,0.15)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(129,81,0,0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cameraTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: isDark ? 'rgba(255,255,255,0.7)' : '#815100',
+      letterSpacing: 3,
+      textTransform: 'uppercase',
+    },
+    cameraBonus: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 6,
+      letterSpacing: 1,
+    },
+    photoPreview: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 32,
+    },
+    photoRemoveBtn: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    photoRetakeBtn: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 14,
-      borderRadius: 12,
-      backgroundColor: t.cardAlt,
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: 'rgba(0,0,0,0.5)',
     },
-    locationDot: {
+    photoRetakeText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: '#fff',
+    },
+
+    // Bottom bar
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(252,245,242,0.85)',
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)',
+    },
+    submitBtn: {
+      height: 64,
+      borderRadius: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    submitText: {
+      fontFamily: font.extrabold,
+      fontSize: 17,
+      color: '#fff',
+      letterSpacing: 3,
+      textTransform: 'uppercase',
+    },
+
+    // Location modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: isDark ? '#1c1c1e' : surfaceLowest,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: outlineVariant,
+      alignSelf: 'center',
+      marginTop: 12,
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: onSurface,
+      marginBottom: 16,
+    },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 16,
+      backgroundColor: surfaceLow,
+      marginBottom: 16,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: font.regular,
+      color: onSurface,
+    },
+    locRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 4,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: outlineVariant,
+    },
+    locDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: c.red500,
-      marginRight: 12,
+      backgroundColor: '#b02500',
     },
-    locationName: { fontFamily: font.medium, color: t.text },
-    locationArea: { fontSize: 12, color: t.textSecondary, marginTop: 1 },
-    customBtn: {
+    locName: {
+      fontSize: 15,
+      fontFamily: font.medium,
+      color: onSurface,
+    },
+    locArea: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+    customLocBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 14,
-      borderRadius: 12,
+      gap: 8,
+      paddingVertical: 14,
       marginTop: 12,
+      borderRadius: 16,
       borderWidth: 1,
       borderStyle: 'dashed',
-      borderColor: isDark ? c.stone700 : c.stone300,
+      borderColor: outlineVariant,
     },
-    customBtnText: {
-      marginLeft: 8,
+    customLocText: {
+      fontSize: 14,
       fontFamily: font.medium,
-      color: c.red500,
+      color: '#815100',
     },
-    selectedLocationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: t.cardAlt,
-    },
-    selectedLocationText: {
-      flex: 1,
-      marginLeft: 8,
-      fontFamily: font.medium,
-      color: t.text,
-    },
-    changeText: { color: c.red500, fontSize: 13, fontFamily: font.medium },
-    typeBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 2,
-    },
-    typeBtnDefault: {
-      borderColor: isDark ? c.stone800 : c.stone100,
-      backgroundColor: isDark ? c.stone800 : c.stone50,
-    },
-    typeEmoji: { fontSize: 24, marginRight: 12 },
-    typeLabel: { fontFamily: font.semibold, color: t.text },
-    typeDesc: { fontSize: 12, marginTop: 2, color: t.textSecondary },
-    checkCircle: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    submitBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 16,
-      borderRadius: 16,
-      backgroundColor: c.red500,
-    },
-    submitBtnDisabled: { backgroundColor: c.stone400 },
-    submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
   })
 }

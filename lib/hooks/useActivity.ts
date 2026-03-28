@@ -11,6 +11,9 @@ export function useActivity() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const loadingMoreRef = useRef(false)
+  const itemsRef = useRef<ActivityItem[]>([])
+  const hasMoreRef = useRef(true)
   const dismissedRef = useRef<Set<string>>(new Set())
   const dismissedLoaded = useRef(false)
 
@@ -42,7 +45,10 @@ export function useActivity() {
     if (initialData && dismissedLoaded.current) {
       const filtered = filterDismissed(initialData)
       setItems(filtered)
-      setHasMore(initialData.length >= 20)
+      itemsRef.current = filtered
+      const more = initialData.length >= 20
+      setHasMore(more)
+      hasMoreRef.current = more
     }
   }, [initialData, filterDismissed])
 
@@ -50,8 +56,12 @@ export function useActivity() {
     setIsRefreshing(true)
     try {
       const data = await fetchRecentActivity()
-      setItems(filterDismissed(data))
-      setHasMore(data.length >= 20)
+      const filtered = filterDismissed(data)
+      setItems(filtered)
+      itemsRef.current = filtered
+      const more = data.length >= 20
+      setHasMore(more)
+      hasMoreRef.current = more
       queryClient.setQueryData(['activity'], data)
     } catch {
       // silently fail
@@ -61,21 +71,35 @@ export function useActivity() {
   }, [filterDismissed, queryClient])
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return
+    if (loadingMoreRef.current || !hasMoreRef.current) return
+    const currentItems = itemsRef.current
+    const oldest = currentItems[currentItems.length - 1]?.timestamp
+    if (!oldest) {
+      setHasMore(false)
+      hasMoreRef.current = false
+      return
+    }
+    loadingMoreRef.current = true
     setIsLoadingMore(true)
     try {
-      const oldest = items[items.length - 1]?.timestamp
-      if (!oldest) return
       const data = await fetchRecentActivity(20, oldest)
       const filtered = filterDismissed(data)
-      if (data.length < 20) setHasMore(false)
-      setItems((prev) => [...prev, ...filtered])
+      if (data.length < 20) {
+        setHasMore(false)
+        hasMoreRef.current = false
+      }
+      setItems((prev) => {
+        const next = [...prev, ...filtered]
+        itemsRef.current = next
+        return next
+      })
     } catch {
       // silently fail
     } finally {
+      loadingMoreRef.current = false
       setIsLoadingMore(false)
     }
-  }, [isLoadingMore, hasMore, items, filterDismissed])
+  }, [filterDismissed])
 
   const dismissItem = useCallback(async (id: string) => {
     dismissedRef.current.add(id)
@@ -86,5 +110,14 @@ export function useActivity() {
     await AsyncStorage.setItem(DISMISSED_KEY, JSON.stringify(ids))
   }, [])
 
-  return { items, isLoading, isRefreshing, isLoadingMore, hasMore, refresh, loadMore, dismissItem }
+  const dismissAll = useCallback(async () => {
+    for (const item of items) {
+      dismissedRef.current.add(item.id)
+    }
+    setItems([])
+    const ids = Array.from(dismissedRef.current).slice(-200)
+    await AsyncStorage.setItem(DISMISSED_KEY, JSON.stringify(ids))
+  }, [items])
+
+  return { items, isLoading, isRefreshing, isLoadingMore, hasMore, refresh, loadMore, dismissItem, dismissAll }
 }
