@@ -7,81 +7,103 @@ import {
   Coffee,
   Palmtree,
   Moon,
-  Navigation,
-  TrainFront,
-  TrendingUp,
-  MapPin,
-  ChevronRight,
+  Lightbulb,
 } from 'lucide-react-native'
-import { themed, font } from '@/lib/theme'
+import { c, themed, font } from '@/lib/theme'
 import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
-import { usePopularRoutes } from '@/lib/hooks/useRoutes'
-import { getNextTrain, formatMinsLeft, type NextTrainInfo } from '@/lib/utils/train'
+import { useApp } from '@/lib/contexts/AppContext'
+import { getNextTrain, formatMinsLeft } from '@/lib/utils/train'
 import { getGhanaTime } from '@/lib/utils/time'
+
+/* ── Time context ─────────────────────────────────── */
 
 type TimeContext = 'morning' | 'midday' | 'evening' | 'night' | 'weekend'
 
 const CONTEXT_INFO: Record<TimeContext, {
-  title: string
+  greeting: string
   subtitle: string
   icon: typeof Sunrise
-  gradient: [string, string] // [bg, accent]
+  gradient: [string, string]
 }> = {
   morning: {
-    title: 'Morning Rush',
-    subtitle: 'Roads dey hot — check your route',
+    greeting: 'Good Morning',
+    subtitle: 'Your morning commute at a glance',
     icon: Sunrise,
-    gradient: ['#f59e0b', '#d97706'],
+    gradient: ['#815100', '#f8a010'],
   },
   midday: {
-    title: 'Afternoon Flow',
-    subtitle: 'Which route dey trend now?',
+    greeting: 'Good Afternoon',
+    subtitle: 'Check routes trending now',
     icon: Coffee,
-    gradient: ['#8b5cf6', '#7c3aed'],
+    gradient: ['#6d28d9', '#a78bfa'],
   },
   evening: {
-    title: 'Closing Time',
-    subtitle: 'Rush hour — time to bounce',
+    greeting: 'Good Evening',
+    subtitle: 'Rush hour — time to head home',
     icon: Sunset,
-    gradient: ['#f97316', '#ea580c'],
+    gradient: ['#c2410c', '#f97316'],
   },
   night: {
-    title: 'Night Moves',
+    greeting: 'Good Night',
     subtitle: 'Late links & tomorrow trains',
     icon: Moon,
-    gradient: ['#6366f1', '#4f46e5'],
+    gradient: ['#4338ca', '#818cf8'],
   },
   weekend: {
-    title: 'Weekend Flex',
+    greeting: 'Happy Weekend',
     subtitle: 'No rush — explore routes',
     icon: Palmtree,
-    gradient: ['#10b981', '#059669'],
+    gradient: ['#047857', '#34d399'],
   },
 }
+
+const COMMUTER_TIPS = [
+  { tip: 'The 5:30 AM Express from Madina usually has plenty of window seats. Perfect for a quiet morning.', author: 'Ama K.' },
+  { tip: 'Avoid the Circle interchange between 5-6 PM. Take the Kaneshie route instead — faster by 20 mins.', author: 'Kojo B.' },
+  { tip: 'Trotro fares from Tema go up by ₵2 during peak hours. Travel before 6 AM to save.', author: 'Esi M.' },
+  { tip: 'The Kasoa-Kaneshie route has more vehicles on Mondays. Queue is usually shorter.', author: 'Kwaku D.' },
+  { tip: 'Train from Tema departs sharp at 6 AM. Arrive 10 mins early — it doesn\'t wait.', author: 'Nana A.' },
+]
 
 function getTimeContext(): TimeContext {
   const { hours, day } = getGhanaTime()
   if (day === 0 || day === 6) return 'weekend'
-  if (hours >= 5 && hours < 9) return 'morning'
-  if (hours >= 9 && hours < 16) return 'midday'
+  if (hours >= 5 && hours < 12) return 'morning'
+  if (hours >= 12 && hours < 16) return 'midday'
   if (hours >= 16 && hours < 19) return 'evening'
   return 'night'
 }
+
+function getDailyTip(): typeof COMMUTER_TIPS[0] {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+  return COMMUTER_TIPS[dayOfYear % COMMUTER_TIPS.length]
+}
+
+/* ── Component ────────────────────────────────────── */
 
 export function SmartCommuteCard() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
+  const { profile } = useApp()
 
   const context = getTimeContext()
-  const nextTrain = getNextTrain()
-  const { suggestions } = useSmartSuggestions()
-  const { routes: popularRoutes } = usePopularRoutes()
-
-  const topSuggestion = suggestions[0]
-  const topRoutes = (popularRoutes ?? []).slice(0, 2)
   const info = CONTEXT_INFO[context]
   const ContextIcon = info.icon
+  const { suggestions } = useSmartSuggestions()
+  const topSuggestion = suggestions[0]
+  const nextTrain = getNextTrain()
+  const dailyTip = getDailyTip()
+
+  const displayName = profile?.display_name?.split(' ')[0] ?? ''
+
+  // Build personalized subtitle
+  let personalMessage = info.subtitle
+  if (topSuggestion && (context === 'morning' || context === 'evening')) {
+    personalMessage = `Your regular Trotro to ${topSuggestion.to} is nearby.`
+  } else if (nextTrain.status === 'upcoming') {
+    personalMessage = `Train departs in ${formatMinsLeft(nextTrain.minsLeft)} from ${nextTrain.from}.`
+  }
 
   // Entrance animation
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -96,176 +118,58 @@ export function SmartCommuteCard() {
 
   return (
     <Animated.View style={[s.wrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      {/* Hero banner — gradient colored */}
-      <View style={[s.banner, { backgroundColor: info.gradient[0] }]}>
-        <View style={s.bannerContent}>
-          <View style={s.bannerIconWrap}>
-            <ContextIcon size={22} color="#fff" />
+      {/* Gradient hero card */}
+      <View style={[s.card, { backgroundColor: info.gradient[0] }]}>
+        {/* Decorative circle */}
+        <View style={[s.decorCircle, { backgroundColor: info.gradient[1] }]} />
+
+        <View style={s.cardContent}>
+          {/* Context icon + label */}
+          <View style={s.contextRow}>
+            <ContextIcon size={18} color="rgba(255,255,255,0.7)" />
+            <Text style={s.contextLabel}>
+              {context === 'morning' ? 'Morning Commute' :
+               context === 'evening' ? 'Evening Commute' :
+               context === 'midday' ? 'Afternoon' :
+               context === 'night' ? 'Night Mode' : 'Weekend Flex'}
+            </Text>
           </View>
-          <View style={s.bannerText}>
-            <Text style={s.bannerTitle}>{info.title}</Text>
-            <Text style={s.bannerSubtitle}>{info.subtitle}</Text>
-          </View>
+
+          {/* Greeting */}
+          <Text style={s.greeting}>
+            {info.greeting}{displayName ? `, ${displayName}` : ''}
+          </Text>
+
+          {/* Personal message */}
+          <Text style={s.message}>{personalMessage}</Text>
+
+          {/* CTA button */}
+          {topSuggestion && (context === 'morning' || context === 'evening') && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push(`/routes/${topSuggestion.routeId}`)}
+              style={s.ctaBtn}
+            >
+              <Text style={s.ctaBtnText}>Track Ride</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {/* Decorative accent circle */}
-        <View style={[s.accentCircle, { backgroundColor: info.gradient[1] }]} />
       </View>
 
-      {/* Suggestion rows below banner */}
-      <View style={s.suggestions}>
-        {/* Commute suggestion — morning/evening */}
-        {(context === 'morning' || context === 'evening') && topSuggestion && (
-          <SuggestionRow
-            icon={<Navigation size={14} color={info.gradient[0]} />}
-            iconBg={`${info.gradient[0]}18`}
-            label={`${topSuggestion.from} → ${topSuggestion.to}`}
-            detail={topSuggestion.reason}
-            onPress={() => router.push(`/routes/${topSuggestion.routeId}`)}
-            isDark={isDark}
-          />
-        )}
-
-        {/* Train info — morning/evening */}
-        {(context === 'morning' || context === 'evening') && (
-          <TrainRow nextTrain={nextTrain} isDark={isDark} onPress={() => router.push('/train')} />
-        )}
-
-        {/* Midday / Night — trending routes */}
-        {(context === 'midday' || context === 'night') && topRoutes.length > 0 && (
-          <>
-            {topRoutes.map((route) => {
-              const fare = route.fare_stats?.avg_reported_fare ?? route.official_fare
-              return (
-                <SuggestionRow
-                  key={route.id}
-                  icon={<TrendingUp size={13} color={info.gradient[0]} />}
-                  iconBg={`${info.gradient[0]}18`}
-                  label={`${route.from_location} → ${route.to_location}`}
-                  detail={`₵${fare.toFixed(2)} · ${route.fare_stats?.report_count ?? 0} reports`}
-                  onPress={() => router.push(`/routes/${route.id}`)}
-                  isDark={isDark}
-                />
-              )
-            })}
-          </>
-        )}
-
-        {/* Weekend — explore */}
-        {context === 'weekend' && (
-          <SuggestionRow
-            icon={<Palmtree size={14} color={info.gradient[0]} />}
-            iconBg={`${info.gradient[0]}18`}
-            label="Explore routes"
-            detail="Discover popular routes in your region"
-            onPress={() => router.push('/(tabs)/routes')}
-            isDark={isDark}
-          />
-        )}
-
-        {/* No data fallback */}
-        {(context === 'morning' || context === 'evening') && !topSuggestion && (
-          <SuggestionRow
-            icon={<MapPin size={14} color={info.gradient[0]} />}
-            iconBg={`${info.gradient[0]}18`}
-            label="Search a route"
-            detail="Check fares & queue status"
-            onPress={() => router.push('/(tabs)/routes')}
-            isDark={isDark}
-          />
-        )}
+      {/* Daily Commuter Tip — below gradient */}
+      <View style={s.tipSection}>
+        <View style={s.tipHeader}>
+          <View style={s.tipIconWrap}>
+            <Lightbulb size={16} color={isDark ? c.amber400 : '#815100'} />
+          </View>
+          <Text style={s.tipTitle}>Daily Commuter Tip</Text>
+        </View>
+        <Text style={s.tipText}>"{dailyTip.tip}"</Text>
+        <Text style={s.tipAuthor}>Shared by {dailyTip.author}</Text>
       </View>
     </Animated.View>
   )
 }
-
-/* ── Sub-components ────────────────────────────────── */
-
-function SuggestionRow({ icon, iconBg, label, detail, onPress, isDark }: {
-  icon: React.ReactNode
-  iconBg: string
-  label: string
-  detail: string
-  onPress: () => void
-  isDark: boolean
-}) {
-  const t = themed(isDark)
-
-  return (
-    <TouchableOpacity activeOpacity={0.65} onPress={onPress} style={rowStyles.row}>
-      <View style={[rowStyles.icon, { backgroundColor: iconBg }]}>
-        {icon}
-      </View>
-      <View style={rowStyles.content}>
-        <Text style={[rowStyles.label, { color: t.text }]} numberOfLines={1}>{label}</Text>
-        <Text style={[rowStyles.detail, { color: t.textSecondary }]} numberOfLines={1}>{detail}</Text>
-      </View>
-      <ChevronRight size={14} color={t.textTertiary} />
-    </TouchableOpacity>
-  )
-}
-
-function TrainRow({ nextTrain, isDark, onPress }: { nextTrain: NextTrainInfo; isDark: boolean; onPress: () => void }) {
-  let label = ''
-  let detail = ''
-
-  switch (nextTrain.status) {
-    case 'upcoming':
-      label = `Train in ${formatMinsLeft(nextTrain.minsLeft)}`
-      detail = `${nextTrain.from} → ${nextTrain.to} · ${nextTrain.time}`
-      break
-    case 'in-transit':
-      label = 'Train in transit'
-      detail = `${nextTrain.from} → ${nextTrain.to} · Arr. ${nextTrain.arrival}`
-      break
-    case 'done-today':
-      label = 'No more trains today'
-      detail = `Next: ${nextTrain.nextDay} ${nextTrain.nextTime}`
-      break
-    case 'no-service':
-      label = 'No Sunday service'
-      detail = `Next: ${nextTrain.nextDay} ${nextTrain.nextTime}`
-      break
-  }
-
-  return (
-    <SuggestionRow
-      icon={<TrainFront size={14} color="#0ea5e9" />}
-      iconBg="rgba(14,165,233,0.12)"
-      label={label}
-      detail={detail}
-      onPress={onPress}
-      isDark={isDark}
-    />
-  )
-}
-
-const rowStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 6,
-  },
-  icon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: font.semibold,
-  },
-  detail: {
-    fontSize: 12,
-    fontFamily: font.regular,
-    marginTop: 1,
-  },
-})
 
 /* ── Styles ────────────────────────────────────────── */
 
@@ -275,63 +179,112 @@ const getStyles = (isDark: boolean) => {
     wrapper: {
       marginHorizontal: 20,
       marginTop: 12,
-      borderRadius: 20,
+      borderRadius: 24,
       overflow: 'hidden',
       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
       borderWidth: isDark ? 0 : StyleSheet.hairlineWidth,
       borderColor: t.border,
     },
 
-    // Hero gradient banner
-    banner: {
-      paddingHorizontal: 18,
-      paddingVertical: 18,
+    // Gradient card
+    card: {
+      paddingHorizontal: 22,
+      paddingTop: 22,
+      paddingBottom: 24,
       overflow: 'hidden',
     },
-    bannerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
+    decorCircle: {
+      position: 'absolute',
+      right: -30,
+      bottom: -30,
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      opacity: 0.15,
+    },
+    cardContent: {
       zIndex: 1,
     },
-    bannerIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
+    contextRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
+    contextLabel: {
+      fontSize: 11,
+      fontFamily: font.semibold,
+      color: 'rgba(255,255,255,0.7)',
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+    },
+    greeting: {
+      fontSize: 24,
+      fontFamily: font.extrabold,
+      color: '#fff',
+      marginBottom: 8,
+    },
+    message: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: 'rgba(255,255,255,0.85)',
+      lineHeight: 20,
+      maxWidth: 240,
+    },
+    ctaBtn: {
+      marginTop: 18,
+      alignSelf: 'flex-start',
       backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 22,
+      paddingVertical: 12,
+      borderRadius: 14,
+    },
+    ctaBtnText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#fff',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+
+    // Daily tip section
+    tipSection: {
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    tipHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 10,
+    },
+    tipIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.12)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    bannerText: {
-      flex: 1,
-    },
-    bannerTitle: {
-      fontSize: 20,
+    tipTitle: {
+      fontSize: 15,
       fontFamily: font.bold,
-      color: '#fff',
-      letterSpacing: 0.3,
+      color: t.text,
     },
-    bannerSubtitle: {
+    tipText: {
       fontSize: 13,
+      fontFamily: font.regular,
+      fontStyle: 'italic',
+      color: t.textSecondary,
+      lineHeight: 20,
+      marginBottom: 8,
+    },
+    tipAuthor: {
+      fontSize: 11,
       fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.85)',
-      marginTop: 2,
-    },
-    accentCircle: {
-      position: 'absolute',
-      right: -20,
-      top: -20,
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      opacity: 0.3,
-    },
-
-    // Suggestion rows below banner
-    suggestions: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 2,
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
     },
   })
 }
