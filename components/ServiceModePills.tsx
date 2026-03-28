@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Platform } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
 import { TrotroIcon, TrainIcon, GoIcon, TalesIcon } from '@/components/ServiceIcons'
 
@@ -7,14 +8,14 @@ export type ServiceMode = 'trotro' | 'train' | 'go' | 'tales'
 interface ServicePill {
   id: ServiceMode
   label: string
-  color: string
+  gradient: [string, string]
 }
 
 const SERVICE_PILLS: ServicePill[] = [
-  { id: 'trotro', label: 'Trotro', color: '#f59e0b' },
-  { id: 'train', label: 'Train', color: '#0ea5e9' },
-  { id: 'go', label: 'GO', color: '#22c55e' },
-  { id: 'tales', label: 'Tales', color: '#a855f7' },
+  { id: 'trotro', label: 'Trotro', gradient: ['#815100', '#f8a010'] },
+  { id: 'train', label: 'Train', gradient: ['#075985', '#0ea5e9'] },
+  { id: 'go', label: 'GO', gradient: ['#166534', '#22c55e'] },
+  { id: 'tales', label: 'Tales', gradient: ['#6b21a8', '#a855f7'] },
 ]
 
 const ICON_MAP = {
@@ -48,25 +49,30 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
             activeOpacity={0.7}
             style={[
               s.pill,
-              isActive && { backgroundColor: pill.color },
+              isActive && s.pillActiveWrap,
               !isActive && s.pillInactive,
-              isGoWithTrip && !isActive && [s.pillPulse, { borderColor: pill.color }],
+              isGoWithTrip && !isActive && [s.pillPulse, { borderColor: pill.gradient[1] }],
             ]}
           >
-            <IconComponent
-              size={18}
-              active={isActive}
-            />
-            <Text
-              style={[
-                s.pillText,
-                isActive && s.pillTextActive,
-                !isActive && { color: isDark ? '#e5e5e5' : '#44403c' },
-              ]}
-            >
-              {pill.label}
-            </Text>
-            {isGoWithTrip && !isActive && <View style={[s.liveDot, { backgroundColor: pill.color }]} />}
+            {isActive ? (
+              <LinearGradient
+                colors={pill.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.pillGradient}
+              >
+                <IconComponent size={18} active />
+                <Text style={s.pillTextActive}>{pill.label}</Text>
+              </LinearGradient>
+            ) : (
+              <>
+                <IconComponent size={18} active={false} />
+                <Text style={[s.pillText, { color: isDark ? '#e5e5e5' : '#44403c' }]}>
+                  {pill.label}
+                </Text>
+                {isGoWithTrip && <View style={[s.liveDot, { backgroundColor: pill.gradient[1] }]} />}
+              </>
+            )}
           </TouchableOpacity>
         )
       })}
@@ -84,12 +90,8 @@ const getStyles = (isDark: boolean) => {
     },
     pill: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-      paddingVertical: 8,
       borderRadius: 20,
+      overflow: 'hidden',
       ...Platform.select({
         ios: {
           shadowColor: '#000',
@@ -100,7 +102,22 @@ const getStyles = (isDark: boolean) => {
         android: { elevation: 3 },
       }),
     },
+    pillActiveWrap: {
+      backgroundColor: 'transparent',
+    },
+    pillGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 8,
+    },
     pillInactive: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 8,
       backgroundColor: isDark ? 'rgba(28,28,30,0.88)' : 'rgba(255,255,255,0.92)',
     },
     pillPulse: {
@@ -112,6 +129,8 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.semibold,
     },
     pillTextActive: {
+      fontSize: 13,
+      fontFamily: font.semibold,
       color: '#fff',
     },
     liveDot: {
