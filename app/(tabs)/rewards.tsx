@@ -24,33 +24,18 @@ import { useLeaderboard } from '@/lib/hooks/useRewards'
 import { LEVELS } from '@/lib/constants/rewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { ReferralCard } from '@/components/ReferralCard'
+import InitialsAvatar from '@/components/InitialsAvatar'
 import type { LeaderboardEntry } from '@/lib/types'
 
 /* ── Constants ──────────────────────────────────────── */
 
-const MAROON = {
-  bg: '#6B1D1D',
-  card: '#7F2828',
-  cardLight: '#923232',
-  dark: '#4A1212',
-}
+const MAROON = '#6B1D1D'
 
 const PODIUM_RING: Record<number, string> = {
-  1: '#4ADE80',
-  2: '#A78BFA',
-  3: '#FBBF24',
+  1: '#f59e0b',
+  2: '#a78bfa',
+  3: '#22c55e',
 }
-
-const RANK_CROWN: Record<number, string> = {
-  1: '💎',
-  2: '💚',
-  3: '👑',
-}
-
-const AVATAR_COLORS = [
-  '#059669', '#7C3AED', '#EA580C', '#0891B2',
-  '#D946EF', '#2563EB', '#DC2626', '#0D9488',
-]
 
 /* ── Podium Avatar ──────────────────────────────────── */
 
@@ -59,26 +44,22 @@ function PodiumAvatar({ entry, rank, isFirst }: {
   rank: number
   isFirst?: boolean
 }) {
-  const size = isFirst ? 80 : 64
-  const emojiSize = isFirst ? 30 : 22
+  const size = isFirst ? 112 : 80
+  const ringWidth = isFirst ? 6 : 4
   const ringColor = PODIUM_RING[rank] ?? c.stone400
-  const levelSlug = entry?.current_level ?? 'passenger'
-  const levelEmoji = LEVELS[levelSlug as keyof typeof LEVELS]?.emoji ?? '🚶'
 
   return (
-    <View style={{ alignItems: 'center', width: isFirst ? 120 : 100 }}>
-      <Text style={{ fontSize: isFirst ? 24 : 18, marginBottom: -4 }}>
-        {RANK_CROWN[rank] ?? ''}
-      </Text>
+    <View style={{ alignItems: 'center', width: isFirst ? 130 : 100 }}>
+      {isFirst && <Text style={{ fontSize: 28, marginBottom: 4 }}>👑</Text>}
 
-      {/* Avatar ring + rank pill wrapper */}
-      <View style={{ alignItems: 'center', marginBottom: 14 }}>
+      <View style={{ alignItems: 'center', marginBottom: 10 }}>
         <View style={{
-          width: size + 8,
-          height: size + 8,
-          borderRadius: (size + 8) / 2,
-          borderWidth: 3,
+          width: size + ringWidth * 2 + 4,
+          height: size + ringWidth * 2 + 4,
+          borderRadius: (size + ringWidth * 2 + 4) / 2,
+          borderWidth: ringWidth,
           borderColor: ringColor,
+          padding: 2,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
@@ -86,53 +67,64 @@ function PodiumAvatar({ entry, rank, isFirst }: {
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: MAROON.card,
-            alignItems: 'center',
-            justifyContent: 'center',
+            overflow: 'hidden',
+            backgroundColor: '#4A1212',
           }}>
-            <Text style={{ fontSize: emojiSize }}>{levelEmoji}</Text>
+            <InitialsAvatar
+              name={entry?.display_name ?? null}
+              deviceId={entry?.device_id ?? ''}
+              size={size}
+            />
           </View>
         </View>
 
-        {/* Rank pill — anchored to bottom of avatar */}
-        <View style={{
-          marginTop: -12,
-          backgroundColor: ringColor,
-          paddingHorizontal: 10,
-          paddingVertical: 2,
-          borderRadius: 10,
-        }}>
-          <Text style={{
-            fontSize: 11,
-            fontFamily: font.bold,
-            color: rank === 3 ? '#78350F' : '#fff',
+        {/* Rank badge */}
+        {isFirst ? (
+          <View style={{
+            marginTop: -14,
+            backgroundColor: '#f59e0b',
+            paddingHorizontal: 12,
+            paddingVertical: 3,
+            borderRadius: 12,
           }}>
-            {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
-          </Text>
-        </View>
+            <Text style={{ fontSize: 11, fontFamily: font.bold, color: '#2a1700' }}>MVP</Text>
+          </View>
+        ) : (
+          <View style={{
+            position: 'absolute',
+            bottom: -4,
+            right: isFirst ? undefined : -2,
+            backgroundColor: '#fff',
+            width: 22,
+            height: 22,
+            borderRadius: 11,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Text style={{ fontSize: 10, fontFamily: font.bold, color: '#312e2d' }}>{rank}</Text>
+          </View>
+        )}
       </View>
 
       <Text
         style={{
-          fontSize: isFirst ? 13 : 11,
+          fontSize: isFirst ? 18 : 14,
           fontFamily: font.bold,
           color: '#fff',
           textAlign: 'center',
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
         }}
-        numberOfLines={2}
+        numberOfLines={1}
       >
         {entry?.display_name ?? '--'}
       </Text>
 
       <Text style={{
-        fontSize: isFirst ? 16 : 13,
-        fontFamily: font.semibold,
-        color: 'rgba(255,255,255,0.7)',
+        fontSize: isFirst ? 14 : 12,
+        fontFamily: font.bold,
+        color: isFirst ? '#f59e0b' : 'rgba(255,255,255,0.8)',
         marginTop: 2,
       }}>
-        {entry ? formatPts(entry.weekly_points) : '--'}
+        {entry ? `${formatPts(entry.weekly_points)} pts` : '--'}
       </Text>
     </View>
   )
@@ -153,6 +145,7 @@ export default function RewardsScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
+  const t = themed(isDark)
   const { rank, deviceId, refreshProfile } = useApp()
   const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
@@ -174,7 +167,6 @@ export default function RewardsScreen() {
     return leaderboard
   }, [leaderboard, period])
 
-  const userRank = rank ?? '--'
   const pointsKey = period === 'all' ? 'total_points' : 'weekly_points'
 
   return (
@@ -191,17 +183,15 @@ export default function RewardsScreen() {
           />
         }
       >
-        {/* ═══ MAROON HERO — Leaderboard ═══ */}
+        {/* ═══ MAROON HERO ═══ */}
         <View style={s.hero}>
           <View style={[s.heroDecor, { top: -40, right: -30, width: 160, height: 160 }]} />
           <View style={[s.heroDecor, { bottom: 40, left: -50, width: 120, height: 120 }]} />
 
-          <View style={s.rankBadge}>
-            <Text style={s.rankNumber}>{userRank}</Text>
-          </View>
+          <Text style={s.heroTitle}>Leaderboard</Text>
+          <Text style={s.heroSubtitle}>Season 4 • Accra Metro</Text>
 
-          <Text style={s.heroTitle}>Top Contributors</Text>
-
+          {/* Period tabs */}
           <View style={s.periodRow}>
             <TouchableOpacity
               onPress={() => setPeriod('week')}
@@ -223,13 +213,14 @@ export default function RewardsScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Podium */}
           {sortedBoard.length > 0 ? (
             <View style={s.podiumRow}>
-              <View style={{ marginTop: 20 }}>
+              <View style={{ marginTop: 24 }}>
                 <PodiumAvatar entry={sortedBoard[1]} rank={2} />
               </View>
               <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
-              <View style={{ marginTop: 20 }}>
+              <View style={{ marginTop: 24 }}>
                 <PodiumAvatar entry={sortedBoard[2]} rank={3} />
               </View>
             </View>
@@ -239,99 +230,103 @@ export default function RewardsScreen() {
               <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
             </View>
           )}
-
-          {/* Ranked List (4–10) — inside hero */}
-          {sortedBoard.length > 3 && (
-            <View style={s.rankedDivider} />
-          )}
-          {sortedBoard.length > 3 &&
-            sortedBoard.slice(3, 10).map((entry, i) => {
-              const isMe = entry.device_id === deviceId
-              const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length]
-              const levelSlug = entry.current_level ?? 'passenger'
-              const emoji = LEVELS[levelSlug as keyof typeof LEVELS]?.emoji ?? '🚶'
-
-              return (
-                <View
-                  key={entry.id}
-                  style={[s.rankedRow, isMe && s.rankedRowMe]}
-                >
-                  <Text style={s.rankedRankNum}>{entry.rank}</Text>
-                  <View style={[s.rankedAvatar, { borderColor: avatarColor }]}>
-                    <Text style={{ fontSize: 16 }}>{emoji}</Text>
-                  </View>
-                  <Text style={s.rankedName} numberOfLines={1}>
-                    {entry.display_name?.toUpperCase() ?? 'ANONYMOUS'}
-                    {isMe ? ' (YOU)' : ''}
-                  </Text>
-                  <Text style={s.rankedPts}>
-                    {formatPts(entry[pointsKey])}
-                  </Text>
-                </View>
-              )
-            })
-          }
-
-          {sortedBoard.length > 3 && (
-            <TouchableOpacity
-              onPress={() => router.push('/leaderboard' as Href)}
-              activeOpacity={0.7}
-              style={s.seeAllRow}
-            >
-              <Text style={s.seeAllText}>See full leaderboard</Text>
-              <ChevronRight size={14} color="rgba(255,255,255,0.6)" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* ═══ Invite Friends ═══ */}
-        <ReferralCard />
+        {/* ═══ Overlap content ═══ */}
+        <View style={s.overlapContent}>
+          {/* Referral card — Stitch style */}
+          <ReferralCard />
 
-        {/* ═══ How to Earn Points — M3 Card ═══ */}
-        <View style={s.section}>
-          <TouchableOpacity
-            onPress={() => setShowEarnInfo(!showEarnInfo)}
-            activeOpacity={0.7}
-            style={s.earnHeader}
-          >
-            <View style={s.earnIconWrap}>
-              <TrendingUp size={20} color={isDark ? c.amber400 : c.amber600} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.earnTitle}>Earn Points</Text>
-              <Text style={s.earnSubtitle}>Report fares, queues & more</Text>
-            </View>
-            {showEarnInfo ? (
-              <ChevronUp size={20} color={isDark ? c.stone400 : c.stone500} />
-            ) : (
-              <ChevronDown size={20} color={isDark ? c.stone400 : c.stone500} />
-            )}
-          </TouchableOpacity>
+          {/* Ranked list 4–7 */}
+          {sortedBoard.length > 3 && (
+            <View style={s.rankedSection}>
+              <Text style={s.rankedSectionTitle}>Top Contributors</Text>
 
-          {showEarnInfo && (
-            <View style={s.earnBody}>
-              {[
-                { action: 'Report a fare', points: '+10', icon: '🚐' },
-                { action: 'Report queue status', points: '+5', icon: '🕐' },
-                { action: 'Report incident', points: '+15', icon: '⚠️' },
-                { action: 'Report train', points: '+10', icon: '🚆' },
-                { action: 'Share a tale', points: '+8', icon: '📸' },
-                { action: '7-day streak bonus', points: '+5', icon: '🔥' },
-              ].map((item, index, arr) => (
-                <View
-                  key={index}
-                  style={[s.earnRow, index < arr.length - 1 && s.earnRowBorder]}
-                >
-                  <Text style={s.earnEmoji}>{item.icon}</Text>
-                  <Text style={s.earnAction}>{item.action}</Text>
-                  <View style={s.earnPointsPill}>
-                    <Zap size={12} color={c.amber500} />
-                    <Text style={s.earnPointsText}>{item.points}</Text>
+              {sortedBoard.slice(3, 8).map((entry) => {
+                const isMe = entry.device_id === deviceId
+
+                return (
+                  <View
+                    key={entry.id}
+                    style={[s.rankedRow, isMe && s.rankedRowMe]}
+                  >
+                    <View style={s.rankedLeft}>
+                      <Text style={s.rankedRankNum}>{entry.rank}</Text>
+                      <View style={s.rankedAvatarWrap}>
+                        <InitialsAvatar
+                          name={entry.display_name ?? null}
+                          deviceId={entry.device_id ?? ''}
+                          size={40}
+                        />
+                      </View>
+                      <Text style={s.rankedName} numberOfLines={1}>
+                        {(entry.display_name ?? 'Anonymous').toUpperCase()}
+                        {isMe ? ' (YOU)' : ''}
+                      </Text>
+                    </View>
+                    <Text style={s.rankedPts}>
+                      {formatPts(entry[pointsKey])} pts
+                    </Text>
                   </View>
-                </View>
-              ))}
+                )
+              })}
+
+              <TouchableOpacity
+                onPress={() => router.push('/leaderboard' as Href)}
+                activeOpacity={0.7}
+                style={s.viewFullBtn}
+              >
+                <Text style={s.viewFullText}>View Full Leaderboard</Text>
+              </TouchableOpacity>
             </View>
           )}
+
+          {/* ═══ How to Earn Points ═══ */}
+          <View style={s.section}>
+            <TouchableOpacity
+              onPress={() => setShowEarnInfo(!showEarnInfo)}
+              activeOpacity={0.7}
+              style={s.earnHeader}
+            >
+              <View style={s.earnIconWrap}>
+                <TrendingUp size={20} color={isDark ? c.amber400 : '#815100'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.earnTitle}>Earn Points</Text>
+                <Text style={s.earnSubtitle}>Report fares, queues & more</Text>
+              </View>
+              {showEarnInfo ? (
+                <ChevronUp size={20} color={t.textTertiary} />
+              ) : (
+                <ChevronDown size={20} color={t.textTertiary} />
+              )}
+            </TouchableOpacity>
+
+            {showEarnInfo && (
+              <View style={s.earnBody}>
+                {[
+                  { action: 'Report a fare', points: '+10', icon: '🚐' },
+                  { action: 'Report queue status', points: '+5', icon: '🕐' },
+                  { action: 'Report incident', points: '+15', icon: '⚠️' },
+                  { action: 'Report train', points: '+10', icon: '🚆' },
+                  { action: 'Share a tale', points: '+8', icon: '📸' },
+                  { action: '7-day streak bonus', points: '+5', icon: '🔥' },
+                ].map((item, index, arr) => (
+                  <View
+                    key={index}
+                    style={[s.earnRow, index < arr.length - 1 && s.earnRowBorder]}
+                  >
+                    <Text style={s.earnEmoji}>{item.icon}</Text>
+                    <Text style={s.earnAction}>{item.action}</Text>
+                    <View style={s.earnPointsPill}>
+                      <Zap size={12} color="#815100" />
+                      <Text style={s.earnPointsText}>{item.points}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={{ height: 90 }} />
@@ -345,59 +340,50 @@ export default function RewardsScreen() {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
 
-  const surfaceContainer = isDark ? '#211F26' : '#F3EDF7'
-  const outlineVariant = isDark ? '#49454F' : '#CAC4D0'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const surfaceHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    section: { paddingHorizontal: 20, marginBottom: 16 },
+    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fcf5f2' },
+    section: { marginBottom: 16 },
 
     /* ═══ MAROON HERO ═══ */
     hero: {
-      backgroundColor: MAROON.bg,
-      paddingTop: 20,
-      paddingBottom: 28,
+      backgroundColor: MAROON,
+      paddingTop: 40,
+      paddingBottom: 48,
       paddingHorizontal: 20,
       overflow: 'hidden',
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
-      marginBottom: 4,
     },
     heroDecor: {
       position: 'absolute',
       borderRadius: 999,
       backgroundColor: 'rgba(255,255,255,0.05)',
     },
-    rankBadge: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: MAROON.card,
-      borderWidth: 3,
-      borderColor: 'rgba(255,255,255,0.2)',
-      alignSelf: 'center',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 6,
-    },
-    rankNumber: {
+    heroTitle: {
       fontSize: 28,
       fontFamily: font.bold,
       color: '#fff',
-    },
-    heroTitle: {
-      fontSize: 20,
-      fontFamily: font.bold,
-      color: '#fff',
       textAlign: 'center',
-      marginBottom: 12,
+      letterSpacing: -0.5,
+    },
+    heroSubtitle: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: 'rgba(255,255,255,0.7)',
+      textAlign: 'center',
+      textTransform: 'uppercase',
+      letterSpacing: 3,
+      marginTop: 6,
+      marginBottom: 20,
     },
 
     periodRow: {
       flexDirection: 'row',
       justifyContent: 'center',
       gap: 24,
-      marginBottom: 14,
+      marginBottom: 20,
     },
     periodTab: {
       paddingBottom: 6,
@@ -408,10 +394,10 @@ const getStyles = (isDark: boolean) => {
       borderBottomColor: '#fff',
     },
     periodText: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.5)',
-      letterSpacing: 1,
+      fontSize: 12,
+      fontFamily: font.bold,
+      color: 'rgba(255,255,255,0.4)',
+      letterSpacing: 1.5,
     },
     periodTextActive: {
       color: '#fff',
@@ -419,10 +405,9 @@ const getStyles = (isDark: boolean) => {
 
     podiumRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'flex-end',
       justifyContent: 'center',
-      gap: 4,
-      paddingTop: 4,
+      gap: 8,
     },
     emptyPodium: {
       alignItems: 'center',
@@ -435,83 +420,103 @@ const getStyles = (isDark: boolean) => {
       marginTop: 12,
     },
 
-    /* ═══ Ranked List (inside hero) ═══ */
-    rankedDivider: {
-      height: 1,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      marginTop: 16,
-      marginBottom: 4,
+    /* ═══ Overlap content ═══ */
+    overlapContent: {
+      marginTop: -20,
+      paddingHorizontal: 20,
+    },
+
+    /* ═══ Ranked list ═══ */
+    rankedSection: {
+      marginBottom: 16,
+    },
+    rankedSectionTitle: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
+      textTransform: 'uppercase',
+      letterSpacing: 3,
+      marginBottom: 14,
+      paddingHorizontal: 4,
     },
     rankedRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 4,
-      gap: 12,
+      justifyContent: 'space-between',
+      padding: 14,
+      borderRadius: 18,
+      backgroundColor: surfaceLow,
+      marginBottom: 8,
     },
     rankedRowMe: {
-      backgroundColor: 'rgba(245,158,11,0.15)',
-      borderRadius: 14,
-      paddingHorizontal: 8,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)',
+    },
+    rankedLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
     },
     rankedRankNum: {
-      width: 24,
-      fontSize: 15,
+      width: 22,
+      fontSize: 14,
       fontFamily: font.bold,
-      color: 'rgba(255,255,255,0.6)',
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
       textAlign: 'center',
     },
-    rankedAvatar: {
+    rankedAvatarWrap: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      borderWidth: 2.5,
-      backgroundColor: MAROON.card,
-      alignItems: 'center',
-      justifyContent: 'center',
+      overflow: 'hidden',
+      opacity: 0.8,
     },
     rankedName: {
       flex: 1,
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: font.bold,
-      color: '#fff',
-      letterSpacing: 0.3,
+      color: t.text,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
     },
     rankedPts: {
-      fontSize: 15,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.7)',
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#815100',
     },
-    seeAllRow: {
-      flexDirection: 'row',
+    viewFullBtn: {
+      paddingVertical: 16,
       alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10,
-      gap: 4,
-      marginTop: 4,
     },
-    seeAllText: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.6)',
+    viewFullText: {
+      fontSize: 12,
+      fontFamily: font.bold,
+      color: '#815100',
+      textTransform: 'uppercase',
+      letterSpacing: 2,
     },
 
-    /* ═══ Earn Points — M3 ═══ */
+    /* ═══ Earn Points ═══ */
     earnHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 18,
       borderRadius: 24,
-      backgroundColor: surfaceContainer,
-      borderWidth: 1,
-      borderColor: outlineVariant,
+      backgroundColor: surfaceLowest,
       gap: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0 : 0.06,
+      shadowRadius: 12,
+      elevation: isDark ? 0 : 3,
     },
     earnIconWrap: {
       width: 48,
       height: 48,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(129,81,0,0.08)',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -519,24 +524,25 @@ const getStyles = (isDark: boolean) => {
       fontSize: 17,
       fontFamily: font.bold,
       color: t.text,
-      letterSpacing: 0.15,
     },
     earnSubtitle: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
       marginTop: 2,
     },
     earnBody: {
       paddingHorizontal: 18,
       paddingVertical: 8,
-      backgroundColor: surfaceContainer,
+      backgroundColor: surfaceLowest,
       borderBottomLeftRadius: 24,
       borderBottomRightRadius: 24,
       marginTop: -12,
-      borderWidth: 1,
-      borderTopWidth: 0,
-      borderColor: outlineVariant,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0 : 0.06,
+      shadowRadius: 12,
+      elevation: isDark ? 0 : 3,
     },
     earnRow: {
       flexDirection: 'row',
@@ -546,7 +552,7 @@ const getStyles = (isDark: boolean) => {
     },
     earnRowBorder: {
       borderBottomWidth: 1,
-      borderBottomColor: outlineVariant,
+      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8',
     },
     earnEmoji: {
       fontSize: 20,
@@ -566,12 +572,12 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 4,
       paddingHorizontal: 10,
       borderRadius: 12,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(129,81,0,0.08)',
     },
     earnPointsText: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: c.amber500,
+      color: '#815100',
     },
   })
 }

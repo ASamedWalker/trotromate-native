@@ -80,44 +80,45 @@ export function ReferralCard() {
 
   return (
     <View style={s.card}>
-      {/* Top row — icon + text + share arrow */}
+      {/* Top row — icon + text */}
       <View style={s.topRow}>
         <View style={s.iconWrap}>
-          <Gift size={22} color={isDark ? c.amber400 : c.amber600} />
+          <Gift size={22} color="#815100" />
         </View>
-        <View style={{ flex: 1 }}>
+        <View>
           <Text style={s.title}>Invite Friends</Text>
-          <Text style={s.subtitle}>You both earn 50 bonus points</Text>
+          <Text style={s.subtitle}>Get 500 pts per referral</Text>
         </View>
-        <TouchableOpacity onPress={handleShare} activeOpacity={0.7} style={s.shareBtn}>
-          <Share2 size={18} color={c.white} />
-        </TouchableOpacity>
       </View>
 
-      {/* Code row */}
+      {/* Code row — dashed box + copy + share */}
       <View style={s.codeRow}>
         <View style={s.codeBox}>
           <Text style={s.codeText}>{referralCode}</Text>
         </View>
-        <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.copyBtn}>
-          {copied ? (
-            <>
-              <Check size={16} color={c.emerald500} />
-              <Text style={[s.copyText, { color: c.emerald500 }]}>Copied</Text>
-            </>
-          ) : (
-            <>
-              <Copy size={16} color={isDark ? c.amber400 : c.amber600} />
-              <Text style={s.copyText}>Copy</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        <View style={s.actionBtns}>
+          <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.copyBtn}>
+            {copied ? (
+              <Check size={18} color={c.emerald500} />
+            ) : (
+              <Copy size={18} color="#815100" />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} activeOpacity={0.7} style={s.shareBtn}>
+            <Share2 size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Fine print */}
+      <Text style={s.finePrint}>
+        Referrals must complete 3 trips to unlock rewards
+      </Text>
 
       {/* Referral count */}
       {referralCount > 0 && (
         <View style={s.countRow}>
-          <Users size={14} color={isDark ? c.stone400 : c.stone500} />
+          <Users size={14} color={isDark ? c.stone400 : '#5f5b59'} />
           <Text style={s.countText}>
             {referralCount} friend{referralCount !== 1 ? 's' : ''} joined
           </Text>
@@ -130,94 +131,109 @@ export function ReferralCard() {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
 
-  // M3 surface tones
-  const surfaceContainer = isDark ? '#211F26' : '#F3EDF7'
-  const surfaceContainerHigh = isDark ? '#2B2930' : '#ECE6F0'
-  const outlineVariant = isDark ? '#49454F' : '#CAC4D0'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
 
   return StyleSheet.create({
     card: {
-      marginHorizontal: 20,
-      marginBottom: 16,
-      padding: 20,
-      borderRadius: 24,
-      backgroundColor: surfaceContainer,
-      borderWidth: 1,
-      borderColor: outlineVariant,
+      marginBottom: 20,
+      padding: 22,
+      borderRadius: 28,
+      backgroundColor: surfaceLowest,
+      shadowColor: '#312e2d',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: isDark ? 0 : 0.1,
+      shadowRadius: 40,
+      elevation: isDark ? 0 : 6,
     },
 
     topRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
-      marginBottom: 16,
+      marginBottom: 18,
     },
     iconWrap: {
       width: 48,
       height: 48,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(129,81,0,0.08)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     title: {
-      fontSize: 17,
+      fontSize: 18,
       fontFamily: font.bold,
       color: t.text,
-      letterSpacing: 0.15,
     },
     subtitle: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
       marginTop: 2,
-    },
-    shareBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: c.amber500,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
 
     codeRow: {
       flexDirection: 'row',
-      gap: 10,
       alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
     },
     codeBox: {
       flex: 1,
       paddingVertical: 14,
       paddingHorizontal: 16,
-      borderRadius: 16,
-      backgroundColor: surfaceContainerHigh,
-      borderWidth: 1,
-      borderColor: outlineVariant,
+      borderRadius: 18,
+      backgroundColor: surfaceLow,
+      borderWidth: 2,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(178,172,170,0.3)',
       borderStyle: 'dashed',
       alignItems: 'center',
     },
     codeText: {
-      fontSize: 17,
-      fontFamily: font.bold,
+      fontSize: 18,
+      fontFamily: font.extrabold,
       color: t.text,
-      letterSpacing: 2.5,
+      letterSpacing: 3,
+    },
+    actionBtns: {
+      flexDirection: 'row',
+      gap: 8,
     },
     copyBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
+      width: 40,
+      height: 40,
       borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.08)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0 : 0.08,
+      shadowRadius: 4,
+      elevation: isDark ? 0 : 2,
     },
-    copyText: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: isDark ? c.amber400 : c.amber600,
+    shareBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#815100',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#815100',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+
+    finePrint: {
+      fontSize: 10,
+      fontFamily: font.medium,
+      color: isDark ? 'rgba(255,255,255,0.4)' : '#5f5b59',
+      textAlign: 'center',
+      textTransform: 'uppercase',
+      letterSpacing: 2,
     },
 
     countRow: {
@@ -228,12 +244,12 @@ const getStyles = (isDark: boolean) => {
       marginTop: 14,
       paddingTop: 14,
       borderTopWidth: 1,
-      borderTopColor: outlineVariant,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8',
     },
     countText: {
       fontSize: 13,
       fontFamily: font.medium,
-      color: t.textSecondary,
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
     },
   })
 }
