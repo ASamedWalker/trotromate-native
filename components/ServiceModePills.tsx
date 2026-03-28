@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Platform } from 'react-native'
 import { font } from '@/lib/theme'
 import { TrotroIcon, TrainIcon, GoIcon, TalesIcon } from '@/components/ServiceIcons'
 
@@ -35,11 +35,7 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
   const s = getStyles(isDark)
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.container}
-    >
+    <View style={s.container}>
       {SERVICE_PILLS.map((pill) => {
         const isActive = activeMode === pill.id
         const IconComponent = ICON_MAP[pill.id]
@@ -74,22 +70,24 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
           </TouchableOpacity>
         )
       })}
-    </ScrollView>
+    </View>
   )
 }
 
 const getStyles = (isDark: boolean) => {
   return StyleSheet.create({
     container: {
-      paddingHorizontal: 16,
-      paddingVertical: 6,
+      flexDirection: 'row',
+      marginHorizontal: 16,
+      marginTop: 8,
       gap: 6,
     },
     pill: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 5,
-      paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 20,
       ...Platform.select({
