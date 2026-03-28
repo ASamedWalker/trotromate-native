@@ -18,6 +18,7 @@ import { useRouter, type Href } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { MessageCircle, MapPin, Plus, Camera, Trash2, Flag, Video } from 'lucide-react-native'
 import { c, themed, font, shadow } from '@/lib/theme'
+import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
 import { timeAgo } from '@/lib/utils/time'
@@ -258,9 +259,18 @@ export default function TalesScreen() {
   const handleReport = (postId: string) => {
     Alert.alert('Report Tale', 'Are you sure you want to report this tale as inappropriate?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Report', style: 'destructive', onPress: () => {
-        // TODO: send report to backend
-        Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+      { text: 'Report', style: 'destructive', onPress: async () => {
+        try {
+          await supabase.from('content_reports').upsert({
+            reporter_device_id: deviceId,
+            content_type: 'tale',
+            content_id: postId,
+            reason: 'inappropriate',
+          }, { onConflict: 'reporter_device_id,content_type,content_id' })
+          Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+        } catch {
+          Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+        }
       }},
     ])
   }

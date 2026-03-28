@@ -11,12 +11,15 @@ const QUEUE_KEY = '@troski_offline_queue'
 
 export type QueuedReportType = 'fare' | 'queue' | 'incident' | 'tale' | 'trip'
 
+const MAX_RETRIES = 5
+
 interface QueuedReport {
   id: string
   type: QueuedReportType
   deviceId: string
   payload: Record<string, unknown>
   createdAt: string
+  retries?: number
 }
 
 async function getQueue(): Promise<QueuedReport[]> {
@@ -131,10 +134,18 @@ export async function processQueue(): Promise<number> {
         }
         processed++
       } else {
-        remaining.push(item)
+        const retries = (item.retries ?? 0) + 1
+        if (retries < MAX_RETRIES) {
+          remaining.push({ ...item, retries })
+        }
+        // else: drop permanently failed item
       }
     } catch {
-      remaining.push(item)
+      const retries = (item.retries ?? 0) + 1
+      if (retries < MAX_RETRIES) {
+        remaining.push({ ...item, retries })
+      }
+      // else: drop after MAX_RETRIES attempts
     }
   }
 

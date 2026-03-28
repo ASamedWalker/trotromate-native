@@ -76,7 +76,7 @@ export function SpendingSummary() {
 
           for (const report of fareReports || []) {
             totalSpent += report.reported_fare || 0
-            const route = report.routes as { from_location: string; to_location: string } | null
+            const route = (Array.isArray(report.routes) ? report.routes[0] : report.routes) as { from_location: string; to_location: string } | null
             if (route && report.route_id) {
               const existing = routeCounts.get(report.route_id)
               if (existing) {
