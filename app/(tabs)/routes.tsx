@@ -227,21 +227,30 @@ export default function RoutesScreen() {
                 key={filter.key}
                 onPress={() => { haptics.light(); setActiveFilter(filter.key) }}
                 activeOpacity={0.7}
-                style={[
-                  s.chip,
-                  active && s.chipActive,
-                ]}
+                style={[s.chip, active && s.chipActiveWrap]}
               >
-                {Icon && (
-                  <Icon
-                    size={14}
-                    color={active ? '#fff' : t.textSecondary}
-                    fill={filter.key === 'saved' ? (active ? '#fff' : t.textSecondary) : 'transparent'}
-                  />
+                {active ? (
+                  <LinearGradient
+                    colors={['#815100', '#f8a010']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.chipGradient}
+                  >
+                    {Icon && <Icon size={14} color="#fff" fill={filter.key === 'saved' ? '#fff' : 'transparent'} />}
+                    <Text style={s.chipTextActive}>{filter.label}</Text>
+                  </LinearGradient>
+                ) : (
+                  <>
+                    {Icon && (
+                      <Icon
+                        size={14}
+                        color={t.textSecondary}
+                        fill={filter.key === 'saved' ? t.textSecondary : 'transparent'}
+                      />
+                    )}
+                    <Text style={s.chipText}>{filter.label}</Text>
+                  </>
                 )}
-                <Text style={[s.chipText, active && s.chipTextActive]}>
-                  {filter.label}
-                </Text>
               </TouchableOpacity>
             )
           })}
@@ -469,8 +478,18 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: surfaceContainerHigh,
       gap: 6,
     },
-    chipActive: {
-      backgroundColor: '#815100',
+    chipActiveWrap: {
+      padding: 0,
+      backgroundColor: 'transparent',
+      overflow: 'hidden' as const,
+    },
+    chipGradient: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 24,
     },
     chipText: {
       fontSize: 13,
