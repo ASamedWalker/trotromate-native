@@ -13,7 +13,6 @@ import {
   Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { GPRTUBadge } from '@/components/GPRTUBadge'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   Search,
@@ -26,8 +25,8 @@ import {
   Plus,
   ChevronDown,
   Check,
-  ArrowRight,
   TrendingUp,
+  ShieldCheck,
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -123,42 +122,55 @@ export default function RoutesScreen() {
         }}
         style={s.routeCard}
       >
-        {/* Left: Transport icon */}
-        <View style={[s.routeIcon, isOkada && s.routeIconOkada]}>
-          {isOkada ? (
-            <Bike size={20} color={c.orange500} />
-          ) : (
-            <Bus size={20} color={c.amber500} />
-          )}
-        </View>
+        {/* Thin left accent border */}
+        <View style={[s.cardAccent, { backgroundColor: accent }]} />
 
-        {/* Center: Route info */}
-        <View style={s.routeInfo}>
-          {/* From → To */}
-          <View style={s.routeNameRow}>
-            <Text style={s.routeFrom} numberOfLines={1}>{item.from_location}</Text>
-            <ArrowRight size={12} color={t.textTertiary} />
-            <Text style={s.routeTo} numberOfLines={1}>{item.to_location}</Text>
-          </View>
-
-          {/* Meta row: type badge + time + GPRTU */}
-          <View style={s.routeMeta}>
-            <View style={[s.typePill, { backgroundColor: `${accent}18` }]}>
-              <Text style={[s.typePillText, { color: accent }]}>
-                {isOkada ? 'OKADA' : 'TROTRO'}
+        <View style={s.cardInner}>
+          {/* Top: badge + route name + fare */}
+          <View style={s.cardTop}>
+            <View style={s.cardTopLeft}>
+              <View style={[s.typeBadge, { backgroundColor: `${accent}20` }]}>
+                <Text style={[s.typeBadgeText, { color: isOkada ? '#9a3412' : '#815100' }]}>
+                  {isOkada ? 'Okada' : 'Trotro'}
+                </Text>
+              </View>
+              <Text style={s.routeName} numberOfLines={1}>
+                {item.from_location} → {item.to_location}
               </Text>
             </View>
-            <Clock size={10} color={t.textTertiary} />
-            <Text style={s.routeMetaText}>{lastUpdated}</Text>
-            {item.is_gprtu_verified && <GPRTUBadge size="small" />}
+            <View style={s.fareWrap}>
+              <Text style={[s.fareAmount, { color: accent }]}>
+                GH₵ {displayFare.toFixed(2)}
+              </Text>
+              <Text style={s.fareLabel}>Per Seat</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Right: Fare */}
-        <View style={s.fareWrap}>
-          <Text style={[s.fareAmount, { color: accent }]}>
-            {'\u20B5'}{displayFare.toFixed(2)}
-          </Text>
+          {/* Meta row */}
+          <View style={s.metaRow}>
+            <View style={s.metaItem}>
+              <Clock size={14} color={t.textTertiary} />
+              <Text style={s.metaText}>{lastUpdated}</Text>
+            </View>
+            {item.is_gprtu_verified && (
+              <View style={s.metaItem}>
+                <ShieldCheck size={14} color="#16a34a" />
+                <Text style={s.gprtuText}>GPRTU Verified</Text>
+              </View>
+            )}
+          </View>
+
+          {/* View Details button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              addSearch({ id: item.id, from: item.from_location, to: item.to_location, transportType: item.transport_type as 'trotro' | 'okada' | undefined })
+              router.push({ pathname: '/routes/[id]', params: { id: item.id } })
+            }}
+            style={s.viewDetailsBtn}
+          >
+            <Text style={s.viewDetailsText}>View Details</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     )
@@ -166,10 +178,13 @@ export default function RoutesScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
+      {/* Editorial Header */}
       <View style={s.header}>
         <View style={s.headerRow}>
-          <Text style={s.headerTitle}>Routes</Text>
+          <View>
+            <Text style={s.headerLabel}>Urban Mobility</Text>
+            <Text style={s.headerTitle}>Find Your Route</Text>
+          </View>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
@@ -186,7 +201,7 @@ export default function RoutesScreen() {
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search routes..."
+            placeholder="Where are you going?"
             placeholderTextColor={t.textTertiary}
             style={s.searchInput}
           />
@@ -197,7 +212,7 @@ export default function RoutesScreen() {
           )}
         </View>
 
-        {/* M3 Filter chips */}
+        {/* Filter chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -214,15 +229,14 @@ export default function RoutesScreen() {
                 activeOpacity={0.7}
                 style={[
                   s.chip,
-                  active && [s.chipActive, { backgroundColor: filter.color }],
+                  active && s.chipActive,
                 ]}
               >
-                {active && <Check size={14} color="#fff" strokeWidth={3} />}
-                {Icon && !active && (
+                {Icon && (
                   <Icon
                     size={14}
-                    color={t.textSecondary}
-                    fill={filter.key === 'saved' ? t.textSecondary : 'transparent'}
+                    color={active ? '#fff' : t.textSecondary}
+                    fill={filter.key === 'saved' ? (active ? '#fff' : t.textSecondary) : 'transparent'}
                   />
                 )}
                 <Text style={[s.chipText, active && s.chipTextActive]}>
@@ -373,28 +387,33 @@ export default function RoutesScreen() {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
 
-  // M3 surface tones
-  const surfaceContainer = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
-  const surfaceContainerHigh = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
-  const outline = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+  const surfaceContainerLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const surfaceContainerHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
+    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fcf5f2' },
 
-    // Header
+    // Editorial header
     header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
     headerRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       marginBottom: 16,
     },
+    headerLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: '#815100',
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      marginBottom: 4,
+    },
     headerTitle: {
       fontSize: 28,
-      fontFamily: font.bold,
+      fontFamily: font.extrabold,
       color: t.text,
-      letterSpacing: -0.3,
+      letterSpacing: -0.5,
     },
 
     // Region dropdown
@@ -408,6 +427,7 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.08)',
       borderWidth: 1,
       borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
+      marginTop: 6,
     },
     regionDropdownText: {
       fontSize: 13,
@@ -415,13 +435,13 @@ const getStyles = (isDark: boolean) => {
       color: c.amber500,
     },
 
-    // M3 Search bar — no border, surface container bg, pill shape
+    // M3 Search bar — pill shape
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: 28,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
       backgroundColor: surfaceContainerHigh,
       gap: 12,
     },
@@ -433,26 +453,24 @@ const getStyles = (isDark: boolean) => {
       padding: 0,
     },
 
-    // M3 Filter chips — outlined inactive, filled active
+    // Filter chips — gradient active, surface inactive
     chipScroll: { marginTop: 14 },
     chipRow: {
       flexDirection: 'row' as const,
-      gap: 8,
-      paddingRight: 8,
+      gap: 10,
+      paddingBottom: 6,
     },
     chip: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: surfaceContainer,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 24,
+      backgroundColor: surfaceContainerHigh,
       gap: 6,
-      borderWidth: 1,
-      borderColor: outline,
     },
     chipActive: {
-      borderColor: 'transparent',
+      backgroundColor: '#815100',
     },
     chipText: {
       fontSize: 13,
@@ -465,85 +483,109 @@ const getStyles = (isDark: boolean) => {
     filterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginTop: 12 },
     filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
 
-    // Route cards — M3 filled card, no border, surface tone
+    // Route cards — Stitch editorial style
     routeCard: {
       flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      borderRadius: 16,
-      marginBottom: 8,
-      backgroundColor: surfaceContainer,
-      gap: 12,
+      borderRadius: 24,
+      marginBottom: 14,
+      backgroundColor: surfaceContainerLow,
+      overflow: 'hidden',
+    },
+    cardAccent: {
+      width: 4,
+      borderTopLeftRadius: 24,
+      borderBottomLeftRadius: 24,
+    },
+    cardInner: {
+      flex: 1,
+      padding: 18,
     },
 
-    // Transport icon — M3 tonal icon container
-    routeIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    routeIconOkada: {
-      backgroundColor: isDark ? 'rgba(249,115,22,0.12)' : 'rgba(249,115,22,0.08)',
-    },
-
-    // Route info
-    routeInfo: { flex: 1, gap: 6 },
-
-    // From → To row
-    routeNameRow: {
+    // Top section: badge + name + fare
+    cardTop: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      flexWrap: 'wrap' as const,
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 14,
     },
-    routeFrom: {
-      fontSize: 15,
+    cardTopLeft: {
+      flex: 1,
+      marginRight: 12,
+      gap: 8,
+    },
+    typeBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    typeBadgeText: {
+      fontSize: 10,
       fontFamily: font.bold,
-      color: t.text,
-      flexShrink: 1,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
     },
-    routeTo: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: t.text,
-      flexShrink: 1,
-    },
-
-    // Meta row: type pill + time + GPRTU
-    routeMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      flexWrap: 'wrap' as const,
-    },
-    typePill: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
-    },
-    typePillText: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      letterSpacing: 0.5,
-    },
-    routeMetaText: {
-      fontSize: 11,
-      color: t.textTertiary,
-      fontFamily: font.regular,
-    },
-
-    // Fare — right side
-    fareWrap: {
-      alignItems: 'flex-end',
-      marginLeft: 4,
-    },
-    fareAmount: {
+    routeName: {
       fontSize: 18,
       fontFamily: font.extrabold,
+      color: t.text,
       letterSpacing: -0.3,
+    },
+
+    // Fare
+    fareWrap: {
+      alignItems: 'flex-end',
+    },
+    fareAmount: {
+      fontSize: 20,
+      fontFamily: font.extrabold,
+      letterSpacing: -0.3,
+    },
+    fareLabel: {
+      fontSize: 9,
+      fontFamily: font.medium,
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 2,
+    },
+
+    // Meta row
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 14,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    metaText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
+    gprtuText: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: '#16a34a',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+
+    // View Details button
+    viewDetailsBtn: {
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderRadius: 14,
+      backgroundColor: surfaceContainerHigh,
+    },
+    viewDetailsText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#815100',
     },
 
     // Empty
@@ -576,7 +618,7 @@ const getStyles = (isDark: boolean) => {
     // Region Hero Banner
     heroBanner: {
       height: 130,
-      borderRadius: 16,
+      borderRadius: 24,
       overflow: 'hidden' as const,
       marginBottom: 16,
       ...shadow.cardStrong,
