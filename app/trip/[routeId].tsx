@@ -36,6 +36,7 @@ import { getGhanaTime } from '@/lib/utils/time'
 import { TrainTopDown } from '@/components/VehicleIcons'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+import { TRAIN_SCHEDULES, type ScheduleStop } from '@/lib/constants/train-schedule'
 import { useTrip, type CompletedTripResult } from '@/lib/hooks/useTrip'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
@@ -49,6 +50,38 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { buildTripStations, formatDistance, estimateETA, type TripStation } from '@/lib/services/trip'
 import { TRIP_POINTS } from '@/lib/constants/rewards'
 import type { RewardResult } from '@/lib/types'
+
+// Find the best matching schedule for the current time of day
+function getActiveSchedule(lineCode: string): { schedule: typeof TRAIN_SCHEDULES['TMA'][0]; stopMap: Map<string, ScheduleStop> } | null {
+  const schedules = TRAIN_SCHEDULES[lineCode]
+  if (!schedules || schedules.length === 0) return null
+
+  const now = new Date()
+  const nowMins = now.getHours() * 60 + now.getMinutes()
+
+  // Pick the schedule whose first departure is closest (but not long past)
+  let best = schedules[0]
+  let bestDiff = Infinity
+  for (const s of schedules) {
+    const firstDepart = s.stops[0]?.depart
+    if (!firstDepart) continue
+    const [h, m] = firstDepart.split(':').map(Number)
+    const departMins = h * 60 + m
+    // Prefer schedule that started within last 3 hours or is upcoming
+    const diff = nowMins - departMins
+    if (diff >= -30 && diff < 180 && Math.abs(diff) < bestDiff) {
+      bestDiff = Math.abs(diff)
+      best = s
+    }
+  }
+
+  const stopMap = new Map<string, ScheduleStop>()
+  for (const stop of best.stops) {
+    stopMap.set(stop.station.toLowerCase(), stop)
+  }
+
+  return { schedule: best, stopMap }
+}
 
 export default function TripScreen() {
   const router = useRouter()
@@ -68,6 +101,12 @@ export default function TripScreen() {
   const { tripState, progress, startTrip, endTrip } = useTrip()
   const { deviceId } = useDeviceId()
   const { refreshProfile, setLastReward } = useApp()
+
+  // Schedule-aware times for train stations
+  const activeSchedule = useMemo(() => {
+    if (!isTrain || !line) return null
+    return getActiveSchedule(line.code)
+  }, [isTrain, line])
 
   const cameraRef = useRef<Mapbox.Camera>(null)
   const [isStarting, setIsStarting] = useState(false)
@@ -678,15 +717,15 @@ export default function TripScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* Route corridor — remaining portion (dimmer, dashed) */}
+        {/* Route corridor — remaining portion (thick, dimmed) */}
         {routeLineGeojson && (
           <Mapbox.ShapeSource id="trip-route-line" shape={routeLineGeojson as any}>
             <Mapbox.LineLayer
               id="trip-route-line-bg"
               style={{
                 lineColor: lineColor,
-                lineWidth: 6,
-                lineOpacity: 0.15,
+                lineWidth: 12,
+                lineOpacity: 0.12,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -695,25 +734,24 @@ export default function TripScreen() {
               id="trip-route-line-fg"
               style={{
                 lineColor: lineColor,
-                lineWidth: 3,
-                lineOpacity: 0.4,
+                lineWidth: 6,
+                lineOpacity: 0.35,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineDasharray: [2, 3],
               }}
             />
           </Mapbox.ShapeSource>
         )}
 
-        {/* Route corridor — traveled portion (bright, solid) */}
+        {/* Route corridor — traveled portion (thick, bright, solid) */}
         {traveledLineGeojson && (
           <Mapbox.ShapeSource id="trip-traveled-line" shape={traveledLineGeojson as any}>
             <Mapbox.LineLayer
               id="trip-traveled-line-bg"
               style={{
                 lineColor: lineColor,
-                lineWidth: 7,
-                lineOpacity: 0.3,
+                lineWidth: 14,
+                lineOpacity: 0.25,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -722,7 +760,7 @@ export default function TripScreen() {
               id="trip-traveled-line-fg"
               style={{
                 lineColor: lineColor,
-                lineWidth: 4,
+                lineWidth: 7,
                 lineOpacity: 1,
                 lineCap: 'round',
                 lineJoin: 'round',
@@ -739,18 +777,18 @@ export default function TripScreen() {
               style={{
                 circleRadius: [
                   'case',
-                  ['==', ['get', 'isOrigin'], 1], 8,
-                  ['==', ['get', 'isDestination'], 1], 8,
-                  5,
+                  ['==', ['get', 'isOrigin'], 1], 10,
+                  ['==', ['get', 'isDestination'], 1], 10,
+                  7,
                 ],
                 circleColor: [
                   'case',
                   ['==', ['get', 'isOrigin'], 1], '#22c55e',
                   ['==', ['get', 'isDestination'], 1], '#ef4444',
-                  '#f59e0b',
+                  lineColor,
                 ],
                 circleStrokeColor: '#ffffff',
-                circleStrokeWidth: 2.5,
+                circleStrokeWidth: 3,
               }}
             />
             <Mapbox.SymbolLayer
@@ -824,6 +862,31 @@ export default function TripScreen() {
             </View>
           )}
 
+          {/* ── Next Station hero card ── */}
+          {isActive && progress && progress.nearestStation && (() => {
+            const nextStatus = progress.stationStatuses.find((ss) => ss.status === 'current')
+            const nextName = nextStatus?.station.name ?? progress.nearestStation.name
+            const scheduleTime = activeSchedule?.stopMap.get(nextName.toLowerCase())
+            const arriveTime = scheduleTime?.arrive ?? scheduleTime?.depart
+            return (
+              <View style={[s.nextStationHero, { borderLeftColor: lineColor }]}>
+                <Text style={s.nextStationLabel}>NEXT STATION</Text>
+                <Text style={s.nextStationName}>{nextName}</Text>
+                <View style={s.nextStationMeta}>
+                  {arriveTime && (
+                    <View style={s.nextStationTimeBadge}>
+                      <Clock size={12} color={lineColor} />
+                      <Text style={[s.nextStationTimeText, { color: lineColor }]}>{arriveTime}</Text>
+                    </View>
+                  )}
+                  <Text style={s.nextStationDist}>
+                    {formatDistance(nextStatus?.distanceKm ?? progress.distanceToNearestKm)}
+                  </Text>
+                </View>
+              </View>
+            )
+          })()}
+
           {/* Progress header when active */}
           {isActive && progress && (
             <>
@@ -831,7 +894,12 @@ export default function TripScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.destName}>{dest?.name}</Text>
                   <Text style={s.lineInfo}>
-                    {line?.name ?? routeLabel} • ETA {estimateETA(progress.distanceToDestinationKm, 'train')}
+                    {line?.name ?? routeLabel} • ETA {
+                      (() => {
+                        const destTime = activeSchedule?.stopMap.get((dest?.name ?? '').toLowerCase())
+                        return destTime?.arrive ?? estimateETA(progress.distanceToDestinationKm, 'train')
+                      })()
+                    }
                   </Text>
                 </View>
                 <View style={s.progressBadge}>
@@ -839,10 +907,10 @@ export default function TripScreen() {
                 </View>
               </View>
 
-              {/* Gradient progress bar */}
+              {/* Gradient progress bar — use line color */}
               <View style={s.progressBarBg}>
                 <LinearGradient
-                  colors={['#815100', '#f8a010']}
+                  colors={[lineColor, lineColor + 'aa']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={[s.progressBarFill, { width: `${Math.min(100, progress.progressPercent)}%` }]}
@@ -855,17 +923,15 @@ export default function TripScreen() {
                   <Text style={s.statValue}>{formatDistance(progress.distanceToDestinationKm)}</Text>
                   <Text style={s.statLabel}>remaining</Text>
                 </View>
-                {progress.nearestStation && (
-                  <View style={s.statItem}>
-                    <Text style={s.statValue}>{progress.nearestStation.name}</Text>
-                    <Text style={s.statLabel}>{formatDistance(progress.distanceToNearestKm)}</Text>
-                  </View>
-                )}
                 <View style={s.statItem}>
                   <Text style={s.statValue}>
                     {progress.stationStatuses.filter((ss) => ss.status === 'passed').length}/{progress.stationStatuses.length}
                   </Text>
                   <Text style={s.statLabel}>stations</Text>
+                </View>
+                <View style={s.statItem}>
+                  <Text style={s.statValue}>{speedKmh}</Text>
+                  <Text style={s.statLabel}>km/h</Text>
                 </View>
               </View>
             </>
@@ -905,13 +971,22 @@ export default function TripScreen() {
                     </View>
                     <View style={[s.stationInfo, isNext && s.stationInfoHighlight]}>
                       {isNext && <Text style={s.nextLabel}>NEXT STATION</Text>}
-                      <Text style={[
-                        s.stationName,
-                        isPassed && s.stationNamePassed,
-                        isNext && s.stationNameActive,
-                      ]} numberOfLines={1}>
-                        {ss.station.name}
-                      </Text>
+                      <View style={s.stationNameRow}>
+                        <Text style={[
+                          s.stationName,
+                          isPassed && s.stationNamePassed,
+                          isNext && s.stationNameActive,
+                        ]} numberOfLines={1}>
+                          {ss.station.name}
+                        </Text>
+                        {(() => {
+                          const sched = activeSchedule?.stopMap.get(ss.station.name.toLowerCase())
+                          const time = sched?.arrive ?? sched?.depart
+                          return time ? (
+                            <Text style={[s.scheduleTime, isPassed && s.scheduleTimePassed]}>{time}</Text>
+                          ) : null
+                        })()}
+                      </View>
                       {isNext && ss.distanceKm != null && (
                         <Text style={s.stationDist}>{formatDistance(ss.distanceKm)}</Text>
                       )}
@@ -1125,6 +1200,51 @@ const getStyles = (isDark: boolean) => {
       flex: 1,
     },
 
+    // Next Station hero
+    nextStationHero: {
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f8f6f5',
+      borderRadius: 16,
+      borderLeftWidth: 4,
+      padding: 16,
+      gap: 4,
+    },
+    nextStationLabel: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      letterSpacing: 2,
+      color: onSurfaceVariant,
+      textTransform: 'uppercase' as const,
+    },
+    nextStationName: {
+      fontSize: 22,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    nextStationMeta: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginTop: 4,
+    },
+    nextStationTimeBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    nextStationTimeText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+    },
+    nextStationDist: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+    },
+
     // Progress header
     progressHeader: {
       flexDirection: 'row',
@@ -1265,10 +1385,26 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 2,
       marginBottom: 2,
     },
+    stationNameRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    },
     stationName: {
       fontSize: 13,
       fontFamily: font.regular,
       color: onSurfaceVariant,
+      flex: 1,
+    },
+    scheduleTime: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: onSurfaceVariant,
+      marginLeft: 8,
+    },
+    scheduleTimePassed: {
+      color: '#815100',
+      textDecorationLine: 'line-through' as const,
     },
     stationNamePassed: {
       color: '#815100',
