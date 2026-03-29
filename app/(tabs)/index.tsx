@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Pressable,
   useColorScheme,
   StyleSheet,
   Platform,
@@ -211,6 +210,25 @@ export default function HomeScreen() {
     ? [location.longitude, location.latitude]
     : ACCRA_CENTER
 
+  // GeoJSON for incident tap detection (invisible layer — visual pins are MarkerViews)
+  const incidentGeojson = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: incidents.map((inc) => ({
+      type: 'Feature' as const,
+      id: inc.id,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [inc.longitude, inc.latitude],
+      },
+      properties: {
+        id: inc.id,
+        incident_type: inc.incident_type,
+        location_name: inc.location_name,
+        reported_at: inc.reported_at,
+      },
+    })),
+  }), [incidents])
+
   // Station pin data for PointAnnotations
   const stationPins = useMemo(() => {
     return stations
@@ -362,7 +380,7 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
-        {/* Incident pins — Waze-style animated MarkerViews */}
+        {/* Incident pins — animated MarkerViews (visual only, no tap) */}
         {incidents.map((inc) => (
           <Mapbox.MarkerView
             key={inc.id}
@@ -370,14 +388,33 @@ export default function HomeScreen() {
             allowOverlap
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <Pressable onPress={() => setSelectedIncident(selectedIncident?.id === inc.id ? null : inc)}>
-              <IncidentMapPin
-                type={inc.incident_type}
-                createdAt={inc.reported_at}
-              />
-            </Pressable>
+            <IncidentMapPin
+              type={inc.incident_type}
+              createdAt={inc.reported_at}
+            />
           </Mapbox.MarkerView>
         ))}
+
+        {/* Invisible tap layer for incidents — ShapeSource onPress works on Android */}
+        <Mapbox.ShapeSource
+          id="incident-tap-targets"
+          shape={incidentGeojson}
+          onPress={(e: any) => {
+            const feature = e.features?.[0]
+            if (!feature?.properties?.id) return
+            const tapped = incidents.find((i) => i.id === feature.properties.id)
+            if (!tapped) return
+            setSelectedIncident(selectedIncident?.id === tapped.id ? null : tapped)
+          }}
+        >
+          <Mapbox.CircleLayer
+            id="incident-tap-circles"
+            style={{
+              circleRadius: 24,
+              circleOpacity: 0,
+            }}
+          />
+        </Mapbox.ShapeSource>
 
         {/* Incident callout tooltip — above the selected pin */}
         {selectedIncident && (
