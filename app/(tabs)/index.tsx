@@ -336,6 +336,7 @@ export default function HomeScreen() {
         logoEnabled={false}
         compassEnabled={false}
         scaleBarEnabled={false}
+        onPress={() => { if (selectedIncident) setSelectedIncident(null) }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -399,18 +400,18 @@ export default function HomeScreen() {
         <Mapbox.ShapeSource
           id="incident-tap-targets"
           shape={incidentGeojson}
+          hitbox={{ width: 80, height: 80 }}
           onPress={(e: any) => {
             const feature = e.features?.[0]
             if (!feature?.properties?.id) return
             const tapped = incidents.find((i) => i.id === feature.properties.id)
-            if (!tapped) return
-            setSelectedIncident(selectedIncident?.id === tapped.id ? null : tapped)
+            if (tapped) setSelectedIncident(tapped)
           }}
         >
           <Mapbox.CircleLayer
             id="incident-tap-circles"
             style={{
-              circleRadius: 24,
+              circleRadius: 40,
               circleOpacity: 0,
             }}
           />
