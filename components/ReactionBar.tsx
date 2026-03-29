@@ -1,13 +1,13 @@
 import { useCallback, useRef } from 'react'
 import {
-  View,
   Text,
   Pressable,
   Animated,
+  ScrollView,
   StyleSheet,
   useColorScheme,
 } from 'react-native'
-import { c, themed, font } from '@/lib/theme'
+import { font } from '@/lib/theme'
 import { REACTION_EMOJIS } from '@/lib/constants/tales'
 
 interface ReactionBarProps {
@@ -24,10 +24,16 @@ export default function ReactionBar({
   compact,
 }: ReactionBarProps) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark, !!compact)
 
   return (
-    <View style={s.container}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[
+        styles.container,
+        compact && styles.containerCompact,
+      ]}
+    >
       {REACTION_EMOJIS.map(({ emoji, label }) => {
         const count = reactionSummary[emoji] || 0
         const isActive = userReactions.includes(emoji)
@@ -44,7 +50,7 @@ export default function ReactionBar({
           />
         )
       })}
-    </View>
+    </ScrollView>
   )
 }
 
@@ -84,7 +90,10 @@ function ReactionPill({
     }).start()
   }, [scale])
 
-  const t = themed(isDark)
+  const activeBg = isDark ? 'rgba(245,158,11,0.2)' : 'rgba(255,243,232,0.8)'
+  const inactiveBg = isDark ? 'rgba(255,255,255,0.06)' : '#e8e1de'
+  const activeText = isDark ? '#fbbf24' : '#92400e'
+  const inactiveText = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
 
   return (
     <Pressable
@@ -96,42 +105,47 @@ function ReactionPill({
       <Animated.View
         style={[
           compact ? styles.pillCompact : styles.pill,
-          isActive && {
-            backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : c.amber50,
-            borderColor: c.amber400,
-          },
-          !isActive && {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.stone100,
-            borderColor: isDark ? 'rgba(255,255,255,0.08)' : c.stone200,
+          {
+            backgroundColor: isActive ? activeBg : inactiveBg,
+            borderColor: isActive ? (isDark ? '#d97706' : 'transparent') : 'transparent',
           },
           { transform: [{ scale }] },
         ]}
       >
         <Text style={compact ? styles.emojiCompact : styles.emoji}>{emoji}</Text>
-        {count > 0 && (
-          <Text
-            style={[
-              compact ? styles.countCompact : styles.count,
-              { color: isActive ? c.amber600 : t.textSecondary },
-            ]}
-          >
-            {count}
-          </Text>
-        )}
+        <Text
+          style={[
+            compact ? styles.countCompact : styles.count,
+            { color: isActive ? activeText : inactiveText },
+          ]}
+        >
+          {count}
+        </Text>
       </Animated.View>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  containerCompact: {
+    gap: 4,
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+  },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 4,
+    gap: 5,
   },
   pillCompact: {
     flexDirection: 'row',
@@ -142,20 +156,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 2,
   },
-  emoji: { fontSize: 18 },
+  emoji: { fontSize: 16 },
   emojiCompact: { fontSize: 14 },
-  count: { fontSize: 13, fontFamily: font.medium },
+  count: { fontSize: 13, fontFamily: font.semibold },
   countCompact: { fontSize: 11, fontFamily: font.medium },
 })
-
-const getStyles = (isDark: boolean, compact: boolean) => {
-  return StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: compact ? 4 : 6,
-      paddingHorizontal: compact ? 0 : 14,
-      paddingVertical: compact ? 4 : 6,
-    },
-  })
-}

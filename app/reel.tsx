@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,25 +8,22 @@ import {
   ActivityIndicator,
   Share,
   DeviceEventEmitter,
+  Animated,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Image } from 'expo-image'
 import {
-  X,
   Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  MapPin,
   Heart,
   MessageCircle,
   Share2,
-  Bookmark,
+  MapPin,
+  Music,
+  Plus,
 } from 'lucide-react-native'
-import { c, font } from '@/lib/theme'
+import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { addReaction, removeReaction, fetchUserReactions } from '@/lib/services/tales'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -52,16 +49,33 @@ export default function ReelScreen() {
   const [isMuted, setIsMuted] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
   const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(
-    params.durationSecs ? parseFloat(params.durationSecs) : 0
-  )
   const [progress, setProgress] = useState(0)
   const [isLiked, setIsLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(parseInt(params.likeCount ?? '0', 10))
-  const [isSaved, setIsSaved] = useState(false)
 
-  // Fetch existing like state from API
+  // Like animation
+  const likeScale = useRef(new Animated.Value(1)).current
+
+  // Music disk rotation
+  const diskRotation = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    const spin = Animated.loop(
+      Animated.timing(diskRotation, {
+        toValue: 1,
+        duration: 4000,
+        useNativeDriver: true,
+      })
+    )
+    spin.start()
+    return () => spin.stop()
+  }, [diskRotation])
+
+  const diskSpin = diskRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  // Fetch existing like state
   useEffect(() => {
     if (!myDeviceId || !params.postId) return
     fetchUserReactions([params.postId], myDeviceId).then((reactions) => {
@@ -85,17 +99,11 @@ export default function ReelScreen() {
     if (!player) return
     const interval = setInterval(() => {
       if (player.duration > 0) {
-        setDuration(player.duration)
-        setCurrentTime(player.currentTime)
         setProgress(player.currentTime / player.duration)
       }
     }, 250)
     return () => clearInterval(interval)
   }, [player])
-
-  const toggleMute = useCallback(() => {
-    setIsMuted((m) => !m)
-  }, [])
 
   const togglePlayPause = useCallback(() => {
     if (!player) return
@@ -109,17 +117,23 @@ export default function ReelScreen() {
 
   const toggleLike = useCallback(async () => {
     if (!myDeviceId || !params.postId) return
+    // Bounce animation
+    Animated.sequence([
+      Animated.spring(likeScale, { toValue: 1.4, useNativeDriver: true, speed: 50, bounciness: 12 }),
+      Animated.spring(likeScale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),
+    ]).start()
+
     const wasLiked = isLiked
     setIsLiked(!wasLiked)
-    setLikeCount((c) => c + (wasLiked ? -1 : 1))
+    setLikeCount((n) => n + (wasLiked ? -1 : 1))
     const success = wasLiked
       ? await removeReaction(params.postId, myDeviceId, '❤️')
       : await addReaction(params.postId, myDeviceId, '❤️')
     if (!success) {
       setIsLiked(wasLiked)
-      setLikeCount((c) => c + (wasLiked ? 1 : -1))
+      setLikeCount((n) => n + (wasLiked ? 1 : -1))
     }
-  }, [myDeviceId, params.postId, isLiked])
+  }, [myDeviceId, params.postId, isLiked, likeScale])
 
   const handleShare = useCallback(async () => {
     try {
@@ -129,14 +143,8 @@ export default function ReelScreen() {
     } catch { /* user cancelled */ }
   }, [params.locationName])
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(Math.abs(secs) / 60)
-    const s = Math.floor(Math.abs(secs) % 60)
-    return `${m}:${s.toString().padStart(2, '0')}`
-  }
-
-  const remaining = duration - currentTime
   const commentCount = parseInt(params.commentCount ?? '0', 10)
+  const userName = params.displayName || `User-${(params.deviceId ?? '').slice(-4).toUpperCase()}`
 
   return (
     <View style={styles.container}>
@@ -155,7 +163,7 @@ export default function ReelScreen() {
       {/* Loading spinner */}
       {!hasRenderedFirstFrame && (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={c.white} />
+          <ActivityIndicator size="large" color="#fff" />
         </View>
       )}
 
@@ -177,43 +185,65 @@ export default function ReelScreen() {
         {isPaused && (
           <View style={styles.playOverlay}>
             <View style={styles.playBtn}>
-              <Play size={44} color={c.white} fill={c.white} />
+              <Play size={44} color="#fff" fill="#fff" />
             </View>
           </View>
         )}
       </TouchableOpacity>
 
-      {/* Top bar — close button */}
+      {/* ─── Top: Dismiss handle + Live Tale badge ─── */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => router.back()}
           activeOpacity={0.7}
-          style={styles.closeBtn}
+          style={styles.handleArea}
+          hitSlop={16}
         >
-          <X size={22} color={c.white} />
+          <View style={styles.dismissHandle} />
         </TouchableOpacity>
+
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>Live Tale</Text>
+        </View>
       </View>
 
       {/* Bottom gradient */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.7)']}
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
         style={styles.bottomGradient}
         pointerEvents="none"
       />
 
-      {/* ─── TikTok-style vertical action bar (right side) ─── */}
+      {/* ─── Right action bar ─── */}
       <View style={styles.actionBar}>
+        {/* Profile avatar with + button */}
+        <View style={styles.profileAction}>
+          <View style={styles.avatarBorder}>
+            <InitialsAvatar
+              name={params.displayName ?? null}
+              deviceId={params.deviceId ?? ''}
+              size={44}
+            />
+          </View>
+          <View style={styles.plusBadge}>
+            <Plus size={10} color="#fff" strokeWidth={3} />
+          </View>
+        </View>
+
         {/* Like */}
         <TouchableOpacity
           onPress={toggleLike}
           activeOpacity={0.7}
           style={styles.actionItem}
         >
-          <Heart
-            size={28}
-            color={isLiked ? '#ef4444' : c.white}
-            fill={isLiked ? '#ef4444' : 'transparent'}
-          />
+          <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+            <Heart
+              size={30}
+              color={isLiked ? '#ef4444' : '#fff'}
+              fill={isLiked ? '#ef4444' : 'transparent'}
+            />
+          </Animated.View>
           <Text style={styles.actionLabel}>{likeCount}</Text>
         </TouchableOpacity>
 
@@ -226,7 +256,7 @@ export default function ReelScreen() {
           activeOpacity={0.7}
           style={styles.actionItem}
         >
-          <MessageCircle size={28} color={c.white} />
+          <MessageCircle size={28} color="#fff" />
           <Text style={styles.actionLabel}>{commentCount}</Text>
         </TouchableOpacity>
 
@@ -236,101 +266,58 @@ export default function ReelScreen() {
           activeOpacity={0.7}
           style={styles.actionItem}
         >
-          <Share2 size={26} color={c.white} />
-          <Text style={styles.actionLabel}>Share</Text>
+          <Share2 size={26} color="#fff" />
         </TouchableOpacity>
 
-        {/* Save / Bookmark */}
-        <TouchableOpacity
-          onPress={() => setIsSaved((v) => !v)}
-          activeOpacity={0.7}
-          style={styles.actionItem}
-        >
-          <Bookmark
-            size={26}
-            color={isSaved ? c.amber500 : c.white}
-            fill={isSaved ? c.amber500 : 'transparent'}
-          />
-          <Text style={styles.actionLabel}>Save</Text>
-        </TouchableOpacity>
-
-        {/* Volume */}
-        <TouchableOpacity
-          onPress={toggleMute}
-          activeOpacity={0.7}
-          style={styles.actionItem}
-        >
-          {isMuted ? (
-            <VolumeX size={26} color={c.white} />
-          ) : (
-            <Volume2 size={26} color={c.white} />
-          )}
-          <Text style={styles.actionLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+        {/* Music disk — tap to toggle mute */}
+        <TouchableOpacity onPress={() => setIsMuted((m) => !m)} activeOpacity={0.7}>
+          <Animated.View style={[styles.musicDisk, { transform: [{ rotate: diskSpin }] }, isMuted && styles.musicDiskMuted]}>
+            <Music size={16} color={isMuted ? 'rgba(255,255,255,0.4)' : '#fff'} />
+          </Animated.View>
         </TouchableOpacity>
       </View>
 
-      {/* User info overlay — bottom left */}
-      <View style={styles.userInfo}>
-        <InitialsAvatar
-          name={params.displayName ?? null}
-          deviceId={params.deviceId ?? ''}
-          size={36}
-        />
-        <View style={styles.userTextCol}>
-          <Text style={styles.userName} numberOfLines={1}>
-            {params.displayName || `User-${(params.deviceId ?? '').slice(-4).toUpperCase()}`}
-          </Text>
-          <View style={styles.metaRow}>
-            <MapPin size={11} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.metaText}>{params.locationName}</Text>
-            <Text style={styles.metaText}> · {params.timeAgo}</Text>
-          </View>
+      {/* ─── Bottom overlay ─── */}
+      <View style={styles.bottomContent}>
+        {/* @username + Follow */}
+        <View style={styles.userRow}>
+          <Text style={styles.userName}>@{userName}</Text>
+          <TouchableOpacity style={styles.followBtn} activeOpacity={0.7}>
+            <Text style={styles.followText}>Follow</Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Caption */}
-      {params.caption ? (
-        <View style={styles.captionBox}>
-          <Text style={styles.captionText} numberOfLines={3}>
+        {/* Location */}
+        {params.locationName ? (
+          <View style={styles.locationRow}>
+            <MapPin size={12} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.locationText}>{params.locationName}</Text>
+            {params.timeAgo ? (
+              <Text style={styles.locationText}> · {params.timeAgo}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Caption */}
+        {params.caption ? (
+          <Text style={styles.caption} numberOfLines={2}>
             {params.caption}
           </Text>
-        </View>
-      ) : null}
+        ) : null}
 
-      {/* Progress bar */}
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+        {/* Music ticker */}
+        <View style={styles.musicTicker}>
+          <Music size={12} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.musicText} numberOfLines={1}>
+            Original sound — {userName}
+          </Text>
+        </View>
       </View>
 
-      {/* Glass control bar */}
-      <View style={styles.controlBar}>
-        <BlurView
-          intensity={50}
-          tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.controlBarContent}>
-          <TouchableOpacity onPress={togglePlayPause} activeOpacity={0.7} hitSlop={8}>
-            {isPaused ? (
-              <Play size={20} color={c.white} fill={c.white} />
-            ) : (
-              <Pause size={20} color={c.white} fill={c.white} />
-            )}
-          </TouchableOpacity>
-
-          <Text style={styles.timeText}>-{formatTime(remaining)}</Text>
-
-          <View style={{ flex: 1 }} />
-
-          <TouchableOpacity onPress={toggleMute} activeOpacity={0.7} hitSlop={8}>
-            {isMuted ? (
-              <VolumeX size={20} color={c.white} />
-            ) : (
-              <Volume2 size={20} color={c.white} />
-            )}
-          </TouchableOpacity>
-        </View>
+      {/* ─── Amber progress bar ─── */}
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+        <View style={[styles.progressGlow, { left: `${Math.round(progress * 100)}%` }]} />
       </View>
     </View>
   )
@@ -363,126 +350,203 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
   },
+
+  // ─── Top bar ───
   topBar: {
     position: 'absolute',
-    top: 50,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingTop: 16,
     zIndex: 10,
   },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+  handleArea: {
+    padding: 12,
   },
+  dismissHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    marginTop: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#f59e0b',
+  },
+  liveText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontFamily: font.semibold,
+    letterSpacing: 0.5,
+  },
+
+  // ─── Bottom gradient ───
   bottomGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 300,
+    height: 350,
     zIndex: 2,
   },
-  // ─── TikTok-style vertical action bar ───
+
+  // ─── Right action bar ───
   actionBar: {
     position: 'absolute',
     right: 12,
-    bottom: 180,
+    bottom: 140,
     alignItems: 'center',
     gap: 20,
     zIndex: 8,
+  },
+  profileAction: {
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  avatarBorder: {
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  plusBadge: {
+    position: 'absolute',
+    bottom: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#000',
   },
   actionItem: {
     alignItems: 'center',
     gap: 4,
   },
   actionLabel: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontFamily: font.medium,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontFamily: font.semibold,
   },
-  // ─── User info + caption ───
-  userInfo: {
-    position: 'absolute',
-    bottom: 120,
-    left: 16,
-    right: 70,
-    flexDirection: 'row',
+  musicDisk: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  musicDiskMuted: {
+    opacity: 0.5,
+  },
+
+  // ─── Bottom content overlay ───
+  bottomContent: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 72,
     zIndex: 5,
   },
-  userTextCol: {
-    marginLeft: 10,
-    flex: 1,
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
   },
   userName: {
-    color: c.white,
+    color: '#fff',
     fontFamily: font.bold,
-    fontSize: 15,
+    fontSize: 16,
   },
-  metaRow: {
+  followBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  followText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: font.semibold,
+  },
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    gap: 4,
+    marginBottom: 6,
   },
-  metaText: {
+  locationText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
-    marginLeft: 3,
+    fontFamily: font.medium,
   },
-  captionBox: {
-    position: 'absolute',
-    bottom: 80,
-    left: 16,
-    right: 70,
-    zIndex: 5,
-  },
-  captionText: {
-    color: c.white,
+  caption: {
+    color: '#fff',
     fontSize: 14,
     lineHeight: 20,
+    fontFamily: font.regular,
+    marginBottom: 8,
   },
-  // ─── Progress + control bar ───
+  musicTicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  musicText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontFamily: font.medium,
+    flex: 1,
+  },
+
+  // ─── Amber progress bar ───
   progressTrack: {
-    position: 'absolute',
-    bottom: 48,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    zIndex: 6,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: c.white,
-  },
-  controlBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 48,
-    overflow: 'hidden',
-    zIndex: 5,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    zIndex: 10,
   },
-  controlBarContent: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 14,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#f59e0b',
+    borderRadius: 2,
   },
-  timeText: {
-    color: c.white,
-    fontSize: 14,
-    fontFamily: font.semibold,
-    minWidth: 44,
+  progressGlow: {
+    position: 'absolute',
+    top: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fbbf24',
+    marginLeft: -4,
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
 })

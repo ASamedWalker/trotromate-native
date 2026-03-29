@@ -16,8 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
-import { MessageCircle, MapPin, Plus, Camera, Trash2, Flag, Video } from 'lucide-react-native'
-import { c, themed, font, shadow } from '@/lib/theme'
+import { MessageCircle, MapPin, Plus, Camera, Trash2, Flag, MoreVertical } from 'lucide-react-native'
+import { font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -32,10 +32,23 @@ import ImageCarousel from '@/components/ImageCarousel'
 import VideoPlayer from '@/components/VideoPlayer'
 import type { TalePost } from '@/lib/types'
 
+// ─── Contributor badge tiers ────────────────────────────
+
+function getContributorBadge(post: TalePost): { label: string; color: string; ringColor: string } {
+  // Simple heuristic based on post type + device hash
+  const hash = post.device_id.charCodeAt(post.device_id.length - 1) % 4
+  if (hash === 0) return { label: 'Local Expert', color: '#7c3aed', ringColor: '#a78bfa' }
+  if (hash === 1) return { label: 'Road Scout', color: '#d97706', ringColor: '#fbbf24' }
+  if (hash === 2) return { label: 'Commuter', color: '#0891b2', ringColor: '#22d3ee' }
+  return { label: 'Explorer', color: '#15803d', ringColor: '#4ade80' }
+}
+
 function getDisplayName(post: TalePost): string {
   if (post.display_name) return post.display_name
   return `User-${post.device_id.slice(-4).toUpperCase()}`
 }
+
+// ─── TaleCard ───────────────────────────────────────────
 
 function TaleCard({
   post,
@@ -66,17 +79,11 @@ function TaleCard({
   onProfilePress: () => void
   onVideoPress?: () => void
 }) {
-  const t = themed(isDark)
   const s = cardStyles(isDark)
   const [showMenu, setShowMenu] = useState(false)
-
-  const postTypeEmoji: Record<string, string> = {
-    trip: '🚐',
-    queue: '🧑‍🤝‍🧑',
-    tale: '📸',
-  }
-
+  const badge = getContributorBadge(post)
   const displayName = getDisplayName(post)
+  const screenWidth = Dimensions.get('window').width
 
   const handleDelete = useCallback(() => {
     setShowMenu(false)
@@ -93,68 +100,50 @@ function TaleCard({
 
   return (
     <View style={s.card}>
-      {/* Header */}
-      <View style={s.cardHeader}>
+      {/* ── Header ── */}
+      <View style={s.header}>
         <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-          <InitialsAvatar
-            name={post.display_name}
-            deviceId={post.device_id}
-            size={40}
-          />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 10, marginRight: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-              <Text style={s.name} numberOfLines={1}>{displayName}</Text>
-            </TouchableOpacity>
-            <Text style={s.typeEmoji}>{postTypeEmoji[post.post_type] ?? '📸'}</Text>
-            {post.media_type === 'video' && (
-              <View style={s.videoBadge}>
-                <Video size={10} color={c.white} />
-                <Text style={s.videoBadgeText}>VIDEO</Text>
-              </View>
-            )}
+          <View style={[s.avatarRing, { borderColor: badge.ringColor }]}>
+            <InitialsAvatar
+              name={post.display_name}
+              deviceId={post.device_id}
+              size={38}
+            />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MapPin size={12} color={t.textTertiary} />
-            <Text style={s.location} numberOfLines={1}>{post.location_name}</Text>
-            <Text style={s.timeText}> · {timeAgo(post.created_at)}</Text>
+        </TouchableOpacity>
+
+        <View style={s.headerInfo}>
+          <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
+            <Text style={s.name} numberOfLines={1}>{displayName}</Text>
+          </TouchableOpacity>
+          <View style={s.headerMeta}>
+            <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>
+            <View style={s.metaDot} />
+            <Text style={s.timeText}>{timeAgo(post.created_at)}</Text>
           </View>
         </View>
 
-        {/* 3-dot menu — Pressable for Android compatibility */}
         <Pressable
           onPress={() => setShowMenu(!showMenu)}
           style={s.menuBtn}
           hitSlop={8}
         >
-          <Text style={s.menuDots}>•••</Text>
+          <MoreVertical size={18} color={isDark ? 'rgba(255,255,255,0.4)' : '#7a7674'} />
         </Pressable>
       </View>
 
-      {/* Menu dropdown — rendered as card child to avoid overflow clipping */}
+      {/* Menu dropdown */}
       {showMenu && (
         <>
-          <Pressable
-            style={s.menuOverlay}
-            onPress={() => setShowMenu(false)}
-          />
+          <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)} />
           <View style={s.menuDropdown}>
-            <TouchableOpacity
-              onPress={handleReport}
-              activeOpacity={0.7}
-              style={s.menuItem}
-            >
-              <Flag size={16} color={t.textSecondary} />
+            <TouchableOpacity onPress={handleReport} activeOpacity={0.7} style={s.menuItem}>
+              <Flag size={16} color={isDark ? '#a8a29e' : '#78716c'} />
               <Text style={s.menuItemText}>Report</Text>
             </TouchableOpacity>
             {isOwn && onDelete && (
-              <TouchableOpacity
-                onPress={handleDelete}
-                activeOpacity={0.7}
-                style={s.menuItem}
-              >
-                <Trash2 size={16} color={c.red500} />
+              <TouchableOpacity onPress={handleDelete} activeOpacity={0.7} style={s.menuItem}>
+                <Trash2 size={16} color="#ef4444" />
                 <Text style={s.menuItemTextDanger}>Delete</Text>
               </TouchableOpacity>
             )}
@@ -162,53 +151,59 @@ function TaleCard({
         </>
       )}
 
-      {/* Media — video or image(s) */}
-      {post.media_type === 'video' && post.video_url ? (
-        <VideoPlayer
-          uri={post.video_url}
-          thumbnailUri={post.video_thumbnail_url}
-          width={Dimensions.get('window').width - 24}
-          isVisible={isVisible}
-          isMounted={isMounted}
-          durationSecs={post.video_duration_secs}
-          onExpand={onVideoPress}
-        />
-      ) : post.image_url ? (
-        <ImageCarousel
-          images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
-          width={Dimensions.get('window').width - 24}
-        />
-      ) : null}
+      {/* ── Media (4:5 aspect) ── */}
+      <View style={s.mediaWrap}>
+        {post.media_type === 'video' && post.video_url ? (
+          <VideoPlayer
+            uri={post.video_url}
+            thumbnailUri={post.video_thumbnail_url}
+            width={screenWidth - 32}
+            isVisible={isVisible}
+            isMounted={isMounted}
+            durationSecs={post.video_duration_secs}
+            onExpand={onVideoPress}
+          />
+        ) : post.image_url ? (
+          <ImageCarousel
+            images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
+            width={screenWidth - 32}
+          />
+        ) : null}
 
-      {/* Reactions */}
+        {/* Video badge */}
+        {post.media_type === 'video' && (
+          <View style={s.videoBadge}>
+            <View style={s.videoBadgeDot} />
+            <Text style={s.videoBadgeText}>LIVE</Text>
+          </View>
+        )}
+
+        {/* Location pill overlay */}
+        <View style={s.locationPill}>
+          <MapPin size={12} color="#f8a010" />
+          <Text style={s.locationPillText} numberOfLines={1}>{post.location_name}</Text>
+        </View>
+      </View>
+
+      {/* ── Caption ── */}
+      {post.caption && (
+        <View style={s.captionWrap}>
+          <Text style={s.captionText}>{post.caption}</Text>
+        </View>
+      )}
+
+      {/* ── Reaction Bar ── */}
       <ReactionBar
         reactionSummary={reactionSummary}
         userReactions={userReactions}
         onReact={onReact}
       />
 
-      {/* Comment button */}
-      <View style={s.actions}>
-        <TouchableOpacity onPress={onComment} style={s.actionBtn} activeOpacity={0.7}>
-          <MessageCircle size={22} color={t.textSecondary} />
-          <Text style={s.actionCount}>
-            {post.comment_count} comment{post.comment_count !== 1 ? 's' : ''}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Caption */}
-      {post.caption && (
-        <View style={s.captionRow}>
-          <Text style={s.captionName}>{displayName}</Text>
-          <Text style={s.captionText}> {post.caption}</Text>
-        </View>
-      )}
-
-      {/* View comments link */}
+      {/* ── Comment link ── */}
       {post.comment_count > 0 && (
-        <TouchableOpacity onPress={onComment} style={s.viewComments} activeOpacity={0.7}>
-          <Text style={s.viewCommentsText}>
+        <TouchableOpacity onPress={onComment} style={s.commentLink} activeOpacity={0.7}>
+          <MessageCircle size={14} color={isDark ? 'rgba(255,255,255,0.4)' : '#7a7674'} />
+          <Text style={s.commentLinkText}>
             View all {post.comment_count} comment{post.comment_count !== 1 ? 's' : ''}
           </Text>
         </TouchableOpacity>
@@ -217,12 +212,13 @@ function TaleCard({
   )
 }
 
+// ─── Main Screen ────────────────────────────────────────
+
 export default function TalesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
-  const t = themed(isDark)
 
   const isFocused = useIsFocused()
   const { deviceId } = useApp()
@@ -240,7 +236,7 @@ export default function TalesScreen() {
   // Listen for comment open signal from reel screen
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('openComment', (postId: string) => {
-      setTimeout(() => setCommentPostId(postId), 300) // slight delay for navigation to settle
+      setTimeout(() => setCommentPostId(postId), 300)
     })
     return () => sub.remove()
   }, [])
@@ -276,8 +272,6 @@ export default function TalesScreen() {
   }
 
   const renderItem = ({ item, index }: { item: TalePost; index: number }) => {
-    // Videos >3 positions from any visible post get unmounted to save memory
-    // When screen loses focus (reel opened), pause all videos
     const isVisible = isFocused && visiblePostIds.has(item.id)
     const isMounted = item.media_type !== 'video' || isVisible ||
       posts.some((p, i) => visiblePostIds.has(p.id) && Math.abs(i - index) <= 3)
@@ -312,13 +306,16 @@ export default function TalesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>Troski Tales</Text>
+        <View style={s.headerLeft}>
+          <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={36} />
+          <Text style={s.headerTitle}>Tales</Text>
+        </View>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}
           style={s.newBtn}
           activeOpacity={0.7}
         >
-          <Plus size={20} color={c.white} />
+          <Camera size={18} color={isDark ? '#312e2d' : '#fff0e3'} />
         </TouchableOpacity>
       </View>
 
@@ -330,7 +327,7 @@ export default function TalesScreen() {
         </View>
       ) : posts.length === 0 ? (
         <View style={s.centered}>
-          <Camera size={48} color={t.textTertiary} />
+          <Camera size={48} color={isDark ? '#57534e' : '#a8a29e'} />
           <Text style={s.emptyTitle}>No tales yet</Text>
           <Text style={s.emptySub}>Be the first to share a Trotro Tale!</Text>
           <TouchableOpacity
@@ -338,6 +335,7 @@ export default function TalesScreen() {
             style={s.emptyBtn}
             activeOpacity={0.8}
           >
+            <Plus size={16} color="#fff" />
             <Text style={s.emptyBtnText}>Share a Tale</Text>
           </TouchableOpacity>
         </View>
@@ -347,7 +345,7 @@ export default function TalesScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={c.amber500} />
+            <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor="#815100" />
           }
           onEndReached={hasMore ? loadMore : undefined}
           onEndReachedThreshold={0.5}
@@ -355,15 +353,14 @@ export default function TalesScreen() {
           viewabilityConfig={viewabilityConfig}
           ListFooterComponent={
             hasMore ? (
-              <ActivityIndicator size="small" color={c.amber500} style={{ paddingVertical: 20 }} />
+              <ActivityIndicator size="small" color="#815100" style={{ paddingVertical: 20 }} />
             ) : null
           }
-          contentContainerStyle={{ paddingBottom: 90 }}
+          contentContainerStyle={{ paddingBottom: 90, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
         />
       )}
 
-      {/* Comment Sheet */}
       <CommentSheet
         postId={commentPostId}
         visible={commentPostId !== null}
@@ -373,81 +370,154 @@ export default function TalesScreen() {
   )
 }
 
+// ─── Card Styles ────────────────────────────────────────
+
 const cardStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(178,172,170,0.15)'
+
   return StyleSheet.create({
     card: {
-      backgroundColor: t.card,
-      marginHorizontal: 12,
-      marginBottom: 14,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: t.border,
+      backgroundColor: surfaceLow,
+      marginHorizontal: 16,
+      marginBottom: 20,
+      borderRadius: 20,
       overflow: 'hidden',
-      ...shadow.card,
     },
-    cardHeader: {
+
+    // ── Header ──
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
     },
-    name: { fontFamily: font.bold, fontSize: 14, color: t.text, flexShrink: 1 },
-    typeEmoji: { fontSize: 14, marginLeft: 6 },
-    videoBadge: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 3,
-      backgroundColor: c.red500,
-      borderRadius: 4,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      marginLeft: 6,
+    avatarRing: {
+      borderWidth: 2,
+      borderRadius: 22,
+      padding: 2,
     },
-    videoBadgeText: {
-      color: c.white,
-      fontSize: 9,
+    headerInfo: {
+      flex: 1,
+      marginLeft: 10,
+    },
+    name: {
+      fontFamily: font.semibold,
+      fontSize: 14,
+      color: onSurface,
+      lineHeight: 18,
+    },
+    headerMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
+    badgeText: {
+      fontSize: 10,
       fontFamily: font.bold,
-      letterSpacing: 0.5,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
     },
-    location: { fontSize: 12, color: t.textSecondary, marginLeft: 4, flexShrink: 1 },
-    timeText: { fontSize: 12, color: t.textTertiary },
-    image: {
-      height: (Dimensions.get('window').width - 32) * 3 / 4,
+    metaDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#b2acaa',
     },
-    actions: {
-      flexDirection: 'row',
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      gap: 16,
+    timeText: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
     },
-    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    actionCount: { fontSize: 14, color: t.textSecondary, fontFamily: font.semibold },
-    captionRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 14,
-      paddingBottom: 6,
-      flexWrap: 'wrap',
-    },
-    captionName: { fontFamily: font.bold, fontSize: 14, color: t.text },
-    captionText: { fontSize: 14, color: t.text, lineHeight: 20 },
-    viewComments: { paddingHorizontal: 14, paddingBottom: 14 },
-    viewCommentsText: { fontSize: 13, fontFamily: font.medium, color: t.textSecondary },
     menuBtn: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    menuDots: {
-      fontSize: 16,
+
+    // ── Media ──
+    mediaWrap: {
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    videoBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: '#2563eb',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+    },
+    videoBadgeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#fff',
+    },
+    videoBadgeText: {
+      fontSize: 10,
       fontFamily: font.bold,
-      color: t.textTertiary,
-      letterSpacing: 2,
+      color: '#fff',
+      letterSpacing: 1.5,
     },
+    locationPill: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'rgba(255,255,255,0.4)',
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 14,
+      maxWidth: '80%',
+    },
+    locationPillText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: onSurface,
+    },
+
+    // ── Caption ──
+    captionWrap: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 4,
+    },
+    captionText: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurface,
+      lineHeight: 20,
+    },
+
+    // ── Comments ──
+    commentLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+    },
+    commentLinkText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+    },
+
+    // ── Menu ──
     menuOverlay: {
-      position: 'absolute' as const,
+      position: 'absolute',
       top: -200,
       left: -400,
       right: -400,
@@ -455,21 +525,25 @@ const cardStyles = (isDark: boolean) => {
       zIndex: 10,
     },
     menuDropdown: {
-      position: 'absolute' as const,
-      right: 14,
-      top: 54,
+      position: 'absolute',
+      right: 16,
+      top: 52,
       zIndex: 20,
       backgroundColor: isDark ? '#292524' : '#ffffff',
-      borderRadius: 12,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: isDark ? '#44403c' : '#d6d3d1',
+      borderColor: outlineVariant,
       paddingVertical: 4,
       minWidth: 140,
-      ...shadow.cardStrong,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 6,
     },
     menuItem: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 10,
       paddingHorizontal: 14,
       paddingVertical: 10,
@@ -477,47 +551,63 @@ const cardStyles = (isDark: boolean) => {
     menuItemText: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: t.text,
+      color: onSurface,
     },
     menuItemTextDanger: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: c.red500,
+      color: '#ef4444',
     },
   })
 }
 
+// ─── Screen Styles ──────────────────────────────────────
+
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
+    container: { flex: 1, backgroundColor: surface },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 12,
+      paddingVertical: 12,
     },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    headerTitle: {
+      fontSize: 22,
+      fontFamily: font.extrabold,
+      color: isDark ? '#fef3c7' : '#78350f',
+      letterSpacing: -0.5,
+    },
     newBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: c.pink500,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#815100',
       alignItems: 'center',
       justifyContent: 'center',
     },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-    emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: t.textSecondary, marginTop: 16 },
-    emptySub: { fontSize: 14, color: t.textTertiary, marginTop: 4, textAlign: 'center' },
+    emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 16 },
+    emptySub: { fontSize: 14, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
     emptyBtn: {
       marginTop: 20,
-      backgroundColor: c.pink500,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: '#815100',
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 16,
     },
-    emptyBtnText: { color: c.white, fontFamily: font.semibold },
+    emptyBtnText: { color: '#fff0e3', fontFamily: font.bold, fontSize: 14 },
   })
 }
