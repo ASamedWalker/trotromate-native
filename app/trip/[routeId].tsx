@@ -416,28 +416,70 @@ export default function TripScreen() {
   }, [progress, tripStations])
   const shouldFollowUser = isActive && isNearRoute
 
-  // Simulated progress for remote testing — advances ~1% every 3s (full trip in ~5 min)
+  // Schedule-aware simulated progress for remote testing
+  // Pauses at each station for the scheduled dwell time, moves between stations
   const [simProgress, setSimProgress] = useState(0)
   const isNearRouteRef = useRef(isNearRoute)
   isNearRouteRef.current = isNearRoute
+  const simDwellUntilRef = useRef(0) // timestamp when dwell ends
 
   useEffect(() => {
     if (!isActive) return
-    // Start simulation immediately — check isNearRoute via ref to avoid stale closure
+
+    // Build dwell time map from schedule (in seconds)
+    const dwellMap = new Map<number, number>() // stationIndex → dwell seconds
+    if (activeSchedule && tripStations) {
+      for (let i = 0; i < tripStations.length; i++) {
+        const sched = activeSchedule.stopMap.get(tripStations[i].name.toLowerCase())
+        if (sched?.arrive && sched?.depart) {
+          const [aH, aM] = sched.arrive.split(':').map(Number)
+          const [dH, dM] = sched.depart.split(':').map(Number)
+          const dwellMins = (dH * 60 + dM) - (aH * 60 + aM)
+          if (dwellMins > 0) {
+            // Scale: 1 real minute of dwell → 3 seconds in simulation
+            dwellMap.set(i, Math.max(dwellMins * 3, 2))
+          }
+        }
+      }
+    }
+
+    const totalStations = tripStations?.length ?? 1
     const interval = setInterval(() => {
-      if (isNearRouteRef.current) return // skip if user is actually near the route
+      if (isNearRouteRef.current) return
+
+      const now = Date.now()
+
+      // If we're dwelling at a station, don't advance
+      if (simDwellUntilRef.current > now) return
+
       setSimProgress((prev) => {
         const next = Math.min(prev + 1, 98)
-        console.log('[GO Mode] simProgress:', next)
+
+        // Check if we just arrived at a station (each station = 100/totalStations %)
+        if (totalStations > 1) {
+          const stationPct = 100 / (totalStations - 1)
+          const stationIdx = Math.round(next / stationPct)
+          const atStation = Math.abs(next - stationIdx * stationPct) < 1.5
+
+          if (atStation && dwellMap.has(stationIdx)) {
+            const dwellSecs = dwellMap.get(stationIdx)!
+            simDwellUntilRef.current = now + dwellSecs * 1000
+            console.log(`[GO Mode] Dwelling at station ${stationIdx} for ${dwellSecs}s`)
+          }
+        }
+
         return next
       })
-    }, 3000)
+    }, 2000)
     return () => clearInterval(interval)
-  }, [isActive])
+  }, [isActive, activeSchedule, tripStations])
 
   // Reset sim progress when trip starts
   useEffect(() => {
-    if (tripState === 'idle') setSimProgress(0)
+    if (tripState === 'idle') {
+      setSimProgress(0)
+      simDwellUntilRef.current = 0
+    }
   }, [tripState])
 
   // Effective progress: real GPS when near, simulated when far
