@@ -34,31 +34,19 @@ import { useStations } from '@/lib/hooks/useStations'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { getStationCoords } from '@/lib/utils/station-coords'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
-import { getWaitEstimate, type StationWithQueue, type QueueStatus } from '@/lib/services/stations'
+import { getWaitEstimate } from '@/lib/services/stations'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
-import { getGhanaTime } from '@/lib/utils/time'
-import {
-  TrotroStationIcon,
-  TrainStationIcon,
-  MajorStationIcon,
-  QueueActiveIcon,
-} from '@/components/MapMarkers'
+import { getGhanaTime, timeAgo } from '@/lib/utils/time'
+import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
+import { IncidentMapPin, INCIDENT_CONFIGS } from '@/components/IncidentMapPin'
+import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
+import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
 
 /* ── Constants ─────────────────────────────────────── */
 
 const ACCRA_CENTER: [number, number] = [-0.187, 5.6037]
-
-const QUEUE_COLORS: Record<QueueStatus, string> = {
-  empty: '#22c55e',
-  short: '#22c55e',
-  moderate: '#f59e0b',
-  long: '#f97316',
-  very_long: '#ef4444',
-}
-
-const TROSKI_ORANGE = '#e88a3a'
 
 // Pre-compute train station names for map layer filtering
 const TRAIN_STATION_NAMES = new Set(
@@ -121,9 +109,79 @@ function getGreeting(): string {
   return `${period} · ${h}:${mm} ${ampm}`
 }
 
-function getStationColor(station: StationWithQueue): string {
-  const status = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
-  return status ? QUEUE_COLORS[status] : TROSKI_ORANGE
+/* ── Incident Callout ──────────────────────────────── */
+
+const INCIDENT_LABELS: Record<string, string> = {
+  traffic: 'Heavy Traffic',
+  accident: 'Accident Reported',
+  police: 'Police Checkpoint',
+  police_checkpoint: 'Police Checkpoint',
+  roadwork: 'Road Work',
+  road_closure: 'Road Closed',
+  flooding: 'Flooding / Hazard',
+  breakdown: 'Breakdown / Work',
+}
+
+function IncidentCallout({ incident, onClose }: { incident: ActiveIncident; onClose: () => void }) {
+  const config = INCIDENT_CONFIGS[incident.incident_type]
+  const color = config?.color ?? '#ef4444'
+  const label = INCIDENT_LABELS[incident.incident_type] ?? incident.incident_type
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onClose}
+      style={{
+        alignItems: 'center',
+        marginBottom: 8,
+      }}
+    >
+      <View style={{
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        minWidth: 180,
+        maxWidth: 260,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: color,
+      }}>
+        <Text style={{
+          fontSize: 14,
+          fontFamily: font.bold,
+          color: color,
+          marginBottom: 2,
+        }}>{label}</Text>
+        <Text style={{
+          fontSize: 13,
+          fontFamily: font.medium,
+          color: '#312e2d',
+        }} numberOfLines={1}>{incident.location_name}</Text>
+        <Text style={{
+          fontSize: 11,
+          fontFamily: font.regular,
+          color: '#7a7674',
+          marginTop: 3,
+        }}>{timeAgo(incident.reported_at)}</Text>
+      </View>
+      {/* Arrow pointing down to the pin */}
+      <View style={{
+        width: 0,
+        height: 0,
+        borderLeftWidth: 8,
+        borderRightWidth: 8,
+        borderTopWidth: 8,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+        borderTopColor: '#fff',
+      }} />
+    </TouchableOpacity>
+  )
 }
 
 /* ── Component ─────────────────────────────────────── */
@@ -140,52 +198,51 @@ export default function HomeScreen() {
   const { tripState, activeTrip, endTrip } = useTrip()
   const { stations } = useStations()
   const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
+  const { incidents } = useActiveIncidents()
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
   const [serviceMode, setServiceMode] = useState<ServiceMode>('trotro')
   const [searchVisible, setSearchVisible] = useState(false)
+  const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
 
   const center: [number, number] = location
     ? [location.longitude, location.latitude]
     : ACCRA_CENTER
 
-  // Station dots GeoJSON — differentiate trotro (amber) vs train (blue)
-  const stationGeojson = useMemo(() => {
-    const features = stations
+  // Station pin data for PointAnnotations
+  const stationPins = useMemo(() => {
+    return stations
       .map((station) => {
         const coords = getStationCoords(station)
         if (!coords) return null
         const stat = station.queue_stats?.[0]
         const waitText = stat ? getWaitEstimate(stat) : ''
-        const isTrain = TRAIN_STATION_NAMES.has(station.name.toLowerCase()) ? 1 : 0
-        const hasQueue = stat ? 1 : 0
-        // Determine which custom marker icon to use
-        let markerIcon = 'marker-trotro'
-        if (isTrain) markerIcon = 'marker-train'
-        else if (hasQueue) markerIcon = 'marker-queue'
-        else if (station.is_major) markerIcon = 'marker-major'
+        const isTrain = TRAIN_STATION_NAMES.has(station.name.toLowerCase())
+        const hasQueue = !!stat
+
+        let pinType: StationPinType = 'trotro'
+        if (isTrain) pinType = 'train'
+        else if (hasQueue) pinType = 'queue'
+        else if (station.is_major) pinType = 'major'
 
         return {
-          type: 'Feature' as const,
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [coords.longitude, coords.latitude],
-          },
-          properties: {
-            id: station.id,
-            name: station.name,
-            color: isTrain ? '#0ea5e9' : getStationColor(station),
-            waitText,
-            isMajor: station.is_major ? 1 : 0,
-            isTrain,
-            hasQueue,
-            markerIcon,
-          },
+          id: station.id,
+          name: station.name,
+          coordinate: [coords.longitude, coords.latitude] as [number, number],
+          pinType,
+          waitText,
+          queueStatus: stat?.current_status,
         }
       })
-      .filter(Boolean)
-    return { type: 'FeatureCollection' as const, features }
+      .filter(Boolean) as Array<{
+        id: string
+        name: string
+        coordinate: [number, number]
+        pinType: StationPinType
+        waitText: string
+        queueStatus?: string
+      }>
   }, [stations])
 
   // Train route polylines (TMA = blue, TMP = sky)
@@ -271,14 +328,6 @@ export default function HomeScreen() {
 
         <Mapbox.UserLocation visible animated />
 
-        {/* Register custom marker icons */}
-        <Mapbox.Images>
-          <Mapbox.Image name="marker-trotro"><TrotroStationIcon size={32} /></Mapbox.Image>
-          <Mapbox.Image name="marker-train"><TrainStationIcon size={32} /></Mapbox.Image>
-          <Mapbox.Image name="marker-major"><MajorStationIcon size={36} /></Mapbox.Image>
-          <Mapbox.Image name="marker-queue"><QueueActiveIcon size={44} /></Mapbox.Image>
-        </Mapbox.Images>
-
         {/* Train route lines — blue polylines */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
           <Mapbox.LineLayer
@@ -294,85 +343,53 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* All stations — custom icon markers */}
-        <Mapbox.ShapeSource id="home-stations" shape={stationGeojson as any}>
-          {/* Glow rings behind queue-active stations */}
-          <Mapbox.CircleLayer
-            id="home-station-glow-outer"
-            belowLayerID="home-station-icons"
-            filter={['==', ['get', 'hasQueue'], 1]}
-            style={{
-              circleRadius: 26,
-              circleColor: '#f59e0b',
-              circleOpacity: 0.08,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="home-station-glow-inner"
-            belowLayerID="home-station-icons"
-            filter={['==', ['get', 'hasQueue'], 1]}
-            style={{
-              circleRadius: 16,
-              circleColor: '#f59e0b',
-              circleOpacity: 0.15,
-            }}
-          />
-          {/* Custom icon markers */}
-          <Mapbox.SymbolLayer
-            id="home-station-icons"
-            style={{
-              iconImage: ['get', 'markerIcon'],
-              iconSize: 1,
-              iconAllowOverlap: true,
-              iconAnchor: 'bottom',
-            }}
-          />
-          {/* Station name labels */}
-          <Mapbox.SymbolLayer
-            id="home-station-labels"
-            minZoomLevel={12}
-            style={{
-              textField: ['get', 'name'],
-              textSize: [
-                'case',
-                ['==', ['get', 'isTrain'], 1], 11,
-                ['==', ['get', 'isMajor'], 1], 11,
-                10,
-              ],
-              textColor: [
-                'case',
-                ['==', ['get', 'isTrain'], 1], '#0ea5e9',
-                isDark ? '#d1d5db' : '#374151',
-              ],
-              textHaloColor: isDark ? '#111827' : '#ffffff',
-              textHaloWidth: 1.5,
-              textOffset: [0, 0.3],
-              textAnchor: 'top',
-              textAllowOverlap: false,
-              textFont: [
-                'case',
-                ['==', ['get', 'isTrain'], 1], ['literal', ['DIN Pro Bold', 'Arial Unicode MS Bold']],
-                ['==', ['get', 'isMajor'], 1], ['literal', ['DIN Pro Bold', 'Arial Unicode MS Bold']],
-                ['literal', ['DIN Pro Medium', 'Arial Unicode MS Regular']],
-              ] as any,
-            }}
-          />
-          {/* Wait time labels below name */}
-          <Mapbox.SymbolLayer
-            id="home-station-wait"
-            minZoomLevel={12}
-            filter={['!=', ['get', 'waitText'], '']}
-            style={{
-              textField: ['get', 'waitText'],
-              textSize: 9,
-              textColor: isDark ? '#9ca3af' : '#6b7280',
-              textOffset: [0, 1.6],
-              textAnchor: 'top',
-              textAllowOverlap: false,
-              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-            }}
-          />
-        </Mapbox.ShapeSource>
+        {/* All stations — Waze-style animated PointAnnotations */}
+        {/* All stations — Waze-style animated MarkerViews */}
+        {stationPins.map((pin) => (
+          <Mapbox.MarkerView
+            key={pin.id}
+            coordinate={pin.coordinate}
+            allowOverlap={false}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <StationMapPin
+              type={pin.pinType}
+              name={pin.name}
+              waitText={pin.waitText}
+              queueStatus={pin.queueStatus as any}
+            />
+          </Mapbox.MarkerView>
+        ))}
+
+        {/* Incident pins — Waze-style animated MarkerViews */}
+        {incidents.map((inc) => (
+          <Mapbox.MarkerView
+            key={inc.id}
+            coordinate={[inc.longitude, inc.latitude]}
+            allowOverlap
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <IncidentMapPin
+              type={inc.incident_type}
+              createdAt={inc.reported_at}
+              onPress={() => setSelectedIncident(selectedIncident?.id === inc.id ? null : inc)}
+            />
+          </Mapbox.MarkerView>
+        ))}
+
+        {/* Incident callout tooltip */}
+        {selectedIncident && (
+          <Mapbox.MarkerView
+            coordinate={[selectedIncident.longitude, selectedIncident.latitude]}
+            allowOverlap
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <IncidentCallout
+              incident={selectedIncident}
+              onClose={() => setSelectedIncident(null)}
+            />
+          </Mapbox.MarkerView>
+        )}
       </Mapbox.MapView>
 
       {/* ── Floating search bar + service pills ── */}
@@ -422,6 +439,16 @@ export default function HomeScreen() {
           <View style={s.queueBadgeDot} />
           <Text style={s.queueBadgeText}>
             {activeQueueCount} live queue{activeQueueCount !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+
+      {/* Live incidents badge */}
+      {incidents.length > 0 && (
+        <View style={s.incidentBadge}>
+          <View style={s.incidentBadgeDot} />
+          <Text style={s.incidentBadgeText}>
+            {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
           </Text>
         </View>
       )}
@@ -660,6 +687,40 @@ const getStyles = (isDark: boolean) => {
       fontSize: 12,
       fontFamily: font.semibold,
       color: '#fff',
+    },
+
+    // Incident badge
+    incidentBadge: {
+      position: 'absolute',
+      left: 16,
+      bottom: '27%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.95)',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 6,
+        },
+        android: { elevation: 4 },
+      }),
+    },
+    incidentBadgeDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#ef4444',
+    },
+    incidentBadgeText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.text,
     },
 
   })
