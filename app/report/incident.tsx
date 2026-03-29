@@ -68,6 +68,7 @@ export default function IncidentReportScreen() {
   const { stations } = useStations()
 
   const [location, setLocation] = useState('')
+  const [pickedStation, setPickedStation] = useState<{ latitude?: number; longitude?: number } | null>(null)
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'acquired' | 'denied' | 'error'>('loading')
   const [selectedType, setSelectedType] = useState<string | null>(null)
@@ -151,10 +152,10 @@ export default function IncidentReportScreen() {
       return
     }
 
-    // GPS is primary coordinate source; station coords are fallback
-    const stationMatch = stations.find((st) => st.name === location.trim())
-    const lat = gpsCoords?.latitude ?? stationMatch?.latitude
-    const lng = gpsCoords?.longitude ?? stationMatch?.longitude
+    // If user manually picked a station, use its coords (they chose that spot).
+    // GPS is used when location was auto-filled (user is physically there).
+    const lat = pickedStation?.latitude ?? gpsCoords?.latitude
+    const lng = pickedStation?.longitude ?? gpsCoords?.longitude
 
     const result = await submit(
       location.trim(),
@@ -349,6 +350,7 @@ export default function IncidentReportScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setLocation(station.name)
+                    setPickedStation({ latitude: station.latitude, longitude: station.longitude })
                     setLocationModalVisible(false)
                     setSearch('')
                   }}
@@ -372,6 +374,7 @@ export default function IncidentReportScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setLocation(search.trim())
+                  setPickedStation(null)
                   setLocationModalVisible(false)
                   setSearch('')
                 }}
