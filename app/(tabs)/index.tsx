@@ -38,7 +38,6 @@ import { getWaitEstimate } from '@/lib/services/stations'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
 import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
-import { IncidentMapPin } from '@/components/IncidentMapPin'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
@@ -110,11 +109,25 @@ function getGreeting(): string {
   return `${period} · ${h}:${mm} ${ampm}`
 }
 
+/** Auto night mode — dark map style between 6 PM and 6 AM Ghana time */
+function useAutoMapStyle(isDark: boolean): string {
+  const { hours } = getGhanaTime()
+  const isNightInGhana = hours >= 18 || hours < 6
+  if (isDark || isNightInGhana) return Mapbox.StyleURL.Dark
+  return Mapbox.StyleURL.Street
+}
+
+/** Mapbox traffic-aware style URLs */
+const TRAFFIC_STYLE_LIGHT = 'mapbox://styles/mapbox/navigation-day-v1'
+const TRAFFIC_STYLE_DARK = 'mapbox://styles/mapbox/navigation-night-v1'
+
 /* ── Component ─────────────────────────────────────── */
 
 export default function HomeScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
+  const mapStyle = useAutoMapStyle(isDark)
+  const isNightMap = mapStyle === Mapbox.StyleURL.Dark
   const s = getStyles(isDark)
 
   const { profile, deviceId } = useApp()
@@ -136,7 +149,7 @@ export default function HomeScreen() {
     ? [location.longitude, location.latitude]
     : ACCRA_CENTER
 
-  // GeoJSON for incident tap detection (invisible layer — visual pins are MarkerViews)
+  // GeoJSON for incident markers — offset slightly so they don't hide behind station MarkerViews
   const incidentGeojson = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: incidents.map((inc) => ({
@@ -144,7 +157,8 @@ export default function HomeScreen() {
       id: inc.id,
       geometry: {
         type: 'Point' as const,
-        coordinates: [inc.longitude, inc.latitude],
+        // Offset ~80m north-east so incident dot sits beside the station pin, not under it
+        coordinates: [inc.longitude + 0.0005, inc.latitude + 0.0005],
       },
       properties: {
         id: inc.id,
@@ -257,7 +271,7 @@ export default function HomeScreen() {
       {/* ── Full-bleed map ── */}
       <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
+        styleURL={isNightMap ? TRAFFIC_STYLE_DARK : TRAFFIC_STYLE_LIGHT}
         attributionEnabled={false}
         logoEnabled={false}
         compassEnabled={false}
@@ -272,7 +286,12 @@ export default function HomeScreen() {
           }}
         />
 
-        <Mapbox.UserLocation visible animated />
+        <Mapbox.UserLocation
+          visible
+          animated
+          showsUserHeadingIndicator
+          androidRenderMode="compass"
+        />
 
         {/* Train route lines — blue polylines */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
@@ -289,7 +308,6 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* All stations — Waze-style animated PointAnnotations */}
         {/* All stations — Waze-style animated MarkerViews */}
         {stationPins.map((pin) => (
           <Mapbox.MarkerView
@@ -298,49 +316,147 @@ export default function HomeScreen() {
             allowOverlap={false}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <StationMapPin
-              type={pin.pinType}
-              name={pin.name}
-              waitText={pin.waitText}
-              queueStatus={pin.queueStatus as any}
-            />
-          </Mapbox.MarkerView>
-        ))}
-
-        {/* Incident pins — animated MarkerViews (visual only, touches pass through) */}
-        {incidents.map((inc) => (
-          <Mapbox.MarkerView
-            key={inc.id}
-            coordinate={[inc.longitude, inc.latitude]}
-            allowOverlap
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View pointerEvents="none">
-              <IncidentMapPin
-                type={inc.incident_type}
-                createdAt={inc.reported_at}
+            <View pointerEvents="box-none">
+              <StationMapPin
+                type={pin.pinType}
+                name={pin.name}
+                waitText={pin.waitText}
+                queueStatus={pin.queueStatus as any}
               />
             </View>
           </Mapbox.MarkerView>
         ))}
 
-        {/* Invisible tap layer for incidents — ShapeSource onPress works on Android */}
+        {/* Incident markers — native Mapbox layers with clustering */}
         <Mapbox.ShapeSource
-          id="incident-tap-targets"
+          id="incident-markers"
           shape={incidentGeojson}
-          hitbox={{ width: 80, height: 80 }}
+          cluster
+          clusterRadius={50}
+          clusterMaxZoomLevel={14}
+          hitbox={{ width: 60, height: 60 }}
           onPress={(e: any) => {
             const feature = e.features?.[0]
-            if (!feature?.properties?.id) return
+            if (!feature) return
+            // Cluster tap — zoom into it
+            if (feature.properties?.cluster === true) {
+              const coords = feature.geometry?.coordinates
+              if (coords && cameraRef.current) {
+                cameraRef.current.setCamera({
+                  centerCoordinate: coords,
+                  zoomLevel: 15,
+                  animationDuration: 600,
+                })
+              }
+              return
+            }
+            // Individual incident tap
+            if (!feature.properties?.id) return
             const tapped = incidents.find((i) => i.id === feature.properties.id)
             if (tapped) setSelectedIncident(tapped)
           }}
         >
+          {/* ── Cluster layers ── */}
+          {/* Cluster halo */}
           <Mapbox.CircleLayer
-            id="incident-tap-circles"
+            id="incident-cluster-halo"
+            filter={['has', 'point_count']}
             style={{
-              circleRadius: 40,
-              circleOpacity: 0,
+              circleRadius: ['step', ['get', 'point_count'], 28, 5, 34, 10, 40],
+              circleColor: '#ef4444',
+              circleOpacity: 0.12,
+            }}
+          />
+          {/* Cluster circle */}
+          <Mapbox.CircleLayer
+            id="incident-cluster-circle"
+            filter={['has', 'point_count']}
+            style={{
+              circleRadius: ['step', ['get', 'point_count'], 20, 5, 24, 10, 30],
+              circleColor: '#ef4444',
+              circleOpacity: 0.9,
+              circleStrokeColor: '#ffffff',
+              circleStrokeWidth: 2.5,
+            }}
+          />
+          {/* Cluster count label */}
+          <Mapbox.SymbolLayer
+            id="incident-cluster-count"
+            filter={['has', 'point_count']}
+            style={{
+              textField: ['get', 'point_count_abbreviated'],
+              textSize: 13,
+              textColor: '#ffffff',
+              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+              textAllowOverlap: true,
+            }}
+          />
+
+          {/* ── Individual incident layers (unclustered) ── */}
+          {/* Halo glow ring */}
+          <Mapbox.CircleLayer
+            id="incident-halo"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              circleRadius: 26,
+              circleColor: ['match', ['get', 'incident_type'],
+                'traffic', '#f59e0b',
+                'accident', '#dc2626',
+                'police_checkpoint', '#3b82f6',
+                'police', '#3b82f6',
+                'roadwork', '#f97316',
+                'road_closure', '#f97316',
+                'flooding', '#0d9488',
+                'breakdown', '#d97706',
+                '#ef4444',
+              ],
+              circleOpacity: 0.15,
+            }}
+          />
+          {/* Main colored circle with white border */}
+          <Mapbox.CircleLayer
+            id="incident-main"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              circleRadius: 14,
+              circleColor: ['match', ['get', 'incident_type'],
+                'traffic', '#f59e0b',
+                'accident', '#dc2626',
+                'police_checkpoint', '#3b82f6',
+                'police', '#3b82f6',
+                'roadwork', '#f97316',
+                'road_closure', '#f97316',
+                'flooding', '#0d9488',
+                'breakdown', '#d97706',
+                '#ef4444',
+              ],
+              circleOpacity: 0.95,
+              circleStrokeColor: '#ffffff',
+              circleStrokeWidth: 2.5,
+            }}
+          />
+          {/* Inner white dot */}
+          <Mapbox.CircleLayer
+            id="incident-inner"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              circleRadius: 4,
+              circleColor: '#ffffff',
+              circleOpacity: 0.9,
+            }}
+          />
+          {/* "!" text label */}
+          <Mapbox.SymbolLayer
+            id="incident-label"
+            filter={['!', ['has', 'point_count']]}
+            style={{
+              textField: '!',
+              textSize: 14,
+              textColor: '#ffffff',
+              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
+              textOffset: [0, -0.1],
             }}
           />
         </Mapbox.ShapeSource>

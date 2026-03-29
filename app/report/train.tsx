@@ -134,7 +134,7 @@ export default function TrainReportScreen() {
   const lineColor = selectedLine?.color || SKY
 
   return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         {/* ─── Hero Header ──────────────────────────────────── */}
         <View style={[s.hero, { backgroundColor: lineColor }]}>

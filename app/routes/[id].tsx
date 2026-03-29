@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
   View,
@@ -11,8 +12,8 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight, Navigation } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react-native'
+import { c, font } from '@/lib/theme'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
@@ -22,7 +23,7 @@ import { BusynessMeter } from '@/components/BusynessMeter'
 import { useTrafficInfo } from '@/lib/hooks/useTraffic'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { useHaptics } from '@/lib/hooks/useHaptics'
-import { GPRTUBadge } from '@/components/GPRTUBadge'
+// GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 
 const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
@@ -36,11 +37,11 @@ export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
 
   const router = useRouter()
   const haptics = useHaptics()
+  const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
 
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
@@ -60,7 +61,7 @@ export default function RouteDetailScreen() {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <MapPin size={48} color={t.textTertiary} />
+          <MapPin size={48} color="#b2acaa" />
           <Text style={[s.emptyTitle, { marginTop: 16 }]}>Route not found</Text>
         </View>
       </SafeAreaView>
@@ -70,9 +71,7 @@ export default function RouteDetailScreen() {
   const displayFare = route.fare_stats?.avg_reported_fare ?? route.official_fare
   const reportCount = route.fare_stats?.report_count ?? 0
   const lastUpdated = timeAgo(route.fare_stats?.last_report_at ?? null)
-  const minFare = route.fare_stats?.min_reported_fare
   const maxFare = route.fare_stats?.max_reported_fare
-  const hasFareRange = minFare != null && maxFare != null && minFare !== maxFare
   const isOvercharge = route.is_gprtu_verified
     && route.fare_stats?.avg_reported_fare != null
     && route.fare_stats.avg_reported_fare > route.official_fare * 1.2
@@ -83,8 +82,8 @@ export default function RouteDetailScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Hero Header with City Image */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Stitch Hero — tall with cinematic image */}
         <View style={s.heroSection}>
           {hero ? (
             <>
@@ -96,148 +95,161 @@ export default function RouteDetailScreen() {
                 cachePolicy="disk"
               />
               <LinearGradient
-                colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.65)']}
+                colors={['transparent', 'rgba(0,0,0,0.25)', isDark ? 'rgba(28,28,30,0.95)' : 'rgba(252,245,242,0.95)']}
+                locations={[0, 0.4, 1]}
                 style={StyleSheet.absoluteFillObject}
               />
             </>
           ) : (
             <LinearGradient
-              colors={[c.amber500, c.amber700]}
+              colors={['#815100', '#f8a010']}
               style={StyleSheet.absoluteFillObject}
             />
           )}
           <View style={s.heroContent}>
+            {/* Badges row */}
+            <View style={s.heroBadges}>
+              <View style={s.routeTypeBadge}>
+                <Text style={s.routeTypeBadgeText}>
+                  TROTRO ROUTE
+                </Text>
+              </View>
+              {lastUpdated && (
+                <View style={s.lastUpdatedBadge}>
+                  <Clock size={10} color={isDark ? '#e5e5e5' : '#5f5b59'} />
+                  <Text style={s.lastUpdatedText}>{lastUpdated}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Route name — massive */}
             <Text style={s.heroRouteTitle}>
               {route.from_location} → {route.to_location}
             </Text>
-            {traffic?.duration_in_traffic_mins ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[s.heroSubtitle, { color: TRAFFIC_CONDITION_COLORS[traffic.traffic_condition || 'light'].dark }]}>
-                  {traffic.duration_in_traffic_mins} min
-                </Text>
-                {traffic.delay_mins > 0 && (
-                  <Text style={s.heroSubtitle}>(+{traffic.delay_mins}m delay)</Text>
-                )}
-              </View>
-            ) : (
-              <Text style={s.heroSubtitle}>
-                {route.estimated_duration_mins ? `~${route.estimated_duration_mins} min` : hero?.label || ''}
+
+            {/* Fare display */}
+            <View style={s.heroFareRow}>
+              <Text style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</Text>
+              <Text style={s.heroFareLabel}>
+                {route.is_gprtu_verified ? 'official fare' : 'reported fare'}
               </Text>
-            )}
+            </View>
+
+            {/* Meta */}
+            <View style={s.heroMeta}>
+              <Users size={16} color="#815100" />
+              <Text style={s.heroMetaText}>{reportCount} Reports</Text>
+            </View>
           </View>
         </View>
 
-        {/* Fare Card — Dual-tier when GPRTU verified */}
-        <View style={s.fareCard}>
+        {/* Trust & Verification — overlaps hero */}
+        <View style={s.trustSection}>
+          {/* GPRTU Verified card */}
           {route.is_gprtu_verified && (
-            <>
-              <View style={s.fareCardHeader}>
-                <Text style={s.fareLabel}>GPRTU Official Fare</Text>
-                <GPRTUBadge approvedDate={route.fare_approved_at} />
+            <View style={s.gprtuCard}>
+              <View style={s.gprtuIconWrap}>
+                <ShieldCheck size={22} color="#059669" />
               </View>
-              <Text style={s.fareValue}>₵{route.official_fare.toFixed(2)}</Text>
-              <View style={s.fareDivider} />
-            </>
-          )}
-          <View style={s.fareCardHeader}>
-            <Text style={s.fareLabel}>
-              {route.is_gprtu_verified ? 'Community Reported' : 'Current Fare'}
-            </Text>
-            <View style={s.fareUpdated}>
-              <Clock size={14} color={t.textSecondary} />
-              <Text style={s.fareUpdatedText}>{lastUpdated}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.gprtuTitle}>GPRTU Verified</Text>
+                <Text style={s.gprtuSub}>Official union-approved station</Text>
+              </View>
+              <ChevronRight size={20} color="#b2acaa" />
             </View>
-          </View>
-          <Text style={[s.fareValue, route.is_gprtu_verified && s.fareValueSecondary]}>
-            ₵{displayFare.toFixed(2)}
-          </Text>
-          {reportCount > 0 && (
-            <Text style={s.fareReportCount}>
-              {reportCount} report{reportCount !== 1 ? 's' : ''}
-            </Text>
           )}
-          {hasFareRange && (
-            <Text style={s.fareRange}>
-              Range: ₵{minFare.toFixed(2)} – ₵{maxFare.toFixed(2)}
-            </Text>
+
+          {/* Overcharge Warning */}
+          {isOvercharge && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/report/fare')}
+              style={s.overchargeCard}
+            >
+              <AlertTriangle size={20} color="#b02500" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.overchargeTitle}>Overcharge Warning</Text>
+                <Text style={s.overchargeDesc}>
+                  Community reports suggest fares up to{' '}
+                  <Text style={s.overchargeBold}>GH₵ {maxFare?.toFixed(2)}</Text>
+                  {' '}during peak hours. Avoid paying above the regulated rate.
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* Overcharge Warning */}
-        {isOvercharge && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/report/fare')}
-            style={s.overchargeCard}
-          >
-            <AlertTriangle size={18} color="#d97706" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.overchargeText}>Reported fare is above GPRTU rate</Text>
-              <Text style={s.overchargeLink}>Report to GPRTU →</Text>
-            </View>
-            <ChevronRight size={16} color="#d97706" />
-          </TouchableOpacity>
-        )}
-
-        {/* Stats Row */}
-        <View style={s.statsRowContainer}>
-          <View style={s.statBox}>
-            <View style={s.statIconRow}>
-              <TrendingUp size={16} color={c.amber500} />
-              <Text style={s.statLabel}>Reports</Text>
-            </View>
-            <Text style={s.statValue}>{reportCount}</Text>
-          </View>
-          <View style={s.statBox}>
-            <View style={s.statIconRow}>
-              <Users size={16} color={traffic?.duration_in_traffic_mins
-                ? TRAFFIC_CONDITION_COLORS[traffic.traffic_condition || 'light'][isDark ? 'dark' : 'light'] as string
-                : c.violet500
-              } />
-              <Text style={s.statLabel}>
-                {traffic?.duration_in_traffic_mins ? 'Live ETA' : 'Est. Time'}
-              </Text>
-            </View>
-            <Text style={[s.statValue, traffic?.duration_in_traffic_mins != null ? {
-              color: TRAFFIC_CONDITION_COLORS[traffic.traffic_condition || 'light'][isDark ? 'dark' : 'light'],
-            } : undefined]}>
-              {traffic?.duration_in_traffic_mins
-                ? `${traffic.duration_in_traffic_mins}m`
-                : route.estimated_duration_mins ? `${route.estimated_duration_mins}m` : '--'
-              }
-            </Text>
-          </View>
+        {/* Tab pills — Stitch style */}
+        <View style={s.tabRow}>
+          {(['details', 'trend', 'reports'] as const).map((tab) => {
+            const isActive = activeTab === tab
+            const label = tab === 'details' ? 'Details' : tab === 'trend' ? 'Fare Trend' : 'Reports'
+            return isActive ? (
+              <TouchableOpacity key={tab} activeOpacity={0.9} onPress={() => setActiveTab(tab)}>
+                <LinearGradient
+                  colors={['#815100', '#f8a010']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.tabPillActive}
+                >
+                  <Text style={s.tabPillActiveText}>{label}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                key={tab}
+                activeOpacity={0.7}
+                onPress={() => setActiveTab(tab)}
+                style={s.tabPill}
+              >
+                <Text style={s.tabPillText}>{label}</Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
-        {/* Fare Trend Chart */}
-        <FareTrendChart
-          data={trend}
-          officialFare={route.official_fare}
-          isLoading={trendLoading}
-          selectedPeriod={trendDays}
-          onPeriodChange={setTrendDays}
-          routeName={`${route.from_location} → ${route.to_location}`}
-        />
-
-        {/* Traffic Conditions */}
+        {/* ── Details tab ── */}
+        {activeTab === 'details' && (
+          <>
+        {/* Real-time Pulse card — Stitch editorial */}
         {traffic && (traffic.traffic_condition || traffic.busyness.confidence > 0) && (
-          <View style={s.trafficCard}>
-            <View style={s.trafficHeader}>
-              <View style={s.trafficLiveDot} />
-              <Text style={s.trafficTitle}>Live Traffic</Text>
+          <View style={s.pulseCard}>
+            <Text style={s.pulseHeading}>REAL-TIME PULSE</Text>
+
+            {/* Station Busyness */}
+            <View style={s.pulseRow}>
+              <Text style={s.pulseLabel}>Station Busyness</Text>
+              <BusynessMeter level={traffic.busyness.level} isDark={isDark} />
             </View>
-            <TrafficBadge
-              condition={traffic.traffic_condition}
-              delayMins={traffic.delay_mins}
-              isDark={isDark}
-            />
+
+            {/* Busyness bar */}
+            {traffic.busyness.level != null && (
+              <View style={s.pulseBarBg}>
+                <View style={[s.pulseBarFill, {
+                  width: `${traffic.busyness.level === 'very_busy' ? 90 : traffic.busyness.level === 'busy' ? 65 : traffic.busyness.level === 'moderate' ? 40 : 20}%` as `${number}%`,
+                  backgroundColor: traffic.busyness.level === 'very_busy' ? '#b02500' : traffic.busyness.level === 'busy' ? '#d97706' : '#059669',
+                }]} />
+              </View>
+            )}
+
+            {/* Traffic Condition */}
+            <View style={s.pulseRow}>
+              <Text style={s.pulseLabel}>Traffic Condition</Text>
+              <TrafficBadge
+                condition={traffic.traffic_condition}
+                delayMins={traffic.delay_mins}
+                isDark={isDark}
+              />
+            </View>
+
+            {/* ETA comparison */}
             {traffic.duration_in_traffic_mins != null && traffic.typical_duration_mins != null && (
-              <View style={{ gap: 6 }}>
+              <View style={s.etaCompare}>
                 <View style={s.etaRow}>
                   <Text style={s.etaLabel}>Typical: {traffic.typical_duration_mins} min</Text>
                   <Text style={s.etaValue}>Now: {traffic.duration_in_traffic_mins} min</Text>
                 </View>
-                <View style={[s.durationBarBg, { backgroundColor: isDark ? '#292524' : '#f5f5f4' }]}>
+                <View style={s.durationBarBg}>
                   <View style={[s.durationBarFill, {
                     backgroundColor: TRAFFIC_CONDITION_COLORS[traffic.traffic_condition || 'light'][isDark ? 'dark' : 'light'],
                     width: `${Math.min(100, (traffic.duration_in_traffic_mins / (traffic.typical_duration_mins * 1.5)) * 100)}%` as `${number}%`,
@@ -245,27 +257,88 @@ export default function RouteDetailScreen() {
                 </View>
               </View>
             )}
-            <BusynessMeter level={traffic.busyness.level} isDark={isDark} />
+          </View>
+        )}
+          </>
+        )}
+
+        {/* ── Fare Trend tab ── */}
+        {activeTab === 'trend' && (
+          <FareTrendChart
+            data={trend}
+            officialFare={route.official_fare}
+            isLoading={trendLoading}
+            selectedPeriod={trendDays}
+            onPeriodChange={setTrendDays}
+            routeName={`${route.from_location} → ${route.to_location}`}
+          />
+        )}
+
+        {/* ── Reports tab ── */}
+        {activeTab === 'reports' && (
+          <View style={s.reportsSection}>
+            <View style={s.reportsTitleRow}>
+              <Text style={s.sectionTitle}>Recent Fare Reports</Text>
+              {reportCount > 0 && (
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Text style={s.viewAllBtn}>View all</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {recentReports.length > 0 ? (
+              recentReports.map((report) => (
+                <View key={report.id} style={s.reportCard}>
+                  <View style={s.reportAvatar}>
+                    <Text style={s.reportAvatarText}>
+                      {(report as any).reporter_name?.[0]?.toUpperCase() ?? '?'}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.reporterName}>
+                      {(report as any).reporter_name ?? 'Anonymous'}
+                    </Text>
+                    <Text style={s.reportTime}>{timeAgo(report.reported_at)}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={s.reportFare}>GH₵ {report.reported_fare.toFixed(2)}</Text>
+                    {route.official_fare && Math.abs(report.reported_fare - route.official_fare) < 0.5 ? (
+                      <View style={s.exactBadge}>
+                        <Text style={s.exactBadgeText}>Exact</Text>
+                      </View>
+                    ) : report.reported_fare > (route.official_fare || 0) ? (
+                      <View style={s.overBadge}>
+                        <Text style={s.overBadgeText}>
+                          + GH₵ {(report.reported_fare - (route.official_fare || 0)).toFixed(2)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={s.emptyCard}>
+                <TrendingUp size={32} color="#b2acaa" />
+                <Text style={s.emptyTitle}>No recent reports yet</Text>
+                <Text style={s.emptySubtitle}>Be the first to report!</Text>
+              </View>
+            )}
+
+            {/* Report Fare inline CTA */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                haptics.light()
+                router.push('/report/fare')
+              }}
+              style={s.reportCta}
+            >
+              <Plus size={18} color="#815100" />
+              <Text style={s.reportCtaText}>Report a Fare</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* GO Mode + Safety Actions */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => {
-            haptics.light()
-            router.push(`/trip/${id}` as any)
-          }}
-          style={s.goModeBtn}
-        >
-          <Navigation size={20} color={c.white} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.goModeBtnTitle}>GO Mode</Text>
-            <Text style={s.goModeBtnSub}>Track your trip & get notified at your stop</Text>
-          </View>
-          <ChevronRight size={18} color="rgba(255,255,255,0.6)" />
-        </TouchableOpacity>
-
+        {/* Safety Row — always visible */}
         <View style={s.safetyRow}>
           <TripShareButton
             routeId={id}
@@ -275,307 +348,424 @@ export default function RouteDetailScreen() {
           />
           <SOSButton from={route.from_location} to={route.to_location} />
         </View>
-
-        {/* Recent Reports */}
-        <View style={s.reportsSection}>
-          <View style={s.reportsTitleRow}>
-            <Text style={s.sectionTitle}>Recent Reports</Text>
-            {reportCount > 0 && (
-              <View style={s.reportCountBadge}>
-                <Text style={s.reportCountText}>{reportCount}</Text>
-              </View>
-            )}
-          </View>
-          {recentReports.length > 0 ? (
-            recentReports.map((report) => (
-              <View key={report.id} style={s.reportRow}>
-                <View style={s.reportAccent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.reportFare}>₵{report.reported_fare.toFixed(2)}</Text>
-                  <Text style={s.reportTime}>{timeAgo(report.reported_at)}</Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <View style={s.emptyCard}>
-              <TrendingUp size={32} color={t.textTertiary} />
-              <Text style={s.emptyTitle}>No recent reports yet</Text>
-              <Text style={s.emptySubtitle}>Be the first to report!</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Report Fare CTA */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => {
-            haptics.light()
-            router.push('/report/fare')
-          }}
-          style={s.reportCta}
-        >
-          <Plus size={20} color={c.white} />
-          <Text style={s.reportCtaText}>Report a Fare</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      {/* Safety row doubles as bottom padding */}
     </SafeAreaView>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  // Stitch M3 tokens
+  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const surfaceHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
+  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#b2acaa'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    // Hero header
+    container: { flex: 1, backgroundColor: surface },
+
+    // ── Hero — tall cinematic ──
     heroSection: {
-      height: 180,
+      height: 340,
       overflow: 'hidden' as const,
-    },
-    backBtn: {
-      position: 'absolute' as const,
-      top: 44,
-      left: 16,
-      zIndex: 10,
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
     },
     heroContent: {
       flex: 1,
       justifyContent: 'flex-end' as const,
-      padding: 20,
+      paddingHorizontal: 24,
+      paddingBottom: 28,
+      gap: 10,
+    },
+    heroBadges: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+    },
+    routeTypeBadge: {
+      backgroundColor: '#815100',
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 20,
+    },
+    routeTypeBadgeText: {
+      color: '#fff',
+      fontSize: 10,
+      fontFamily: font.bold,
+      letterSpacing: 1.5,
+    },
+    lastUpdatedBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+    },
+    lastUpdatedText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
     },
     heroRouteTitle: {
-      fontSize: 22,
-      fontFamily: font.bold,
-      color: c.white,
+      fontSize: 34,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      letterSpacing: -0.5,
     },
-    heroSubtitle: {
+    heroFareRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-end' as const,
+      gap: 10,
+    },
+    heroFareValue: {
+      fontSize: 44,
+      fontFamily: font.extrabold,
+      color: '#f8a010',
+      lineHeight: 48,
+    },
+    heroFareLabel: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.85)',
-      marginTop: 4,
+      color: onSurfaceVariant,
+      paddingBottom: 6,
     },
-    // Fare card
-    fareCard: {
-      marginHorizontal: 20,
-      marginTop: 16,
-      padding: 20,
-      borderRadius: 20,
-      backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
-    },
-    fareCardHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      marginBottom: 8,
-    },
-    fareLabel: { fontSize: 14, color: isDark ? c.stone400 : c.amber700 },
-    fareValue: { fontSize: 36, fontFamily: font.bold, color: c.amber500 },
-    fareRange: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: t.textSecondary,
-      marginTop: 4,
-    },
-    fareValueSecondary: { fontSize: 28 },
-    fareDivider: {
-      height: 1,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-      marginVertical: 14,
-    },
-    fareReportCount: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: t.textSecondary,
-      marginTop: 2,
-    },
-    fareUpdated: { flexDirection: 'row' as const, alignItems: 'center' as const },
-    fareUpdatedText: { fontSize: 12, marginLeft: 4, color: t.textSecondary },
-    overchargeCard: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 12,
-      marginHorizontal: 20,
-      marginTop: 12,
-      padding: 14,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(217,119,6,0.12)' : 'rgba(217,119,6,0.08)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(217,119,6,0.2)' : 'rgba(217,119,6,0.15)',
-    },
-    overchargeText: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: isDark ? '#fbbf24' : '#b45309',
-    },
-    overchargeLink: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: '#d97706',
-      marginTop: 2,
-    },
-    // Stats row
-    statsRowContainer: {
-      flexDirection: 'row' as const,
-      gap: 12,
-      marginHorizontal: 20,
-      marginTop: 12,
-    },
-    statBox: {
-      flex: 1,
-      padding: 16,
-      borderRadius: 16,
-      backgroundColor: t.cardAlt,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
-    },
-    statIconRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginBottom: 8 },
-    statLabel: { marginLeft: 8, fontSize: 12, color: t.textSecondary },
-    statValue: { fontSize: 20, fontFamily: font.bold, color: t.text },
-    // Traffic card
-    trafficCard: {
-      marginHorizontal: 20,
-      marginTop: 16,
-      padding: 16,
-      borderRadius: 20,
-      backgroundColor: t.card,
-      gap: 10,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
-    },
-    trafficHeader: {
+    heroMeta: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 6,
+      marginTop: 4,
     },
-    trafficLiveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#10b981',
+    heroMetaText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
     },
-    trafficTitle: {
+
+    // ── Tab pills ──
+    tabRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      paddingHorizontal: 24,
+      marginTop: 20,
+      marginBottom: 4,
+    },
+    tabPillActive: {
+      paddingHorizontal: 22,
+      paddingVertical: 10,
+      borderRadius: 24,
+    },
+    tabPillActiveText: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: '#fff',
+    },
+    tabPill: {
+      paddingHorizontal: 22,
+      paddingVertical: 10,
+      borderRadius: 24,
+      backgroundColor: surfaceHigh,
+    },
+    tabPillText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+    },
+
+    // ── Trust & Verification — overlaps hero ──
+    trustSection: {
+      paddingHorizontal: 24,
+      marginTop: -16,
+      gap: 12,
+    },
+    gprtuCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: surfaceLowest,
+      padding: 16,
+      borderRadius: 20,
+      gap: 12,
+      shadowColor: '#312e2d',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0 : 0.06,
+      shadowRadius: 12,
+      elevation: isDark ? 0 : 3,
+    },
+    gprtuIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    gprtuTitle: {
       fontSize: 14,
-      fontFamily: font.semibold,
-      color: t.text,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    gprtuSub: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+
+    // Overcharge Warning — Stitch error banner with left border
+    overchargeCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: 12,
+      backgroundColor: isDark ? 'rgba(176,37,0,0.12)' : 'rgba(176,37,0,0.06)',
+      borderLeftWidth: 4,
+      borderLeftColor: '#b02500',
+      padding: 16,
+      borderRadius: 16,
+    },
+    overchargeTitle: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#b02500',
+    },
+    overchargeDesc: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 4,
+      lineHeight: 18,
+    },
+    overchargeBold: {
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+
+    // ── Real-time Pulse card (Live Traffic + Busyness) ──
+    pulseCard: {
+      marginHorizontal: 24,
+      marginTop: 20,
+      padding: 24,
+      borderRadius: 28,
+      backgroundColor: surfaceLow,
+      borderLeftWidth: 4,
+      borderLeftColor: '#815100',
+      gap: 16,
+    },
+    pulseHeading: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+      letterSpacing: 3,
+    },
+    pulseRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    },
+    pulseLabel: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: onSurface,
+    },
+    pulseBarBg: {
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: surfaceHigh,
+      overflow: 'hidden' as const,
+    },
+    pulseBarFill: {
+      height: 10,
+      borderRadius: 5,
+    },
+    etaCompare: {
+      gap: 8,
     },
     etaRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
     },
-    etaLabel: { fontSize: 12, color: t.textSecondary },
-    etaValue: { fontSize: 12, fontFamily: font.semibold, color: t.text },
+    etaLabel: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+    },
+    etaValue: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: onSurface,
+    },
     durationBarBg: {
       height: 8,
       borderRadius: 4,
+      backgroundColor: surfaceHigh,
       overflow: 'hidden' as const,
     },
     durationBarFill: {
       height: 8,
       borderRadius: 4,
     },
-    // Safety row
-    goModeBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 12,
-      marginHorizontal: 20,
-      marginTop: 16,
-      backgroundColor: c.amber500,
-      padding: 16,
-      borderRadius: 16,
+
+    // ── Reports section ──
+    reportsSection: {
+      paddingHorizontal: 24,
+      marginTop: 28,
     },
-    goModeBtnTitle: {
-      color: c.white,
-      fontSize: 16,
-      fontFamily: font.bold,
-    },
-    goModeBtnSub: {
-      color: 'rgba(255,255,255,0.8)',
-      fontSize: 12,
-      fontFamily: font.regular,
-      marginTop: 2,
-    },
-    safetyRow: {
-      flexDirection: 'row' as const,
-      gap: 12,
-      marginHorizontal: 20,
-      marginTop: 16,
-    },
-    // Reports section
-    reportsSection: { paddingHorizontal: 20, marginTop: 24 },
     reportsTitleRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 8,
-      marginBottom: 12,
+      justifyContent: 'space-between' as const,
+      marginBottom: 16,
     },
-    sectionTitle: { fontSize: 18, fontFamily: font.semibold, color: t.text },
-    reportCountBadge: {
-      backgroundColor: c.amber500,
+    sectionTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    viewAllBtn: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: '#815100',
+    },
+    reportCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: surfaceLowest,
+      padding: 16,
+      borderRadius: 20,
+      marginBottom: 10,
+      gap: 12,
+      shadowColor: '#312e2d',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0 : 0.04,
+      shadowRadius: 8,
+      elevation: isDark ? 0 : 2,
+    },
+    reportAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: surfaceHigh,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    reportAvatarText: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+    },
+    reporterName: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    reportTime: {
+      fontSize: 10,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 2,
+    },
+    reportFare: {
+      fontSize: 15,
+      fontFamily: font.extrabold,
+      color: onSurface,
+    },
+    exactBadge: {
+      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
       paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 10,
+      marginTop: 4,
     },
-    reportCountText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: c.white,
+    exactBadgeText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: '#059669',
     },
-    reportRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 8,
-      backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
+    overBadge: {
+      backgroundColor: isDark ? 'rgba(217,119,6,0.15)' : '#fffbeb',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+      marginTop: 4,
     },
-    reportAccent: {
-      width: 3,
-      height: 32,
-      borderRadius: 2,
-      backgroundColor: c.amber500,
-      marginRight: 12,
+    overBadgeText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: '#d97706',
     },
-    reportFare: { fontSize: 16, fontFamily: font.semibold, color: c.amber500 },
-    reportTime: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
-    // Report CTA
+
+    // Report CTA — dashed outline
     reportCta: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       gap: 8,
-      marginHorizontal: 20,
-      marginTop: 20,
-      marginBottom: 32,
-      paddingVertical: 16,
+      marginTop: 16,
+      paddingVertical: 14,
       borderRadius: 16,
-      backgroundColor: c.amber500,
+      borderWidth: 1.5,
+      borderColor: outlineVariant,
+      borderStyle: 'dashed' as const,
     },
     reportCtaText: {
-      fontSize: 16,
+      fontSize: 14,
       fontFamily: font.semibold,
-      color: c.white,
+      color: '#815100',
     },
+
+    // Safety row
+    safetyRow: {
+      flexDirection: 'row' as const,
+      gap: 12,
+      marginHorizontal: 24,
+      marginTop: 20,
+      marginBottom: 24,
+    },
+
+    // ── Bottom bar — fixed START TRIP ──
+    bottomBar: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      backgroundColor: surfaceLowest,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    },
+    startTripBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 10,
+      height: 60,
+      borderRadius: 20,
+      shadowColor: '#815100',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    startTripText: {
+      color: '#fff',
+      fontSize: 17,
+      fontFamily: font.extrabold,
+      letterSpacing: 3,
+    },
+
     // Empty state
     emptyCard: {
-      padding: 20,
-      borderRadius: 16,
+      padding: 24,
+      borderRadius: 20,
       alignItems: 'center' as const,
-      backgroundColor: t.card,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: t.border,
+      backgroundColor: surfaceLow,
     },
-    emptyTitle: { marginTop: 12, fontFamily: font.medium, color: t.textSecondary },
-    emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary },
+    emptyTitle: {
+      marginTop: 12,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      marginTop: 4,
+      color: outlineVariant,
+    },
   })
 }

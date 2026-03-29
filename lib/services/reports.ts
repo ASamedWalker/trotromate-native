@@ -94,18 +94,37 @@ export async function submitIncidentReport(params: {
   locationName: string
   incidentType: string
   deviceId: string
+  latitude?: number
+  longitude?: number
 }): Promise<{ reportId: string } | null> {
   const locationName = validateLocation(params.locationName)
   const incidentType = validateEnum(params.incidentType, INCIDENT_TYPES)
 
   if (!locationName || !incidentType) return null
 
+  // Map expanded types to DB-safe values until migration 035 runs
+  const DB_TYPE_MAP: Record<string, string> = {
+    police_checkpoint: 'police',
+    road_closure: 'roadwork',
+    flooding: 'traffic',
+    breakdown: 'roadwork',
+    demonstration: 'traffic',
+    other: 'traffic',
+  }
+  const dbType = DB_TYPE_MAP[incidentType] || incidentType
+
+  const insertData: Record<string, unknown> = {
+    location_name: locationName,
+    incident_type: dbType,
+  }
+  if (params.latitude != null && params.longitude != null) {
+    insertData.latitude = params.latitude
+    insertData.longitude = params.longitude
+  }
+
   const { data: report, error } = await supabase
     .from('incident_reports')
-    .insert({
-      location_name: locationName,
-      incident_type: incidentType,
-    })
+    .insert(insertData)
     .select('id')
     .single()
 

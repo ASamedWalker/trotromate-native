@@ -37,7 +37,7 @@ import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
 import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
-import ExploreGhana from '@/components/ExploreGhana'
+
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
@@ -69,7 +69,7 @@ export default function RoutesScreen() {
   const { addSearch } = useSearchHistory()
 
   const activeRegionLabel = REGIONS.find((r) => r.key === activeRegion)?.label ?? 'All Regions'
-  const showExplore = !searchQuery && activeFilter === 'all' && activeRegion === 'all' && !params.from && !params.to
+
 
   const filteredRoutes = useMemo(() => {
     let result = routes
@@ -280,9 +280,7 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={(showExplore || activeRegion !== 'all') ? (
-            <View>
-              {activeRegion !== 'all' && (() => {
+          ListHeaderComponent={activeRegion !== 'all' ? (() => {
                 const hero = REGION_HEROES.find(h => h.key === activeRegion)
                 if (!hero) return null
                 return (
@@ -304,15 +302,7 @@ export default function RoutesScreen() {
                     </View>
                   </View>
                 )
-              })()}
-
-              {showExplore && (
-                <View style={{ marginBottom: 20 }}>
-                  <ExploreGhana />
-                </View>
-              )}
-            </View>
-          ) : null}
+              })() : null}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

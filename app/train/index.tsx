@@ -12,18 +12,18 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
 import {
   TrainFront,
-  ChevronRight,
   MapPin,
-  BarChart3,
   Clock,
   ArrowRight,
+  ShieldCheck,
 } from 'lucide-react-native'
-import { themed, font, shadow, c } from '@/lib/theme'
+import { font } from '@/lib/theme'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
-import { timeAgo, getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
+import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
 import type { TrainLineWithStats } from '@/lib/types'
 
@@ -89,7 +89,6 @@ function computeLineDeparture(
 
   if (day === 0 || schedules.length === 0) return { type: 'no-service' }
 
-  // Sort by departure time (works regardless of direction labels)
   const sorted = [...schedules].sort(
     (a, b) => parseTimeToMinutes(a.stops[0].depart!) - parseTimeToMinutes(b.stops[0].depart!)
   )
@@ -126,7 +125,6 @@ function computeLineDeparture(
     }
   }
 
-  // After all services — show next day's first departure
   const first = sorted[0]
   const firstDepart = parseTimeToMinutes(first.stops[0].depart!)
   const remaining = (24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
@@ -142,7 +140,6 @@ function computeLineDeparture(
   }
 }
 
-/** Pick the best departure across all lines: in-transit > soonest waiting */
 function getNextDeparture(): DepartureInfo {
   const codes = Object.keys(TRAIN_SCHEDULES)
   let bestWaiting: Extract<DepartureInfo, { type: 'waiting' }> | null = null
@@ -174,13 +171,42 @@ function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles
   )
 }
 
+// ─── Line metadata for editorial cards ───────────────────
+
+const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColor: string; badgeBg: string; gradientFrom: string; gradientTo: string }> = {
+  TMA: {
+    subtitle: 'Suburban Commuter',
+    fareRange: '₵15',
+    badgeColor: '#0e7490',
+    badgeBg: '#ecfeff',
+    gradientFrom: '#06b6d4',
+    gradientTo: '#1d4ed8',
+  },
+  TMP: {
+    subtitle: 'Inter-Regional',
+    fareRange: '₵40',
+    badgeColor: '#92400e',
+    badgeBg: '#fffbeb',
+    gradientFrom: '#f59e0b',
+    gradientTo: '#ea580c',
+  },
+}
+
+const DEFAULT_LINE_META = {
+  subtitle: 'Rail Service',
+  fareRange: '—',
+  badgeColor: '#0e7490',
+  badgeBg: '#ecfeff',
+  gradientFrom: '#06b6d4',
+  gradientTo: '#1d4ed8',
+}
+
 // ─── Main screen ─────────────────────────────────────────
 
 export default function TrainLinesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
 
   const { lines, isLoading, refetch } = useTrainLines()
@@ -204,59 +230,148 @@ export default function TrainLinesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const currentTime = useMemo(() => formatGhanaTime(), [tick])
 
-  const renderLine = useCallback(
-    (item: TrainLineWithStats) => (
-      <TouchableOpacity
-        key={item.id}
-        onPress={() =>
-          router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
-        }
-        activeOpacity={0.7}
-        style={s.card}
-      >
-        <View style={[s.accentBar, { backgroundColor: item.color }]} />
-        <View style={s.cardBody}>
-          <View style={s.cardTop}>
-            <View style={[s.iconBox, { backgroundColor: `${item.color}20` }]}>
-              <TrainFront size={22} color={item.color} />
+  // Compute per-line departure status for occupancy indicators
+  const lineDepartures = useMemo(() => {
+    const map: Record<string, DepartureInfo> = {}
+    for (const code of Object.keys(TRAIN_SCHEDULES)) {
+      map[code] = computeLineDeparture(code, TRAIN_SCHEDULES[code])
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick])
+
+  const renderLineCard = useCallback(
+    (item: TrainLineWithStats) => {
+      const meta = LINE_META[item.code] ?? DEFAULT_LINE_META
+      const dep = lineDepartures[item.code]
+      const isInTransit = dep?.type === 'in-transit'
+      const isWaiting = dep?.type === 'waiting'
+
+      return (
+        <TouchableOpacity
+          key={item.id}
+          onPress={() =>
+            router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
+          }
+          activeOpacity={0.85}
+          style={s.lineCard}
+        >
+          {/* Card content */}
+          <View style={s.lineCardBody}>
+            {/* Top: badge + title + shield */}
+            <View style={s.lineCardTop}>
+              <View style={{ flex: 1 }}>
+                <View style={[s.lineBadge, { backgroundColor: meta.badgeBg }]}>
+                  <Text style={[s.lineBadgeText, { color: meta.badgeColor }]}>
+                    Line {item.code}
+                  </Text>
+                </View>
+                <Text style={s.lineTitle}>{item.name}</Text>
+                <Text style={s.lineSubtitle}>{meta.subtitle}</Text>
+              </View>
+              <View style={s.shieldBox}>
+                <ShieldCheck size={22} color="#fff" />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.lineName}>{item.name}</Text>
-              <Text style={s.lineCode}>{item.code}</Text>
-            </View>
-            <ChevronRight size={20} color={t.textTertiary} />
-          </View>
-          <View style={s.statsRow}>
-            <View style={s.stat}>
-              <MapPin size={14} color={t.textTertiary} />
-              <Text style={s.statText}>{item.station_count} stations</Text>
-            </View>
-            <View style={s.stat}>
-              <BarChart3 size={14} color={t.textTertiary} />
-              <Text style={s.statText}>{item.stats?.total_reports ?? 0} reports</Text>
-            </View>
-            {item.official_fare != null && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <GRDABadge size="small" />
-                <View style={s.fareBadge}>
-                  <Text style={s.fareText}>₵{item.official_fare.toFixed(2)}</Text>
+
+            {/* Stats row: fare + occupancy */}
+            <View style={s.lineStatsRow}>
+              <View style={s.lineStat}>
+                <Text style={s.lineStatLabel}>OFFICIAL FARE</Text>
+                <Text style={s.lineStatValue}>{meta.fareRange}</Text>
+              </View>
+              <View style={s.lineStatDivider} />
+              <View style={s.lineStat}>
+                <Text style={s.lineStatLabel}>STATUS</Text>
+                <View style={s.occupancyRow}>
+                  <View style={[s.occupancyDot, {
+                    backgroundColor: isInTransit ? '#22c55e' : isWaiting ? '#f59e0b' : '#9ca3af',
+                  }]} />
+                  <Text style={[s.occupancyText, {
+                    color: isInTransit
+                      ? (isDark ? '#4ade80' : '#15803d')
+                      : isWaiting
+                        ? (isDark ? '#fbbf24' : '#92400e')
+                        : (isDark ? '#9ca3af' : '#6b7280'),
+                  }]}>
+                    {isInTransit ? 'In Transit' : isWaiting ? 'Next Service' : 'No Service'}
+                  </Text>
                 </View>
               </View>
-            )}
+            </View>
+
+            {/* Actions row */}
+            <View style={s.lineActions}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
+                }
+                activeOpacity={0.85}
+                style={s.lineActionPrimary}
+              >
+                <LinearGradient
+                  colors={['#815100', '#f8a010']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={s.lineActionPrimaryGradient}
+                >
+                  <Text style={s.lineActionPrimaryText}>View Schedule</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
+                }
+                activeOpacity={0.7}
+                style={s.lineActionIcon}
+              >
+                <MapPin size={20} color={isDark ? '#a8a29e' : '#815100'} />
+              </TouchableOpacity>
+            </View>
           </View>
-          {item.stats?.last_report_at && (
-            <Text style={s.lastReport}>
-              Last report {timeAgo(item.stats.last_report_at)}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    ),
-    [isDark, s, t, router]
+
+          {/* Bottom gradient strip */}
+          <LinearGradient
+            colors={[meta.gradientFrom, meta.gradientTo]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={s.lineCardStrip}
+          >
+            <View style={s.lineCardStripContent}>
+              <GRDABadge size="small" />
+              <Text style={s.lineCardStripText}>GRDA Official</Text>
+              <View style={s.lineCardStripDot} />
+              <Text style={s.lineCardStripText}>{item.station_count} stations</Text>
+              <View style={s.lineCardStripDot} />
+              <Text style={s.lineCardStripText}>
+                {item.stats?.total_reports ?? 0} reports
+              </Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      )
+    },
+    [isDark, s, lineDepartures, router]
   )
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      {/* GRDA Header Bar */}
+      <LinearGradient
+        colors={['#0891b2', '#1e40af']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={s.headerBar}
+      >
+        <View style={s.headerLogo}>
+          <ShieldCheck size={18} color="#fff" />
+        </View>
+        <Text style={s.headerTitle}>GRDA Official</Text>
+        <View style={{ flex: 1 }} />
+        <Clock size={14} color="rgba(255,255,255,0.6)" />
+        <Text style={s.headerTime}>{currentTime}</Text>
+      </LinearGradient>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -268,212 +383,229 @@ export default function TrainLinesScreen() {
           />
         }
       >
+        {/* ─── Hero Section ──────────────────────────────── */}
+        <View style={s.hero}>
+          <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
+          <Text style={s.heroTitle}>Train Index</Text>
+          <Text style={s.heroDesc}>
+            Select a regional rail line to view live schedules and fare info.
+          </Text>
+        </View>
+
         {/* ─── Departure Board ─────────────────────────── */}
-        {(
-          <View style={s.board}>
-            <View style={s.boardGlow} />
+        <View style={s.board}>
+          <View style={s.boardGlow} />
 
-            {/* Top row */}
-            <View style={s.boardTopRow}>
-              <View style={s.liveBadge}>
-                <View style={s.liveDot} />
-                <Text style={s.liveText}>LIVE</Text>
-              </View>
-              <View style={{ flex: 1 }} />
-              <Text style={s.boardLabel}>
-                {departure.type === 'in-transit' ? 'IN TRANSIT' : 'DEPARTURES'}
-              </Text>
-              <Clock
-                size={12}
-                color="rgba(255,255,255,0.5)"
-                style={{ marginLeft: 6, marginRight: 4 }}
-              />
-              <Text style={s.boardTime}>{currentTime}</Text>
+          {/* Top row */}
+          <View style={s.boardTopRow}>
+            <View style={s.liveBadge}>
+              <View style={s.liveDot} />
+              <Text style={s.liveText}>LIVE</Text>
             </View>
+            <View style={{ flex: 1 }} />
+            <Text style={s.boardLabel}>
+              {departure.type === 'in-transit' ? 'IN TRANSIT' : 'DEPARTURES'}
+            </Text>
+          </View>
 
-            {/* ── Waiting state — countdown ── */}
-            {departure.type === 'waiting' && (
-              <>
-                <View style={s.clockRow}>
-                  {(() => {
-                    const h = String(Math.floor(departure.remaining / 3600)).padStart(2, '0')
-                    const m = String(
-                      Math.floor((departure.remaining % 3600) / 60)
-                    ).padStart(2, '0')
-                    const sec = String(departure.remaining % 60).padStart(2, '0')
-                    return (
-                      <>
-                        <View style={s.clockGroup}>
-                          <View style={s.digitPair}>
-                            <FlipDigit digit={h[0]} s={s} />
-                            <FlipDigit digit={h[1]} s={s} />
-                          </View>
-                          <Text style={s.clockUnit}>HRS</Text>
+          {/* ── Waiting state — countdown ── */}
+          {departure.type === 'waiting' && (
+            <>
+              <View style={s.clockRow}>
+                {(() => {
+                  const h = String(Math.floor(departure.remaining / 3600)).padStart(2, '0')
+                  const m = String(
+                    Math.floor((departure.remaining % 3600) / 60)
+                  ).padStart(2, '0')
+                  const sec = String(departure.remaining % 60).padStart(2, '0')
+                  return (
+                    <>
+                      <View style={s.clockGroup}>
+                        <View style={s.digitPair}>
+                          <FlipDigit digit={h[0]} s={s} />
+                          <FlipDigit digit={h[1]} s={s} />
                         </View>
-                        <Text style={s.clockColon}>:</Text>
-                        <View style={s.clockGroup}>
-                          <View style={s.digitPair}>
-                            <FlipDigit digit={m[0]} s={s} />
-                            <FlipDigit digit={m[1]} s={s} />
-                          </View>
-                          <Text style={s.clockUnit}>MIN</Text>
+                        <Text style={s.clockUnit}>HRS</Text>
+                      </View>
+                      <Text style={s.clockColon}>:</Text>
+                      <View style={s.clockGroup}>
+                        <View style={s.digitPair}>
+                          <FlipDigit digit={m[0]} s={s} />
+                          <FlipDigit digit={m[1]} s={s} />
                         </View>
-                        <Text style={s.clockColon}>:</Text>
-                        <View style={s.clockGroup}>
-                          <View style={s.digitPair}>
-                            <FlipDigit digit={sec[0]} s={s} />
-                            <FlipDigit digit={sec[1]} s={s} />
-                          </View>
-                          <Text style={s.clockUnit}>SEC</Text>
+                        <Text style={s.clockUnit}>MIN</Text>
+                      </View>
+                      <Text style={s.clockColon}>:</Text>
+                      <View style={s.clockGroup}>
+                        <View style={s.digitPair}>
+                          <FlipDigit digit={sec[0]} s={s} />
+                          <FlipDigit digit={sec[1]} s={s} />
                         </View>
-                      </>
-                    )
-                  })()}
-                </View>
+                        <Text style={s.clockUnit}>SEC</Text>
+                      </View>
+                    </>
+                  )
+                })()}
+              </View>
 
-                <View style={s.depInfo}>
-                  <View style={s.depCodeBadge}>
-                    <Text style={s.depCodeText}>{departure.schedule.code}</Text>
-                  </View>
-                  <Text style={s.depLabel}>{departure.schedule.label}</Text>
+              <View style={s.depInfo}>
+                <View style={s.depCodeBadge}>
+                  <Text style={s.depCodeText}>{departure.schedule.code}</Text>
                 </View>
+                <Text style={s.depLabel}>{departure.schedule.label}</Text>
+              </View>
 
-                <View style={s.depRoute}>
-                  <Text style={s.depStation}>{departure.origin}</Text>
-                  <ArrowRight size={14} color="rgba(255,255,255,0.4)" />
-                  <Text style={s.depStation}>{departure.destination}</Text>
+              <View style={s.depRoute}>
+                <Text style={s.depStation}>{departure.origin}</Text>
+                <ArrowRight size={14} color="rgba(255,255,255,0.4)" />
+                <Text style={s.depStation}>{departure.destination}</Text>
+              </View>
+
+              <View style={s.depFooter}>
+                <Text style={s.depTime}>
+                  Departs {departure.departTime}
+                  {departure.tomorrow ? ' tomorrow' : ''}
+                </Text>
+                <View style={s.onTimeBadge}>
+                  <View style={[s.statusDot, { backgroundColor: '#22c55e' }]} />
+                  <Text style={s.onTimeText}>On Time</Text>
                 </View>
+              </View>
+            </>
+          )}
 
-                <View style={s.depFooter}>
-                  <Text style={s.depTime}>
-                    Departs {departure.departTime}
-                    {departure.tomorrow ? ' tomorrow' : ''}
+          {/* ── In-transit state — progress ── */}
+          {departure.type === 'in-transit' && (
+            <>
+              <View style={s.transitSection}>
+                <View style={s.progressTrack}>
+                  <View
+                    style={[
+                      s.progressFill,
+                      { width: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      s.progressDot,
+                      { left: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
+                    ]}
+                  />
+                </View>
+                <View style={s.transitEndpoints}>
+                  <Text style={s.transitEndpoint}>
+                    {departure.schedule.stops[0].station}
                   </Text>
-                  <View style={s.onTimeBadge}>
-                    <View style={[s.statusDot, { backgroundColor: '#22c55e' }]} />
-                    <Text style={s.onTimeText}>On Time</Text>
-                  </View>
+                  <Text style={s.transitEndpoint}>{departure.destination}</Text>
                 </View>
-              </>
-            )}
+              </View>
 
-            {/* ── In-transit state — progress ── */}
-            {departure.type === 'in-transit' && (
-              <>
-                <View style={s.transitSection}>
-                  <View style={s.progressTrack}>
-                    <View
-                      style={[
-                        s.progressFill,
-                        { width: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        s.progressDot,
-                        { left: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
-                      ]}
-                    />
-                  </View>
-                  <View style={s.transitEndpoints}>
-                    <Text style={s.transitEndpoint}>
-                      {departure.schedule.stops[0].station}
-                    </Text>
-                    <Text style={s.transitEndpoint}>{departure.destination}</Text>
-                  </View>
+              <View style={s.depInfo}>
+                <View style={[s.depCodeBadge, { backgroundColor: 'rgba(14,165,233,0.25)' }]}>
+                  <Text style={s.depCodeText}>{departure.schedule.code}</Text>
                 </View>
+                <Text style={s.depLabel}>{departure.schedule.label}</Text>
+              </View>
 
-                <View style={s.depInfo}>
-                  <View style={[s.depCodeBadge, { backgroundColor: 'rgba(14,165,233,0.25)' }]}>
-                    <Text style={s.depCodeText}>{departure.schedule.code}</Text>
-                  </View>
-                  <Text style={s.depLabel}>{departure.schedule.label}</Text>
+              <View style={s.transitDetails}>
+                <View style={s.transitRow}>
+                  <View style={s.transitLiveDot} />
+                  <Text style={s.transitText}>
+                    At{' '}
+                    <Text style={s.transitHighlight}>{departure.currentStation}</Text>
+                  </Text>
                 </View>
-
-                <View style={s.transitDetails}>
+                {departure.nextStation && (
                   <View style={s.transitRow}>
-                    <View style={s.transitLiveDot} />
+                    <ArrowRight size={12} color="rgba(255,255,255,0.35)" />
                     <Text style={s.transitText}>
-                      At{' '}
-                      <Text style={s.transitHighlight}>{departure.currentStation}</Text>
+                      Next:{' '}
+                      <Text style={s.transitHighlight}>{departure.nextStation}</Text>
+                      {departure.nextArrival ? ` · ${departure.nextArrival}` : ''}
                     </Text>
                   </View>
-                  {departure.nextStation && (
-                    <View style={s.transitRow}>
-                      <ArrowRight size={12} color="rgba(255,255,255,0.35)" />
-                      <Text style={s.transitText}>
-                        Next:{' '}
-                        <Text style={s.transitHighlight}>{departure.nextStation}</Text>
-                        {departure.nextArrival ? ` · ${departure.nextArrival}` : ''}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                )}
+              </View>
 
-                <View style={s.depFooter}>
-                  <Text style={s.depTime}>
-                    Arriving {departure.destination} at {departure.arrivalTime}
-                  </Text>
-                  <View style={s.transitBadge}>
-                    <View style={[s.statusDot, { backgroundColor: '#0ea5e9' }]} />
-                    <Text style={s.transitBadgeText}>In Transit</Text>
-                  </View>
+              <View style={s.depFooter}>
+                <Text style={s.depTime}>
+                  Arriving {departure.destination} at {departure.arrivalTime}
+                </Text>
+                <View style={s.transitBadge}>
+                  <View style={[s.statusDot, { backgroundColor: '#0ea5e9' }]} />
+                  <Text style={s.transitBadgeText}>In Transit</Text>
                 </View>
+              </View>
+            </>
+          )}
+
+          {/* ── No service state ── */}
+          {departure.type === 'no-service' && (
+            <View style={s.noService}>
+              <TrainFront size={32} color="rgba(255,255,255,0.25)" />
+              <Text style={s.noServiceTitle}>No Service Today</Text>
+              <Text style={s.noServiceSub}>Sunday · Resumes Monday 06:00</Text>
+            </View>
+          )}
+
+          {/* Bottom info strip */}
+          <View style={s.boardStrip}>
+            <GRDABadge size="small" />
+            <Text style={s.stripText}>GRDA Official</Text>
+            <View style={s.stripDot} />
+            <Text style={s.stripText}>Mon – Sat</Text>
+            {departure.type !== 'no-service' && (
+              <>
+                <View style={s.stripDot} />
+                <View style={[s.stripLineDot, { backgroundColor: lineColor }]} />
+                <Text style={s.stripText}>{departure.lineCode}</Text>
+                <View style={s.stripDot} />
+                <Text style={s.stripText}>
+                  GH₵{departure.schedule.fare.toFixed(2)}
+                </Text>
               </>
             )}
-
-            {/* ── No service state ── */}
-            {departure.type === 'no-service' && (
-              <View style={s.noService}>
-                <TrainFront size={32} color="rgba(255,255,255,0.25)" />
-                <Text style={s.noServiceTitle}>No Service Today</Text>
-                <Text style={s.noServiceSub}>Sunday · Resumes Monday 06:00</Text>
-              </View>
-            )}
-
-            {/* Bottom info strip */}
-            <View style={s.boardStrip}>
-              <GRDABadge size="small" />
-              <Text style={s.stripText}>GRDA Official</Text>
-              <View style={s.stripDot} />
-              <Text style={s.stripText}>Mon – Sat</Text>
-              {departure.type !== 'no-service' && (
-                <>
-                  <View style={s.stripDot} />
-                  <View style={[s.stripLineDot, { backgroundColor: lineColor }]} />
-                  <Text style={s.stripText}>{departure.lineCode}</Text>
-                  <View style={s.stripDot} />
-                  <Text style={s.stripText}>
-                    GH₵{departure.schedule.fare.toFixed(2)}
-                  </Text>
-                </>
-              )}
-            </View>
           </View>
-        )}
+        </View>
 
-        {/* ─── Train Lines ─────────────────────────────── */}
+        {/* ─── Rail Line Cards ─────────────────────────── */}
         <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <TrainFront size={16} color="#0ea5e9" />
-            <Text style={s.sectionTitle}>Lines</Text>
-          </View>
-
           {isLoading ? (
             <View style={s.centered}>
               <ActivityIndicator size="large" color="#0ea5e9" />
             </View>
           ) : lines.length === 0 ? (
             <View style={s.emptyCard}>
-              <TrainFront size={40} color={t.textTertiary} />
+              <TrainFront size={40} color={isDark ? '#57534e' : '#a8a29e'} />
               <Text style={s.emptyTitle}>No train lines yet</Text>
               <Text style={s.emptySub}>
                 Train lines will appear here once available
               </Text>
             </View>
           ) : (
-            <View style={{ gap: 14 }}>{lines.map(renderLine)}</View>
+            <View style={{ gap: 24 }}>{lines.map(renderLineCard)}</View>
           )}
+        </View>
+
+        {/* ─── Authority Bulletins ─────────────────────── */}
+        <View style={s.bulletinSection}>
+          <View style={s.bulletinHeader}>
+            <Text style={s.bulletinTitle}>Authority Bulletins</Text>
+          </View>
+
+          <View style={[s.bulletinCard, { borderLeftColor: '#815100' }]}>
+            <Text style={[s.bulletinType, { color: '#815100' }]}>SERVICE NOTICE</Text>
+            <Text style={s.bulletinText}>
+              All train services operate Monday – Saturday. No Sunday service.
+            </Text>
+          </View>
+
+          <View style={[s.bulletinCard, { borderLeftColor: '#0891b2' }]}>
+            <Text style={[s.bulletinType, { color: '#0891b2' }]}>GRDA REMINDER</Text>
+            <Text style={s.bulletinText}>
+              Always purchase tickets before boarding. E-tickets coming soon.
+            </Text>
+          </View>
         </View>
 
         <View style={{ height: 40 }} />
@@ -485,20 +617,88 @@ export default function TrainLinesScreen() {
 // ─── Styles ──────────────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#b2acaa'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
+    container: { flex: 1, backgroundColor: surface },
     centered: { padding: 40, alignItems: 'center', justifyContent: 'center' },
+
+    // ── GRDA Header Bar ──
+    headerBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    headerLogo: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      fontSize: 16,
+      fontFamily: font.extrabold,
+      color: '#fff',
+      letterSpacing: -0.5,
+    },
+    headerTime: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: 'rgba(255,255,255,0.7)',
+      marginLeft: 4,
+    },
+
+    // ── Hero Section ──
+    hero: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 8,
+    },
+    heroLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: '#815100',
+      letterSpacing: 2,
+      marginBottom: 6,
+    },
+    heroTitle: {
+      fontSize: 36,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      letterSpacing: -1,
+      lineHeight: 40,
+      marginBottom: 8,
+    },
+    heroDesc: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      lineHeight: 20,
+      maxWidth: 280,
+    },
 
     // ── Departure Board (always dark — like a real station display) ──
     board: {
       backgroundColor: '#0c1220',
-      margin: 16,
-      marginTop: 8,
+      marginHorizontal: 16,
+      marginTop: 16,
       borderRadius: 24,
       padding: 20,
       overflow: 'hidden',
-      ...shadow.cardStrong,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 6,
     },
     boardGlow: {
       position: 'absolute',
@@ -540,11 +740,6 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.bold,
       color: 'rgba(255,255,255,0.4)',
       letterSpacing: 1.5,
-    },
-    boardTime: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.6)',
     },
 
     // ── Flip Clock ──
@@ -757,78 +952,214 @@ const getStyles = (isDark: boolean) => {
     },
 
     // ── Section ──
-    section: { paddingHorizontal: 20, paddingTop: 20 },
-    sectionHeader: {
+    section: { paddingHorizontal: 20, paddingTop: 24 },
+
+    // ── Editorial Line Cards ──
+    lineCard: {
+      borderRadius: 24,
+      backgroundColor: surfaceLowest,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    lineCardBody: {
+      padding: 24,
+      gap: 20,
+    },
+    lineCardTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    lineBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+      marginBottom: 8,
+    },
+    lineBadgeText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    lineTitle: {
+      fontSize: 24,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      letterSpacing: -0.5,
+      lineHeight: 28,
+    },
+    lineSubtitle: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 2,
+    },
+    shieldBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: '#1e40af',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    // Stats row
+    lineStatsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 20,
+    },
+    lineStat: {
+      gap: 4,
+    },
+    lineStatLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+      letterSpacing: 1.5,
+    },
+    lineStatValue: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    lineStatDivider: {
+      width: 1,
+      height: 32,
+      backgroundColor: outlineVariant,
+    },
+    occupancyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    occupancyDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    occupancyText: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+    },
+
+    // Action buttons
+    lineActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    lineActionPrimary: {
+      flex: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    lineActionPrimaryGradient: {
+      paddingVertical: 14,
+      alignItems: 'center',
+      borderRadius: 16,
+    },
+    lineActionPrimaryText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#fff',
+    },
+    lineActionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: surfaceLow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: outlineVariant,
+    },
+
+    // Bottom gradient strip
+    lineCardStrip: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+    },
+    lineCardStripContent: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 14,
     },
-    sectionTitle: { fontSize: 16, fontFamily: font.bold, color: t.text },
+    lineCardStripText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: 'rgba(255,255,255,0.8)',
+    },
+    lineCardStripDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: 'rgba(255,255,255,0.4)',
+    },
 
-    // ── Line Cards ──
-    card: {
-      borderRadius: 20,
-      backgroundColor: t.card,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: t.border,
+    // ── Authority Bulletins ──
+    bulletinSection: {
+      paddingHorizontal: 20,
+      paddingTop: 32,
+      gap: 12,
     },
-    accentBar: { height: 4 },
-    cardBody: { padding: 16 },
-    cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-    iconBox: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
+    bulletinHeader: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
+      justifyContent: 'space-between',
+      marginBottom: 4,
     },
-    lineName: { fontSize: 16, fontFamily: font.semibold, color: t.text },
-    lineCode: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginTop: 1,
+    bulletinTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: onSurface,
+      letterSpacing: -0.3,
     },
-    statsRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    statText: { fontSize: 13, fontFamily: font.regular, color: t.textSecondary },
-    fareBadge: {
-      marginLeft: 'auto',
-      backgroundColor: isDark ? 'rgba(14,165,233,0.15)' : 'rgba(14,165,233,0.1)',
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-      borderRadius: 10,
+    bulletinCard: {
+      backgroundColor: surfaceLow,
+      borderRadius: 16,
+      padding: 16,
+      borderLeftWidth: 4,
     },
-    fareText: { color: '#0ea5e9', fontSize: 12, fontFamily: font.semibold },
-    lastReport: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textTertiary,
-      marginTop: 8,
+    bulletinType: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      letterSpacing: 1.5,
+      marginBottom: 4,
+    },
+    bulletinText: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: onSurface,
+      lineHeight: 20,
     },
 
     // ── Empty ──
     emptyCard: {
       padding: 32,
       borderRadius: 20,
-      backgroundColor: t.card,
+      backgroundColor: surfaceLowest,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: t.border,
+      borderColor: outlineVariant,
     },
     emptyTitle: {
       fontSize: 16,
       fontFamily: font.semibold,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
       marginTop: 12,
     },
     emptySub: {
       fontSize: 13,
       fontFamily: font.regular,
-      color: t.textTertiary,
+      color: onSurfaceVariant,
       marginTop: 4,
       textAlign: 'center',
     },

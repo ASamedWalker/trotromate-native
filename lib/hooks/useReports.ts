@@ -110,7 +110,7 @@ export function useSubmitIncidentReport(deviceId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const submit = useCallback(
-    async (locationName: string, incidentType: string): Promise<RewardResult | null> => {
+    async (locationName: string, incidentType: string, latitude?: number, longitude?: number): Promise<RewardResult | null> => {
       if (!deviceId) {
         setError('Device not ready')
         return null
@@ -118,7 +118,7 @@ export function useSubmitIncidentReport(deviceId: string | null) {
       setIsSubmitting(true)
       setError(null)
       try {
-        const result = await submitIncidentReport({ locationName, incidentType, deviceId })
+        const result = await submitIncidentReport({ locationName, incidentType, deviceId, latitude, longitude })
         if (!result) {
           setError('Failed to submit report')
           return null

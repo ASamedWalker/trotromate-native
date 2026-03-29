@@ -8,11 +8,27 @@ import {
   useColorScheme,
   Alert,
   StyleSheet,
+  useWindowDimensions,
+  Modal,
+  Pressable,
+  FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { Users, MapPin, Check, Clock, Bus, X } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import {
+  Users,
+  MapPin,
+  Check,
+  Bus,
+  X,
+  Minus,
+  Plus,
+  Send,
+  Search,
+  ChevronDown,
+} from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
 import { useStations } from '@/lib/hooks/useStations'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -20,34 +36,19 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 
 const QUEUE_LEVELS = [
-  { id: 'empty', label: 'Empty', emoji: '😊', description: 'No queue, board immediately', color: c.emerald500 },
-  { id: 'short', label: 'Short', emoji: '🙂', description: '1-2 trotros waiting', color: c.amber500 },
-  { id: 'moderate', label: 'Moderate', emoji: '😐', description: '3-5 trotros, ~15 min wait', color: '#f97316' },
-  { id: 'long', label: 'Long', emoji: '😫', description: '5+ trotros, 30+ min wait', color: c.red500 },
-]
-
-const VEHICLE_COUNTS = [
-  { label: '0', value: 0 },
-  { label: '1-2', value: 2 },
-  { label: '3-5', value: 4 },
-  { label: '5-10', value: 8 },
-  { label: '10+', value: 12 },
-]
-
-const WAIT_TIMES = [
-  { label: '< 5 min', value: 3 },
-  { label: '5-10', value: 8 },
-  { label: '10-20', value: 15 },
-  { label: '20-30', value: 25 },
-  { label: '30+', value: 40 },
+  { id: 'empty', label: 'Empty', emoji: '😊' },
+  { id: 'short', label: 'Short', emoji: '🙂' },
+  { id: 'moderate', label: 'Moderate', emoji: '😐' },
+  { id: 'long', label: 'Long', emoji: '😫' },
 ]
 
 export default function QueueReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
+  const { width } = useWindowDimensions()
+  const levelWidth = (width - 48 - 36) / 4 // px-6 + 3 gaps of 12
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
@@ -55,46 +56,41 @@ export default function QueueReportScreen() {
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
   const { stations } = useStations()
 
-  const [stationQuery, setStationQuery] = useState('')
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
   const [selectedStationName, setSelectedStationName] = useState('')
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
-  const [selectedVehicleCount, setSelectedVehicleCount] = useState<number | null>(null)
-  const [selectedWaitTime, setSelectedWaitTime] = useState<number | null>(null)
+  const [vehicleCount, setVehicleCount] = useState(0)
+  const [locationModalVisible, setLocationModalVisible] = useState(false)
+  const [search, setSearch] = useState('')
 
-  // Filter stations for autocomplete
   const filteredStations = useMemo(() => {
-    if (!stationQuery.trim() || stationQuery.length < 2) return []
-    const q = stationQuery.toLowerCase()
-    return stations
-      .filter((s) => s.name.toLowerCase().includes(q))
-      .slice(0, 5)
-  }, [stationQuery, stations])
+    if (!search.trim() || search.length < 2) return stations.slice(0, 15)
+    const q = search.toLowerCase()
+    return stations.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 15)
+  }, [search, stations])
 
   const handleStationSelect = (station: { id: string; name: string }) => {
     setSelectedStationId(station.id)
     setSelectedStationName(station.name)
-    setStationQuery(station.name)
-    setShowSuggestions(false)
+    setLocationModalVisible(false)
+    setSearch('')
     haptics.light()
   }
 
-  const handleClearStation = () => {
-    setSelectedStationId(null)
-    setSelectedStationName('')
-    setStationQuery('')
-    setShowSuggestions(false)
-  }
-
   const handleSubmit = async () => {
-    const name = selectedStationName || stationQuery.trim()
+    const name = selectedStationName
     if (!name || !selectedLevel) {
       Alert.alert('Missing Info', 'Please select a station and queue level')
       return
     }
 
-    const result = await submit(name, selectedLevel, selectedStationId ?? undefined, selectedVehicleCount ?? undefined, selectedWaitTime ?? undefined)
+    const result = await submit(
+      name,
+      selectedLevel,
+      selectedStationId ?? undefined,
+      vehicleCount > 0 ? vehicleCount : undefined,
+      undefined
+    )
     if (result) {
       haptics.success()
       await refreshProfile()
@@ -106,337 +102,478 @@ export default function QueueReportScreen() {
     }
   }
 
+  const canSubmit = selectedStationName && selectedLevel && !isSubmitting
+
   return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Header Card */}
-        <View style={s.headerCard}>
-          <View style={s.headerRow}>
-            <View style={s.headerIcon}>
-              <Users size={24} color={c.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.headerTitle}>Queue Status</Text>
-              <Text style={s.headerSub}>Report wait times at stations</Text>
-            </View>
-            <View style={s.pointsBadge}>
-              <Text style={s.pointsText}>+5 pts</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Form */}
-        <View style={s.formCard}>
-          {/* Station with autocomplete */}
-          <Text style={s.label}>Station</Text>
-          <View style={s.inputBox}>
-            <MapPin size={20} color={c.violet500} />
-            <TextInput
-              value={stationQuery}
-              onChangeText={(text) => {
-                setStationQuery(text)
-                setShowSuggestions(true)
-                if (selectedStationId) {
-                  setSelectedStationId(null)
-                  setSelectedStationName('')
-                }
-              }}
-              placeholder="Search stations..."
-              placeholderTextColor={t.textSecondary}
-              style={s.input}
-            />
-            {stationQuery.length > 0 && (
-              <TouchableOpacity onPress={handleClearStation}>
-                <X size={16} color={t.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Station suggestions dropdown */}
-          {showSuggestions && filteredStations.length > 0 && !selectedStationId && (
-            <View style={s.suggestions}>
-              {filteredStations.map((station) => (
-                <TouchableOpacity
-                  key={station.id}
-                  style={s.suggestionRow}
-                  onPress={() => handleStationSelect(station)}
-                  activeOpacity={0.7}
-                >
-                  <Bus size={14} color={c.amber500} />
-                  <Text style={s.suggestionText} numberOfLines={1}>
-                    {station.name}
-                  </Text>
-                  {station.location ? (
-                    <Text style={s.suggestionLocation} numberOfLines={1}>
-                      {station.location}
-                    </Text>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Selected station badge */}
-          {selectedStationId && (
-            <View style={s.selectedBadge}>
-              <Check size={12} color={c.emerald500} />
-              <Text style={s.selectedBadgeText}>
-                Linked to {selectedStationName}
-              </Text>
-            </View>
-          )}
-
-          {/* Queue Level */}
-          <Text style={s.label}>How's the queue?</Text>
-          <View style={{ gap: 12, marginBottom: 24 }}>
-            {QUEUE_LEVELS.map((level) => {
-              const isSelected = selectedLevel === level.id
-              return (
-                <TouchableOpacity
-                  key={level.id}
-                  onPress={() => setSelectedLevel(level.id)}
-                  activeOpacity={0.7}
-                  style={[
-                    s.levelBtn,
-                    isSelected ? s.levelBtnSelected : s.levelBtnDefault,
-                    isSelected && { backgroundColor: isDark ? c.violet900 : c.violet50 },
-                  ]}
-                >
-                  <Text style={s.levelEmoji}>{level.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.levelLabel}>{level.label}</Text>
-                    <Text style={s.levelDesc}>{level.description}</Text>
-                  </View>
-                  {isSelected && (
-                    <View style={s.checkCircle}>
-                      <Check size={14} color={c.white} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-
-          {/* Vehicle count picker */}
-          <Text style={s.label}>Vehicles waiting (optional)</Text>
-          <View style={s.vehicleRow}>
-            {VEHICLE_COUNTS.map((vc) => {
-              const isSelected = selectedVehicleCount === vc.value
-              return (
-                <TouchableOpacity
-                  key={vc.value}
-                  onPress={() => {
-                    setSelectedVehicleCount(isSelected ? null : vc.value)
-                    haptics.light()
-                  }}
-                  activeOpacity={0.7}
-                  style={[
-                    s.vehicleBtn,
-                    isSelected ? s.vehicleBtnSelected : s.vehicleBtnDefault,
-                  ]}
-                >
-                  <Text style={[
-                    s.vehicleBtnText,
-                    { color: isSelected ? c.white : t.textSecondary },
-                  ]}>
-                    {vc.label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-
-          {/* Wait time picker */}
-          <Text style={s.label}>How long did you wait? (optional)</Text>
-          <View style={s.vehicleRow}>
-            {WAIT_TIMES.map((wt) => {
-              const isSelected = selectedWaitTime === wt.value
-              return (
-                <TouchableOpacity
-                  key={wt.value}
-                  onPress={() => {
-                    setSelectedWaitTime(isSelected ? null : wt.value)
-                    haptics.light()
-                  }}
-                  activeOpacity={0.7}
-                  style={[
-                    s.vehicleBtn,
-                    isSelected ? s.vehicleBtnSelected : s.vehicleBtnDefault,
-                  ]}
-                >
-                  <Text style={[
-                    s.vehicleBtnText,
-                    { color: isSelected ? c.white : t.textSecondary },
-                  ]}>
-                    {wt.label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-
-          {/* Submit */}
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <ScrollView
+        style={s.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
+        {/* Location Pill */}
+        <View style={s.locationPillWrap}>
           <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            activeOpacity={0.8}
-            style={[s.submitBtn, isSubmitting && s.submitBtnDisabled]}
+            style={s.locationPill}
+            activeOpacity={0.7}
+            onPress={() => setLocationModalVisible(true)}
           >
-            <Clock size={20} color={c.white} />
-            <Text style={s.submitText}>
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            <MapPin size={14} color="#815100" />
+            <Text style={s.locationPillText} numberOfLines={1}>
+              {selectedStationName || 'Select station'}
             </Text>
+            <ChevronDown size={14} color="#815100" />
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* Hero */}
+        <View style={s.hero}>
+          <View style={s.heroIconBox}>
+            <Users size={36} color="#6b21a8" />
+          </View>
+          <Text style={s.heroLabel}>COMMUNITY CONTRIBUTION</Text>
+          <Text style={s.heroTitle}>How's the queue?</Text>
+        </View>
+
+        {/* Queue Level Grid 2x2 or 4x1 */}
+        <View style={s.levelGrid}>
+          {QUEUE_LEVELS.map((level) => {
+            const isSelected = selectedLevel === level.id
+            return (
+              <TouchableOpacity
+                key={level.id}
+                onPress={() => {
+                  setSelectedLevel(level.id)
+                  haptics.light()
+                }}
+                activeOpacity={0.7}
+                style={[
+                  s.levelCard,
+                  { width: levelWidth },
+                  isSelected && s.levelCardSelected,
+                ]}
+              >
+                <Text style={s.levelEmoji}>{level.emoji}</Text>
+                <Text style={[
+                  s.levelLabel,
+                  isSelected && s.levelLabelSelected,
+                ]}>
+                  {level.label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Counter Section */}
+        <View style={s.counterCard}>
+          <Text style={s.counterTitle}>Buses in the yard</Text>
+          <Text style={s.counterSubtitle}>
+            Approximate count of available vehicles
+          </Text>
+          <View style={s.counterRow}>
+            <TouchableOpacity
+              onPress={() => {
+                if (vehicleCount > 0) {
+                  setVehicleCount(vehicleCount - 1)
+                  haptics.light()
+                }
+              }}
+              activeOpacity={0.7}
+              style={s.counterBtnMinus}
+            >
+              <Minus size={24} color="#815100" />
+            </TouchableOpacity>
+            <Text style={s.counterValue}>
+              {vehicleCount.toString().padStart(2, '0')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setVehicleCount(vehicleCount + 1)
+                haptics.light()
+              }}
+              activeOpacity={0.7}
+              style={s.counterBtnPlus}
+            >
+              <Plus size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
+
+      {/* Fixed Bottom Submit */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          activeOpacity={0.85}
+          style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
+        >
+          <LinearGradient
+            colors={['#815100', '#f8a010']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.submitBtn}
+          >
+            <Text style={s.submitText}>
+              {isSubmitting ? 'SUBMITTING...' : 'SUBMIT REPORT'}
+            </Text>
+            <Send size={20} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Station Picker Modal */}
+      <Modal visible={locationModalVisible} transparent animationType="slide">
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => setLocationModalVisible(false)}
+        >
+          <Pressable style={s.modalSheet}>
+            <View style={s.modalHandle} />
+            <Text style={s.modalTitle}>Select Station</Text>
+
+            <View style={s.searchBox}>
+              <Search size={18} color="#815100" />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search stations..."
+                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
+                style={s.searchInput}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')}>
+                  <X size={16} color={isDark ? 'rgba(255,255,255,0.4)' : '#b2acaa'} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <FlatList
+              data={filteredStations}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              style={{ maxHeight: 320 }}
+              renderItem={({ item: station }) => (
+                <TouchableOpacity
+                  onPress={() => handleStationSelect(station)}
+                  activeOpacity={0.7}
+                  style={s.stationRow}
+                >
+                  <Bus size={14} color="#815100" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.stationName} numberOfLines={1}>
+                      {station.name}
+                    </Text>
+                    {station.location ? (
+                      <Text style={s.stationLocation} numberOfLines={1}>
+                        {station.location}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {selectedStationId === station.id && (
+                    <Check size={18} color="#815100" />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+
+            {search.trim() && !filteredStations.some(s => s.name.toLowerCase() === search.trim().toLowerCase()) && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedStationId(null)
+                  setSelectedStationName(search.trim())
+                  setLocationModalVisible(false)
+                  setSearch('')
+                }}
+                activeOpacity={0.7}
+                style={s.customLocBtn}
+              >
+                <MapPin size={16} color="#815100" />
+                <Text style={s.customLocText}>Use "{search.trim()}"</Text>
+              </TouchableOpacity>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#0c0a09' : '#fcf5f2'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const surfaceHighest = isDark ? 'rgba(255,255,255,0.08)' : '#e3dbd8'
+  const onSurface = isDark ? '#fafaf9' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
-    headerCard: {
-      backgroundColor: c.violet500,
-      padding: 20,
-      borderRadius: 24,
-      marginBottom: 24,
-    },
-    headerRow: { flexDirection: 'row', alignItems: 'center' },
-    headerIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    headerTitle: { color: c.white, fontSize: 18, fontFamily: font.bold },
-    headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-    pointsBadge: {
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-    },
-    pointsText: { color: c.white, fontSize: 12, fontFamily: font.semibold },
-    formCard: { padding: 20, borderRadius: 24, backgroundColor: t.card },
-    label: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      marginBottom: 8,
-      color: isDark ? c.stone300 : c.stone600,
-    },
-    inputBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      marginBottom: 8,
-      backgroundColor: t.cardAlt,
-    },
-    input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
-    suggestions: {
-      marginBottom: 16,
-      borderRadius: 12,
-      backgroundColor: t.cardAlt,
-      overflow: 'hidden',
-    },
-    suggestionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: isDark ? c.stone700 : c.stone200,
-    },
-    suggestionText: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      color: t.text,
-      flexShrink: 1,
-    },
-    suggestionLocation: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginLeft: 'auto',
-    },
-    selectedBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 16,
-      paddingHorizontal: 4,
-    },
-    selectedBadgeText: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: c.emerald500,
-    },
-    levelBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 2,
-    },
-    levelBtnSelected: { borderColor: c.violet500 },
-    levelBtnDefault: {
-      borderColor: isDark ? c.stone800 : c.stone100,
-      backgroundColor: isDark ? c.stone800 : c.stone50,
-    },
-    levelEmoji: { fontSize: 24, marginRight: 12 },
-    levelLabel: { fontFamily: font.semibold, color: t.text },
-    levelDesc: { fontSize: 12, marginTop: 2, color: t.textSecondary },
-    checkCircle: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: c.violet500,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    vehicleRow: {
-      flexDirection: 'row',
-      gap: 8,
-      marginBottom: 24,
-    },
-    vehicleBtn: {
+    container: {
       flex: 1,
-      paddingVertical: 10,
-      borderRadius: 12,
-      borderWidth: 1.5,
+      backgroundColor: surface,
+    },
+    scroll: {
+      flex: 1,
+      paddingTop: 8,
+    },
+
+    // Location pill
+    locationPillWrap: {
       alignItems: 'center',
+      paddingHorizontal: 24,
+      marginBottom: 24,
     },
-    vehicleBtnSelected: {
-      backgroundColor: c.amber500,
-      borderColor: c.amber500,
+    locationPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 24,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#e8e1de',
     },
-    vehicleBtnDefault: {
-      borderColor: isDark ? c.stone700 : c.stone200,
-      backgroundColor: isDark ? c.stone800 : c.stone50,
-    },
-    vehicleBtnText: {
-      fontSize: 13,
+    locationPillText: {
+      fontSize: 11,
       fontFamily: font.semibold,
+      color: onSurfaceVariant,
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+      maxWidth: 220,
+    },
+
+    // Hero
+    hero: {
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      marginBottom: 32,
+    },
+    heroIconBox: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: isDark ? 'rgba(107,33,168,0.15)' : 'rgba(255,201,105,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    heroLabel: {
+      fontSize: 12,
+      fontFamily: font.bold,
+      color: '#815100',
+      letterSpacing: 3,
+      textTransform: 'uppercase',
+      marginBottom: 4,
+    },
+    heroTitle: {
+      fontSize: 28,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      letterSpacing: -0.5,
+    },
+
+    // Queue level grid
+    levelGrid: {
+      flexDirection: 'row',
+      paddingHorizontal: 24,
+      gap: 12,
+      marginBottom: 32,
+    },
+    levelCard: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      borderRadius: 20,
+      backgroundColor: surfaceLow,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    levelCardSelected: {
+      backgroundColor: surfaceLowest,
+      borderColor: isDark ? '#f8a010' : '#f8a010',
+      shadowColor: 'rgba(248,160,16,0.2)',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 1,
+      shadowRadius: 20,
+      elevation: 4,
+    },
+    levelEmoji: {
+      fontSize: 32,
+      marginBottom: 8,
+    },
+    levelLabel: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+      textTransform: 'uppercase',
+    },
+    levelLabelSelected: {
+      color: '#815100',
+    },
+
+    // Counter
+    counterCard: {
+      marginHorizontal: 24,
+      padding: 32,
+      borderRadius: 32,
+      backgroundColor: surfaceLow,
+      alignItems: 'center',
+      marginBottom: 32,
+    },
+    counterTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    counterSubtitle: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 4,
+      marginBottom: 24,
+    },
+    counterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 32,
+    },
+    counterBtnMinus: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: surfaceHighest,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    counterBtnPlus: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: '#815100',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: 'rgba(129,81,0,0.2)',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    counterValue: {
+      fontSize: 48,
+      fontFamily: font.extrabold,
+      color: onSurface,
+    },
+
+    // Bottom bar
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(252,245,242,0.85)',
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)',
     },
     submitBtn: {
+      height: 64,
+      borderRadius: 16,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 16,
-      borderRadius: 16,
-      backgroundColor: c.violet500,
+      gap: 12,
     },
-    submitBtnDisabled: { backgroundColor: c.stone400 },
-    submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
+    submitText: {
+      fontFamily: font.extrabold,
+      fontSize: 17,
+      color: '#fff',
+      letterSpacing: 3,
+      textTransform: 'uppercase',
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: isDark ? '#1c1c1e' : surfaceLowest,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: outlineVariant,
+      alignSelf: 'center',
+      marginTop: 12,
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: onSurface,
+      marginBottom: 16,
+    },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 16,
+      backgroundColor: surfaceLow,
+      marginBottom: 16,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: font.regular,
+      color: onSurface,
+    },
+    stationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 4,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: outlineVariant,
+    },
+    stationName: {
+      fontSize: 15,
+      fontFamily: font.medium,
+      color: onSurface,
+    },
+    stationLocation: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+    customLocBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      marginTop: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: outlineVariant,
+    },
+    customLocText: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: '#815100',
+    },
   })
 }

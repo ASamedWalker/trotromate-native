@@ -19,7 +19,6 @@ import {
   X,
   Flag,
   ChevronDown,
-  ChevronUp,
   Camera,
   DollarSign,
   Check,
@@ -27,11 +26,14 @@ import {
   MapPin,
   TrainFront,
   Star,
-  CircleCheck,
 } from 'lucide-react-native'
-import Mapbox from '@rnmapbox/maps'
-import { c, themed, font } from '@/lib/theme'
-import { TrotroTopDown, TrainTopDown, MotoTopDown } from '@/components/VehicleIcons'
+import { LinearGradient } from 'expo-linear-gradient'
+import GorhomBottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import Mapbox, { UserTrackingMode } from '@rnmapbox/maps'
+import { StatusBar } from 'expo-status-bar'
+import { c, font } from '@/lib/theme'
+import { getGhanaTime } from '@/lib/utils/time'
+import { TrainTopDown } from '@/components/VehicleIcons'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
 import { useTrip, type CompletedTripResult } from '@/lib/hooks/useTrip'
@@ -56,7 +58,6 @@ export default function TripScreen() {
     lineId?: string
   }>()
   const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
   const s = getStyles(isDark)
 
   const isTrain = type === 'train'
@@ -70,7 +71,6 @@ export default function TripScreen() {
 
   const cameraRef = useRef<Mapbox.Camera>(null)
   const [isStarting, setIsStarting] = useState(false)
-  const [showStations, setShowStations] = useState(false)
   const isEndingRef = useRef(false)
 
   // Post-trip fare collection + rewards
@@ -145,7 +145,7 @@ export default function TripScreen() {
     )
   }, [isTrain, trainStations, route, allStations])
 
-  // Build GeoJSON for the trip route line
+  // Build GeoJSON for the trip route line — split into traveled + remaining
   const routeLineGeojson = useMemo(() => {
     if (!tripStations || tripStations.length < 2) return null
     return {
@@ -157,6 +157,15 @@ export default function TripScreen() {
       properties: {},
     }
   }, [tripStations])
+
+  // Speed in km/h from GPS
+  const speedKmh = useMemo(() => {
+    if (!userLocation) return 0
+    // expo-location provides speed in m/s (can be -1 if unavailable)
+    const raw = (userLocation as any).speed
+    if (raw == null || raw < 0) return 0
+    return Math.round(raw * 3.6)
+  }, [userLocation])
 
   // Build GeoJSON for station dots
   const stationDotsGeojson = useMemo(() => {
@@ -317,8 +326,8 @@ export default function TripScreen() {
     )
   }
 
-  // Route found but coordinates couldn't be resolved
-  if (!tripStations && (route || line)) {
+  // Route found but coordinates couldn't be resolved (only blocks train — trotro doesn't need map)
+  if (!tripStations && isTrain && line) {
     return (
       <SafeAreaView style={s.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
@@ -346,17 +355,87 @@ export default function TripScreen() {
   const isActive = tripState === 'active' || tripState === 'approaching'
   const lineColor = isTrain ? (line?.color ?? '#0ea5e9') : '#f59e0b'
 
+  // Auto night mode — dark map between 6 PM and 6 AM Ghana time
+  const { hours: ghanaHour } = getGhanaTime()
+  const isNightTime = isDark || ghanaHour >= 18 || ghanaHour < 6
+  const mapStyleURL = isNightTime
+    ? 'mapbox://styles/mapbox/navigation-night-v1'
+    : 'mapbox://styles/mapbox/navigation-day-v1'
+
+  // Bottom sheet snap points — compact when active, taller when idle
+  const tripSheetRef = useRef<GorhomBottomSheet>(null)
+  const activeSnapPoints = useMemo(() => ['18%', '45%', '80%'], [])
+  const idleSnapPoints = useMemo(() => ['35%', '60%'], [])
+
   // Only follow user GPS if they're actually near the route (within ~50km)
   // Prevents camera jumping to another country when testing remotely
   const isNearRoute = useMemo(() => {
     if (!progress || !tripStations || tripStations.length === 0) return false
-    return progress.distanceToDestinationKm < 50 || progress.distanceToNearestKm < 50
+    const near = progress.distanceToDestinationKm < 50 || progress.distanceToNearestKm < 50
+    console.log('[GO Mode]', { near, distDest: progress.distanceToDestinationKm, distNearest: progress.distanceToNearestKm })
+    return near
   }, [progress, tripStations])
   const shouldFollowUser = isActive && isNearRoute
 
+  // Simulated progress for remote testing — advances ~1% every 3s (full trip in ~5 min)
+  const [simProgress, setSimProgress] = useState(0)
+  const isNearRouteRef = useRef(isNearRoute)
+  isNearRouteRef.current = isNearRoute
+
+  useEffect(() => {
+    if (!isActive) return
+    // Start simulation immediately — check isNearRoute via ref to avoid stale closure
+    const interval = setInterval(() => {
+      if (isNearRouteRef.current) return // skip if user is actually near the route
+      setSimProgress((prev) => {
+        const next = Math.min(prev + 1, 98)
+        console.log('[GO Mode] simProgress:', next)
+        return next
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [isActive])
+
+  // Reset sim progress when trip starts
+  useEffect(() => {
+    if (tripState === 'idle') setSimProgress(0)
+  }, [tripState])
+
+  // Effective progress: real GPS when near, simulated when far
+  const effectiveProgress = isNearRoute
+    ? (progress?.progressPercent ?? 0)
+    : simProgress
+
+  // Traveled portion of route (solid, bright) based on progress
+  const traveledLineGeojson = useMemo(() => {
+    if (!tripStations || tripStations.length < 2) return null
+    if (effectiveProgress <= 0) return null
+    const pct = effectiveProgress / 100
+    const allCoords = tripStations.map((s) => [s.longitude, s.latitude])
+    const totalSegments = allCoords.length - 1
+    const rawIdx = pct * totalSegments
+    const segIdx = Math.min(Math.floor(rawIdx), totalSegments - 1)
+    const segFraction = rawIdx - segIdx
+    const coords = allCoords.slice(0, segIdx + 1)
+    if (segIdx < totalSegments) {
+      const from = allCoords[segIdx]
+      const to = allCoords[segIdx + 1]
+      coords.push([
+        from[0] + (to[0] - from[0]) * segFraction,
+        from[1] + (to[1] - from[1]) * segFraction,
+      ])
+    }
+    if (coords.length < 2) return null
+    return {
+      type: 'Feature' as const,
+      geometry: { type: 'LineString' as const, coordinates: coords },
+      properties: {},
+    }
+  }, [tripStations, effectiveProgress])
+
   // Vehicle marker GeoJSON — follows user location with heading rotation
   // When user is far from route (testing remotely), interpolate position along the route
-  // based on trip progress so the marker is visible on the Ghana-centered map
+  // based on simulated progress so the marker moves visibly
   const vehicleGeojson = useMemo(() => {
     if (!isActive || !tripStations || tripStations.length < 2) return null
 
@@ -370,8 +449,8 @@ export default function TripScreen() {
       lat = userLocation.latitude
       heading = userLocation.heading ?? 0
     } else {
-      // Remote testing — interpolate along the route corridor based on progress %
-      const pct = (progress?.progressPercent ?? 0) / 100
+      // Remote testing — interpolate along the route using simulated progress
+      const pct = effectiveProgress / 100
       const totalSegments = tripStations.length - 1
       const rawIdx = pct * totalSegments
       const segIdx = Math.min(Math.floor(rawIdx), totalSegments - 1)
@@ -395,17 +474,155 @@ export default function TripScreen() {
         icon: isTrain ? 'vehicle-train' : route?.transport_type === 'okada' ? 'vehicle-moto' : 'vehicle-trotro',
       },
     }
-  }, [isActive, isNearRoute, userLocation?.latitude, userLocation?.longitude, userLocation?.heading, progress?.progressPercent, tripStations, isTrain, route?.transport_type])
+  }, [isActive, isNearRoute, userLocation?.latitude, userLocation?.longitude, userLocation?.heading, effectiveProgress, tripStations, isTrain, route?.transport_type])
 
+  /* ── Shared fare modal (used by both trotro and train) ── */
+  const renderFareModal = () => (
+    <Modal
+      visible={showFarePrompt}
+      transparent
+      animationType="slide"
+      onRequestClose={handleSkipFare}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={s.fareModalOverlay}
+      >
+        <View style={s.fareModalCard}>
+          <View style={s.fareModalHeader}>
+            <Check size={28} color="#22c55e" />
+            <Text style={s.fareModalTitle}>Trip Complete!</Text>
+            <Text style={s.fareModalSub}>
+              {completedTrip?.payload.from_location} → {completedTrip?.payload.to_location}
+            </Text>
+          </View>
+
+          <View style={s.summaryRow}>
+            <View style={s.summaryItem}>
+              <Clock size={16} color={c.amber500} />
+              <Text style={s.summaryValue}>
+                {completedTrip?.payload.duration_mins ?? 0} min
+              </Text>
+              <Text style={s.summaryLabel}>Duration</Text>
+            </View>
+            <View style={s.summaryDivider} />
+            <View style={s.summaryItem}>
+              <MapPin size={16} color={c.amber500} />
+              <Text style={s.summaryValue}>
+                {completedTrip?.payload.distance_km
+                  ? `${completedTrip.payload.distance_km} km`
+                  : '—'}
+              </Text>
+              <Text style={s.summaryLabel}>Distance</Text>
+            </View>
+            <View style={s.summaryDivider} />
+            <View style={s.summaryItem}>
+              {isTrain
+                ? <TrainFront size={16} color={c.amber500} />
+                : <Navigation size={16} color={c.amber500} />}
+              <Text style={s.summaryValue}>
+                {completedTrip?.payload.station_count ?? 0}
+              </Text>
+              <Text style={s.summaryLabel}>Stations</Text>
+            </View>
+          </View>
+
+          {completedTrip?.tripId && (
+            <View style={s.pointsBadge}>
+              <Star size={14} color={c.amber500} />
+              <Text style={s.pointsBadgeText}>
+                +{TRIP_POINTS.completed} pts
+              </Text>
+              {!fareInput && (
+                <Text style={s.pointsBonusHint}>
+                   · Submit fare for +{TRIP_POINTS.fare_bonus} bonus
+                </Text>
+              )}
+            </View>
+          )}
+
+          {!completedTrip?.tripId && (
+            <View style={s.offlineBadge}>
+              <Text style={s.offlineBadgeText}>
+                Trip saved offline — points awarded when connected
+              </Text>
+            </View>
+          )}
+
+          <Text style={s.fareModalLabel}>How much did you pay?</Text>
+          <View style={s.fareInputRow}>
+            <Text style={s.fareCurrency}>GH₵</Text>
+            <TextInput
+              style={s.fareInput}
+              value={fareInput}
+              onChangeText={setFareInput}
+              placeholder="0.00"
+              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+          </View>
+
+          <TouchableOpacity
+            onPress={handleSubmitFare}
+            activeOpacity={0.8}
+            style={s.fareSubmitBtn}
+          >
+            <Text style={s.fareSubmitText}>
+              {fareInput ? `Submit Fare (+${TRIP_POINTS.completed + TRIP_POINTS.fare_bonus} pts)` : 'Skip'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleSkipFare} activeOpacity={0.7}>
+            <Text style={s.fareSkipText}>Skip for now</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+
+  /* ══════════════════════════════════════════════════════════════
+     TROTRO — GO Mode not available, redirect back
+     ══════════════════════════════════════════════════════════════ */
+  if (!isTrain) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
+          <TrainFront size={40} color={c.amber500} />
+          <Text style={[s.loadingText, { marginTop: 0, fontSize: 16 }]}>
+            GO Mode is for trains only
+          </Text>
+          <Text style={[s.loadingText, { marginTop: 0, fontSize: 13 }]}>
+            Track your journey in real-time on Ghana's railway lines.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            style={{ backgroundColor: c.amber500, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     TRAIN — Full navigation map with all features
+     ══════════════════════════════════════════════════════════════ */
   return (
     <View style={s.container}>
+      <StatusBar style={isNightTime ? 'light' : 'dark'} />
+
       {/* Full-screen map */}
       <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
+        styleURL={mapStyleURL}
         attributionEnabled={false}
         logoEnabled={false}
-        compassEnabled={true}
+        compassEnabled
+        compassViewPosition={1}
+        compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 80 : 60 }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -416,8 +633,9 @@ export default function TripScreen() {
             zoomLevel: 12,
           }}
           followUserLocation={shouldFollowUser}
-          followZoomLevel={shouldFollowUser ? 15 : undefined}
-          followPitch={shouldFollowUser ? 45 : undefined}
+          followUserMode={shouldFollowUser ? UserTrackingMode.FollowWithCourse : undefined}
+          followZoomLevel={shouldFollowUser ? 16 : undefined}
+          followPitch={shouldFollowUser ? 60 : undefined}
           centerCoordinate={
             !shouldFollowUser && tripStations
               ? [tripStations[0].longitude, tripStations[0].latitude]
@@ -431,19 +649,17 @@ export default function TripScreen() {
 
         {/* Vehicle icons for GO Mode marker */}
         <Mapbox.Images>
-          <Mapbox.Image name="vehicle-trotro">
-            <TrotroTopDown size={44} />
-          </Mapbox.Image>
           <Mapbox.Image name="vehicle-train">
             <TrainTopDown size={44} />
           </Mapbox.Image>
-          <Mapbox.Image name="vehicle-moto">
-            <MotoTopDown size={44} />
-          </Mapbox.Image>
         </Mapbox.Images>
 
-        {/* Show blue dot when idle, vehicle icon when trip is active */}
-        <Mapbox.UserLocation visible={!isActive} />
+        {/* Show blue dot with heading arrow when idle */}
+        <Mapbox.UserLocation
+          visible={!isActive}
+          showsUserHeadingIndicator
+          androidRenderMode="compass"
+        />
 
         {/* Vehicle marker — replaces blue dot during active trip */}
         {vehicleGeojson && (
@@ -462,7 +678,7 @@ export default function TripScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* Route corridor line */}
+        {/* Route corridor — remaining portion (dimmer, dashed) */}
         {routeLineGeojson && (
           <Mapbox.ShapeSource id="trip-route-line" shape={routeLineGeojson as any}>
             <Mapbox.LineLayer
@@ -470,7 +686,7 @@ export default function TripScreen() {
               style={{
                 lineColor: lineColor,
                 lineWidth: 6,
-                lineOpacity: 0.3,
+                lineOpacity: 0.15,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -480,7 +696,34 @@ export default function TripScreen() {
               style={{
                 lineColor: lineColor,
                 lineWidth: 3,
-                lineOpacity: 0.9,
+                lineOpacity: 0.4,
+                lineCap: 'round',
+                lineJoin: 'round',
+                lineDasharray: [2, 3],
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* Route corridor — traveled portion (bright, solid) */}
+        {traveledLineGeojson && (
+          <Mapbox.ShapeSource id="trip-traveled-line" shape={traveledLineGeojson as any}>
+            <Mapbox.LineLayer
+              id="trip-traveled-line-bg"
+              style={{
+                lineColor: lineColor,
+                lineWidth: 7,
+                lineOpacity: 0.3,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+            <Mapbox.LineLayer
+              id="trip-traveled-line-fg"
+              style={{
+                lineColor: lineColor,
+                lineWidth: 4,
+                lineOpacity: 1,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -527,324 +770,278 @@ export default function TripScreen() {
         )}
       </Mapbox.MapView>
 
-      {/* Top bar */}
+      {/* Speed indicator — Waze style */}
+      {isActive && (
+        <View style={s.speedBadge}>
+          <Text style={s.speedValue}>{speedKmh}</Text>
+          <Text style={s.speedUnit}>km/h</Text>
+        </View>
+      )}
+
+      {/* Status bar tint — prevents map bleeding into system bar */}
+      <LinearGradient
+        colors={[isNightTime ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.25)', 'transparent']}
+        style={s.statusBarTint}
+        pointerEvents="none"
+      />
+
+      {/* Glass header */}
       <SafeAreaView edges={['top']} style={s.topBar}>
         <TouchableOpacity
           onPress={() => (isActive ? handleEndTrip() : router.back())}
           style={s.backBtn}
           activeOpacity={0.7}
         >
-          <X size={20} color="#fff" />
+          <X size={20} color={isDark ? '#e5e5e5' : '#312e2d'} />
         </TouchableOpacity>
         <View style={s.topLabel}>
           <Text style={s.topLabelText} numberOfLines={1}>
-            {routeLabel}
+            {isActive ? `TRIP #${(routeId ?? '').substring(0, 6).toUpperCase()}` : routeLabel}
           </Text>
         </View>
       </SafeAreaView>
 
-      {/* Bottom card */}
-      <SafeAreaView edges={['bottom']} style={s.bottomCard}>
-        {/* Approaching alert */}
-        {tripState === 'approaching' && (
-          <View style={s.approachBanner}>
-            <Flag size={18} color={c.amber500} />
-            <Text style={s.approachText}>
-              Approaching destination — {formatDistance(progress?.distanceToDestinationKm ?? 0)}
-            </Text>
-          </View>
-        )}
-
-        {/* Progress info when active */}
-        {isActive && progress && (
-          <View style={s.progressSection}>
-            <View style={s.progressBarBg}>
-              <View
-                style={[
-                  s.progressBarFill,
-                  { width: `${Math.min(100, progress.progressPercent)}%` },
-                ]}
-              />
+      {/* ── Draggable bottom sheet ── */}
+      <GorhomBottomSheet
+        ref={tripSheetRef}
+        index={0}
+        snapPoints={isActive ? activeSnapPoints : idleSnapPoints}
+        enablePanDownToClose={false}
+        backgroundStyle={s.sheetBackground}
+        handleIndicatorStyle={s.sheetHandle}
+      >
+        <BottomSheetScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.sheetContent}
+        >
+          {/* Approaching alert */}
+          {tripState === 'approaching' && (
+            <View style={s.approachBanner}>
+              <Flag size={18} color="#815100" />
+              <Text style={s.approachText}>
+                Approaching destination — {formatDistance(progress?.distanceToDestinationKm ?? 0)}
+              </Text>
             </View>
+          )}
 
-            <View style={s.progressRow}>
-              <View style={s.progressItem}>
-                <Text style={s.progressValue}>
-                  {formatDistance(progress.distanceToDestinationKm)}
-                </Text>
-                <Text style={s.progressLabel}>to destination</Text>
-              </View>
-              {progress.nearestStation && (
-                <View style={s.progressItem}>
-                  <Text style={s.progressValue}>{progress.nearestStation.name}</Text>
-                  <Text style={s.progressLabel}>
-                    nearest — {formatDistance(progress.distanceToNearestKm)}
+          {/* Progress header when active */}
+          {isActive && progress && (
+            <>
+              <View style={s.progressHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.destName}>{dest?.name}</Text>
+                  <Text style={s.lineInfo}>
+                    {line?.name ?? routeLabel} • ETA {estimateETA(progress.distanceToDestinationKm, 'train')}
                   </Text>
                 </View>
-              )}
-              <View style={s.progressItem}>
-                <Text style={s.progressValue}>
-                  {estimateETA(progress.distanceToDestinationKm, isTrain ? 'train' : 'trotro')}
-                </Text>
-                <Text style={s.progressLabel}>ETA</Text>
+                <View style={s.progressBadge}>
+                  <Text style={s.progressBadgeText}>{Math.round(progress.progressPercent)}%</Text>
+                </View>
               </View>
-            </View>
-          </View>
-        )}
 
-        {/* Station-by-station progress */}
-        {isActive && progress && progress.stationStatuses.length > 0 && (
-          <View>
-            <TouchableOpacity
-              onPress={() => setShowStations((v) => !v)}
-              activeOpacity={0.7}
-              style={s.stationToggle}
-            >
-              <Text style={s.stationToggleText}>
-                {progress.stationStatuses.filter((ss) => ss.status === 'passed').length}/{progress.stationStatuses.length} stations
-              </Text>
-              {showStations
-                ? <ChevronUp size={16} color={t.textSecondary} />
-                : <ChevronDown size={16} color={t.textSecondary} />}
-            </TouchableOpacity>
+              {/* Gradient progress bar */}
+              <View style={s.progressBarBg}>
+                <LinearGradient
+                  colors={['#815100', '#f8a010']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[s.progressBarFill, { width: `${Math.min(100, progress.progressPercent)}%` }]}
+                />
+              </View>
 
-            {showStations && (
-              <View style={s.stationList}>
-                {progress.stationStatuses.map((ss, i) => (
+              {/* Stats row */}
+              <View style={s.statsRow}>
+                <View style={s.statItem}>
+                  <Text style={s.statValue}>{formatDistance(progress.distanceToDestinationKm)}</Text>
+                  <Text style={s.statLabel}>remaining</Text>
+                </View>
+                {progress.nearestStation && (
+                  <View style={s.statItem}>
+                    <Text style={s.statValue}>{progress.nearestStation.name}</Text>
+                    <Text style={s.statLabel}>{formatDistance(progress.distanceToNearestKm)}</Text>
+                  </View>
+                )}
+                <View style={s.statItem}>
+                  <Text style={s.statValue}>
+                    {progress.stationStatuses.filter((ss) => ss.status === 'passed').length}/{progress.stationStatuses.length}
+                  </Text>
+                  <Text style={s.statLabel}>stations</Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Station timeline — visible when sheet is dragged up */}
+          {isActive && progress && progress.stationStatuses.length > 0 && (
+            <View>
+              {progress.stationStatuses.map((ss, i) => {
+                const isNext = ss.status === 'current'
+                const isPassed = ss.status === 'passed'
+                const isLast = i === progress.stationStatuses.length - 1
+
+                return (
                   <View key={ss.station.id} style={s.stationRow}>
-                    {/* Timeline connector */}
                     <View style={s.stationTimeline}>
                       {i > 0 && (
-                        <View style={[
-                          s.stationLine,
-                          { backgroundColor: ss.status === 'upcoming' ? (isDark ? c.stone700 : c.stone300) : '#22c55e' },
-                        ]} />
+                        <View style={[s.trackLine, isPassed && s.trackLinePassed]} />
                       )}
-                      {ss.status === 'passed' ? (
-                        <CircleCheck size={18} color="#22c55e" />
-                      ) : ss.status === 'current' ? (
-                        <View style={s.stationDotCurrent} />
+                      {isPassed ? (
+                        <View style={s.dotPassed}>
+                          <Check size={10} color="#fff" />
+                        </View>
+                      ) : isNext ? (
+                        <View style={s.dotActive}>
+                          <View style={s.dotActiveInner} />
+                        </View>
                       ) : (
-                        <View style={s.stationDotUpcoming} />
+                        <View style={s.dotUpcoming} />
                       )}
-                      {i < progress.stationStatuses.length - 1 && (
+                      {!isLast && (
                         <View style={[
-                          s.stationLine,
-                          { backgroundColor: ss.status !== 'upcoming' && progress.stationStatuses[i + 1]?.status !== 'upcoming' ? '#22c55e' : (isDark ? c.stone700 : c.stone300) },
+                          s.trackLine,
+                          isPassed && progress.stationStatuses[i + 1]?.status !== 'upcoming' && s.trackLinePassed,
                         ]} />
                       )}
                     </View>
-                    {/* Station name + distance */}
-                    <View style={s.stationInfo}>
+                    <View style={[s.stationInfo, isNext && s.stationInfoHighlight]}>
+                      {isNext && <Text style={s.nextLabel}>NEXT STATION</Text>}
                       <Text style={[
                         s.stationName,
-                        ss.status === 'passed' && s.stationNamePassed,
-                        ss.status === 'current' && s.stationNameCurrent,
+                        isPassed && s.stationNamePassed,
+                        isNext && s.stationNameActive,
                       ]} numberOfLines={1}>
                         {ss.station.name}
                       </Text>
-                      {ss.status === 'current' && (
-                        <Text style={s.stationDistance}>{formatDistance(ss.distanceKm)}</Text>
+                      {isNext && ss.distanceKm != null && (
+                        <Text style={s.stationDist}>{formatDistance(ss.distanceKm)}</Text>
                       )}
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Start button */}
-        {tripState === 'idle' && !showFarePrompt && (
-          <TouchableOpacity
-            onPress={handleStartTrip}
-            disabled={!tripStations || isStarting}
-            activeOpacity={0.8}
-            style={[s.goBtn, (!tripStations || isStarting) && s.goBtnDisabled]}
-          >
-            <Navigation size={22} color="#fff" />
-            <Text style={s.goBtnText}>
-              {isStarting ? 'Starting...' : 'Start GO Mode'}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Quick actions during trip */}
-        {isActive && (
-          <View style={s.tripActions}>
-            <TouchableOpacity
-              onPress={() => router.push('/report/photo')}
-              activeOpacity={0.7}
-              style={s.tripActionBtn}
-            >
-              <Camera size={18} color={c.amber500} />
-              <Text style={s.tripActionText}>Post Tale</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/report/fare')}
-              activeOpacity={0.7}
-              style={s.tripActionBtn}
-            >
-              <DollarSign size={18} color={c.amber500} />
-              <Text style={s.tripActionText}>Report Fare</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {isActive && (
-          <TouchableOpacity
-            onPress={handleEndTrip}
-            activeOpacity={0.8}
-            style={s.endBtn}
-          >
-            <X size={18} color="#fff" />
-            <Text style={s.endBtnText}>End Trip</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Route info when not started */}
-        {tripState === 'idle' && !showFarePrompt && tripStations && (
-          <View style={s.routeInfo}>
-            <View style={s.routeInfoRow}>
-              <View style={[s.dot, { backgroundColor: '#22c55e' }]} />
-              <Text style={s.routeInfoText}>{origin?.name}</Text>
+                )
+              })}
             </View>
-            <View style={s.routeInfoDivider} />
-            {tripStations.length > 2 && (
-              <>
-                <View style={s.routeInfoRow}>
-                  <ChevronDown size={12} color={t.textSecondary} />
-                  <Text style={s.routeInfoSub}>
-                    {tripStations.length - 2} stop{tripStations.length - 2 !== 1 ? 's' : ''} along the way
-                  </Text>
+          )}
+
+          {/* Quick actions during trip */}
+          {isActive && (
+            <View style={s.tripActions}>
+              <TouchableOpacity
+                onPress={() => router.push('/report/photo')}
+                activeOpacity={0.7}
+                style={s.tripActionBtn}
+              >
+                <Camera size={18} color="#815100" />
+                <Text style={s.tripActionText}>Post Tale</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/report/fare')}
+                activeOpacity={0.7}
+                style={s.tripActionBtn}
+              >
+                <DollarSign size={18} color="#815100" />
+                <Text style={s.tripActionText}>Report Fare</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Finish trip — editorial gradient */}
+          {isActive && (
+            <TouchableOpacity onPress={handleEndTrip} activeOpacity={0.8}>
+              <LinearGradient
+                colors={['#815100', '#f8a010']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={s.finishBtn}
+              >
+                <Flag size={18} color="#fff" />
+                <Text style={s.finishBtnText}>Finish Trip</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          {/* Idle — route preview + start */}
+          {tripState === 'idle' && !showFarePrompt && (
+            <>
+              {tripStations && (
+                <View style={s.idleStops}>
+                  <View style={s.stationRow}>
+                    <View style={s.stationTimeline}>
+                      <View style={[s.dotIdle, { backgroundColor: '#22c55e' }]} />
+                      <View style={s.trackLine} />
+                    </View>
+                    <View style={s.stationInfo}>
+                      <Text style={s.stationNameBold}>{origin?.name}</Text>
+                      <Text style={s.stationSub}>Origin</Text>
+                    </View>
+                  </View>
+                  {tripStations.length > 2 && (
+                    <View style={s.stationRow}>
+                      <View style={s.stationTimeline}>
+                        <View style={s.trackLine} />
+                        <ChevronDown size={14} color="#b2acaa" />
+                        <View style={s.trackLine} />
+                      </View>
+                      <View style={s.stationInfo}>
+                        <Text style={s.stationSub}>
+                          {tripStations.length - 2} stop{tripStations.length - 2 !== 1 ? 's' : ''} along the way
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  <View style={s.stationRow}>
+                    <View style={s.stationTimeline}>
+                      <View style={s.trackLine} />
+                      <View style={[s.dotIdle, { backgroundColor: '#ef4444' }]} />
+                    </View>
+                    <View style={s.stationInfo}>
+                      <Text style={s.stationNameBold}>{dest?.name}</Text>
+                      <Text style={s.stationSub}>Destination</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={s.routeInfoDivider} />
-              </>
-            )}
-            <View style={s.routeInfoRow}>
-              <View style={[s.dot, { backgroundColor: '#ef4444' }]} />
-              <Text style={s.routeInfoText}>{dest?.name}</Text>
-            </View>
-          </View>
-        )}
-      </SafeAreaView>
+              )}
 
-      {/* ── Post-trip fare collection modal ── */}
-      <Modal
-        visible={showFarePrompt}
-        transparent
-        animationType="slide"
-        onRequestClose={handleSkipFare}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={s.fareModalOverlay}
-        >
-          <View style={s.fareModalCard}>
-            <View style={s.fareModalHeader}>
-              <Check size={28} color="#22c55e" />
-              <Text style={s.fareModalTitle}>Trip Complete!</Text>
-              <Text style={s.fareModalSub}>
-                {completedTrip?.payload.from_location} → {completedTrip?.payload.to_location}
-              </Text>
-            </View>
-
-            {/* Trip summary stats */}
-            <View style={s.summaryRow}>
-              <View style={s.summaryItem}>
-                <Clock size={16} color={c.amber500} />
-                <Text style={s.summaryValue}>
-                  {completedTrip?.payload.duration_mins ?? 0} min
-                </Text>
-                <Text style={s.summaryLabel}>Duration</Text>
-              </View>
-              <View style={s.summaryDivider} />
-              <View style={s.summaryItem}>
-                <MapPin size={16} color={c.amber500} />
-                <Text style={s.summaryValue}>
-                  {completedTrip?.payload.distance_km
-                    ? `${completedTrip.payload.distance_km} km`
-                    : '—'}
-                </Text>
-                <Text style={s.summaryLabel}>Distance</Text>
-              </View>
-              <View style={s.summaryDivider} />
-              <View style={s.summaryItem}>
-                {isTrain
-                  ? <TrainFront size={16} color={c.amber500} />
-                  : <Navigation size={16} color={c.amber500} />}
-                <Text style={s.summaryValue}>
-                  {completedTrip?.payload.station_count ?? 0}
-                </Text>
-                <Text style={s.summaryLabel}>Stations</Text>
-              </View>
-            </View>
-
-            {/* Points indicator */}
-            {completedTrip?.tripId && (
-              <View style={s.pointsBadge}>
-                <Star size={14} color={c.amber500} />
-                <Text style={s.pointsBadgeText}>
-                  +{TRIP_POINTS.completed} pts
-                </Text>
-                {!fareInput && (
-                  <Text style={s.pointsBonusHint}>
-                     · Submit fare for +{TRIP_POINTS.fare_bonus} bonus
+              <TouchableOpacity
+                onPress={handleStartTrip}
+                disabled={!tripStations || isStarting}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={(!tripStations || isStarting) ? ['#9ca3af', '#d1d5db'] : ['#815100', '#f8a010']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={s.goBtn}
+                >
+                  <Navigation size={22} color="#fff" />
+                  <Text style={s.goBtnText}>
+                    {isStarting ? 'Starting...' : 'Start GO Mode'}
                   </Text>
-                )}
-              </View>
-            )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
+          )}
+        </BottomSheetScrollView>
+      </GorhomBottomSheet>
 
-            {/* Offline indicator */}
-            {!completedTrip?.tripId && (
-              <View style={s.offlineBadge}>
-                <Text style={s.offlineBadgeText}>
-                  Trip saved offline — points awarded when connected
-                </Text>
-              </View>
-            )}
-
-            <Text style={s.fareModalLabel}>How much did you pay?</Text>
-            <View style={s.fareInputRow}>
-              <Text style={s.fareCurrency}>GH₵</Text>
-              <TextInput
-                style={s.fareInput}
-                value={fareInput}
-                onChangeText={setFareInput}
-                placeholder="0.00"
-                placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-                keyboardType="decimal-pad"
-                autoFocus
-              />
-            </View>
-
-            <TouchableOpacity
-              onPress={handleSubmitFare}
-              activeOpacity={0.8}
-              style={s.fareSubmitBtn}
-            >
-              <Text style={s.fareSubmitText}>
-                {fareInput ? `Submit Fare (+${TRIP_POINTS.completed + TRIP_POINTS.fare_bonus} pts)` : 'Skip'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleSkipFare} activeOpacity={0.7}>
-              <Text style={s.fareSkipText}>Skip for now</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {renderFareModal()}
     </View>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    loadingText: { color: t.textSecondary, textAlign: 'center', marginTop: 100 },
+  // Stitch M3 tokens
+  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
+  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#b2acaa'
 
-    // Top bar
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: surface },
+    loadingText: { color: onSurfaceVariant, textAlign: 'center', marginTop: 100 },
+
+    // Glass header
     topBar: {
       position: 'absolute',
       top: 0,
@@ -857,110 +1054,285 @@ const getStyles = (isDark: boolean) => {
       gap: 12,
     },
     backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.85)' : 'rgba(255,255,255,0.85)',
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
     },
     topLabel: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      borderRadius: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.85)' : 'rgba(255,255,255,0.85)',
+      borderRadius: 22,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
     },
     topLabelText: {
-      color: '#fff',
-      fontSize: 14,
+      color: onSurface,
+      fontSize: 13,
       fontFamily: font.semibold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
     },
 
-    // Bottom card
-    bottomCard: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: t.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 20,
-      gap: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
+    // Bottom sheet — draggable
+    sheetBackground: {
+      backgroundColor: surfaceLowest,
+      borderRadius: 28,
+      shadowColor: '#312e2d',
+      shadowOffset: { width: 0, height: -12 },
+      shadowOpacity: isDark ? 0 : 0.12,
+      shadowRadius: 40,
+      elevation: isDark ? 0 : 10,
+    },
+    sheetHandle: {
+      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : '#d6d3d1',
+      width: 40,
+    },
+    sheetContent: {
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+      gap: 18,
     },
 
     // Approaching
     approachBanner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
-      padding: 12,
-      borderRadius: 12,
+      gap: 10,
+      backgroundColor: isDark ? 'rgba(129,81,0,0.15)' : 'rgba(129,81,0,0.08)',
+      padding: 14,
+      borderRadius: 16,
     },
     approachText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: c.amber500,
+      color: '#815100',
+      flex: 1,
     },
 
-    // Progress
-    progressSection: { gap: 12 },
+    // Progress header
+    progressHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    destName: {
+      fontSize: 22,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    lineInfo: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 2,
+    },
+    progressBadge: {
+      backgroundColor: isDark ? 'rgba(129,81,0,0.2)' : 'rgba(129,81,0,0.1)',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 14,
+    },
+    progressBadgeText: {
+      fontSize: 18,
+      fontFamily: font.extrabold,
+      color: '#815100',
+    },
+
+    // Gradient progress bar
     progressBarBg: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: isDark ? c.stone700 : c.stone200,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de',
       overflow: 'hidden',
     },
     progressBarFill: {
       height: '100%',
-      borderRadius: 3,
-      backgroundColor: c.amber500,
+      borderRadius: 4,
     },
-    progressRow: {
+
+    // Stats row
+    statsRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
-    progressItem: {
+    statItem: {
       alignItems: 'center',
       flex: 1,
     },
-    progressValue: {
+    statValue: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: t.text,
+      color: onSurface,
     },
-    progressLabel: {
+    statLabel: {
       fontSize: 11,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
       marginTop: 2,
     },
 
-    // Buttons
+    // Station timeline
+    stationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 40,
+    },
+    stationTimeline: {
+      width: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    trackLine: {
+      width: 2.5,
+      height: 10,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#e8e1de',
+      borderRadius: 1,
+    },
+    trackLinePassed: {
+      backgroundColor: '#815100',
+    },
+    dotPassed: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#815100',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dotActive: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(248,160,16,0.2)' : 'rgba(129,81,0,0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2.5,
+      borderColor: '#f8a010',
+    },
+    dotActiveInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#f8a010',
+    },
+    dotUpcoming: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de',
+      borderWidth: 2,
+      borderColor: outlineVariant,
+    },
+    dotIdle: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      borderWidth: 3,
+      borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+    },
+    stationInfo: {
+      flex: 1,
+      paddingLeft: 12,
+      paddingVertical: 4,
+    },
+    stationInfoHighlight: {
+      backgroundColor: isDark ? 'rgba(248,160,16,0.1)' : 'rgba(129,81,0,0.06)',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginLeft: 8,
+    },
+    nextLabel: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      color: '#f8a010',
+      letterSpacing: 2,
+      marginBottom: 2,
+    },
+    stationName: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+    },
+    stationNamePassed: {
+      color: '#815100',
+      fontFamily: font.medium,
+    },
+    stationNameActive: {
+      color: onSurface,
+      fontFamily: font.bold,
+      fontSize: 15,
+    },
+    stationNameBold: {
+      fontSize: 15,
+      fontFamily: font.semibold,
+      color: onSurface,
+    },
+    stationSub: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+    stationDist: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: '#f8a010',
+      marginTop: 2,
+    },
+
+    // Idle stops
+    idleStops: {
+      gap: 0,
+      paddingVertical: 4,
+    },
+
+    // Buttons — editorial gradient
     goBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 10,
-      backgroundColor: c.amber500,
-      paddingVertical: 16,
-      borderRadius: 16,
-    },
-    goBtnDisabled: {
-      backgroundColor: isDark ? c.stone700 : c.stone300,
+      paddingVertical: 18,
+      borderRadius: 20,
     },
     goBtnText: {
       color: '#fff',
       fontSize: 18,
       fontFamily: font.bold,
     },
+    finishBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingVertical: 18,
+      borderRadius: 20,
+    },
+    finishBtnText: {
+      color: '#fff',
+      fontSize: 16,
+      fontFamily: font.bold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+
     // Trip quick actions
     tripActions: {
       flexDirection: 'row',
@@ -972,134 +1344,16 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 12,
-      borderRadius: 12,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      paddingVertical: 14,
+      borderRadius: 16,
+      backgroundColor: surfaceLow,
+      borderWidth: 1,
+      borderColor: outlineVariant,
     },
     tripActionText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: c.amber500,
-    },
-
-    endBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      backgroundColor: '#ef4444',
-      paddingVertical: 14,
-      borderRadius: 16,
-    },
-    endBtnText: {
-      color: '#fff',
-      fontSize: 15,
-      fontFamily: font.semibold,
-    },
-
-    // Route info
-    routeInfo: {
-      gap: 6,
-      paddingTop: 4,
-    },
-    routeInfoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    routeInfoText: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      color: t.text,
-    },
-    routeInfoSub: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-    },
-    routeInfoDivider: {
-      width: 2,
-      height: 12,
-      backgroundColor: isDark ? c.stone700 : c.stone200,
-      marginLeft: 5,
-    },
-    dot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-    },
-
-    // Station-by-station progress
-    stationToggle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 8,
-    },
-    stationToggleText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.textSecondary,
-    },
-    stationList: {
-      gap: 0,
-      paddingBottom: 4,
-    },
-    stationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: 32,
-    },
-    stationTimeline: {
-      width: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    stationLine: {
-      width: 2,
-      height: 8,
-    },
-    stationDotCurrent: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: c.amber500,
-      borderWidth: 2,
-      borderColor: isDark ? c.stone800 : c.stone100,
-    },
-    stationDotUpcoming: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: isDark ? c.stone600 : c.stone300,
-    },
-    stationInfo: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingLeft: 8,
-    },
-    stationName: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      flex: 1,
-    },
-    stationNamePassed: {
-      color: '#22c55e',
-      fontFamily: font.medium,
-    },
-    stationNameCurrent: {
-      color: c.amber500,
-      fontFamily: font.bold,
-    },
-    stationDistance: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: c.amber500,
-      marginLeft: 8,
+      color: '#815100',
     },
 
     // Trip summary stats (post-trip modal)
@@ -1107,9 +1361,9 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      borderRadius: 16,
-      paddingVertical: 14,
+      backgroundColor: surfaceLow,
+      borderRadius: 20,
+      paddingVertical: 16,
       paddingHorizontal: 8,
     },
     summaryItem: {
@@ -1120,17 +1374,17 @@ const getStyles = (isDark: boolean) => {
     summaryValue: {
       fontSize: 15,
       fontFamily: font.bold,
-      color: t.text,
+      color: onSurface,
     },
     summaryLabel: {
       fontSize: 11,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
     },
     summaryDivider: {
       width: 1,
       height: 32,
-      backgroundColor: isDark ? c.stone700 : c.stone300,
+      backgroundColor: outlineVariant,
     },
 
     // Points badge
@@ -1139,26 +1393,26 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
-      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(129,81,0,0.15)' : 'rgba(129,81,0,0.08)',
+      borderRadius: 14,
       paddingVertical: 10,
       paddingHorizontal: 16,
     },
     pointsBadgeText: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: c.amber500,
+      color: '#815100',
     },
     pointsBonusHint: {
       fontSize: 12,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
     },
 
     // Offline badge
     offlineBadge: {
       backgroundColor: isDark ? 'rgba(156,163,175,0.12)' : 'rgba(156,163,175,0.08)',
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 10,
       paddingHorizontal: 16,
       alignItems: 'center',
@@ -1166,7 +1420,7 @@ const getStyles = (isDark: boolean) => {
     offlineBadgeText: {
       fontSize: 12,
       fontFamily: font.medium,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
       textAlign: 'center',
     },
 
@@ -1177,10 +1431,10 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: 'rgba(0,0,0,0.5)',
     },
     fareModalCard: {
-      backgroundColor: t.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
+      backgroundColor: surfaceLowest,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
+      padding: 28,
       paddingBottom: 40,
       gap: 20,
     },
@@ -1189,45 +1443,47 @@ const getStyles = (isDark: boolean) => {
       gap: 8,
     },
     fareModalTitle: {
-      fontSize: 20,
+      fontSize: 22,
       fontFamily: font.bold,
-      color: t.text,
+      color: onSurface,
     },
     fareModalSub: {
       fontSize: 13,
       fontFamily: font.regular,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
       textAlign: 'center',
     },
     fareModalLabel: {
       fontSize: 14,
       fontFamily: font.semibold,
-      color: t.text,
+      color: onSurface,
     },
     fareInputRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      borderRadius: 14,
+      backgroundColor: surfaceLow,
+      borderRadius: 18,
       paddingHorizontal: 16,
       gap: 8,
+      borderWidth: 1,
+      borderColor: outlineVariant,
     },
     fareCurrency: {
       fontSize: 18,
       fontFamily: font.bold,
-      color: t.textSecondary,
+      color: onSurfaceVariant,
     },
     fareInput: {
       flex: 1,
       fontSize: 24,
       fontFamily: font.bold,
-      color: t.text,
-      paddingVertical: 14,
+      color: onSurface,
+      paddingVertical: 16,
     },
     fareSubmitBtn: {
-      backgroundColor: c.amber500,
-      paddingVertical: 16,
-      borderRadius: 16,
+      backgroundColor: '#815100',
+      paddingVertical: 18,
+      borderRadius: 20,
       alignItems: 'center',
     },
     fareSubmitText: {
@@ -1236,10 +1492,57 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.bold,
     },
     fareSkipText: {
-      color: t.textSecondary,
+      color: onSurfaceVariant,
       fontSize: 13,
       fontFamily: font.regular,
       textAlign: 'center',
     },
+
+    // Status bar tint gradient
+    statusBarTint: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 100,
+      zIndex: 5,
+    },
+
+    // Speed indicator
+    speedBadge: {
+      position: 'absolute',
+      bottom: '35%',
+      left: 16,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.95)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2.5,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+        },
+        android: { elevation: 6 },
+      }),
+    },
+    speedValue: {
+      fontSize: 20,
+      fontFamily: font.extrabold,
+      color: onSurface,
+      lineHeight: 22,
+    },
+    speedUnit: {
+      fontSize: 9,
+      fontFamily: font.semibold,
+      color: onSurfaceVariant,
+      marginTop: -2,
+    },
+
   })
 }

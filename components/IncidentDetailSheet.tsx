@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   useColorScheme,
   StyleSheet,
   Pressable,
+  Animated,
+  PanResponder,
 } from 'react-native'
 import {
   X,
@@ -18,6 +20,8 @@ import {
 import { font } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActiveIncident } from '@/lib/hooks/useActiveIncidents'
+
+const SHEET_HEIGHT = 420
 
 /* ── Incident configs ────────────────────────────── */
 
@@ -51,10 +55,78 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
   const expiresAt = new Date(incident.expires_at)
   const minsRemaining = Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 60_000))
 
+  // Slide-up entrance + swipe-down dismiss animation
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current
+  const backdropOpacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 25,
+        stiffness: 300,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [translateY, backdropOpacity])
+
+  const dismiss = () => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SHEET_HEIGHT,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose())
+  }
+
+  // PanResponder for swipe-down-to-dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        gs.dy > 8 && Math.abs(gs.dy) > Math.abs(gs.dx * 1.5),
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) translateY.setValue(gs.dy)
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 80 || gs.vy > 0.4) {
+          dismiss()
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 25,
+            stiffness: 300,
+          }).start()
+        }
+      },
+    }),
+  ).current
+
   return (
-    <Pressable style={s.overlay} onPress={onClose}>
-      <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-        {/* Handle */}
+    <View style={s.container}>
+      {/* Backdrop — tap to dismiss */}
+      <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+      </Animated.View>
+
+      {/* Sheet */}
+      <Animated.View
+        style={[s.sheet, { transform: [{ translateY }] }]}
+        {...panResponder.panHandlers}
+      >
+        {/* Drag handle */}
         <View style={s.handle} />
 
         {/* Header */}
@@ -72,7 +144,7 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
               <Text style={s.locationText} numberOfLines={1}>{incident.location_name}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={s.closeBtn}>
+          <TouchableOpacity onPress={dismiss} activeOpacity={0.7} style={s.closeBtn}>
             <X size={20} color={isDark ? '#a8a29e' : '#7a7674'} />
           </TouchableOpacity>
         </View>
@@ -118,8 +190,8 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
         <View style={s.xpRow}>
           <Text style={s.xpText}>Confirming earns you <Text style={s.xpBold}>+2 XP</Text></Text>
         </View>
-      </Pressable>
-    </Pressable>
+      </Animated.View>
+    </View>
   )
 }
 
@@ -130,20 +202,21 @@ const getStyles = (isDark: boolean, accentColor: string) => {
   const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outline = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
 
   return StyleSheet.create({
-    overlay: {
+    container: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 100,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    sheet: {
       position: 'absolute',
-      top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-      justifyContent: 'flex-end',
-      zIndex: 100,
-    },
-    sheet: {
       backgroundColor: surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
