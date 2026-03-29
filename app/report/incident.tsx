@@ -43,6 +43,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useStations } from '@/lib/hooks/useStations'
+import { getStationCoords } from '@/lib/utils/station-coords'
 
 const INCIDENT_TYPES = [
   { id: 'traffic', label: 'Traffic', icon: Car, color: '#815100' },
@@ -152,10 +153,10 @@ export default function IncidentReportScreen() {
       return
     }
 
-    // If user manually picked a station, use its coords (they chose that spot).
-    // GPS is used when location was auto-filled (user is physically there).
-    const lat = pickedStation?.latitude ?? gpsCoords?.latitude
-    const lng = pickedStation?.longitude ?? gpsCoords?.longitude
+    // Priority: picked station DB coords → GPS → hardcoded station coords
+    const hardcoded = getStationCoords({ name: location.trim() } as any)
+    const lat = pickedStation?.latitude ?? gpsCoords?.latitude ?? hardcoded?.latitude
+    const lng = pickedStation?.longitude ?? gpsCoords?.longitude ?? hardcoded?.longitude
 
     const result = await submit(
       location.trim(),
