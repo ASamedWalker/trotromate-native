@@ -722,34 +722,6 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 24,
     },
 
-    // ── Bottom bar — fixed START TRIP ──
-    bottomBar: {
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      backgroundColor: surfaceLowest,
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-    },
-    startTripBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 10,
-      height: 60,
-      borderRadius: 20,
-      shadowColor: '#815100',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    startTripText: {
-      color: '#fff',
-      fontSize: 17,
-      fontFamily: font.extrabold,
-      letterSpacing: 3,
-    },
-
     // Empty state
     emptyCard: {
       padding: 24,

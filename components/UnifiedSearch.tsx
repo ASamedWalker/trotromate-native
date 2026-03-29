@@ -92,8 +92,8 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
       } as Href)
     } else {
       router.push({
-        pathname: '/trip/[routeId]',
-        params: { routeId: result.routeId },
+        pathname: '/routes/[id]',
+        params: { id: result.routeId },
       } as Href)
     }
   }, [addSearch, handleClose, router])
