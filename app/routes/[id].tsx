@@ -348,9 +348,38 @@ export default function RouteDetailScreen() {
           />
           <SOSButton from={route.from_location} to={route.to_location} />
         </View>
-      </ScrollView>
 
-      {/* Safety row doubles as bottom padding */}
+        {/* ─── GPRTU Bulletins ──────────────────────────── */}
+        <View style={s.bulletinSection}>
+          <View style={s.bulletinHeader}>
+            <ShieldCheck size={18} color="#15803d" />
+            <Text style={s.bulletinTitle}>GPRTU Bulletins</Text>
+          </View>
+
+          <View style={[s.bulletinCard, { borderLeftColor: '#15803d' }]}>
+            <Text style={[s.bulletinType, { color: '#15803d' }]}>FARE NOTICE</Text>
+            <Text style={s.bulletinText}>
+              Always confirm your fare before boarding. Drivers must display official fares at all GPRTU-approved stations.
+            </Text>
+          </View>
+
+          <View style={[s.bulletinCard, { borderLeftColor: '#815100' }]}>
+            <Text style={[s.bulletinType, { color: '#815100' }]}>PASSENGER SAFETY</Text>
+            <Text style={s.bulletinText}>
+              Report overcharging or unsafe driving to GPRTU. Your reports help keep fares fair and roads safe for everyone.
+            </Text>
+          </View>
+
+          <View style={[s.bulletinCard, { borderLeftColor: '#0891b2' }]}>
+            <Text style={[s.bulletinType, { color: '#0891b2' }]}>SERVICE UPDATE</Text>
+            <Text style={s.bulletinText}>
+              Some routes may experience fare adjustments during peak hours. Check Troski for the latest community-reported fares.
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   )
 }
@@ -738,6 +767,43 @@ const getStyles = (isDark: boolean) => {
       fontSize: 14,
       marginTop: 4,
       color: outlineVariant,
+    },
+
+    // ── GPRTU Bulletins ──
+    bulletinSection: {
+      paddingHorizontal: 24,
+      paddingTop: 28,
+      gap: 12,
+    },
+    bulletinHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginBottom: 4,
+    },
+    bulletinTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: onSurface,
+      letterSpacing: -0.3,
+    },
+    bulletinCard: {
+      backgroundColor: surfaceLow,
+      borderRadius: 16,
+      padding: 16,
+      borderLeftWidth: 4,
+    },
+    bulletinType: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      letterSpacing: 1.5,
+      marginBottom: 4,
+    },
+    bulletinText: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurface,
+      lineHeight: 20,
     },
   })
 }
