@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   useColorScheme,
   StyleSheet,
   Platform,
@@ -369,15 +370,16 @@ export default function HomeScreen() {
             allowOverlap
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <IncidentMapPin
-              type={inc.incident_type}
-              createdAt={inc.reported_at}
-              onPress={() => setSelectedIncident(selectedIncident?.id === inc.id ? null : inc)}
-            />
+            <Pressable onPress={() => setSelectedIncident(selectedIncident?.id === inc.id ? null : inc)}>
+              <IncidentMapPin
+                type={inc.incident_type}
+                createdAt={inc.reported_at}
+              />
+            </Pressable>
           </Mapbox.MarkerView>
         ))}
 
-        {/* Incident callout tooltip */}
+        {/* Incident callout tooltip — above the selected pin */}
         {selectedIncident && (
           <Mapbox.MarkerView
             coordinate={[selectedIncident.longitude, selectedIncident.latitude]}

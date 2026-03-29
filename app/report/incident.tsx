@@ -101,17 +101,24 @@ export default function IncidentReportScreen() {
     return () => { cancelled = true }
   }, [])
 
+  // Check if GPS is in Ghana (rough bounding box: lat 4.5-11.2, lng -3.3-1.2)
+  const isGpsInGhana = useMemo(() => {
+    if (!gpsCoords) return false
+    const { latitude: lat, longitude: lng } = gpsCoords
+    return lat >= 4.5 && lat <= 11.2 && lng >= -3.3 && lng <= 1.2
+  }, [gpsCoords])
+
   // Find nearest station name as default location label
   const nearestStation = useMemo(() => {
     if (!gpsCoords || !stations.length) return null
-    let closest: { name: string; dist: number } | null = null
+    let closest: { name: string; dist: number; lat?: number; lng?: number } | null = null
     for (const st of stations) {
       if (st.latitude == null || st.longitude == null) continue
       const dlat = st.latitude - gpsCoords.latitude
       const dlng = st.longitude - gpsCoords.longitude
       const dist = dlat * dlat + dlng * dlng
       if (!closest || dist < closest.dist) {
-        closest = { name: st.name, dist }
+        closest = { name: st.name, dist, lat: st.latitude, lng: st.longitude }
       }
     }
     return closest
@@ -121,8 +128,12 @@ export default function IncidentReportScreen() {
   useEffect(() => {
     if (nearestStation && !location) {
       setLocation(nearestStation.name)
+      // If GPS is outside Ghana, use the station's coords instead
+      if (!isGpsInGhana && nearestStation.lat != null && nearestStation.lng != null) {
+        setPickedStation({ latitude: nearestStation.lat, longitude: nearestStation.lng })
+      }
     }
-  }, [nearestStation]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nearestStation, isGpsInGhana]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredStations = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -192,10 +203,16 @@ export default function IncidentReportScreen() {
               <Text style={s.gpsBadgeText}>Getting your location...</Text>
             </View>
           )}
-          {gpsStatus === 'acquired' && (
+          {gpsStatus === 'acquired' && isGpsInGhana && (
             <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)' }]}>
               <Navigation size={12} color="#22c55e" />
               <Text style={[s.gpsBadgeText, { color: '#16a34a' }]}>Using your live location</Text>
+            </View>
+          )}
+          {gpsStatus === 'acquired' && !isGpsInGhana && (
+            <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)' }]}>
+              <MapPin size={12} color="#3b82f6" />
+              <Text style={[s.gpsBadgeText, { color: '#2563eb' }]}>Using station coordinates</Text>
             </View>
           )}
           {(gpsStatus === 'denied' || gpsStatus === 'error') && (
