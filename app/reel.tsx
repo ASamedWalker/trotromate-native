@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   StatusBar,
   ActivityIndicator,
@@ -176,10 +177,9 @@ export default function ReelScreen() {
         onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
       />
 
-      {/* Tap to play/pause */}
-      <TouchableOpacity
-        style={StyleSheet.absoluteFillObject}
-        activeOpacity={1}
+      {/* Tap to play/pause — left 30px kept clear for swipe-back gesture */}
+      <Pressable
+        style={styles.tapZone}
         onPress={togglePlayPause}
       >
         {isPaused && (
@@ -189,7 +189,7 @@ export default function ReelScreen() {
             </View>
           </View>
         )}
-      </TouchableOpacity>
+      </Pressable>
 
       {/* ─── Top: Dismiss handle + Live Tale badge ─── */}
       <View style={styles.topBar}>
@@ -349,6 +349,14 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
+  },
+
+  tapZone: {
+    position: 'absolute',
+    top: 0,
+    left: 30,
+    right: 0,
+    bottom: 0,
   },
 
   // ─── Top bar ───
