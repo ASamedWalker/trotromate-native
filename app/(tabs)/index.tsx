@@ -381,7 +381,7 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
-        {/* Incident pins — animated MarkerViews (visual only, no tap) */}
+        {/* Incident pins — animated MarkerViews (visual only, touches pass through) */}
         {incidents.map((inc) => (
           <Mapbox.MarkerView
             key={inc.id}
@@ -389,10 +389,12 @@ export default function HomeScreen() {
             allowOverlap
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <IncidentMapPin
-              type={inc.incident_type}
-              createdAt={inc.reported_at}
-            />
+            <View pointerEvents="none">
+              <IncidentMapPin
+                type={inc.incident_type}
+                createdAt={inc.reported_at}
+              />
+            </View>
           </Mapbox.MarkerView>
         ))}
 
