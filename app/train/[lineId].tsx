@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
+import { Image } from 'expo-image'
 import {
   TrainFront,
   Clock,
@@ -20,12 +21,12 @@ import {
   Plus,
   ChevronLeft,
   ShieldCheck,
-  Navigation,
   ChevronDown,
   Sunrise,
   Sunset,
   Calendar,
   MessageSquare,
+  Zap,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { GRDABadge } from '@/components/GRDABadge'
@@ -34,14 +35,7 @@ import { timeAgo } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import type { TrainReportWithNames, CrowdLevel, TrainStation } from '@/lib/types'
 
-// ─── Crowd constants ────────────────────────────────────
-
-const CROWD_COLORS: Record<CrowdLevel, string> = {
-  empty: '#22c55e',
-  few_seats: '#eab308',
-  standing: '#f97316',
-  packed: '#ef4444',
-}
+// ─── Constants ──────────────────────────────────────────
 
 const CROWD_LABELS: Record<CrowdLevel, string> = {
   empty: 'Empty',
@@ -63,22 +57,26 @@ const REPORT_CONFIG: Record<string, { Icon: typeof Clock; label: string; color: 
   delay: { Icon: Timer, label: 'Delay Report', color: '#ef4444' },
 }
 
-// ─── Line metadata ──────────────────────────────────────
+const HERO_IMAGES: Record<string, string> = {
+  TMA: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80',
+  TMP: 'https://images.unsplash.com/photo-1532105956626-9569c03602f6?w=800&q=80',
+}
+const FALLBACK_HERO = 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80'
 
-const LINE_META: Record<string, { subtitle: string; heroDesc: string }> = {
+const LINE_META: Record<string, { heroTitle: string; heroDesc: string }> = {
   TMA: {
-    subtitle: 'Suburban Commuter',
-    heroDesc: 'Suburban commuter rail connecting Accra and Tema via coastal stations. Operated by Ghana Railway Development Authority.',
+    heroTitle: 'Tema – Accra',
+    heroDesc: 'Suburban commuter rail connecting Tema and Accra Central with scheduled stops along the coastal corridor.',
   },
   TMP: {
-    subtitle: 'Inter-Regional',
-    heroDesc: 'Inter-regional service connecting Tema and Mpakadan through the Eastern Corridor. Operated by Ghana Railway Development Authority.',
+    heroTitle: 'Tema – Mpakadan',
+    heroDesc: 'Inter-regional service through the Eastern Corridor connecting Tema Port to Mpakadan via Koforidua.',
   },
 }
 
 const DEFAULT_LINE_META = {
-  subtitle: 'Rail Service',
-  heroDesc: 'Official GRDA rail service. View live schedules, station information, and community reports.',
+  heroTitle: 'Rail Service',
+  heroDesc: 'Official GRDA rail service. View schedules, stations, and live passenger reports.',
 }
 
 // ─── Component ──────────────────────────────────────────
@@ -91,13 +89,12 @@ export default function LineDetailScreen() {
   const s = getStyles(isDark)
 
   const { line, stations, recentReports, isLoading, refetch } = useTrainLineDetail(lineId!)
-  const [expandedStation, setExpandedStation] = useState<string | null>(null)
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null)
 
-  const lineColor = line?.color || '#0ea5e9'
   const meta = LINE_META[line?.code ?? ''] ?? DEFAULT_LINE_META
+  const heroImage = HERO_IMAGES[line?.code ?? ''] ?? FALLBACK_HERO
 
-  // Build station → schedule times map
+  // Build station → schedule times map (first schedule)
   const stationTimesMap = useMemo(() => {
     if (!line?.code || !TRAIN_SCHEDULES[line.code]) return {}
     const map: Record<string, { arrive: string | null; depart: string | null }> = {}
@@ -110,7 +107,7 @@ export default function LineDetailScreen() {
     return map
   }, [line?.code])
 
-  // Live stats from recent reports
+  // Live stats from reports
   const liveStats = useMemo(() => {
     if (!recentReports.length) return null
     const delayReports = recentReports.filter((r) => r.report_type === 'delay' && r.delay_mins)
@@ -122,187 +119,103 @@ export default function LineDetailScreen() {
     return { avgDelay, latestCrowd, totalReports: recentReports.length }
   }, [recentReports])
 
-  // Crowd level per station
-  const stationCrowdMap = useMemo(() => {
-    const map: Record<string, TrainReportWithNames> = {}
-    for (const r of recentReports) {
-      if (r.report_type === 'crowd' && r.crowd_level && !map[r.station_id]) {
-        map[r.station_id] = r
-      }
-    }
-    return map
-  }, [recentReports])
-
-  // Reports grouped by station
-  const stationReportsMap = useMemo(() => {
-    const map: Record<string, TrainReportWithNames[]> = {}
-    for (const r of recentReports) {
-      if (!map[r.station_id]) map[r.station_id] = []
-      map[r.station_id].push(r)
-    }
-    return map
-  }, [recentReports])
-
-  // ─── Station renderer ──────────────────────────────────
+  // ─── Station renderer (Stitch tube-line style) ─────────
 
   const renderStation = useCallback(
     (station: TrainStation, index: number) => {
       const isFirst = index === 0
       const isLast = index === stations.length - 1
-      const isTerminal = isFirst || isLast
-      const crowdReport = stationCrowdMap[station.id]
-      const crowdColor = crowdReport
-        ? CROWD_COLORS[crowdReport.crowd_level as CrowdLevel]
-        : undefined
-      const isExpanded = expandedStation === station.id
-      const stationReports = stationReportsMap[station.id] || []
       const times = stationTimesMap[station.name]
       const displayTime = times?.depart || times?.arrive
+      const isFuture = index > 0 // In static view, all non-origin are "upcoming"
 
-      // Gradient progress: 0 at top, 1 at bottom
-      const progress = stations.length > 1 ? index / (stations.length - 1) : 0
-      const segColor = interpolateColor('#06b6d4', '#1d4ed8', progress)
+      // Status badge logic
+      let statusLabel = 'On Time'
+      let statusBg = isDark ? 'rgba(34,197,94,0.15)' : '#dcfce7'
+      let statusColor = isDark ? '#4ade80' : '#15803d'
 
-      return (
-        <View key={station.id}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setExpandedStation(isExpanded ? null : station.id)}
-            style={s.stationRow}
-          >
-            {/* Tube-line connector */}
-            <View style={s.connector}>
-              {!isFirst && (
-                <View style={[s.lineSegTop, { backgroundColor: segColor }]} />
-              )}
-              {isTerminal ? (
-                <View style={[s.terminalDot, { backgroundColor: segColor }]}>
-                  <TrainFront size={11} color="#fff" />
-                </View>
-              ) : (
-                <View style={[s.stationDot, { borderColor: segColor, backgroundColor: crowdColor ? `${crowdColor}15` : isDark ? '#1c1c1e' : '#fff' }]}>
-                  {crowdColor ? (
-                    <View style={[s.crowdDotInner, { backgroundColor: crowdColor }]} />
-                  ) : null}
-                </View>
-              )}
-              {!isLast && (
-                <View style={[s.lineSegBottom, { backgroundColor: segColor }]} />
-              )}
-            </View>
-
-            {/* Station info */}
-            <View style={s.stationInfo}>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.stationName, isTerminal && s.stationNameTerminal]}>
-                  {station.name}
-                </Text>
-                {isFirst && <Text style={s.stationHint}>Origin</Text>}
-                {isLast && <Text style={s.stationHint}>Terminus</Text>}
-              </View>
-              {crowdColor && crowdReport && (
-                <View style={[s.crowdChip, { backgroundColor: `${crowdColor}18` }]}>
-                  <View style={[s.crowdChipDot, { backgroundColor: crowdColor }]} />
-                  <Text style={[s.crowdChipText, { color: crowdColor }]}>
-                    {CROWD_LABELS[crowdReport.crowd_level as CrowdLevel]}
-                  </Text>
-                </View>
-              )}
-              {displayTime && (
-                <Text style={s.stationTime}>{displayTime}</Text>
-              )}
-              <ChevronDown
-                size={14}
-                color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
-                style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
-              />
-            </View>
-          </TouchableOpacity>
-
-          {/* Expanded reports */}
-          {isExpanded && (
-            <View style={s.expandedSection}>
-              {stationReports.length > 0 ? (
-                stationReports.slice(0, 5).map((report) => {
-                  const config = REPORT_CONFIG[report.report_type] || REPORT_CONFIG.schedule
-                  let detail = ''
-                  if (report.report_type === 'crowd' && report.crowd_level) {
-                    detail = `${CROWD_EMOJI[report.crowd_level as CrowdLevel] || ''} ${CROWD_LABELS[report.crowd_level as CrowdLevel] || report.crowd_level}`
-                  } else if (report.report_type === 'delay' && report.delay_mins) {
-                    detail = `${report.delay_mins} min late`
-                  } else if (report.report_type === 'schedule' && report.direction) {
-                    detail = report.direction === 'inbound' ? '→ Accra' : '→ Tema'
-                  }
-                  return (
-                    <View key={report.id} style={s.expandedReport}>
-                      <View style={[s.expandedReportDot, { backgroundColor: config.color }]} />
-                      <Text style={s.expandedReportLabel}>{config.label}</Text>
-                      {detail ? (
-                        <Text style={[s.expandedReportDetail, { color: config.color }]}>{detail}</Text>
-                      ) : null}
-                      <Text style={s.expandedReportTime}>{timeAgo(report.reported_at)}</Text>
-                    </View>
-                  )
-                })
-              ) : (
-                <Text style={s.expandedEmpty}>No reports for this station yet</Text>
-              )}
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: '/report/train',
-                    params: { lineId: line!.id, stationId: station.id },
-                  })
-                }
-                activeOpacity={0.8}
-                style={s.expandedAddBtn}
-              >
-                <Plus size={12} color="#0891b2" />
-                <Text style={s.expandedAddText}>Add Report</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )
-    },
-    [stations, stationCrowdMap, stationReportsMap, stationTimesMap, expandedStation, isDark, s, line, router]
-  )
-
-  // ─── Report card renderer ─────────────────────────────
-
-  const renderReport = useCallback(
-    (report: TrainReportWithNames) => {
-      const config = REPORT_CONFIG[report.report_type] || REPORT_CONFIG.schedule
-      const Icon = config.Icon
-
-      let detail = ''
-      if (report.report_type === 'crowd' && report.crowd_level) {
-        detail = `${CROWD_EMOJI[report.crowd_level as CrowdLevel] || ''} ${CROWD_LABELS[report.crowd_level as CrowdLevel] || report.crowd_level}`
-      } else if (report.report_type === 'delay' && report.delay_mins) {
-        detail = `${report.delay_mins} min late`
-      } else if (report.report_type === 'schedule' && report.direction) {
-        detail = report.direction === 'inbound' ? '→ Accra' : '→ Tema'
+      // If there's delay data, show it on relevant stations
+      if (liveStats?.avgDelay && index > 0 && index < stations.length - 1) {
+        statusLabel = `~${liveStats.avgDelay}m Delay`
+        statusBg = isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7'
+        statusColor = isDark ? '#fbbf24' : '#92400e'
       }
 
       return (
-        <View key={report.id} style={s.reportCard}>
-          <View style={[s.reportAccent, { backgroundColor: config.color }]} />
-          <View style={s.reportBody}>
-            <View style={[s.reportIconBox, { backgroundColor: `${config.color}15` }]}>
-              <Icon size={16} color={config.color} />
+        <View key={station.id} style={s.stationItem}>
+          {/* Dot on the tube line */}
+          <View style={s.stationDotWrap}>
+            <View style={[
+              s.stationDot,
+              {
+                borderColor: (isFirst || !isFuture) ? '#06b6d4' : (isDark ? '#475569' : '#cbd5e1'),
+              },
+            ]}>
+              {isFirst && <View style={s.stationDotInner} />}
             </View>
+          </View>
+
+          {/* Station content */}
+          <View style={[s.stationContent, isFuture && !isLast && { opacity: 0.6 }]}>
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={s.reportTitle}>{config.label}</Text>
-                {detail ? (
-                  <View style={[s.reportPill, { backgroundColor: `${config.color}15` }]}>
-                    <Text style={[s.reportPillText, { color: config.color }]}>{detail}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={s.reportStation}>{report.station_name || 'Station'}</Text>
+              <Text style={s.stationName}>{station.name}</Text>
+              <Text style={s.stationSub}>
+                {isFirst ? `Platform 1 • Departs ${displayTime || '—'}` :
+                 isLast ? `Terminating • Expected ${displayTime || '—'}` :
+                 `Expected ${displayTime || '—'}`}
+              </Text>
             </View>
-            <Text style={s.reportTime}>{timeAgo(report.reported_at)}</Text>
+            <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
+              <Text style={[s.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
+            </View>
+          </View>
+        </View>
+      )
+    },
+    [stations, stationTimesMap, liveStats, isDark, s]
+  )
+
+  // ─── Feedback card renderer ────────────────────────────
+
+  const renderFeedback = useCallback(
+    (report: TrainReportWithNames, index: number) => {
+      const config = REPORT_CONFIG[report.report_type] || REPORT_CONFIG.schedule
+
+      // Build a natural-language feedback string
+      let feedbackText = ''
+      if (report.report_type === 'crowd' && report.crowd_level) {
+        const label = CROWD_LABELS[report.crowd_level as CrowdLevel] || report.crowd_level
+        const emoji = CROWD_EMOJI[report.crowd_level as CrowdLevel] || ''
+        feedbackText = `${emoji} Train is ${label.toLowerCase()} at ${report.station_name || 'this station'}.`
+      } else if (report.report_type === 'delay' && report.delay_mins) {
+        feedbackText = `Train running ~${report.delay_mins} minutes late at ${report.station_name || 'this station'}.`
+      } else if (report.report_type === 'schedule') {
+        const dir = report.direction === 'inbound' ? 'heading to Accra' : 'heading outbound'
+        feedbackText = `Train spotted at ${report.station_name || 'station'}, ${dir}.`
+      } else {
+        feedbackText = `Report from ${report.station_name || 'station'}.`
+      }
+
+      // Generate avatar colors based on index
+      const avatarColors = ['#06b6d4', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444']
+      const avatarBg = avatarColors[index % avatarColors.length]
+      const initials = `P${index + 1}`
+
+      return (
+        <View key={report.id} style={s.feedbackCard}>
+          {/* Avatar */}
+          <View style={[s.feedbackAvatar, { backgroundColor: `${avatarBg}20` }]}>
+            <Text style={[s.feedbackAvatarText, { color: avatarBg }]}>{initials}</Text>
+          </View>
+
+          {/* Content */}
+          <View style={{ flex: 1 }}>
+            <View style={s.feedbackMeta}>
+              <Text style={s.feedbackName}>Passenger</Text>
+              <View style={[s.feedbackTypeDot, { backgroundColor: config.color }]} />
+              <Text style={s.feedbackTime}>{timeAgo(report.reported_at)}</Text>
+            </View>
+            <Text style={s.feedbackText}>"{feedbackText}"</Text>
           </View>
         </View>
       )
@@ -348,8 +261,8 @@ export default function LineDetailScreen() {
           <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{line.name}</Text>
-          <Text style={s.headerSub}>GRDA Official Service</Text>
+          <Text style={s.headerTitle}>{line.code} - {meta.heroTitle}</Text>
+          <Text style={s.headerSub}>GRDA OFFICIAL SERVICE</Text>
         </View>
         <View style={s.headerShield}>
           <ShieldCheck size={16} color="#fff" />
@@ -359,110 +272,71 @@ export default function LineDetailScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={false}
-            onRefresh={refetch}
-            tintColor="#0891b2"
-            colors={['#0891b2']}
-          />
+          <RefreshControl refreshing={false} onRefresh={refetch} tintColor="#0891b2" colors={['#0891b2']} />
         }
       >
         {/* ─── Hero Section ─────────────────────────────── */}
-        <View style={s.hero}>
-          {/* Live service badge */}
-          <View style={s.heroStatusRow}>
-            <View style={[s.heroBadge, {
-              backgroundColor: liveStats ? 'rgba(34,197,94,0.12)' : 'rgba(156,163,175,0.12)',
-            }]}>
-              <View style={[s.heroBadgeDot, {
-                backgroundColor: liveStats ? '#22c55e' : '#9ca3af',
-              }]} />
-              <Text style={[s.heroBadgeText, {
-                color: liveStats ? (isDark ? '#4ade80' : '#15803d') : (isDark ? '#9ca3af' : '#6b7280'),
-              }]}>
-                {liveStats ? 'LIVE SERVICE' : 'NO REPORTS'}
-              </Text>
+        <View style={s.heroCard}>
+          <View style={s.heroContent}>
+            {/* Live badge */}
+            <View style={s.heroBadge}>
+              <View style={s.heroBadgeDot} />
+              <Text style={s.heroBadgeText}>LIVE SERVICE</Text>
             </View>
-            <View style={[s.lineBadge, { backgroundColor: lineColor }]}>
-              <Text style={s.lineBadgeText}>{line.code}</Text>
-            </View>
+
+            <Text style={s.heroTitle}>{line.name}</Text>
+            <Text style={s.heroDesc}>{meta.heroDesc}</Text>
           </View>
 
-          <Text style={s.heroTitle}>{line.name}</Text>
-          <Text style={s.heroSubtitle}>{meta.subtitle}</Text>
-          <Text style={s.heroDesc}>{meta.heroDesc}</Text>
-
-          {/* Hero stat chips */}
-          {liveStats && (liveStats.avgDelay || liveStats.latestCrowd) && (
-            <View style={s.heroChips}>
-              {liveStats.latestCrowd && (
-                <View style={[s.heroChip, { backgroundColor: `${CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel]}12` }]}>
-                  <View style={[s.heroChipDot, { backgroundColor: CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel] }]} />
-                  <Text style={[s.heroChipText, { color: CROWD_COLORS[liveStats.latestCrowd.crowd_level as CrowdLevel] }]}>
-                    {CROWD_LABELS[liveStats.latestCrowd.crowd_level as CrowdLevel]}
-                  </Text>
-                </View>
-              )}
-              {liveStats.avgDelay !== null && (
-                <View style={[s.heroChip, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                  <Timer size={12} color="#ef4444" />
-                  <Text style={[s.heroChipText, { color: '#ef4444' }]}>~{liveStats.avgDelay}m delay</Text>
-                </View>
-              )}
-            </View>
-          )}
+          {/* Train image */}
+          <View style={s.heroImageWrap}>
+            <Image
+              source={{ uri: heroImage }}
+              style={s.heroImage}
+              contentFit="cover"
+              cachePolicy="disk"
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              transition={300}
+            />
+          </View>
         </View>
 
         {/* ─── Station Timeline ─────────────────────────── */}
         <View style={s.sectionWrap}>
-          <View style={s.sectionHeader}>
-            <TrainFront size={16} color="#0891b2" />
-            <Text style={s.sectionTitle}>Station Timeline</Text>
-            <View style={s.sectionCountBadge}>
-              <Text style={s.sectionCountText}>{stations.length} stops</Text>
-            </View>
-          </View>
-
           <View style={s.timelineCard}>
-            {/* Fare summary header */}
+            <View style={s.timelineHeader}>
+              <TrainFront size={18} color="#0891b2" />
+              <Text style={s.timelineTitle}>Station Timeline</Text>
+            </View>
+
+            <View style={s.timelineBody}>
+              {/* Tube gradient line */}
+              <LinearGradient
+                colors={['#22d3ee', '#0369a1']}
+                style={s.tubeLine}
+              />
+
+              {/* Station list */}
+              <View style={s.stationList}>
+                {stations.map(renderStation)}
+              </View>
+            </View>
+
+            {/* Fare summary strip */}
             {line.official_fare && (
-              <View style={s.fareHeader}>
+              <View style={s.fareStrip}>
                 <GRDABadge size="small" />
                 <Text style={s.farePrice}>GHS {line.official_fare.toFixed(2)}</Text>
                 <View style={{ flex: 1 }} />
-                <View style={[s.fareStatusBadge, {
-                  backgroundColor: liveStats?.avgDelay ? '#fef3c7' : '#dcfce7',
-                }]}>
-                  <View style={[s.fareStatusDot, {
-                    backgroundColor: liveStats?.avgDelay ? '#f59e0b' : '#22c55e',
-                  }]} />
-                  <Text style={[s.fareStatusText, {
-                    color: liveStats?.avgDelay ? '#92400e' : '#166534',
-                  }]}>
-                    {liveStats?.avgDelay ? `~${liveStats.avgDelay}m Late` : 'On Time'}
-                  </Text>
-                </View>
+                <Text style={s.fareStations}>{stations.length} stations</Text>
               </View>
             )}
-
-            {/* Station list */}
-            {stations.map(renderStation)}
           </View>
         </View>
 
         {/* ─── Official Timetable ───────────────────────── */}
         {line.code && TRAIN_SCHEDULES[line.code] && (
           <View style={s.sectionWrap}>
-            <View style={s.sectionHeader}>
-              <Clock size={16} color="#0891b2" />
-              <Text style={s.sectionTitle}>Official Timetable</Text>
-              <GRDABadge label="GRDA Official" />
-              <View style={s.daysBadge}>
-                <Calendar size={10} color={isDark ? '#a8a29e' : '#78716c'} />
-                <Text style={s.daysText}>{TRAIN_SCHEDULES[line.code][0].days}</Text>
-              </View>
-            </View>
-
             {TRAIN_SCHEDULES[line.code].map((sched) => {
               const DirIcon = sched.direction === 'inbound' ? Sunrise : Sunset
               const dirColor = sched.direction === 'inbound' ? '#f59e0b' : '#8b5cf6'
@@ -470,67 +344,54 @@ export default function LineDetailScreen() {
 
               return (
                 <View key={sched.id} style={s.schedCard}>
-                  {/* Accordion header */}
                   <TouchableOpacity
                     onPress={() => setExpandedSchedule(isOpen ? null : sched.id)}
                     activeOpacity={0.7}
                     style={s.schedHeader}
                   >
-                    <View style={[s.schedDirIcon, { backgroundColor: `${dirColor}15` }]}>
-                      <DirIcon size={16} color={dirColor} />
+                    <View style={s.schedHeaderLeft}>
+                      <Clock size={18} color="#815100" />
+                      <Text style={s.schedHeaderTitle}>Official Timetable</Text>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.schedLabel}>{sched.label}</Text>
-                      <Text style={s.schedCode}>{sched.code}</Text>
+                    <View style={s.schedHeaderRight}>
+                      <View style={[s.schedDirPill, { backgroundColor: `${dirColor}15` }]}>
+                        <DirIcon size={12} color={dirColor} />
+                        <Text style={[s.schedDirText, { color: dirColor }]}>{sched.label}</Text>
+                      </View>
+                      <ChevronDown
+                        size={18}
+                        color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
+                        style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
+                      />
                     </View>
-                    <View style={[s.schedFareBadge, { backgroundColor: `${lineColor}12` }]}>
-                      <Text style={[s.schedFareText, { color: lineColor }]}>₵{sched.fare.toFixed(2)}</Text>
-                    </View>
-                    <ChevronDown
-                      size={16}
-                      color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
-                      style={{ marginLeft: 8, transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
-                    />
                   </TouchableOpacity>
 
-                  {/* Expanded timetable */}
                   {isOpen && (
-                    <View style={s.schedTable}>
-                      <View style={s.schedTableHead}>
-                        <Text style={[s.schedColHead, { flex: 1 }]}>Station</Text>
-                        <Text style={[s.schedColHead, { width: 52, textAlign: 'center' }]}>Arr</Text>
-                        <Text style={[s.schedColHead, { width: 52, textAlign: 'center' }]}>Dep</Text>
-                      </View>
+                    <View style={s.schedBody}>
                       {sched.stops.map((stop, idx) => {
                         const isStopFirst = idx === 0
                         const isStopLast = idx === sched.stops.length - 1
+                        const isTerminal = isStopFirst || isStopLast
                         return (
                           <View
                             key={stop.station}
                             style={[s.schedRow, isStopLast && { borderBottomWidth: 0 }]}
                           >
-                            <View style={s.schedStationCol}>
-                              <View
-                                style={[
-                                  s.schedDot,
-                                  (isStopFirst || isStopLast)
-                                    ? { backgroundColor: lineColor, width: 8, height: 8, borderRadius: 4, borderWidth: 0 }
-                                    : { borderColor: lineColor },
-                                ]}
-                              />
-                              <Text style={[s.schedStation, (isStopFirst || isStopLast) && s.schedStationTerminal]}>
-                                {stop.station}
-                              </Text>
-                            </View>
-                            <Text style={[s.schedTime, !stop.arrive && s.schedTimeDash]}>
-                              {stop.arrive || '—'}
+                            <Text style={[s.schedStation, isTerminal && s.schedStationBold]}>
+                              {stop.station}
                             </Text>
-                            <Text style={[s.schedTime, !stop.depart && s.schedTimeDash]}>
-                              {stop.depart || '—'}
+                            <Text style={s.schedTime}>
+                              {stop.arrive || '—'} – {stop.depart || '—'}
                             </Text>
                           </View>
                         )
                       })}
+                      <View style={s.schedFareRow}>
+                        <Calendar size={12} color={isDark ? '#a8a29e' : '#78716c'} />
+                        <Text style={s.schedDays}>{sched.days}</Text>
+                        <View style={{ flex: 1 }} />
+                        <Text style={s.schedFare}>₵{sched.fare.toFixed(2)}</Text>
+                      </View>
                     </View>
                   )}
                 </View>
@@ -541,12 +402,9 @@ export default function LineDetailScreen() {
 
         {/* ─── Passenger Feedback ───────────────────────── */}
         <View style={s.sectionWrap}>
-          <View style={s.sectionHeader}>
-            <MessageSquare size={16} color="#0891b2" />
-            <Text style={s.sectionTitle}>Passenger Feedback</Text>
-            <View style={s.sectionCountBadge}>
-              <Text style={s.sectionCountText}>{recentReports.length}</Text>
-            </View>
+          <View style={s.feedbackHeader}>
+            <MessageSquare size={18} color="#795500" />
+            <Text style={s.feedbackSectionTitle}>Passenger Feedback</Text>
           </View>
 
           {recentReports.length === 0 ? (
@@ -558,10 +416,7 @@ export default function LineDetailScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() =>
-                  router.push({
-                    pathname: '/report/train',
-                    params: { lineId: line.id },
-                  })
+                  router.push({ pathname: '/report/train', params: { lineId: line.id } })
                 }
                 activeOpacity={0.8}
                 style={s.emptyBtn}
@@ -571,9 +426,23 @@ export default function LineDetailScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={{ gap: 10 }}>
-              {recentReports.slice(0, 10).map(renderReport)}
-            </View>
+            <>
+              <View style={{ gap: 12 }}>
+                {recentReports.slice(0, 8).map(renderFeedback)}
+              </View>
+
+              {/* Share Live Update button */}
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({ pathname: '/report/train', params: { lineId: line.id } })
+                }
+                activeOpacity={0.7}
+                style={s.shareLiveBtn}
+              >
+                <Plus size={16} color="#0891b2" />
+                <Text style={s.shareLiveBtnText}>Share Live Update</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -583,65 +452,19 @@ export default function LineDetailScreen() {
       {/* ─── ACTIVATE GO MODE ──────────────────────────── */}
       <View style={s.goModeWrap}>
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={0.9}
           onPress={() => router.push({
             pathname: '/trip/[routeId]',
             params: { routeId: lineId!, type: 'train', lineId: lineId! },
           } as any)}
+          style={s.goModeBtn}
         >
-          <LinearGradient
-            colors={['#0891b2', '#1e40af']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={s.goModeBtn}
-          >
-            <Navigation size={20} color="#fff" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.goModeBtnTitle}>ACTIVATE GO MODE</Text>
-              <Text style={s.goModeBtnSub}>Track your train in real-time</Text>
-            </View>
-            <View style={s.goModeArrow}>
-              <ChevronLeft size={16} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
-            </View>
-          </LinearGradient>
+          <Text style={s.goModeBtnText}>ACTIVATE GO MODE</Text>
+          <Zap size={20} color="#0c4a6e" />
         </TouchableOpacity>
       </View>
-
-      {/* ─── Report FAB ────────────────────────────────── */}
-      <TouchableOpacity
-        onPress={() =>
-          router.push({
-            pathname: '/report/train',
-            params: { lineId: line.id },
-          })
-        }
-        activeOpacity={0.85}
-        style={s.fab}
-      >
-        <LinearGradient
-          colors={['#0891b2', '#1e40af']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={s.fabGradient}
-        >
-          <Plus size={24} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity>
     </SafeAreaView>
   )
-}
-
-// ─── Color interpolation helper ─────────────────────────
-
-function interpolateColor(from: string, to: string, t: number): string {
-  const f = parseInt(from.slice(1), 16)
-  const tC = parseInt(to.slice(1), 16)
-  const r1 = (f >> 16) & 255, g1 = (f >> 8) & 255, b1 = f & 255
-  const r2 = (tC >> 16) & 255, g2 = (tC >> 8) & 255, b2 = tC & 255
-  const r = Math.round(r1 + (r2 - r1) * t)
-  const g = Math.round(g1 + (g2 - g1) * t)
-  const b = Math.round(b1 + (b2 - b1) * t)
-  return `rgb(${r},${g},${b})`
 }
 
 // ─── Styles ─────────────────────────────────────────────
@@ -650,16 +473,17 @@ const getStyles = (isDark: boolean) => {
   const surface = isDark ? '#1c1c1e' : '#fcf5f2'
   const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
   const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const surfaceHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e3dbd8'
   const onSurface = isDark ? '#f5f5f4' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#e7e5e4'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(178,172,170,0.2)'
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 12 },
 
-    // ── GRDA Header Bar ──
+    // ── Header Bar ──
     headerBar: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -676,16 +500,17 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
     },
     headerTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontFamily: font.extrabold,
       color: '#fff',
       letterSpacing: -0.3,
+      textTransform: 'uppercase',
     },
     headerSub: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.6)',
-      letterSpacing: 0.5,
+      color: 'rgba(255,255,255,0.5)',
+      letterSpacing: 1.5,
       marginTop: 1,
     },
     headerShield: {
@@ -697,368 +522,352 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
     },
 
-    // ── Hero ──
-    hero: {
-      paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: 20,
-    },
-    heroStatusRow: {
+    // ── Hero Card ──
+    heroCard: {
+      marginHorizontal: 16,
+      marginTop: 20,
+      marginBottom: 8,
+      backgroundColor: surfaceHigh,
+      borderRadius: 24,
+      padding: 24,
       flexDirection: 'row',
+      gap: 16,
       alignItems: 'center',
-      gap: 8,
-      marginBottom: 14,
+      overflow: 'hidden',
+    },
+    heroContent: {
+      flex: 1,
     },
     heroBadge: {
       flexDirection: 'row',
       alignItems: 'center',
+      alignSelf: 'flex-start',
       gap: 6,
       paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 12,
+      paddingVertical: 4,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(34,211,238,0.12)' : '#ecfeff',
+      marginBottom: 12,
     },
     heroBadgeDot: {
       width: 6,
       height: 6,
       borderRadius: 3,
+      backgroundColor: '#06b6d4',
     },
     heroBadgeText: {
       fontSize: 10,
       fontFamily: font.bold,
-      letterSpacing: 1,
-    },
-    lineBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    lineBadgeText: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: '#fff',
-      letterSpacing: 1,
+      color: isDark ? '#22d3ee' : '#0e7490',
+      letterSpacing: 1.2,
     },
     heroTitle: {
       fontSize: 28,
       fontFamily: font.extrabold,
       color: onSurface,
       letterSpacing: -0.5,
-      marginBottom: 4,
-    },
-    heroSubtitle: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: '#0891b2',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     heroDesc: {
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: font.regular,
       color: onSurfaceVariant,
-      lineHeight: 20,
+      lineHeight: 19,
     },
-    heroChips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginTop: 14,
+    heroImageWrap: {
+      width: 120,
+      height: 140,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: isDark ? '#2a2a2c' : '#e2e8f0',
     },
-    heroChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 10,
-    },
-    heroChipDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    heroChipText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
+    heroImage: {
+      width: '100%',
+      height: '100%',
     },
 
-    // ── Sections ──
+    // ── Section Wrap ──
     sectionWrap: {
-      paddingHorizontal: 20,
-      marginBottom: 24,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 14,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontFamily: font.bold,
-      color: onSurface,
-      flex: 1,
-    },
-    sectionCountBadge: {
-      backgroundColor: surfaceLow,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-    },
-    sectionCountText: {
-      fontSize: 11,
-      fontFamily: font.semibold,
-      color: onSurfaceVariant,
+      paddingHorizontal: 16,
+      marginTop: 20,
     },
 
     // ── Station Timeline ──
     timelineCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: outlineVariant,
+      backgroundColor: surfaceLow,
+      borderRadius: 24,
       overflow: 'hidden',
     },
-    fareHeader: {
+    timelineHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: outlineVariant,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 8,
     },
-    farePrice: {
+    timelineTitle: {
+      fontSize: 18,
       fontFamily: font.bold,
-      fontSize: 16,
       color: onSurface,
     },
-    fareStatusBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 10,
-      gap: 6,
-    },
-    fareStatusDot: { width: 6, height: 6, borderRadius: 3 },
-    fareStatusText: { fontFamily: font.semibold, fontSize: 12 },
-    stationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: 56,
-    },
-    connector: {
-      width: 52,
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'stretch',
+    timelineBody: {
       position: 'relative',
+      paddingLeft: 24,
+      paddingBottom: 12,
     },
-    lineSegTop: {
+    tubeLine: {
       position: 'absolute',
-      top: 0,
-      width: 4,
-      height: '50%' as unknown as number,
-      borderRadius: 2,
+      left: 35,
+      top: 20,
+      bottom: 20,
+      width: 6,
+      borderRadius: 3,
     },
-    lineSegBottom: {
-      position: 'absolute',
-      bottom: 0,
-      width: 4,
-      height: '50%' as unknown as number,
-      borderRadius: 2,
+    stationList: {
+      gap: 0,
     },
-    terminalDot: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+    stationItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingVertical: 18,
+    },
+    stationDotWrap: {
+      width: 28,
       alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1,
+      paddingTop: 2,
     },
     stationDot: {
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      borderWidth: 3,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
+      borderWidth: 4,
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1,
+      zIndex: 2,
     },
-    crowdDotInner: {
+    stationDotInner: {
       width: 6,
       height: 6,
       borderRadius: 3,
+      backgroundColor: '#06b6d4',
     },
-    stationInfo: {
+    stationContent: {
       flex: 1,
       flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 16,
-      paddingRight: 16,
-      gap: 8,
+      alignItems: 'flex-start',
+      marginLeft: 16,
+      paddingRight: 24,
     },
-    stationName: { fontFamily: font.medium, fontSize: 15, color: onSurface },
-    stationNameTerminal: { fontFamily: font.bold, fontSize: 16 },
-    stationHint: { fontSize: 11, fontFamily: font.regular, color: onSurfaceVariant, marginTop: 1 },
-    stationTime: { fontFamily: font.semibold, fontSize: 13, color: onSurfaceVariant, marginRight: 4 },
-    crowdChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 10,
-      gap: 5,
+    stationName: {
+      fontSize: 17,
+      fontFamily: font.bold,
+      color: onSurface,
+      lineHeight: 20,
     },
-    crowdChipDot: { width: 6, height: 6, borderRadius: 3 },
-    crowdChipText: { fontSize: 11, fontFamily: font.semibold },
-
-    // ── Expanded Station ──
-    expandedSection: {
-      marginLeft: 52,
-      marginRight: 16,
-      paddingLeft: 12,
-      paddingBottom: 12,
-      borderLeftWidth: 1,
-      borderLeftColor: outlineVariant,
+    stationSub: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 3,
     },
-    expandedReport: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 6,
-    },
-    expandedReportDot: { width: 6, height: 6, borderRadius: 3 },
-    expandedReportLabel: { fontFamily: font.medium, fontSize: 12, color: onSurfaceVariant },
-    expandedReportDetail: { fontFamily: font.semibold, fontSize: 11 },
-    expandedReportTime: { fontFamily: font.regular, fontSize: 10, color: isDark ? 'rgba(255,255,255,0.3)' : '#a8a29e', marginLeft: 'auto' },
-    expandedEmpty: { fontFamily: font.regular, fontSize: 12, color: onSurfaceVariant, paddingVertical: 8 },
-    expandedAddBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 8,
-      backgroundColor: isDark ? 'rgba(8,145,178,0.15)' : '#ecfeff',
-      marginTop: 6,
-    },
-    expandedAddText: { fontFamily: font.semibold, fontSize: 11, color: '#0891b2' },
-
-    // ── Schedule Timetable ──
-    daysBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: surfaceLow,
+    statusBadge: {
       paddingHorizontal: 8,
       paddingVertical: 3,
-      borderRadius: 8,
+      borderRadius: 6,
+      marginLeft: 8,
+      marginTop: 1,
     },
-    daysText: { fontSize: 11, fontFamily: font.medium, color: onSurfaceVariant },
+    statusBadgeText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      letterSpacing: -0.3,
+      textTransform: 'uppercase',
+    },
+
+    // ── Fare Strip ──
+    fareStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: outlineVariant,
+    },
+    farePrice: {
+      fontFamily: font.bold,
+      fontSize: 15,
+      color: onSurface,
+    },
+    fareStations: {
+      fontFamily: font.medium,
+      fontSize: 12,
+      color: onSurfaceVariant,
+    },
+
+    // ── Schedule Accordion ──
     schedCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: outlineVariant,
-      marginBottom: 12,
+      backgroundColor: surfaceHigh,
+      borderRadius: 24,
       overflow: 'hidden',
+      marginBottom: 12,
     },
     schedHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
+      justifyContent: 'space-between',
+      padding: 20,
     },
-    schedDirIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    schedLabel: { fontFamily: font.semibold, fontSize: 14, color: onSurface },
-    schedCode: { fontFamily: font.regular, fontSize: 11, color: onSurfaceVariant, marginTop: 1 },
-    schedFareBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 10,
-    },
-    schedFareText: { fontFamily: font.semibold, fontSize: 12 },
-    schedTable: {
-      paddingHorizontal: 16,
-      paddingVertical: 4,
-      borderTopWidth: 1,
-      borderTopColor: outlineVariant,
-    },
-    schedTableHead: {
+    schedHeaderLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: outlineVariant,
+      gap: 10,
     },
-    schedColHead: {
-      fontFamily: font.medium,
+    schedHeaderTitle: {
+      fontSize: 17,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    schedHeaderRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    schedDirPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    schedDirText: {
       fontSize: 11,
-      color: onSurfaceVariant,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
+      fontFamily: font.semibold,
+    },
+    schedBody: {
+      paddingHorizontal: 20,
+      paddingBottom: 16,
     },
     schedRow: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: outlineVariant,
     },
-    schedStationCol: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-    schedDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      borderWidth: 1.5,
-      borderColor: onSurfaceVariant,
+    schedStation: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
     },
-    schedStation: { fontFamily: font.regular, fontSize: 13, color: onSurface },
-    schedStationTerminal: { fontFamily: font.semibold },
-    schedTime: { width: 52, textAlign: 'center' as const, fontFamily: font.medium, fontSize: 13, color: onSurface },
-    schedTimeDash: { color: onSurfaceVariant },
-
-    // ── Report Cards ──
-    reportCard: {
+    schedStationBold: {
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    schedTime: {
+      fontSize: 14,
+      fontFamily: font.semibold,
+      color: onSurface,
+    },
+    schedFareRow: {
       flexDirection: 'row',
-      borderRadius: 16,
+      alignItems: 'center',
+      gap: 6,
+      paddingTop: 14,
+    },
+    schedDays: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+    },
+    schedFare: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#815100',
+    },
+
+    // ── Passenger Feedback ──
+    feedbackHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    feedbackSectionTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    feedbackCard: {
+      flexDirection: 'row',
       backgroundColor: surfaceLowest,
-      overflow: 'hidden',
+      borderRadius: 16,
+      padding: 16,
+      gap: 14,
       borderWidth: 1,
       borderColor: outlineVariant,
     },
-    reportAccent: { width: 4 },
-    reportBody: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 14,
-    },
-    reportIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+    feedbackAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
     },
-    reportTitle: { fontFamily: font.semibold, fontSize: 14, color: onSurface },
-    reportPill: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 8,
+    feedbackAvatarText: {
+      fontSize: 14,
+      fontFamily: font.bold,
     },
-    reportPillText: { fontSize: 11, fontFamily: font.semibold },
-    reportStation: { fontSize: 12, fontFamily: font.regular, color: onSurfaceVariant, marginTop: 2 },
-    reportTime: { fontSize: 11, fontFamily: font.regular, color: isDark ? 'rgba(255,255,255,0.3)' : '#a8a29e' },
+    feedbackMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    feedbackName: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    feedbackTypeDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+    },
+    feedbackTime: {
+      fontSize: 10,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    feedbackText: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurface,
+      lineHeight: 20,
+      fontStyle: 'italic',
+    },
+    shareLiveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      marginTop: 12,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(8,145,178,0.1)' : '#ecfeff',
+    },
+    shareLiveBtnText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#0891b2',
+    },
 
     // ── Empty State ──
     emptyCard: {
@@ -1096,59 +905,31 @@ const getStyles = (isDark: boolean) => {
       bottom: 0,
       left: 0,
       right: 0,
-      paddingHorizontal: 20,
-      paddingBottom: 32,
-      paddingTop: 12,
+      paddingHorizontal: 24,
+      paddingBottom: 34,
+      paddingTop: 16,
       backgroundColor: isDark ? 'rgba(28,28,30,0.95)' : 'rgba(252,245,242,0.95)',
     },
     goModeBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
-      padding: 16,
-      borderRadius: 20,
-    },
-    goModeBtnTitle: {
-      color: '#fff',
-      fontSize: 15,
-      fontFamily: font.extrabold,
-      letterSpacing: 1,
-    },
-    goModeBtnSub: {
-      color: 'rgba(255,255,255,0.7)',
-      fontSize: 12,
-      fontFamily: font.regular,
-      marginTop: 2,
-    },
-    goModeArrow: {
-      width: 32,
-      height: 32,
+      justifyContent: 'center',
+      gap: 12,
+      height: 60,
       borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    // ── FAB ──
-    fab: {
-      position: 'absolute',
-      bottom: 100,
-      right: 20,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
+      backgroundColor: '#22d3ee',
+      shadowColor: '#06b6d4',
+      shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
+      shadowRadius: 16,
+      elevation: 8,
     },
-    fabGradient: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
+    goModeBtnText: {
+      fontSize: 18,
+      fontFamily: font.extrabold,
+      color: '#0c4a6e',
+      letterSpacing: -0.5,
+      textTransform: 'uppercase',
     },
   })
 }
