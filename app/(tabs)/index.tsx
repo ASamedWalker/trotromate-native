@@ -36,10 +36,11 @@ import { getStationCoords } from '@/lib/utils/station-coords'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { getWaitEstimate } from '@/lib/services/stations'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
-import { getGhanaTime, timeAgo } from '@/lib/utils/time'
+import { getGhanaTime } from '@/lib/utils/time'
 import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
-import { IncidentMapPin, INCIDENT_CONFIGS } from '@/components/IncidentMapPin'
+import { IncidentMapPin } from '@/components/IncidentMapPin'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
+import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
@@ -107,81 +108,6 @@ function getGreeting(): string {
   const mm = minutes.toString().padStart(2, '0')
   const period = hours < 12 ? 'Good morning' : hours < 17 ? 'Good afternoon' : 'Good evening'
   return `${period} · ${h}:${mm} ${ampm}`
-}
-
-/* ── Incident Callout ──────────────────────────────── */
-
-const INCIDENT_LABELS: Record<string, string> = {
-  traffic: 'Heavy Traffic',
-  accident: 'Accident Reported',
-  police: 'Police Checkpoint',
-  police_checkpoint: 'Police Checkpoint',
-  roadwork: 'Road Work',
-  road_closure: 'Road Closed',
-  flooding: 'Flooding / Hazard',
-  breakdown: 'Breakdown / Work',
-}
-
-function IncidentCallout({ incident, onClose }: { incident: ActiveIncident; onClose: () => void }) {
-  const config = INCIDENT_CONFIGS[incident.incident_type]
-  const color = config?.color ?? '#ef4444'
-  const label = INCIDENT_LABELS[incident.incident_type] ?? incident.incident_type
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onClose}
-      style={{
-        alignItems: 'center',
-        marginBottom: 8,
-      }}
-    >
-      <View style={{
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        minWidth: 180,
-        maxWidth: 260,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-        borderLeftWidth: 4,
-        borderLeftColor: color,
-      }}>
-        <Text style={{
-          fontSize: 14,
-          fontFamily: font.bold,
-          color: color,
-          marginBottom: 2,
-        }}>{label}</Text>
-        <Text style={{
-          fontSize: 13,
-          fontFamily: font.medium,
-          color: '#312e2d',
-        }} numberOfLines={1}>{incident.location_name}</Text>
-        <Text style={{
-          fontSize: 11,
-          fontFamily: font.regular,
-          color: '#7a7674',
-          marginTop: 3,
-        }}>{timeAgo(incident.reported_at)}</Text>
-      </View>
-      {/* Arrow pointing down to the pin */}
-      <View style={{
-        width: 0,
-        height: 0,
-        borderLeftWidth: 8,
-        borderRightWidth: 8,
-        borderTopWidth: 8,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderTopColor: '#fff',
-      }} />
-    </TouchableOpacity>
-  )
 }
 
 /* ── Component ─────────────────────────────────────── */
@@ -419,19 +345,7 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* Incident callout tooltip — above the selected pin */}
-        {selectedIncident && (
-          <Mapbox.MarkerView
-            coordinate={[selectedIncident.longitude, selectedIncident.latitude]}
-            allowOverlap
-            anchor={{ x: 0.5, y: 1 }}
-          >
-            <IncidentCallout
-              incident={selectedIncident}
-              onClose={() => setSelectedIncident(null)}
-            />
-          </Mapbox.MarkerView>
-        )}
+        {/* Incident callout handled by IncidentDetailSheet outside MapView */}
       </Mapbox.MapView>
 
       {/* ── Floating search bar + service pills ── */}
@@ -561,6 +475,14 @@ export default function HomeScreen() {
           <HappeningNow />
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* Citizen-style incident detail sheet */}
+      {selectedIncident && (
+        <IncidentDetailSheet
+          incident={selectedIncident}
+          onClose={() => setSelectedIncident(null)}
+        />
+      )}
 
       <ReportFAB />
       <UnifiedSearch visible={searchVisible} onClose={() => setSearchVisible(false)} />
