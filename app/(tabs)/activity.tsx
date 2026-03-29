@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   SectionList,
   useColorScheme,
-  ActivityIndicator,
   RefreshControl,
   Animated,
   LayoutAnimation,
@@ -15,8 +14,17 @@ import {
 } from 'react-native'
 import { Swipeable } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { TrendingUp, Users, AlertTriangle, Camera, Zap, Trash2, TrainFront, Navigation } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import {
+  TrendingUp,
+  Users,
+  AlertTriangle,
+  Camera,
+  Trash2,
+  TrainFront,
+  Navigation,
+  Bell,
+} from 'lucide-react-native'
+import { font } from '@/lib/theme'
 import { useActivity } from '@/lib/hooks/useActivity'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActivityItem } from '@/lib/services/activity'
@@ -24,10 +32,10 @@ import { SkeletonActivityItem } from '@/components/Skeleton'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 
 const TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = {
-  fare: { icon: TrendingUp, color: c.amber500 },
-  queue: { icon: Users, color: c.violet500 },
-  incident: { icon: AlertTriangle, color: c.red500 },
-  tale: { icon: Camera, color: c.pink500 },
+  fare: { icon: TrendingUp, color: '#f59e0b' },
+  queue: { icon: Users, color: '#8b5cf6' },
+  incident: { icon: AlertTriangle, color: '#ef4444' },
+  tale: { icon: Camera, color: '#8b5cf6' },
   train: { icon: TrainFront, color: '#0ea5e9' },
   trip: { icon: Navigation, color: '#22c55e' },
 }
@@ -81,6 +89,7 @@ function SwipeableRow({
   onDismiss: (id: string) => void
 }) {
   const swipeableRef = useRef<Swipeable>(null)
+  const rs = getRowStyles(isDark)
 
   const handleDelete = useCallback(() => {
     swipeableRef.current?.close()
@@ -99,25 +108,26 @@ function SwipeableRow({
         <TouchableOpacity
           onPress={handleDelete}
           activeOpacity={0.8}
-          style={swipeStyles.deleteAction}
+          style={rs.deleteAction}
         >
-          <Animated.View style={[swipeStyles.deleteContent, { transform: [{ scale }] }]}>
-            <Trash2 size={20} color={c.white} />
-            <Text style={swipeStyles.deleteText}>Delete</Text>
+          <Animated.View style={[rs.deleteContent, { transform: [{ scale }] }]}>
+            <Trash2 size={20} color="#fff" />
+            <Text style={rs.deleteText}>Delete</Text>
           </Animated.View>
         </TouchableOpacity>
       )
     },
-    [handleDelete]
+    [handleDelete, rs]
   )
 
-  const t = themed(isDark)
   const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.fare
   const Icon = config.icon
-  // Gray icon for trips that didn't reach destination
   const iconColor = item.type === 'trip' && item.meta !== 'arrived'
     ? '#9ca3af'
     : config.color
+
+  // Check if unread (within last hour as heuristic)
+  const isRecent = Date.now() - new Date(item.timestamp).getTime() < 3600000
 
   return (
     <Swipeable
@@ -128,26 +138,18 @@ function SwipeableRow({
       overshootRight={false}
       friction={2}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: 14,
-          borderRadius: 16,
-          marginBottom: 10,
-          backgroundColor: t.card,
-          borderWidth: 1,
-          borderColor: t.border,
-        }}
-      >
-        <View style={[swipeStyles.iconBox, { backgroundColor: `${iconColor}20` }]}>
-          <Icon size={20} color={iconColor} />
+      <View style={rs.card}>
+        <View style={[rs.iconCircle, { backgroundColor: iconColor }]}>
+          <Icon size={20} color="#fff" />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[swipeStyles.title, { color: t.text }]}>{item.title}</Text>
-          <Text style={[swipeStyles.subtitle, { color: t.textSecondary }]}>{item.subtitle}</Text>
+        <View style={rs.content}>
+          <View style={rs.titleRow}>
+            <Text style={rs.title} numberOfLines={1}>{item.title}</Text>
+            {isRecent && <View style={rs.unreadDot} />}
+          </View>
+          <Text style={rs.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+          <Text style={rs.time}>{timeAgo(item.timestamp)}</Text>
         </View>
-        <Text style={[swipeStyles.time, { color: t.textTertiary }]}>{timeAgo(item.timestamp)}</Text>
       </View>
     </Swipeable>
   )
@@ -159,19 +161,24 @@ export default function ActivityScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
-  const t = themed(isDark)
 
   const {
     items,
     isLoading,
     isRefreshing,
-    isLoadingMore,
     hasMore,
     refresh,
     loadMore,
     dismissItem,
+    dismissAll,
   } = useActivity()
   useRefreshOnFocus([['activity']])
+
+  // Prevent onEndReached from firing before user has scrolled
+  const hasScrolledRef = useRef(false)
+  const handleEndReached = useCallback(() => {
+    if (hasScrolledRef.current) loadMore()
+  }, [loadMore])
 
   const sections = groupByDate(items)
 
@@ -192,13 +199,6 @@ export default function ActivityScreen() {
   )
 
   const renderFooter = useCallback(() => {
-    if (isLoadingMore) {
-      return (
-        <View style={s.footer}>
-          <ActivityIndicator size="small" color={c.amber500} />
-        </View>
-      )
-    }
     if (!hasMore && items.length > 0) {
       return (
         <View style={s.footer}>
@@ -207,12 +207,30 @@ export default function ActivityScreen() {
       )
     }
     return null
-  }, [isLoadingMore, hasMore, items.length, s])
+  }, [hasMore, items.length, s])
+
+  const renderEmpty = useCallback(() => (
+    <View style={s.emptyWrap}>
+      <View style={s.emptyIconBox}>
+        <Bell size={28} color="#815100" />
+      </View>
+      <Text style={s.emptyTitle}>Keep the pulse.</Text>
+      <Text style={s.emptySub}>
+        You're all caught up with the transit heartbeat of Accra.
+      </Text>
+    </View>
+  ), [s])
 
   return (
     <SafeAreaView style={s.container}>
+      {/* Header */}
       <View style={s.header}>
         <Text style={s.headerTitle}>Activity</Text>
+        {items.length > 0 && (
+          <TouchableOpacity activeOpacity={0.7} onPress={dismissAll}>
+            <Text style={s.markRead}>Mark all as read</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {isLoading ? (
@@ -224,30 +242,25 @@ export default function ActivityScreen() {
           <SkeletonActivityItem isDark={isDark} />
         </View>
       ) : items.length === 0 ? (
-        <View style={s.centered}>
-          <Zap size={48} color={t.textTertiary} />
-          <Text style={s.emptyTitle}>No activity yet</Text>
-          <Text style={s.emptySub}>
-            Reports, trips, tales, and incidents will show up here
-          </Text>
-        </View>
+        renderEmpty()
       ) : (
         <SectionList
           sections={sections}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}
-          stickySectionHeadersEnabled={false}
+          stickySectionHeadersEnabled
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={refresh}
-              tintColor={c.amber500}
-              colors={[c.amber500]}
+              tintColor="#815100"
+              colors={['#815100']}
             />
           }
-          onEndReached={loadMore}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.3}
+          onScroll={() => { hasScrolledRef.current = true }}
           ListFooterComponent={renderFooter}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
@@ -257,63 +270,175 @@ export default function ActivityScreen() {
   )
 }
 
-// ─── Styles ────────────────────────────────────────────────
+// ─── Row Styles ─────────────────────────────────────────────
 
-const swipeStyles = StyleSheet.create({
-  deleteAction: {
-    backgroundColor: '#ef4444',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 90,
-    marginBottom: 10,
-    marginLeft: -4,
-  },
-  deleteContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteText: {
-    color: c.white,
-    fontFamily: font.semibold,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  title: { fontFamily: font.semibold, fontSize: 14 },
-  subtitle: { fontSize: 13, marginTop: 2 },
-  time: { fontSize: 12 },
-})
+const getRowStyles = (isDark: boolean) => {
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
+  const onSurface = isDark ? '#fafaf9' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outline = isDark ? 'rgba(255,255,255,0.25)' : '#7a7674'
+
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 16,
+      marginBottom: 12,
+      backgroundColor: surfaceLow,
+      gap: 14,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    content: {
+      flex: 1,
+      minWidth: 0,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      fontFamily: font.semibold,
+      fontSize: 15,
+      color: onSurface,
+      flex: 1,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#3b82f6',
+      marginLeft: 8,
+    },
+    subtitle: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 2,
+    },
+    time: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: outline,
+      marginTop: 4,
+    },
+    deleteAction: {
+      backgroundColor: '#b02500',
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 90,
+      marginBottom: 12,
+      marginLeft: -4,
+    },
+    deleteContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteText: {
+      color: '#fff',
+      fontFamily: font.semibold,
+      fontSize: 12,
+      marginTop: 4,
+    },
+  })
+}
+
+// ─── Main Styles ────────────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#0c0a09' : '#fcf5f2'
+  const onSurface = isDark ? '#fafaf9' : '#312e2d'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
-    header: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
+    container: {
+      flex: 1,
+      backgroundColor: surface,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontFamily: font.bold,
+      color: isDark ? '#fafaf9' : '#78350f', // amber-900
+      letterSpacing: -0.3,
+    },
+    markRead: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: isDark ? '#f8a010' : '#b45309', // amber-700
+    },
     sectionHeader: {
-      paddingVertical: 8,
-      paddingHorizontal: 4,
-      marginTop: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginHorizontal: -16,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(252,245,242,0.85)',
     },
     sectionTitle: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: t.textTertiary,
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: onSurfaceVariant,
       textTransform: 'uppercase',
-      letterSpacing: 1,
+      letterSpacing: 2,
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-    emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: t.textSecondary, marginTop: 16 },
-    emptySub: { fontSize: 14, color: t.textTertiary, marginTop: 4, textAlign: 'center' },
-    footer: { alignItems: 'center', paddingVertical: 20 },
-    footerText: { fontSize: 13, color: t.textTertiary },
+    footer: {
+      alignItems: 'center',
+      paddingVertical: 20,
+    },
+    footerText: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+    },
+
+    // Empty state
+    emptyWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 40,
+    },
+    emptyIconBox: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#ffffff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transform: [{ rotate: '12deg' }],
+      marginBottom: 20,
+      shadowColor: '#312e2d',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isDark ? 0 : 0.12,
+      shadowRadius: 20,
+      elevation: isDark ? 0 : 8,
+    },
+    emptyTitle: {
+      fontSize: 22,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    emptySub: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      textAlign: 'center',
+      marginTop: 8,
+      maxWidth: 220,
+      lineHeight: 20,
+    },
   })
 }

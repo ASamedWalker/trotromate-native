@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   View,
   Text,
@@ -12,11 +12,13 @@ import {
   Modal,
   Pressable,
   FlatList,
+  ActivityIndicator,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
+import * as Location from 'expo-location'
 import {
   AlertTriangle,
   MapPin,
@@ -31,6 +33,8 @@ import {
   Send,
   Search,
   X,
+  Navigation,
+  MapPinOff,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
@@ -39,7 +43,6 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useStations } from '@/lib/hooks/useStations'
-import { getStationCoords } from '@/lib/utils/station-coords'
 
 const INCIDENT_TYPES = [
   { id: 'traffic', label: 'Traffic', icon: Car, color: '#815100' },
@@ -65,16 +68,64 @@ export default function IncidentReportScreen() {
   const { stations } = useStations()
 
   const [location, setLocation] = useState('')
-  const [selectedStation, setSelectedStation] = useState<{ latitude?: number; longitude?: number } | null>(null)
+  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [gpsStatus, setGpsStatus] = useState<'loading' | 'acquired' | 'denied' | 'error'>('loading')
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [locationModalVisible, setLocationModalVisible] = useState(false)
   const [search, setSearch] = useState('')
   const [photoUri, setPhotoUri] = useState<string | null>(null)
 
+  // Grab GPS on mount — this is the primary coordinate source
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          if (!cancelled) setGpsStatus('denied')
+          return
+        }
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        })
+        if (!cancelled) {
+          setGpsCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+          setGpsStatus('acquired')
+        }
+      } catch {
+        if (!cancelled) setGpsStatus('error')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // Find nearest station name as default location label
+  const nearestStation = useMemo(() => {
+    if (!gpsCoords || !stations.length) return null
+    let closest: { name: string; dist: number } | null = null
+    for (const st of stations) {
+      if (st.latitude == null || st.longitude == null) continue
+      const dlat = st.latitude - gpsCoords.latitude
+      const dlng = st.longitude - gpsCoords.longitude
+      const dist = dlat * dlat + dlng * dlng
+      if (!closest || dist < closest.dist) {
+        closest = { name: st.name, dist }
+      }
+    }
+    return closest
+  }, [gpsCoords, stations])
+
+  // Auto-fill location with nearest station if user hasn't typed anything
+  useEffect(() => {
+    if (nearestStation && !location) {
+      setLocation(nearestStation.name)
+    }
+  }, [nearestStation]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const filteredStations = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q || q.length < 2) return stations.slice(0, 15)
-    return stations.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 15)
+    return stations.filter((st) => st.name.toLowerCase().includes(q)).slice(0, 15)
   }, [search, stations])
 
   const takePhoto = async () => {
@@ -100,15 +151,16 @@ export default function IncidentReportScreen() {
       return
     }
 
-    // Use DB station coords, fall back to station-coords utility
-    const coords = selectedStation?.latitude && selectedStation?.longitude
-      ? selectedStation
-      : getStationCoords({ name: location.trim() } as any)
+    // GPS is primary coordinate source; station coords are fallback
+    const stationMatch = stations.find((st) => st.name === location.trim())
+    const lat = gpsCoords?.latitude ?? stationMatch?.latitude
+    const lng = gpsCoords?.longitude ?? stationMatch?.longitude
+
     const result = await submit(
       location.trim(),
       selectedType,
-      coords?.latitude,
-      coords?.longitude,
+      lat,
+      lng,
     )
     if (result) {
       haptics.success()
@@ -130,8 +182,26 @@ export default function IncidentReportScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* Location Pill */}
+        {/* GPS Status + Location Pill */}
         <View style={s.locationPillWrap}>
+          {gpsStatus === 'loading' && (
+            <View style={s.gpsBadge}>
+              <ActivityIndicator size={12} color="#815100" />
+              <Text style={s.gpsBadgeText}>Getting your location...</Text>
+            </View>
+          )}
+          {gpsStatus === 'acquired' && (
+            <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)' }]}>
+              <Navigation size={12} color="#22c55e" />
+              <Text style={[s.gpsBadgeText, { color: '#16a34a' }]}>Using your live location</Text>
+            </View>
+          )}
+          {(gpsStatus === 'denied' || gpsStatus === 'error') && (
+            <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)' }]}>
+              <MapPinOff size={12} color="#ef4444" />
+              <Text style={[s.gpsBadgeText, { color: '#dc2626' }]}>Location unavailable — select below</Text>
+            </View>
+          )}
           <TouchableOpacity
             style={s.locationPill}
             activeOpacity={0.7}
@@ -279,7 +349,6 @@ export default function IncidentReportScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setLocation(station.name)
-                    setSelectedStation({ latitude: station.latitude, longitude: station.longitude })
                     setLocationModalVisible(false)
                     setSearch('')
                   }}
@@ -303,7 +372,6 @@ export default function IncidentReportScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setLocation(search.trim())
-                  setSelectedStation(null)
                   setLocationModalVisible(false)
                   setSearch('')
                 }}
@@ -344,6 +412,21 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       paddingHorizontal: 24,
       marginBottom: 24,
+      gap: 8,
+    },
+    gpsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(129,81,0,0.08)' : 'rgba(129,81,0,0.05)',
+    },
+    gpsBadgeText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
     },
     locationPill: {
       flexDirection: 'row',
