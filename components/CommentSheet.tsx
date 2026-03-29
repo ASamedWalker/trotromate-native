@@ -12,8 +12,8 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
-import { X, Send, CornerDownRight } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { X } from 'lucide-react-native'
+import { font } from '@/lib/theme'
 import { useComments } from '@/lib/hooks/useComments'
 import { useApp } from '@/lib/contexts/AppContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -27,9 +27,7 @@ interface CommentSheetProps {
 }
 
 export default function CommentSheet({ postId, visible, onClose }: CommentSheetProps) {
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
+  const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
 
   const { deviceId, profile } = useApp()
@@ -51,7 +49,6 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
     )
     if (success) {
       setText('')
-      // Auto-expand replies for the parent we just replied to
       if (replyTarget) {
         setExpandedReplies((prev) => new Set(prev).add(replyTarget.id))
       }
@@ -70,7 +67,6 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
         next.delete(commentId)
       } else {
         next.add(commentId)
-        // Fetch replies if not already loaded
         if (!repliesMap.has(commentId) && replyCount > 0) {
           loadReplies(commentId)
         }
@@ -87,7 +83,6 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
 
     return (
       <View>
-        {/* Parent comment */}
         <CommentRow
           comment={item}
           isOwn={isOwn}
@@ -95,25 +90,23 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
           styles={s}
         />
 
-        {/* Reply count toggle */}
         {item.reply_count > 0 && (
           <TouchableOpacity
             onPress={() => toggleReplies(item.id, item.reply_count)}
             style={s.repliesToggle}
             activeOpacity={0.7}
           >
-            <CornerDownRight size={14} color={c.amber500} />
+            <View style={s.repliesLine} />
             <Text style={s.repliesToggleText}>
               {isExpanded ? 'Hide' : 'View'} {item.reply_count} repl{item.reply_count === 1 ? 'y' : 'ies'}
             </Text>
           </TouchableOpacity>
         )}
 
-        {/* Expanded replies */}
         {isExpanded && (
           <View style={s.repliesContainer}>
             {isLoadingReplies ? (
-              <ActivityIndicator size="small" color={c.amber500} style={{ paddingVertical: 8 }} />
+              <ActivityIndicator size="small" color="#0095f6" style={{ paddingVertical: 8 }} />
             ) : (
               replies.map((reply) => (
                 <CommentRow
@@ -140,24 +133,29 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={s.sheet}>
-          {/* Handle */}
+          {/* Handle + title */}
           <View style={s.handleRow}>
             <View style={s.handle} />
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-              <X size={20} color={t.textSecondary} />
+          </View>
+
+          <View style={s.titleRow}>
+            <Text style={s.title}>Comments</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} hitSlop={8}>
+              <X size={20} color={isDark ? 'rgba(255,255,255,0.5)' : '#8e8e8e'} />
             </TouchableOpacity>
           </View>
 
-          <Text style={s.title}>Comments</Text>
+          <View style={s.titleDivider} />
 
           {/* Comments list */}
           {isLoading ? (
             <View style={s.centered}>
-              <ActivityIndicator size="small" color={c.amber500} />
+              <ActivityIndicator size="small" color="#0095f6" />
             </View>
           ) : comments.length === 0 ? (
             <View style={s.centered}>
-              <Text style={s.emptyText}>No comments yet. Be the first!</Text>
+              <Text style={s.emptyTitle}>No comments yet</Text>
+              <Text style={s.emptyText}>Start the conversation.</Text>
             </View>
           ) : (
             <FlatList
@@ -179,12 +177,12 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
                 </Text>
               </Text>
               <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={8}>
-                <X size={16} color={t.textSecondary} />
+                <X size={14} color={isDark ? 'rgba(255,255,255,0.4)' : '#8e8e8e'} />
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Input */}
+          {/* Input row */}
           <View style={s.inputRow}>
             <InitialsAvatar
               name={profile?.display_name}
@@ -195,7 +193,7 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
               value={text}
               onChangeText={(val) => setText(val.slice(0, 280))}
               placeholder={replyTarget ? 'Write a reply...' : 'Add a comment...'}
-              placeholderTextColor={t.textSecondary}
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#8e8e8e'}
               style={s.input}
               multiline
               maxLength={280}
@@ -204,9 +202,10 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
               onPress={handleSend}
               disabled={isPosting || !text.trim()}
               activeOpacity={0.7}
-              style={[s.sendBtn, (!text.trim() || isPosting) && s.sendBtnDisabled]}
             >
-              <Send size={18} color={c.white} />
+              <Text style={[s.postBtn, (!text.trim() || isPosting) && s.postBtnDisabled]}>
+                Post
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -227,7 +226,6 @@ function CommentRow({
   isDark?: boolean
   onReply?: () => void
   styles: ReturnType<typeof getStyles>
-  themed?: ReturnType<typeof themed>
   isReply?: boolean
 }) {
   return (
@@ -235,131 +233,160 @@ function CommentRow({
       <InitialsAvatar
         name={comment.display_name}
         deviceId={comment.device_id}
-        size={isReply ? 26 : 32}
+        size={isReply ? 28 : 34}
       />
       <View style={s.commentContent}>
-        <View style={s.commentHeader}>
+        <Text style={s.commentText}>
           <Text style={[s.commentName, isReply && s.commentNameSmall]}>
             {comment.display_name ?? `User-${comment.device_id.slice(-4).toUpperCase()}`}
           </Text>
-          {isOwn && <Text style={s.youBadge}>You</Text>}
+          {isOwn && <Text style={s.youBadge}> You</Text>}
+          {'  '}
+          <Text style={isReply ? s.commentBodySmall : s.commentBody}>
+            {comment.content}
+          </Text>
+        </Text>
+        <View style={s.commentMeta}>
           <Text style={s.commentTime}>{timeAgo(comment.created_at)}</Text>
+          {onReply && !isReply && (
+            <TouchableOpacity onPress={onReply} activeOpacity={0.7}>
+              <Text style={s.replyBtnText}>Reply</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={[s.commentText, isReply && s.commentTextSmall]}>{comment.content}</Text>
-        {onReply && !isReply && (
-          <TouchableOpacity onPress={onReply} activeOpacity={0.7} style={s.replyBtn}>
-            <Text style={s.replyBtnText}>Reply</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+  const surface = isDark ? '#1c1c1e' : '#fff'
+  const onSurface = isDark ? '#f5f5f4' : '#262626'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
+  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const inputBg = isDark ? 'rgba(255,255,255,0.06)' : '#f5f5f5'
+
   return StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { flex: 1 },
     sheet: {
-      backgroundColor: t.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      maxHeight: '75%',
+      backgroundColor: surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: '70%',
       minHeight: 300,
       paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     },
     handleRow: {
+      alignItems: 'center',
+      paddingTop: 10,
+      paddingBottom: 4,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
+    },
+    titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingTop: 12,
       paddingHorizontal: 16,
+      paddingBottom: 12,
     },
-    handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: t.border,
+    title: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: onSurface,
+      textAlign: 'center',
     },
     closeBtn: {
       position: 'absolute',
       right: 16,
-      top: 12,
       padding: 4,
     },
-    title: {
-      fontSize: 16,
-      fontFamily: font.bold,
-      color: t.text,
-      textAlign: 'center',
-      marginTop: 8,
-      marginBottom: 12,
+    titleDivider: {
+      height: 0.5,
+      backgroundColor: divider,
     },
-    list: { flex: 1, paddingHorizontal: 16 },
+    list: { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
     centered: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 40,
     },
-    emptyText: { color: t.textSecondary, fontSize: 14 },
+    emptyTitle: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: onSurface,
+      marginBottom: 4,
+    },
+    emptyText: { color: onSurfaceVariant, fontSize: 14 },
 
     // Comment rows
     commentRow: {
       flexDirection: 'row',
-      marginBottom: 14,
+      marginBottom: 16,
       alignItems: 'flex-start',
     },
     replyRow: {
-      marginBottom: 10,
-      marginLeft: 8,
+      marginBottom: 12,
+      marginLeft: 12,
     },
-    commentContent: { flex: 1, marginLeft: 10 },
-    commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    commentName: { fontFamily: font.semibold, fontSize: 13, color: t.text },
+    commentContent: { flex: 1, marginLeft: 12 },
+    commentText: {
+      fontSize: 14,
+      color: onSurface,
+      lineHeight: 20,
+    },
+    commentName: { fontFamily: font.bold, fontSize: 13 },
     commentNameSmall: { fontSize: 12 },
+    commentBody: { fontFamily: font.regular },
+    commentBodySmall: { fontFamily: font.regular, fontSize: 13 },
     youBadge: {
       fontSize: 10,
       fontFamily: font.semibold,
-      color: c.amber500,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : c.amber50,
-      paddingHorizontal: 6,
-      paddingVertical: 1,
-      borderRadius: 4,
+      color: '#0095f6',
     },
-    commentTime: { fontSize: 11, color: t.textTertiary },
-    commentText: { fontSize: 14, color: t.text, marginTop: 2, lineHeight: 20 },
-    commentTextSmall: { fontSize: 13, lineHeight: 18 },
+    commentMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 4,
+    },
+    commentTime: { fontSize: 12, color: onSurfaceVariant },
 
     // Reply button
-    replyBtn: { marginTop: 4 },
     replyBtnText: {
       fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.textTertiary,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
     },
 
     // Replies toggle
     repliesToggle: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginLeft: 42,
-      marginBottom: 10,
+      gap: 8,
+      marginLeft: 58,
+      marginBottom: 12,
+    },
+    repliesLine: {
+      width: 24,
+      height: 0.5,
+      backgroundColor: onSurfaceVariant,
     },
     repliesToggleText: {
       fontSize: 12,
-      fontFamily: font.semibold,
-      color: c.amber500,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
     },
 
     // Replies container
     repliesContainer: {
-      marginLeft: 42,
-      borderLeftWidth: 2,
-      borderLeftColor: isDark ? 'rgba(245,158,11,0.2)' : c.amber100,
-      paddingLeft: 12,
+      marginLeft: 46,
       marginBottom: 6,
     },
 
@@ -369,42 +396,42 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : c.amber50,
-      borderTopWidth: 1,
-      borderTopColor: t.border,
+      paddingVertical: 10,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fafafa',
+      borderTopWidth: 0.5,
+      borderTopColor: divider,
     },
-    replyIndicatorText: { fontSize: 13, color: t.textSecondary },
-    replyIndicatorName: { fontFamily: font.semibold, color: c.amber500 },
+    replyIndicatorText: { fontSize: 13, color: onSurfaceVariant },
+    replyIndicatorName: { fontFamily: font.bold, color: onSurface },
 
     // Input
     inputRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: t.border,
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      borderTopWidth: 0.5,
+      borderTopColor: divider,
       gap: 10,
     },
     input: {
       flex: 1,
       fontSize: 14,
-      color: t.text,
-      backgroundColor: t.cardAlt,
+      fontFamily: font.regular,
+      color: onSurface,
+      backgroundColor: inputBg,
       borderRadius: 20,
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingVertical: Platform.OS === 'ios' ? 10 : 8,
       maxHeight: 80,
     },
-    sendBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: c.amber500,
-      alignItems: 'center',
-      justifyContent: 'center',
+    postBtn: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#0095f6',
     },
-    sendBtnDisabled: { backgroundColor: c.stone400 },
+    postBtnDisabled: {
+      color: isDark ? 'rgba(0,149,246,0.3)' : 'rgba(0,149,246,0.4)',
+    },
   })
 }

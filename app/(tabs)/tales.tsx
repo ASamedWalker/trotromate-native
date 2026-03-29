@@ -12,11 +12,22 @@ import {
   StyleSheet,
   Alert,
   DeviceEventEmitter,
+  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
-import { MessageCircle, MapPin, Plus, Camera, Trash2, Flag, MoreVertical } from 'lucide-react-native'
+import {
+  MessageCircle,
+  MapPin,
+  Camera,
+  Trash2,
+  Flag,
+  MoreHorizontal,
+  Heart,
+  Send,
+  Bookmark,
+} from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -32,10 +43,11 @@ import ImageCarousel from '@/components/ImageCarousel'
 import VideoPlayer from '@/components/VideoPlayer'
 import type { TalePost } from '@/lib/types'
 
+const { width: SCREEN_W } = Dimensions.get('window')
+
 // ─── Contributor badge tiers ────────────────────────────
 
 function getContributorBadge(post: TalePost): { label: string; color: string; ringColor: string } {
-  // Simple heuristic based on post type + device hash
   const hash = post.device_id.charCodeAt(post.device_id.length - 1) % 4
   if (hash === 0) return { label: 'Local Expert', color: '#7c3aed', ringColor: '#a78bfa' }
   if (hash === 1) return { label: 'Road Scout', color: '#d97706', ringColor: '#fbbf24' }
@@ -46,6 +58,45 @@ function getContributorBadge(post: TalePost): { label: string; color: string; ri
 function getDisplayName(post: TalePost): string {
   if (post.display_name) return post.display_name
   return `User-${post.device_id.slice(-4).toUpperCase()}`
+}
+
+// ─── Double-tap like overlay ────────────────────────────
+
+function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; children: React.ReactNode }) {
+  const lastTap = useRef(0)
+  const heartScale = useRef(new Animated.Value(0)).current
+  const heartOpacity = useRef(new Animated.Value(0)).current
+
+  const handlePress = useCallback(() => {
+    const now = Date.now()
+    if (now - lastTap.current < 300) {
+      onDoubleTap()
+      // Show heart animation
+      heartScale.setValue(0)
+      heartOpacity.setValue(1)
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, speed: 15, bounciness: 12 }),
+        Animated.delay(400),
+        Animated.timing(heartOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start()
+    }
+    lastTap.current = now
+  }, [onDoubleTap, heartScale, heartOpacity])
+
+  return (
+    <Pressable onPress={handlePress}>
+      {children}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.doubleTapHeart,
+          { transform: [{ scale: heartScale }], opacity: heartOpacity },
+        ]}
+      >
+        <Heart size={80} color="#fff" fill="#fff" />
+      </Animated.View>
+    </Pressable>
+  )
 }
 
 // ─── TaleCard ───────────────────────────────────────────
@@ -81,9 +132,29 @@ function TaleCard({
 }) {
   const s = cardStyles(isDark)
   const [showMenu, setShowMenu] = useState(false)
+  const [localLiked, setLocalLiked] = useState(userReactions.includes('❤️'))
+  const [localSaved, setLocalSaved] = useState(false)
   const badge = getContributorBadge(post)
   const displayName = getDisplayName(post)
-  const screenWidth = Dimensions.get('window').width
+
+  // Sync localLiked with userReactions prop
+  useEffect(() => {
+    setLocalLiked(userReactions.includes('❤️'))
+  }, [userReactions])
+
+  const likeCount = Object.values(reactionSummary).reduce((a, b) => a + b, 0)
+
+  const handleDoubleTapLike = useCallback(() => {
+    if (!localLiked) {
+      onReact('❤️')
+      setLocalLiked(true)
+    }
+  }, [localLiked, onReact])
+
+  const handleLikePress = useCallback(() => {
+    setLocalLiked(!localLiked)
+    onReact('❤️')
+  }, [localLiked, onReact])
 
   const handleDelete = useCallback(() => {
     setShowMenu(false)
@@ -107,19 +178,21 @@ function TaleCard({
             <InitialsAvatar
               name={post.display_name}
               deviceId={post.device_id}
-              size={38}
+              size={36}
             />
           </View>
         </TouchableOpacity>
 
         <View style={s.headerInfo}>
-          <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-            <Text style={s.name} numberOfLines={1}>{displayName}</Text>
-          </TouchableOpacity>
-          <View style={s.headerMeta}>
+          <View style={s.nameRow}>
+            <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
+              <Text style={s.name} numberOfLines={1}>{displayName}</Text>
+            </TouchableOpacity>
             <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>
-            <View style={s.metaDot} />
-            <Text style={s.timeText}>{timeAgo(post.created_at)}</Text>
+          </View>
+          <View style={s.headerMeta}>
+            <MapPin size={10} color={isDark ? 'rgba(255,255,255,0.35)' : '#a8a29e'} />
+            <Text style={s.locationText} numberOfLines={1}>{post.location_name}</Text>
           </View>
         </View>
 
@@ -128,7 +201,7 @@ function TaleCard({
           style={s.menuBtn}
           hitSlop={8}
         >
-          <MoreVertical size={18} color={isDark ? 'rgba(255,255,255,0.4)' : '#7a7674'} />
+          <MoreHorizontal size={20} color={isDark ? 'rgba(255,255,255,0.5)' : '#78716c'} />
         </Pressable>
       </View>
 
@@ -151,63 +224,102 @@ function TaleCard({
         </>
       )}
 
-      {/* ── Media (4:5 aspect) ── */}
-      <View style={s.mediaWrap}>
-        {post.media_type === 'video' && post.video_url ? (
-          <VideoPlayer
-            uri={post.video_url}
-            thumbnailUri={post.video_thumbnail_url}
-            width={screenWidth - 32}
-            isVisible={isVisible}
-            isMounted={isMounted}
-            durationSecs={post.video_duration_secs}
-            onExpand={onVideoPress}
-          />
-        ) : post.image_url ? (
-          <ImageCarousel
-            images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
-            width={screenWidth - 32}
-          />
-        ) : null}
+      {/* ── Media (edge-to-edge) ── */}
+      <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
+        <View style={s.mediaWrap}>
+          {post.media_type === 'video' && post.video_url ? (
+            <VideoPlayer
+              uri={post.video_url}
+              thumbnailUri={post.video_thumbnail_url}
+              width={SCREEN_W}
+              isVisible={isVisible}
+              isMounted={isMounted}
+              durationSecs={post.video_duration_secs}
+              onExpand={onVideoPress}
+            />
+          ) : post.image_url ? (
+            <ImageCarousel
+              images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
+              width={SCREEN_W}
+            />
+          ) : null}
 
-        {/* Video badge */}
-        {post.media_type === 'video' && (
-          <View style={s.videoBadge}>
-            <View style={s.videoBadgeDot} />
-            <Text style={s.videoBadgeText}>LIVE</Text>
-          </View>
-        )}
-
-        {/* Location pill overlay */}
-        <View style={s.locationPill}>
-          <MapPin size={12} color="#f8a010" />
-          <Text style={s.locationPillText} numberOfLines={1}>{post.location_name}</Text>
+          {/* Video badge */}
+          {post.media_type === 'video' && (
+            <View style={s.videoBadge}>
+              <View style={s.videoBadgeDot} />
+              <Text style={s.videoBadgeText}>LIVE</Text>
+            </View>
+          )}
         </View>
+      </DoubleTapLike>
+
+      {/* ── Action Row (Instagram-style) ── */}
+      <View style={s.actionRow}>
+        <View style={s.actionRowLeft}>
+          <TouchableOpacity onPress={handleLikePress} activeOpacity={0.7} hitSlop={6}>
+            <Heart
+              size={26}
+              color={localLiked ? '#ef4444' : (isDark ? '#f5f5f4' : '#262626')}
+              fill={localLiked ? '#ef4444' : 'transparent'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onComment} activeOpacity={0.7} hitSlop={6}>
+            <MessageCircle size={24} color={isDark ? '#f5f5f4' : '#262626'} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {}} activeOpacity={0.7} hitSlop={6}>
+            <Send size={22} color={isDark ? '#f5f5f4' : '#262626'} style={{ transform: [{ rotate: '20deg' }] }} />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={() => setLocalSaved(!localSaved)} activeOpacity={0.7} hitSlop={6}>
+          <Bookmark
+            size={24}
+            color={localSaved ? '#f59e0b' : (isDark ? '#f5f5f4' : '#262626')}
+            fill={localSaved ? '#f59e0b' : 'transparent'}
+          />
+        </TouchableOpacity>
       </View>
+
+      {/* ── Like count ── */}
+      {likeCount > 0 && (
+        <Text style={s.likeCount}>{likeCount.toLocaleString()} like{likeCount !== 1 ? 's' : ''}</Text>
+      )}
 
       {/* ── Caption ── */}
       {post.caption && (
         <View style={s.captionWrap}>
-          <Text style={s.captionText}>{post.caption}</Text>
+          <Text style={s.captionText}>
+            <Text style={s.captionAuthor}>{displayName}</Text>{'  '}{post.caption}
+          </Text>
         </View>
       )}
 
-      {/* ── Reaction Bar ── */}
+      {/* ── Reaction Bar (compact) ── */}
       <ReactionBar
         reactionSummary={reactionSummary}
         userReactions={userReactions}
         onReact={onReact}
+        compact
       />
 
-      {/* ── Comment link ── */}
-      {post.comment_count > 0 && (
+      {/* ── Comments ── */}
+      {post.comment_count > 0 ? (
         <TouchableOpacity onPress={onComment} style={s.commentLink} activeOpacity={0.7}>
-          <MessageCircle size={14} color={isDark ? 'rgba(255,255,255,0.4)' : '#7a7674'} />
           <Text style={s.commentLinkText}>
             View all {post.comment_count} comment{post.comment_count !== 1 ? 's' : ''}
           </Text>
         </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={onComment} style={s.commentLink} activeOpacity={0.7}>
+          <Text style={s.commentLinkText}>Add a comment...</Text>
+        </TouchableOpacity>
       )}
+
+      {/* ── Timestamp ── */}
+      <Text style={s.timestamp}>{timeAgo(post.created_at)}</Text>
+
+      {/* ── Separator ── */}
+      <View style={s.separator} />
     </View>
   )
 }
@@ -291,11 +403,11 @@ export default function TalesScreen() {
         onReport={() => handleReport(item.id)}
         onProfilePress={() => router.push(`/profile/${item.device_id}` as Href)}
         onVideoPress={item.media_type === 'video' && item.video_url ? () => {
-          const displayName = item.display_name || `User-${item.device_id.slice(-4).toUpperCase()}`
+          const dn = item.display_name || `User-${item.device_id.slice(-4).toUpperCase()}`
           const summary = reactionSummaries.get(item.id) || {}
-          const likeCount = Object.values(summary).reduce((a, b) => a + b, 0)
+          const lc = Object.values(summary).reduce((a, b) => a + b, 0)
           router.push(
-            `/reel?postId=${item.id}&videoUrl=${encodeURIComponent(item.video_url!)}&thumbnailUrl=${encodeURIComponent(item.video_thumbnail_url ?? '')}&durationSecs=${item.video_duration_secs ?? 0}&displayName=${encodeURIComponent(displayName)}&deviceId=${item.device_id}&locationName=${encodeURIComponent(item.location_name)}&caption=${encodeURIComponent(item.caption ?? '')}&timeAgo=${encodeURIComponent(timeAgo(item.created_at))}&commentCount=${item.comment_count}&likeCount=${likeCount}` as Href
+            `/reel?postId=${item.id}&videoUrl=${encodeURIComponent(item.video_url!)}&thumbnailUrl=${encodeURIComponent(item.video_thumbnail_url ?? '')}&durationSecs=${item.video_duration_secs ?? 0}&displayName=${encodeURIComponent(dn)}&deviceId=${item.device_id}&locationName=${encodeURIComponent(item.location_name)}&caption=${encodeURIComponent(item.caption ?? '')}&timeAgo=${encodeURIComponent(timeAgo(item.created_at))}&commentCount=${item.comment_count}&likeCount=${lc}` as Href
           )
         } : undefined}
       />
@@ -306,18 +418,34 @@ export default function TalesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <View style={s.headerLeft}>
-          <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={36} />
-          <Text style={s.headerTitle}>Tales</Text>
-        </View>
+        <Text style={s.headerTitle}>Tales</Text>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}
           style={s.newBtn}
           activeOpacity={0.7}
         >
-          <Camera size={18} color={isDark ? '#312e2d' : '#fff0e3'} />
+          <Camera size={20} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {/* Stories-style avatar strip */}
+      <View style={s.storyStrip}>
+        <TouchableOpacity
+          onPress={() => router.push('/report/photo' as Href)}
+          style={s.storyItem}
+          activeOpacity={0.7}
+        >
+          <View style={s.storyAddRing}>
+            <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={56} />
+            <View style={s.storyAddBadge}>
+              <Text style={s.storyAddPlus}>+</Text>
+            </View>
+          </View>
+          <Text style={s.storyLabel}>Your Story</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={s.headerDivider} />
 
       {isLoading ? (
         <View style={{ paddingTop: 12 }}>
@@ -335,7 +463,7 @@ export default function TalesScreen() {
             style={s.emptyBtn}
             activeOpacity={0.8}
           >
-            <Plus size={16} color="#fff" />
+            <Camera size={16} color="#fff" />
             <Text style={s.emptyBtnText}>Share a Tale</Text>
           </TouchableOpacity>
         </View>
@@ -356,7 +484,7 @@ export default function TalesScreen() {
               <ActivityIndicator size="small" color="#815100" style={{ paddingVertical: 20 }} />
             ) : null
           }
-          contentContainerStyle={{ paddingBottom: 90, paddingTop: 8 }}
+          contentContainerStyle={{ paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -370,72 +498,84 @@ export default function TalesScreen() {
   )
 }
 
+// ─── Double-tap heart overlay style ─────────────────────
+
+const styles = StyleSheet.create({
+  doubleTapHeart: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -40,
+    marginLeft: -40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+})
+
 // ─── Card Styles ────────────────────────────────────────
 
 const cardStyles = (isDark: boolean) => {
-  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(178,172,170,0.15)'
+  const onSurface = isDark ? '#f5f5f4' : '#262626'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
+  const surface = isDark ? '#000' : '#fff'
+  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
 
   return StyleSheet.create({
     card: {
-      backgroundColor: surfaceLow,
-      marginHorizontal: 16,
-      marginBottom: 20,
-      borderRadius: 20,
-      overflow: 'hidden',
+      backgroundColor: surface,
     },
 
     // ── Header ──
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
     },
     avatarRing: {
       borderWidth: 2,
-      borderRadius: 22,
+      borderRadius: 20,
       padding: 2,
     },
     headerInfo: {
       flex: 1,
       marginLeft: 10,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
     name: {
       fontFamily: font.semibold,
       fontSize: 14,
       color: onSurface,
-      lineHeight: 18,
+    },
+    badgeText: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
     },
     headerMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginTop: 2,
+      gap: 3,
+      marginTop: 1,
     },
-    badgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-    },
-    metaDot: {
-      width: 3,
-      height: 3,
-      borderRadius: 1.5,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#b2acaa',
-    },
-    timeText: {
+    locationText: {
       fontSize: 11,
       fontFamily: font.regular,
       color: onSurfaceVariant,
+      flex: 1,
     },
     menuBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -443,7 +583,7 @@ const cardStyles = (isDark: boolean) => {
     // ── Media ──
     mediaWrap: {
       position: 'relative',
-      overflow: 'hidden',
+      backgroundColor: isDark ? '#111' : '#fafafa',
     },
     videoBadge: {
       position: 'absolute',
@@ -452,7 +592,7 @@ const cardStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
-      backgroundColor: '#2563eb',
+      backgroundColor: 'rgba(0,0,0,0.6)',
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 20,
@@ -461,7 +601,7 @@ const cardStyles = (isDark: boolean) => {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: '#fff',
+      backgroundColor: '#ef4444',
     },
     videoBadgeText: {
       fontSize: 10,
@@ -469,30 +609,35 @@ const cardStyles = (isDark: boolean) => {
       color: '#fff',
       letterSpacing: 1.5,
     },
-    locationPill: {
-      position: 'absolute',
-      bottom: 12,
-      left: 12,
+
+    // ── Action Row ──
+    actionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-      borderRadius: 14,
-      maxWidth: '80%',
+      justifyContent: 'space-between',
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      paddingBottom: 6,
     },
-    locationPillText: {
-      fontSize: 12,
-      fontFamily: font.medium,
+    actionRowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+
+    // ── Like count ──
+    likeCount: {
+      fontFamily: font.bold,
+      fontSize: 14,
       color: onSurface,
+      paddingHorizontal: 14,
+      marginBottom: 4,
     },
 
     // ── Caption ──
     captionWrap: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 4,
+      paddingHorizontal: 14,
+      marginBottom: 4,
     },
     captionText: {
       fontSize: 14,
@@ -500,19 +645,38 @@ const cardStyles = (isDark: boolean) => {
       color: onSurface,
       lineHeight: 20,
     },
+    captionAuthor: {
+      fontFamily: font.bold,
+      fontSize: 14,
+    },
 
     // ── Comments ──
     commentLink: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingBottom: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 4,
     },
     commentLinkText: {
       fontSize: 13,
-      fontFamily: font.medium,
+      fontFamily: font.regular,
       color: onSurfaceVariant,
+    },
+
+    // ── Timestamp ──
+    timestamp: {
+      fontSize: 10,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      paddingHorizontal: 14,
+      marginTop: 2,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+
+    // ── Separator ──
+    separator: {
+      height: 1,
+      backgroundColor: divider,
     },
 
     // ── Menu ──
@@ -526,27 +690,27 @@ const cardStyles = (isDark: boolean) => {
     },
     menuDropdown: {
       position: 'absolute',
-      right: 16,
-      top: 52,
+      right: 14,
+      top: 48,
       zIndex: 20,
-      backgroundColor: isDark ? '#292524' : '#ffffff',
-      borderRadius: 14,
+      backgroundColor: isDark ? '#262626' : '#ffffff',
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: outlineVariant,
+      borderColor: divider,
       paddingVertical: 4,
-      minWidth: 140,
+      minWidth: 150,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowRadius: 16,
+      elevation: 8,
     },
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
     },
     menuItemText: {
       fontSize: 14,
@@ -564,8 +728,10 @@ const cardStyles = (isDark: boolean) => {
 // ─── Screen Styles ──────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const surface = isDark ? '#000' : '#fff'
+  const onSurface = isDark ? '#f5f5f4' : '#262626'
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
+  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
@@ -573,28 +739,69 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
     },
     headerTitle: {
-      fontSize: 22,
-      fontFamily: font.extrabold,
-      color: isDark ? '#fef3c7' : '#78350f',
+      fontSize: 24,
+      fontFamily: font.bold,
+      color: onSurface,
       letterSpacing: -0.5,
     },
     newBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: '#815100',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? '#262626' : '#262626',
       alignItems: 'center',
       justifyContent: 'center',
     },
+
+    // ── Story strip ──
+    storyStrip: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    storyItem: {
+      alignItems: 'center',
+      gap: 4,
+    },
+    storyAddRing: {
+      borderWidth: 2,
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+      borderRadius: 32,
+      padding: 3,
+    },
+    storyAddBadge: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#0095f6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: surface,
+    },
+    storyAddPlus: {
+      color: '#fff',
+      fontSize: 14,
+      fontFamily: font.bold,
+      lineHeight: 16,
+    },
+    storyLabel: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+    },
+    headerDivider: {
+      height: 1,
+      backgroundColor: divider,
+    },
+
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 16 },
     emptySub: { fontSize: 14, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
@@ -603,11 +810,11 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      backgroundColor: '#815100',
+      backgroundColor: '#0095f6',
       paddingHorizontal: 24,
       paddingVertical: 12,
-      borderRadius: 16,
+      borderRadius: 8,
     },
-    emptyBtnText: { color: '#fff0e3', fontFamily: font.bold, fontSize: 14 },
+    emptyBtnText: { color: '#fff', fontFamily: font.bold, fontSize: 14 },
   })
 }

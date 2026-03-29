@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   actionBar: {
     position: 'absolute',
     right: 12,
-    bottom: 140,
+    bottom: 180,
     alignItems: 'center',
     gap: 20,
     zIndex: 8,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   // ─── Bottom content overlay ───
   bottomContent: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 50,
     left: 16,
     right: 72,
     zIndex: 5,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   // ─── Amber progress bar ───
   progressTrack: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 34,
     left: 0,
     right: 0,
     height: 3,
