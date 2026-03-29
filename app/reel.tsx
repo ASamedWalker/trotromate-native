@@ -177,9 +177,9 @@ export default function ReelScreen() {
         onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
       />
 
-      {/* Tap to play/pause — left 30px kept clear for swipe-back gesture */}
+      {/* Tap to play/pause */}
       <Pressable
-        style={styles.tapZone}
+        style={StyleSheet.absoluteFillObject}
         onPress={togglePlayPause}
       >
         {isPaused && (
@@ -349,14 +349,6 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
-  },
-
-  tapZone: {
-    position: 'absolute',
-    top: 0,
-    left: 30,
-    right: 0,
-    bottom: 0,
   },
 
   // ─── Top bar ───

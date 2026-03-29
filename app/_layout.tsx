@@ -125,8 +125,9 @@ function AppInner() {
           name="reel"
           options={{
             headerShown: false,
-            presentation: 'fullScreenModal',
-            animation: 'fade',
+            presentation: 'modal',
+            gestureEnabled: true,
+            animation: 'slide_from_bottom',
           }}
         />
       </Stack>
