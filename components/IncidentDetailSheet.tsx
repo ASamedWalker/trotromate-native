@@ -1,16 +1,14 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   useColorScheme,
   StyleSheet,
-  Pressable,
-  Animated,
-  PanResponder,
+  Platform,
 } from 'react-native'
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet'
 import {
-  X,
   MapPin,
   ShieldCheck,
   ThumbsUp,
@@ -20,8 +18,6 @@ import {
 import { font, themed } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActiveIncident } from '@/lib/hooks/useActiveIncidents'
-
-const SHEET_HEIGHT = 420
 
 /* ── Incident configs ────────────────────────────── */
 
@@ -51,84 +47,48 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
   const meta = INCIDENT_META[incident.incident_type] ?? DEFAULT_META
   const s = getStyles(isDark, meta.color)
 
-  // Time remaining until expiry
   const expiresAt = new Date(incident.expires_at)
   const minsRemaining = Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 60_000))
 
-  // Slide-up entrance + swipe-down dismiss animation
-  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current
-  const backdropOpacity = useRef(new Animated.Value(0)).current
+  const sheetRef = useRef<BottomSheet>(null)
+  const snapPoints = useMemo(() => ['1%'], [])
 
+  // Expand on mount
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 25,
-        stiffness: 300,
-      }),
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [translateY, backdropOpacity])
+    sheetRef.current?.expand()
+  }, [])
 
-  const dismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: SHEET_HEIGHT,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => onClose())
-  }
+  const handleSheetChange = useCallback((index: number) => {
+    if (index === -1) onClose()
+  }, [onClose])
 
-  // PanResponder for swipe-down-to-dismiss
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gs) =>
-        gs.dy > 8 && Math.abs(gs.dy) > Math.abs(gs.dx * 1.5),
-      onPanResponderMove: (_, gs) => {
-        if (gs.dy > 0) translateY.setValue(gs.dy)
-      },
-      onPanResponderRelease: (_, gs) => {
-        if (gs.dy > 80 || gs.vy > 0.4) {
-          dismiss()
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 25,
-            stiffness: 300,
-          }).start()
-        }
-      },
-    }),
-  ).current
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.35}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  )
 
   return (
-    <View style={s.container}>
-      {/* Backdrop — tap to dismiss */}
-      <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-      </Animated.View>
-
-      {/* Sheet */}
-      <Animated.View
-        style={[s.sheet, { transform: [{ translateY }] }]}
-        {...panResponder.panHandlers}
-      >
-        {/* Drag handle */}
-        <View style={s.handle} />
-
+    <BottomSheet
+      ref={sheetRef}
+      index={-1}
+      snapPoints={snapPoints}
+      enableDynamicSizing
+      enablePanDownToClose
+      onChange={handleSheetChange}
+      backdropComponent={renderBackdrop}
+      handleIndicatorStyle={s.handle}
+      backgroundStyle={s.sheet}
+      style={s.sheetShadow}
+    >
+      <BottomSheetView style={s.content}>
         {/* Header */}
         <View style={s.header}>
           <View style={{ flex: 1 }}>
@@ -144,9 +104,6 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
               <Text style={s.locationText} numberOfLines={1}>{incident.location_name}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={dismiss} activeOpacity={0.7} style={s.closeBtn}>
-            <X size={20} color={isDark ? '#a8a29e' : '#7a7674'} />
-          </TouchableOpacity>
         </View>
 
         {/* Context */}
@@ -190,8 +147,8 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
         <View style={s.xpRow}>
           <Text style={s.xpText}>Confirming earns you <Text style={s.xpBold}>+2 XP</Text></Text>
         </View>
-      </Animated.View>
-    </View>
+      </BottomSheetView>
+    </BottomSheet>
   )
 }
 
@@ -202,40 +159,30 @@ const getStyles = (isDark: boolean, accentColor: string) => {
   const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
 
   return StyleSheet.create({
-    container: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 100,
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-    },
     sheet: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: surface,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.97)' : 'rgba(252,245,242,0.97)',
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
-      paddingHorizontal: 24,
-      paddingBottom: 40,
-      shadowColor: '#000',
+    },
+    sheetShadow: {
+      shadowColor: '#312e2d',
       shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.08,
+      shadowOpacity: isDark ? 0 : 0.08,
       shadowRadius: 40,
-      elevation: 8,
+      elevation: 20,
     },
     handle: {
       width: 40,
       height: 4,
       borderRadius: 2,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : '#d6d3d1',
-      alignSelf: 'center',
-      marginTop: 12,
-      marginBottom: 20,
+      backgroundColor: outlineVariant,
+    },
+    content: {
+      paddingHorizontal: 24,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     },
 
     // Header
@@ -283,15 +230,6 @@ const getStyles = (isDark: boolean, accentColor: string) => {
       fontSize: 14,
       fontFamily: font.semibold,
       color: onSurfaceVariant,
-    },
-    closeBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: surfaceLow,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 12,
     },
 
     // Context
