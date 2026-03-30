@@ -106,11 +106,11 @@ function AppInner() {
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
-        <Stack.Screen name="report/fare" options={{ headerShown: false, presentation: 'formSheet', gestureEnabled: true }} />
-        <Stack.Screen name="report/queue" options={{ headerShown: false, presentation: 'formSheet', gestureEnabled: true }} />
-        <Stack.Screen name="report/incident" options={{ headerShown: false, presentation: 'formSheet', gestureEnabled: true }} />
-        <Stack.Screen name="report/photo" options={{ headerShown: false, presentation: 'formSheet', gestureEnabled: true }} />
-        <Stack.Screen name="report/train" options={{ headerShown: false, presentation: 'formSheet', gestureEnabled: true }} />
+        <Stack.Screen name="report/fare" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="report/queue" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="report/incident" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="report/photo" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="report/train" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="train/index" options={{ headerShown: false }} />
         <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
