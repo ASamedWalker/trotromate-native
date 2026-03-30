@@ -16,6 +16,7 @@ import { Lightbulb, Plus, X, Send } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useCommuterTips, submitTip, type CommuterTip } from '@/lib/hooks/useCommuterTips'
 import { useApp } from '@/lib/contexts/AppContext'
+import { TIP_POINTS } from '@/lib/constants/rewards'
 
 const CATEGORIES = [
   { key: 'trotro', label: 'Trotro' },
@@ -35,7 +36,7 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
   const t = themed(isDark)
   const s = getStyles(isDark)
   const { dailyTip } = useCommuterTips(category)
-  const { profile, deviceId } = useApp()
+  const { profile, deviceId, setLastReward } = useApp()
 
   const [showSubmit, setShowSubmit] = useState(false)
   const [tipText, setTipText] = useState('')
@@ -62,6 +63,14 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
       setTimeout(() => {
         setShowSubmit(false)
         setSubmitted(false)
+        // Fire confetti with +5 points preview
+        setLastReward({
+          points_awarded: TIP_POINTS,
+          new_total: (profile?.total_points ?? 0) + TIP_POINTS,
+          level_up: false,
+          badges_earned: [],
+          new_streak: profile?.current_streak ?? 0,
+        })
       }, 1500)
     }
   }
