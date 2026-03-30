@@ -223,7 +223,6 @@ function CommentRow({
 }: {
   comment: TaleComment
   isOwn: boolean
-  isDark?: boolean
   onReply?: () => void
   styles: ReturnType<typeof getStyles>
   isReply?: boolean

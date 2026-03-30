@@ -130,7 +130,7 @@ export function validateVehicleNumber(num: string | undefined): string | null {
 
 // ── Known Enums ────────────────────────────────────────────────────
 
-export const QUEUE_STATUSES = ['short', 'medium', 'long', 'very_long', 'no_queue'] as const
+export const QUEUE_STATUSES = ['empty', 'short', 'moderate', 'long', 'very_long'] as const
 export type QueueStatus = (typeof QUEUE_STATUSES)[number]
 
 export const INCIDENT_TYPES = [
