@@ -13,6 +13,8 @@ export const TRIP_POINTS = {
   fare_bonus: 3,  // extra if the user submits fare (total 8)
 }
 
+export const TIP_POINTS = 5  // awarded server-side when tip is approved
+
 export const STREAK_CONFIG = {
   THRESHOLD_DAYS: 7,
   BONUS_POINTS: 5,

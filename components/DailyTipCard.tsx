@@ -125,7 +125,7 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
               <View style={s.successState}>
                 <Text style={s.successEmoji}>🎉</Text>
                 <Text style={s.successTitle}>Tip Submitted!</Text>
-                <Text style={s.successSub}>It'll appear after review. Thanks for helping!</Text>
+                <Text style={s.successSub}>You'll earn +5 points when it's approved!</Text>
               </View>
             ) : (
               <>
@@ -187,7 +187,7 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
                 </TouchableOpacity>
 
                 <Text style={s.disclaimer}>
-                  Tips are reviewed before appearing. Earn points when yours gets approved!
+                  Tips are reviewed before appearing. You earn +5 points when approved!
                 </Text>
               </>
             )}
