@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet'
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import {
   Megaphone,
   Users,
@@ -159,7 +159,7 @@ export default function ReportFAB() {
         backgroundStyle={s.sheet}
         style={s.sheetShadow}
       >
-        <BottomSheetView style={s.content}>
+        <BottomSheetScrollView style={s.content}>
           {/* Header */}
           <View style={s.header}>
             <Text style={s.headerTitle}>What's the update?</Text>
@@ -219,7 +219,7 @@ export default function ReportFAB() {
               </View>
             </View>
           )}
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheet>
 
       {/* FAB Button */}
