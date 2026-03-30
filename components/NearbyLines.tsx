@@ -63,7 +63,7 @@ function AnimatedCard({
         useNativeDriver: true,
       }),
     ]).start()
-  }, [index, slideAnim, fadeAnim])
+  }, [index])
 
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress}>

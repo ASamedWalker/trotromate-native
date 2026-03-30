@@ -21,7 +21,6 @@ import { useRouter, type Href } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard } from '@/lib/hooks/useRewards'
-import { LEVELS } from '@/lib/constants/rewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { ReferralCard } from '@/components/ReferralCard'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -146,7 +145,7 @@ export default function RewardsScreen() {
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
   const t = themed(isDark)
-  const { rank, deviceId, refreshProfile } = useApp()
+  const { deviceId, refreshProfile } = useApp()
   const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
 

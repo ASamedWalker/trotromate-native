@@ -102,7 +102,7 @@ export function SmartCommuteCard() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start()
-  }, [fadeAnim, slideAnim])
+  }, [])
 
   return (
     <Animated.View style={[s.wrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>

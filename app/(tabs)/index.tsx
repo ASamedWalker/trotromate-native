@@ -87,7 +87,7 @@ function AnimatedPlaceholder({ style }: { style: any }) {
       })
     }, 3000)
     return () => clearInterval(interval)
-  }, [fadeAnim, slideAnim])
+  }, [])
 
   return (
     <Animated.Text

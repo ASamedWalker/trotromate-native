@@ -33,7 +33,11 @@ async function fetchTips(): Promise<CommuterTip[]> {
     .order('created_at', { ascending: false })
     .limit(30)
 
-  if (error || !data?.length) return FALLBACK_TIPS
+  if (error) {
+    if (__DEV__) console.warn('[useCommuterTips] fetch error:', error.message)
+    return FALLBACK_TIPS
+  }
+  if (!data?.length) return FALLBACK_TIPS
   return data as CommuterTip[]
 }
 

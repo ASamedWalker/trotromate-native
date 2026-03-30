@@ -1,3 +1,4 @@
+import React from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Platform } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
@@ -31,7 +32,7 @@ interface ServiceModePillsProps {
   hasActiveTrip?: boolean
 }
 
-export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: ServiceModePillsProps) {
+export const ServiceModePills = React.memo(function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: ServiceModePillsProps) {
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
 
@@ -78,7 +79,7 @@ export function ServiceModePills({ activeMode, onModeChange, hasActiveTrip }: Se
       })}
     </View>
   )
-}
+})
 
 const getStyles = (isDark: boolean) => {
   return StyleSheet.create({

@@ -11,6 +11,7 @@ import {
   Dimensions,
   StyleSheet,
   Alert,
+  Share,
   DeviceEventEmitter,
   Animated,
 } from 'react-native'
@@ -267,7 +268,18 @@ function TaleCard({
           <TouchableOpacity onPress={onComment} activeOpacity={0.7} hitSlop={6}>
             <MessageCircle size={24} color={isDark ? '#f5f5f4' : '#262626'} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {}} activeOpacity={0.7} hitSlop={6}>
+          <TouchableOpacity
+            onPress={() => {
+              const name = getDisplayName(post)
+              const loc = post.location_name ?? ''
+              const caption = post.caption ? `\n"${post.caption}"` : ''
+              Share.share({
+                message: `${name} shared a commuter tale from ${loc} on Troski${caption}\n\nDownload Troski: https://troski.me`,
+              })
+            }}
+            activeOpacity={0.7}
+            hitSlop={6}
+          >
             <Send size={22} color={isDark ? '#f5f5f4' : '#262626'} style={{ transform: [{ rotate: '20deg' }] }} />
           </TouchableOpacity>
         </View>
@@ -347,10 +359,11 @@ export default function TalesScreen() {
 
   // Listen for comment open signal from reel screen
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
     const sub = DeviceEventEmitter.addListener('openComment', (postId: string) => {
-      setTimeout(() => setCommentPostId(postId), 300)
+      timer = setTimeout(() => setCommentPostId(postId), 300)
     })
-    return () => sub.remove()
+    return () => { sub.remove(); clearTimeout(timer) }
   }, [])
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {

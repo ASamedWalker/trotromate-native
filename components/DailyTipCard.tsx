@@ -71,7 +71,7 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
           badges_earned: [],
           new_streak: profile?.current_streak ?? 0,
         })
-      }, 1500)
+      }, 800)
     }
   }
 

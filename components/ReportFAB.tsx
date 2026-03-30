@@ -114,7 +114,7 @@ export default function ReportFAB() {
         useNativeDriver: true,
       }),
     ]).start()
-  }, [isOpen])
+  }, [isOpen, overlayOpacity, sheetSlide])
 
   const sheetTranslate = sheetSlide.interpolate({
     inputRange: [0, 1],

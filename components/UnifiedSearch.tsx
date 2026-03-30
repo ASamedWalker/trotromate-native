@@ -58,7 +58,8 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   // Auto-focus input when modal opens
   useEffect(() => {
     if (visible) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+      const timer = setTimeout(() => inputRef.current?.focus(), 100)
+      return () => clearTimeout(timer)
     } else {
       setQuery('')
     }
@@ -292,7 +293,7 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
       Animated.timing(slideAnim, { toValue: 0, duration: 300, delay, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, delay, useNativeDriver: true }),
     ]).start()
-  }, [index, slideAnim, fadeAnim])
+  }, [index])
 
   const isTrain = result.type === 'train'
   const bgTint = isTrain

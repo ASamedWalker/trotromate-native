@@ -43,11 +43,11 @@ export default function ConfettiCelebration({ reward, onDismiss }: ConfettiCeleb
     }, reward.level_up ? 5000 : 3500)
 
     return () => clearTimeout(timeout)
-  }, [reward])
+  }, [reward, onDismiss])
 
   if (!reward) return null
 
-  const isSpecial = reward.level_up || reward.badges_earned.length > 0
+  const isSpecial = reward.level_up || (reward.badges_earned?.length ?? 0) > 0
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -80,7 +80,7 @@ export default function ConfettiCelebration({ reward, onDismiss }: ConfettiCeleb
             </View>
           )}
 
-          {reward.badges_earned.map((badge) => (
+          {reward.badges_earned?.map((badge) => (
             <View key={badge.id} style={styles.badgeRow}>
               <Text style={styles.badgeIcon}>{badge.icon}</Text>
               <Text style={styles.badgeName}>{badge.name}</Text>
