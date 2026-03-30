@@ -62,3 +62,17 @@ export function useCommuterTips(category?: string) {
 
   return { tips, dailyTip }
 }
+
+/* ── Submit a tip ─────────────────────────────────── */
+
+export async function submitTip(
+  tip: string,
+  authorName: string,
+  deviceId: string,
+  category: string = 'general',
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('commuter_tips')
+    .insert({ tip, author_name: authorName, device_id: deviceId, category })
+  return !error
+}
