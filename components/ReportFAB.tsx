@@ -1,19 +1,17 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
-  Animated,
-  Modal,
-  Pressable,
   useColorScheme,
   StyleSheet,
   useWindowDimensions,
+  Platform,
 } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet'
 import {
   Megaphone,
-  X,
   Users,
   AlertTriangle,
   Star,
@@ -91,40 +89,51 @@ export default function ReportFAB() {
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
   const { width } = useWindowDimensions()
-  const cardSize = (width - 32 - 24 - 24) / 3 // padding + gaps
+  const cardSize = (width - 32 - 24 - 24) / 3
 
   const { deviceId } = useDeviceId()
   const { profile } = useProfile(deviceId)
 
-  const [isOpen, setIsOpen] = useState(false)
-  const sheetSlide = useRef(new Animated.Value(0)).current
-  const overlayOpacity = useRef(new Animated.Value(0)).current
+  const sheetRef = useRef<BottomSheet>(null)
+  const snapPoints = useMemo(() => ['1%'], [])
+  const isOpen = useRef(false)
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(overlayOpacity, {
-        toValue: isOpen ? 1 : 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.spring(sheetSlide, {
-        toValue: isOpen ? 1 : 0,
-        damping: 22,
-        stiffness: 200,
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [isOpen, overlayOpacity, sheetSlide])
+  const handleOpen = useCallback(() => {
+    sheetRef.current?.expand()
+    isOpen.current = true
+  }, [])
 
-  const sheetTranslate = sheetSlide.interpolate({
-    inputRange: [0, 1],
-    outputRange: [400, 0],
-  })
+  const handleClose = useCallback(() => {
+    sheetRef.current?.close()
+    isOpen.current = false
+  }, [])
 
-  const handleSelect = (route: string) => {
-    setIsOpen(false)
-    router.push(route as Href)
-  }
+  const handleToggle = useCallback(() => {
+    if (isOpen.current) handleClose()
+    else handleOpen()
+  }, [handleOpen, handleClose])
+
+  const handleSheetChange = useCallback((index: number) => {
+    isOpen.current = index >= 0
+  }, [])
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.4}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  )
+
+  const handleSelect = useCallback((route: string) => {
+    handleClose()
+    setTimeout(() => router.push(route as Href), 150)
+  }, [handleClose, router])
 
   // Level progress
   const currentLevel = profile?.current_level ?? 'passenger'
@@ -134,22 +143,20 @@ export default function ReportFAB() {
 
   return (
     <>
-      {/* Bottom Sheet Modal */}
-      <Modal visible={isOpen} transparent animationType="none">
-        <Animated.View style={[s.overlay, { opacity: overlayOpacity }]}>
-          <Pressable style={{ flex: 1 }} onPress={() => setIsOpen(false)} />
-        </Animated.View>
-        <Animated.View
-          style={[
-            s.sheet,
-            { transform: [{ translateY: sheetTranslate }] },
-          ]}
-        >
-          {/* Handle */}
-          <View style={s.handleRow}>
-            <View style={s.handle} />
-          </View>
-
+      {/* Bottom Sheet — native gesture-driven */}
+      <BottomSheet
+        ref={sheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        enableDynamicSizing
+        enablePanDownToClose
+        onChange={handleSheetChange}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={s.handle}
+        backgroundStyle={s.sheet}
+        style={s.sheetShadow}
+      >
+        <BottomSheetView style={s.content}>
           {/* Header */}
           <View style={s.header}>
             <Text style={s.headerTitle}>What's the update?</Text>
@@ -169,19 +176,14 @@ export default function ReportFAB() {
                   activeOpacity={0.7}
                   style={[s.gridItem, { width: cardSize, height: cardSize }]}
                 >
-                  {/* Points badge */}
                   <View style={[s.pointsBadge, { backgroundColor: option.badgeBg }]}>
                     <Text style={[s.pointsText, { color: option.iconColor }]}>
                       {option.points}
                     </Text>
                   </View>
-
-                  {/* Icon */}
                   <View style={s.gridIconWrap}>
                     <Icon size={28} color={option.iconColor} />
                   </View>
-
-                  {/* Label */}
                   <Text style={s.gridLabel} numberOfLines={2}>
                     {option.title}
                   </Text>
@@ -214,27 +216,22 @@ export default function ReportFAB() {
               </View>
             </View>
           )}
-        </Animated.View>
-      </Modal>
+        </BottomSheetView>
+      </BottomSheet>
 
       {/* FAB Button */}
       <TouchableOpacity
-        onPress={() => setIsOpen(!isOpen)}
+        onPress={handleToggle}
         activeOpacity={0.85}
         style={s.fab}
       >
-        {isOpen ? (
-          <X size={26} color="#fff" />
-        ) : (
-          <Megaphone size={26} color="#fff" />
-        )}
+        <Megaphone size={26} color="#fff" />
       </TouchableOpacity>
     </>
   )
 }
 
 const getStyles = (isDark: boolean) => {
-  // Stitch M3 tokens
   const surfaceLowest = themed(isDark).sheetBg
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
@@ -258,29 +255,17 @@ const getStyles = (isDark: boolean) => {
       shadowRadius: 16,
       zIndex: 100,
     },
-    overlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
     sheet: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: isDark ? 'rgba(12,10,9,0.92)' : 'rgba(252,245,242,0.97)',
+      backgroundColor: isDark ? 'rgba(12,10,9,0.97)' : 'rgba(252,245,242,0.97)',
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
-      paddingBottom: 44,
-      elevation: 20,
+    },
+    sheetShadow: {
       shadowColor: '#312e2d',
       shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: isDark ? 0 : 0.12,
+      shadowOpacity: isDark ? 0 : 0.08,
       shadowRadius: 40,
-    },
-    handleRow: {
-      alignItems: 'center',
-      paddingTop: 12,
-      paddingBottom: 4,
+      elevation: 20,
     },
     handle: {
       width: 40,
@@ -288,9 +273,12 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 2,
       backgroundColor: outlineVariant,
     },
+    content: {
+      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    },
     header: {
       paddingHorizontal: 28,
-      paddingTop: 16,
+      paddingTop: 8,
       paddingBottom: 20,
     },
     headerTitle: {

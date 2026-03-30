@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
+import Svg, { Path, Rect, Circle, G } from 'react-native-svg'
 import {
   Sunrise,
   Sunset,
@@ -68,6 +69,66 @@ function getTimeContext(): TimeContext {
   return 'night'
 }
 
+/* ── Large background SVG icons (Stitch-inspired) ── */
+
+function BigTrotroSvg() {
+  return (
+    <Svg width="160" height="120" viewBox="0 0 160 120" fill="none">
+      <G opacity={0.1}>
+        {/* Body */}
+        <Rect x="10" y="20" width="130" height="65" rx="16" fill="#fff" />
+        {/* Roof rack */}
+        <Rect x="20" y="12" width="110" height="12" rx="6" fill="#fff" />
+        {/* Windshield */}
+        <Rect x="95" y="30" width="35" height="40" rx="8" fill="#fff" opacity={0.5} />
+        {/* Side windows */}
+        <Rect x="25" y="32" width="22" height="22" rx="5" fill="#fff" opacity={0.4} />
+        <Rect x="52" y="32" width="22" height="22" rx="5" fill="#fff" opacity={0.4} />
+        {/* Door */}
+        <Rect x="78" y="30" width="14" height="40" rx="4" fill="#fff" opacity={0.3} />
+        {/* Wheels */}
+        <Circle cx="40" cy="92" r="12" fill="#fff" />
+        <Circle cx="40" cy="92" r="6" fill="#fff" opacity={0.3} />
+        <Circle cx="115" cy="92" r="12" fill="#fff" />
+        <Circle cx="115" cy="92" r="6" fill="#fff" opacity={0.3} />
+        {/* Bumper */}
+        <Rect x="130" y="45" width="8" height="20" rx="4" fill="#fff" opacity={0.5} />
+        {/* Headlight */}
+        <Circle cx="140" cy="40" r="5" fill="#fff" opacity={0.6} />
+      </G>
+    </Svg>
+  )
+}
+
+function BigTrainSvg() {
+  return (
+    <Svg width="160" height="120" viewBox="0 0 160 120" fill="none">
+      <G opacity={0.1}>
+        {/* Body */}
+        <Rect x="15" y="15" width="120" height="70" rx="20" fill="#fff" />
+        {/* Roof */}
+        <Path d="M55 15 Q75 0 95 15" fill="#fff" opacity={0.6} />
+        {/* Headlight */}
+        <Circle cx="75" cy="8" r="6" fill="#fff" opacity={0.7} />
+        {/* Windows */}
+        <Rect x="30" y="28" width="40" height="24" rx="6" fill="#fff" opacity={0.4} />
+        <Rect x="80" y="28" width="40" height="24" rx="6" fill="#fff" opacity={0.4} />
+        {/* Door */}
+        <Rect x="65" y="35" width="14" height="35" rx="4" fill="#fff" opacity={0.3} />
+        {/* Undercarriage */}
+        <Rect x="10" y="88" width="130" height="8" rx="4" fill="#fff" />
+        {/* Wheels */}
+        <Circle cx="40" cy="100" r="10" fill="#fff" />
+        <Circle cx="40" cy="100" r="5" fill="#fff" opacity={0.3} />
+        <Circle cx="75" cy="100" r="10" fill="#fff" />
+        <Circle cx="75" cy="100" r="5" fill="#fff" opacity={0.3} />
+        <Circle cx="110" cy="100" r="10" fill="#fff" />
+        <Circle cx="110" cy="100" r="5" fill="#fff" opacity={0.3} />
+      </G>
+    </Svg>
+  )
+}
+
 /* ── Component ────────────────────────────────────── */
 
 export function SmartCommuteCard() {
@@ -113,8 +174,10 @@ export function SmartCommuteCard() {
         end={{ x: 1, y: 1 }}
         style={s.card}
       >
-        {/* Decorative circle */}
-        <View style={[s.decorCircle, { backgroundColor: info.gradient[1] }]} />
+        {/* Large ghosted transport icon — Stitch-inspired */}
+        <View style={s.bgIcon}>
+          {nextTrain.status === 'upcoming' ? <BigTrainSvg /> : <BigTrotroSvg />}
+        </View>
 
         <View style={s.cardContent}>
           {/* Context icon + label */}
@@ -177,14 +240,10 @@ const getStyles = (isDark: boolean) => {
       paddingBottom: 24,
       overflow: 'hidden',
     },
-    decorCircle: {
+    bgIcon: {
       position: 'absolute',
-      right: -30,
-      bottom: -30,
-      width: 140,
-      height: 140,
-      borderRadius: 70,
-      opacity: 0.15,
+      right: -10,
+      bottom: -10,
     },
     cardContent: {
       zIndex: 1,
