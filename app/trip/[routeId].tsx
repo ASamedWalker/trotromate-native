@@ -318,21 +318,6 @@ export default function TripScreen() {
     }
   }, [completedTrip, deviceId, refreshProfile, setLastReward, router])
 
-  // Auto-end trip on arrival — save data and show fare prompt
-  useEffect(() => {
-    if (tripState === 'arrived' && deviceId && !showFarePrompt && !completedTrip && !isEndingRef.current) {
-      isEndingRef.current = true
-      ;(async () => {
-        const result = await endTrip(deviceId)
-        if (result) {
-          setCompletedTrip(result)
-          setShowFarePrompt(true)
-        }
-        isEndingRef.current = false
-      })()
-    }
-  }, [tripState, deviceId, endTrip, showFarePrompt, completedTrip])
-
   // Still fetching route data — show loading spinner
   const isStillLoading = (!route && !isTrain && routeLoading) || (!line && isTrain)
 
@@ -481,6 +466,23 @@ export default function TripScreen() {
       simDwellUntilRef.current = 0
     }
   }, [tripState])
+
+  // Auto-end trip on arrival — from real GPS or simulation reaching 100%
+  const shouldAutoEnd = tripState === 'arrived' || (!isNearRoute && simProgress >= 98)
+
+  useEffect(() => {
+    if (shouldAutoEnd && isActive && deviceId && !showFarePrompt && !completedTrip && !isEndingRef.current) {
+      isEndingRef.current = true
+      ;(async () => {
+        const result = await endTrip(deviceId)
+        if (result) {
+          setCompletedTrip(result)
+          setShowFarePrompt(true)
+        }
+        isEndingRef.current = false
+      })()
+    }
+  }, [shouldAutoEnd, isActive, deviceId, endTrip, showFarePrompt, completedTrip])
 
   // Effective progress: real GPS when near, simulated when far
   const effectiveProgress = isNearRoute
