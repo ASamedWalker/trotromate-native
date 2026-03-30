@@ -68,6 +68,7 @@ export const themed = (isDark: boolean) => ({
   bg: isDark ? c.stone950 : c.stone50,
   card: isDark ? c.stone900 : c.white,
   cardAlt: isDark ? c.stone800 : c.stone100,
+  sheetBg: isDark ? '#1c1c1e' : '#f7f5f0',
   text: isDark ? c.white : c.stone950,
   textSecondary: isDark ? c.stone400 : c.stone600,
   textTertiary: isDark ? c.stone500 : c.stone400,

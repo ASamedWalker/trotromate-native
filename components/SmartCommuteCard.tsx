@@ -7,11 +7,12 @@ import {
   Coffee,
   Palmtree,
   Moon,
-  Lightbulb,
 } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { themed, font } from '@/lib/theme'
 import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
 import { useApp } from '@/lib/contexts/AppContext'
+import { DailyTipCard } from '@/components/DailyTipCard'
 import { getNextTrain, formatMinsLeft } from '@/lib/utils/train'
 import { getGhanaTime } from '@/lib/utils/time'
 
@@ -57,13 +58,6 @@ const CONTEXT_INFO: Record<TimeContext, {
   },
 }
 
-const COMMUTER_TIPS = [
-  { tip: 'The 5:30 AM Express from Madina usually has plenty of window seats. Perfect for a quiet morning.', author: 'Ama K.' },
-  { tip: 'Avoid the Circle interchange between 5-6 PM. Take the Kaneshie route instead — faster by 20 mins.', author: 'Kojo B.' },
-  { tip: 'Trotro fares from Tema go up by ₵2 during peak hours. Travel before 6 AM to save.', author: 'Esi M.' },
-  { tip: 'The Kasoa-Kaneshie route has more vehicles on Mondays. Queue is usually shorter.', author: 'Kwaku D.' },
-  { tip: 'Train from Tema departs sharp at 6 AM. Arrive 10 mins early — it doesn\'t wait.', author: 'Nana A.' },
-]
 
 function getTimeContext(): TimeContext {
   const { hours, day } = getGhanaTime()
@@ -72,11 +66,6 @@ function getTimeContext(): TimeContext {
   if (hours >= 12 && hours < 16) return 'midday'
   if (hours >= 16 && hours < 19) return 'evening'
   return 'night'
-}
-
-function getDailyTip(): typeof COMMUTER_TIPS[0] {
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-  return COMMUTER_TIPS[dayOfYear % COMMUTER_TIPS.length]
 }
 
 /* ── Component ────────────────────────────────────── */
@@ -93,7 +82,6 @@ export function SmartCommuteCard() {
   const { suggestions } = useSmartSuggestions()
   const topSuggestion = suggestions[0]
   const nextTrain = getNextTrain()
-  const dailyTip = getDailyTip()
 
   const displayName = profile?.display_name?.split(' ')[0] ?? ''
 
@@ -119,7 +107,12 @@ export function SmartCommuteCard() {
   return (
     <Animated.View style={[s.wrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       {/* Gradient hero card */}
-      <View style={[s.card, { backgroundColor: info.gradient[0] }]}>
+      <LinearGradient
+        colors={info.gradient as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.card}
+      >
         {/* Decorative circle */}
         <View style={[s.decorCircle, { backgroundColor: info.gradient[1] }]} />
 
@@ -154,19 +147,10 @@ export function SmartCommuteCard() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* Daily Commuter Tip — below gradient */}
-      <View style={s.tipSection}>
-        <View style={s.tipHeader}>
-          <View style={s.tipIconWrap}>
-            <Lightbulb size={16} color={isDark ? c.amber400 : '#815100'} />
-          </View>
-          <Text style={s.tipTitle}>Daily Commuter Tip</Text>
-        </View>
-        <Text style={s.tipText}>"{dailyTip.tip}"</Text>
-        <Text style={s.tipAuthor}>Shared by {dailyTip.author}</Text>
-      </View>
+      {/* Daily Commuter Tip — dynamic from Supabase */}
+      <DailyTipCard category="trotro" />
     </Animated.View>
   )
 }
@@ -247,44 +231,5 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 0.8,
     },
 
-    // Daily tip section
-    tipSection: {
-      paddingHorizontal: 18,
-      paddingVertical: 16,
-    },
-    tipHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 10,
-    },
-    tipIconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.12)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tipTitle: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    tipText: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      fontStyle: 'italic',
-      color: t.textSecondary,
-      lineHeight: 20,
-      marginBottom: 8,
-    },
-    tipAuthor: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: t.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
   })
 }

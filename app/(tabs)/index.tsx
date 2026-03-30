@@ -17,7 +17,7 @@ import {
   Navigation,
   Locate,
 } from 'lucide-react-native'
-import { c, font, shadow, themed } from '@/lib/theme'
+import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -560,9 +560,13 @@ export default function HomeScreen() {
         index={0}
         snapPoints={snapPoints}
         backgroundStyle={{
-          backgroundColor: isDark ? '#1c1c1e' : '#f5f5f4',
-          borderRadius: 24,
-          ...shadow.cardStrong,
+          backgroundColor: themed(isDark).sheetBg,
+          borderRadius: 40,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 40,
+          elevation: 8,
         }}
         handleIndicatorStyle={{
           backgroundColor: isDark ? c.stone500 : c.stone300,

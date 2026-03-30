@@ -146,9 +146,9 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: 'rgba(0,0,0,0.4)',
     },
     modal: {
-      backgroundColor: t.card,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      backgroundColor: t.sheetBg,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       padding: 24,
       paddingBottom: 40,
     },

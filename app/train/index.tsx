@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
@@ -608,6 +609,11 @@ export default function TrainLinesScreen() {
           </View>
         </View>
 
+        {/* Daily Commuter Tip — train-focused */}
+        <View style={s.tipCard}>
+          <DailyTipCard category="train" />
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -1139,6 +1145,17 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.semibold,
       color: onSurface,
       lineHeight: 20,
+    },
+
+    // ── Daily Tip ──
+    tipCard: {
+      marginHorizontal: 20,
+      marginTop: 24,
+      borderRadius: 20,
+      backgroundColor: surfaceLowest,
+      borderWidth: 1,
+      borderColor: outlineVariant,
+      overflow: 'hidden',
     },
 
     // ── Empty ──

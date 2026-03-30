@@ -17,7 +17,7 @@ import {
   Clock,
   AlertTriangle,
 } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { font, themed } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 
@@ -198,7 +198,7 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
 /* ── Styles ───────────────────────────────────────── */
 
 const getStyles = (isDark: boolean, accentColor: string) => {
-  const surface = isDark ? '#1c1c1e' : '#ffffff'
+  const surface = themed(isDark).sheetBg
   const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
@@ -218,15 +218,15 @@ const getStyles = (isDark: boolean, accentColor: string) => {
       right: 0,
       bottom: 0,
       backgroundColor: surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       paddingHorizontal: 24,
       paddingBottom: 40,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
-      elevation: 16,
+      shadowOpacity: 0.08,
+      shadowRadius: 40,
+      elevation: 8,
     },
     handle: {
       width: 40,

@@ -231,7 +231,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
         ref={sheetRef}
         index={1}
         snapPoints={snapPoints}
-        backgroundStyle={{ backgroundColor: t.card, borderRadius: 24 }}
+        backgroundStyle={{ backgroundColor: t.sheetBg, borderRadius: 40 }}
         handleIndicatorStyle={{ backgroundColor: isDark ? c.stone600 : c.stone300, width: 40 }}
         enableDynamicSizing={false}
       >

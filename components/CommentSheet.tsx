@@ -13,7 +13,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { X } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { font, themed } from '@/lib/theme'
 import { useComments } from '@/lib/hooks/useComments'
 import { useApp } from '@/lib/contexts/AppContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -259,7 +259,7 @@ function CommentRow({
 }
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#1c1c1e' : '#fff'
+  const surface = themed(isDark).sheetBg
   const onSurface = isDark ? '#f5f5f4' : '#262626'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
   const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
@@ -270,8 +270,8 @@ const getStyles = (isDark: boolean) => {
     backdrop: { flex: 1 },
     sheet: {
       backgroundColor: surface,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       maxHeight: '70%',
       minHeight: 300,
       paddingBottom: Platform.OS === 'ios' ? 34 : 16,

@@ -23,7 +23,7 @@ import {
   Banknote,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { font } from '@/lib/theme'
+import { font, themed } from '@/lib/theme'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { useProfile } from '@/lib/hooks/useRewards'
 import { calculateProgress, getNextLevel } from '@/lib/constants/rewards'
@@ -235,7 +235,7 @@ export default function ReportFAB() {
 
 const getStyles = (isDark: boolean) => {
   // Stitch M3 tokens
-  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surfaceLowest = themed(isDark).sheetBg
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
   const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
