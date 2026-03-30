@@ -1,15 +1,18 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
   Platform,
+  Pressable,
   ActivityIndicator,
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView, BottomSheetTextInput } from '@gorhom/bottom-sheet'
-import { Lightbulb, Plus, Send } from 'lucide-react-native'
+import { Lightbulb, Plus, X, Send } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useCommuterTips, submitTip, type CommuterTip } from '@/lib/hooks/useCommuterTips'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -41,37 +44,8 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  const sheetRef = useRef<BottomSheet>(null)
-  const snapPoints = useMemo(() => ['1%'], [])
-
   const tip = overrideTip ?? dailyTip
   const isGPRTU = tip.category === 'gprtu'
-
-  // Open/close sheet based on showSubmit state
-  useEffect(() => {
-    if (showSubmit) {
-      sheetRef.current?.expand()
-    } else {
-      sheetRef.current?.close()
-    }
-  }, [showSubmit])
-
-  const handleSheetChange = useCallback((index: number) => {
-    if (index === -1 && showSubmit) setShowSubmit(false)
-  }, [showSubmit])
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-        pressBehavior="close"
-      />
-    ),
-    [],
-  )
 
   async function handleSubmit() {
     if (!tipText.trim() || !deviceId) return
@@ -129,113 +103,112 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* ── Submit Tip Bottom Sheet ── */}
-      <BottomSheet
-        ref={sheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enableDynamicSizing
-        enablePanDownToClose
-        onChange={handleSheetChange}
-        backdropComponent={renderBackdrop}
-        handleIndicatorStyle={s.handle}
-        backgroundStyle={s.sheet}
-        style={s.sheetShadow}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-      >
-        <BottomSheetView style={s.sheetContent}>
-          {/* Header */}
-          <View style={s.sheetHeader}>
-            <View style={s.sheetIconWrap}>
-              <Lightbulb size={20} color={isDark ? c.amber400 : '#815100'} />
+      {/* ── Submit Tip Modal ── */}
+      <Modal visible={showSubmit} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.modalContainer}
+        >
+          <Pressable style={s.backdrop} onPress={() => setShowSubmit(false)} />
+          <View style={s.sheet}>
+            {/* Handle */}
+            <View style={s.handleRow}>
+              <View style={s.handle} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.sheetTitle}>Share a Commuter Tip</Text>
-              <Text style={s.sheetSub}>Help fellow commuters with your knowledge</Text>
-            </View>
-          </View>
 
-          {submitted ? (
-            <View style={s.successState}>
-              <Text style={s.successEmoji}>🎉</Text>
-              <Text style={s.successTitle}>Tip Submitted!</Text>
-              <Text style={s.successSub}>You'll earn +5 points when it's approved!</Text>
-            </View>
-          ) : (
-            <>
-              {/* Category pills */}
-              <View style={s.catRow}>
-                {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.key}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedCat(cat.key)}
-                    style={[
-                      s.catPill,
-                      selectedCat === cat.key && s.catPillActive,
-                    ]}
-                  >
-                    <Text style={[
-                      s.catPillText,
-                      selectedCat === cat.key && s.catPillTextActive,
-                    ]}>
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Header */}
+            <View style={s.sheetHeader}>
+              <View style={s.sheetIconWrap}>
+                <Lightbulb size={20} color={isDark ? c.amber400 : '#815100'} />
               </View>
-
-              {/* Text input */}
-              <BottomSheetTextInput
-                style={s.input}
-                placeholder="e.g. The 6 AM trotro from Madina is usually empty..."
-                placeholderTextColor={t.textTertiary}
-                value={tipText}
-                onChangeText={setTipText}
-                multiline
-                maxLength={280}
-                textAlignVertical="top"
-              />
-
-              {/* Character count */}
-              <Text style={s.charCount}>{tipText.length}/280</Text>
-
-              {/* Submit button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleSubmit}
-                disabled={tipText.trim().length < 10 || submitting}
-                style={[
-                  s.sendBtn,
-                  (tipText.trim().length < 10 || submitting) && s.sendBtnDisabled,
-                ]}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Send size={16} color="#fff" />
-                    <Text style={s.sendBtnText}>Submit Tip</Text>
-                  </>
-                )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.sheetTitle}>Share a Commuter Tip</Text>
+                <Text style={s.sheetSub}>Help fellow commuters with your knowledge</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSubmit(false)} activeOpacity={0.7}>
+                <X size={22} color={t.textTertiary} />
               </TouchableOpacity>
+            </View>
 
-              <Text style={s.disclaimer}>
-                Tips are reviewed before appearing. You earn +5 points when approved!
-              </Text>
-            </>
-          )}
-        </BottomSheetView>
-      </BottomSheet>
+            {submitted ? (
+              <View style={s.successState}>
+                <Text style={s.successEmoji}>🎉</Text>
+                <Text style={s.successTitle}>Tip Submitted!</Text>
+                <Text style={s.successSub}>You'll earn +5 points when it's approved!</Text>
+              </View>
+            ) : (
+              <>
+                {/* Category pills */}
+                <View style={s.catRow}>
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.key}
+                      activeOpacity={0.7}
+                      onPress={() => setSelectedCat(cat.key)}
+                      style={[
+                        s.catPill,
+                        selectedCat === cat.key && s.catPillActive,
+                      ]}
+                    >
+                      <Text style={[
+                        s.catPillText,
+                        selectedCat === cat.key && s.catPillTextActive,
+                      ]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Text input */}
+                <TextInput
+                  style={s.input}
+                  placeholder="e.g. The 6 AM trotro from Madina is usually empty..."
+                  placeholderTextColor={t.textTertiary}
+                  value={tipText}
+                  onChangeText={setTipText}
+                  multiline
+                  maxLength={280}
+                  textAlignVertical="top"
+                />
+
+                {/* Character count */}
+                <Text style={s.charCount}>{tipText.length}/280</Text>
+
+                {/* Submit button */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleSubmit}
+                  disabled={tipText.trim().length < 10 || submitting}
+                  style={[
+                    s.sendBtn,
+                    (tipText.trim().length < 10 || submitting) && s.sendBtnDisabled,
+                  ]}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Send size={16} color="#fff" />
+                      <Text style={s.sendBtnText}>Submit Tip</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={s.disclaimer}>
+                  Tips are reviewed before appearing. You earn +5 points when approved!
+                </Text>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }
 
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
-
   return StyleSheet.create({
     container: {
       paddingHorizontal: 18,
@@ -311,28 +284,29 @@ const getStyles = (isDark: boolean) => {
       color: isDark ? c.amber400 : '#815100',
     },
 
-    /* ── Bottom Sheet ── */
+    /* ── Modal ── */
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: { flex: 1 },
     sheet: {
-      backgroundColor: isDark ? 'rgba(12,10,9,0.97)' : 'rgba(252,245,242,0.97)',
+      backgroundColor: t.sheetBg,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
+      paddingHorizontal: 24,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     },
-    sheetShadow: {
-      shadowColor: '#312e2d',
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: isDark ? 0 : 0.08,
-      shadowRadius: 40,
-      elevation: 20,
+    handleRow: {
+      alignItems: 'center',
+      paddingTop: 10,
+      paddingBottom: 8,
     },
     handle: {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: outlineVariant,
-    },
-    sheetContent: {
-      paddingHorizontal: 24,
-      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
     },
     sheetHeader: {
       flexDirection: 'row',

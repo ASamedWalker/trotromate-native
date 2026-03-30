@@ -1,21 +1,19 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
+  FlatList,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
   useColorScheme,
   ActivityIndicator,
   StyleSheet,
-  Platform,
 } from 'react-native'
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetFlatList,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from '@gorhom/bottom-sheet'
 import { X } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { font, themed } from '@/lib/theme'
 import { useComments } from '@/lib/hooks/useComments'
 import { useApp } from '@/lib/contexts/AppContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -41,35 +39,6 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
   const [text, setText] = useState('')
   const [replyTarget, setReplyTarget] = useState<TaleComment | null>(null)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
-
-  const sheetRef = useRef<BottomSheet>(null)
-  const snapPoints = useMemo(() => ['50%', '85%'], [])
-
-  // Open/close based on visible prop
-  useEffect(() => {
-    if (visible) {
-      sheetRef.current?.snapToIndex(1)
-    } else {
-      sheetRef.current?.close()
-    }
-  }, [visible])
-
-  const handleSheetChange = useCallback((index: number) => {
-    if (index === -1) onClose()
-  }, [onClose])
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-        pressBehavior="close"
-      />
-    ),
-    [],
-  )
 
   const handleSend = async () => {
     if (!text.trim()) return
@@ -106,7 +75,7 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
     })
   }, [repliesMap, loadReplies])
 
-  const renderComment = useCallback(({ item }: { item: TaleComment }) => {
+  const renderComment = ({ item }: { item: TaleComment }) => {
     const isOwn = item.device_id === deviceId
     const isExpanded = expandedReplies.has(item.id)
     const replies = repliesMap.get(item.id) || []
@@ -153,94 +122,95 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
         )}
       </View>
     )
-  }, [deviceId, expandedReplies, repliesMap, loadingReplies, handleReply, toggleReplies, s])
+  }
 
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={-1}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onChange={handleSheetChange}
-      backdropComponent={renderBackdrop}
-      handleIndicatorStyle={s.handle}
-      backgroundStyle={s.sheet}
-      style={s.sheetShadow}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-    >
-      {/* Title row */}
-      <BottomSheetView style={s.titleRow}>
-        <Text style={s.title}>Comments</Text>
-        <TouchableOpacity onPress={() => sheetRef.current?.close()} style={s.closeBtn} hitSlop={8}>
-          <X size={20} color={isDark ? 'rgba(255,255,255,0.5)' : '#8e8e8e'} />
-        </TouchableOpacity>
-      </BottomSheetView>
+    <Modal visible={visible} animationType="slide" transparent>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={s.modalContainer}
+      >
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
 
-      <View style={s.titleDivider} />
+        <View style={s.sheet}>
+          {/* Handle + title */}
+          <View style={s.handleRow}>
+            <View style={s.handle} />
+          </View>
 
-      {/* Comments list */}
-      {isLoading ? (
-        <BottomSheetView style={s.centered}>
-          <ActivityIndicator size="small" color="#0095f6" />
-        </BottomSheetView>
-      ) : comments.length === 0 ? (
-        <BottomSheetView style={s.centered}>
-          <Text style={s.emptyTitle}>No comments yet</Text>
-          <Text style={s.emptyText}>Start the conversation.</Text>
-        </BottomSheetView>
-      ) : (
-        <BottomSheetFlatList
-          data={comments}
-          renderItem={renderComment}
-          keyExtractor={(item: TaleComment) => item.id}
-          style={s.list}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+          <View style={s.titleRow}>
+            <Text style={s.title}>Comments</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} hitSlop={8}>
+              <X size={20} color={isDark ? 'rgba(255,255,255,0.5)' : '#8e8e8e'} />
+            </TouchableOpacity>
+          </View>
 
-      {/* Reply indicator */}
-      {replyTarget && (
-        <BottomSheetView style={s.replyIndicator}>
-          <Text style={s.replyIndicatorText} numberOfLines={1}>
-            Replying to{' '}
-            <Text style={s.replyIndicatorName}>
-              {replyTarget.display_name ?? `User-${replyTarget.device_id.slice(-4).toUpperCase()}`}
-            </Text>
-          </Text>
-          <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={8}>
-            <X size={14} color={isDark ? 'rgba(255,255,255,0.4)' : '#8e8e8e'} />
-          </TouchableOpacity>
-        </BottomSheetView>
-      )}
+          <View style={s.titleDivider} />
 
-      {/* Input row */}
-      <BottomSheetView style={s.inputRow}>
-        <InitialsAvatar
-          name={profile?.display_name}
-          deviceId={deviceId ?? undefined}
-          size={32}
-        />
-        <BottomSheetTextInput
-          value={text}
-          onChangeText={(val: string) => setText(val.slice(0, 280))}
-          placeholder={replyTarget ? 'Write a reply...' : 'Add a comment...'}
-          placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#8e8e8e'}
-          style={s.input}
-          multiline
-          maxLength={280}
-        />
-        <TouchableOpacity
-          onPress={handleSend}
-          disabled={isPosting || !text.trim()}
-          activeOpacity={0.7}
-        >
-          <Text style={[s.postBtn, (!text.trim() || isPosting) && s.postBtnDisabled]}>
-            Post
-          </Text>
-        </TouchableOpacity>
-      </BottomSheetView>
-    </BottomSheet>
+          {/* Comments list */}
+          {isLoading ? (
+            <View style={s.centered}>
+              <ActivityIndicator size="small" color="#0095f6" />
+            </View>
+          ) : comments.length === 0 ? (
+            <View style={s.centered}>
+              <Text style={s.emptyTitle}>No comments yet</Text>
+              <Text style={s.emptyText}>Start the conversation.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={comments}
+              renderItem={renderComment}
+              keyExtractor={(item) => item.id}
+              style={s.list}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+
+          {/* Reply indicator */}
+          {replyTarget && (
+            <View style={s.replyIndicator}>
+              <Text style={s.replyIndicatorText} numberOfLines={1}>
+                Replying to{' '}
+                <Text style={s.replyIndicatorName}>
+                  {replyTarget.display_name ?? `User-${replyTarget.device_id.slice(-4).toUpperCase()}`}
+                </Text>
+              </Text>
+              <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={8}>
+                <X size={14} color={isDark ? 'rgba(255,255,255,0.4)' : '#8e8e8e'} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Input row */}
+          <View style={s.inputRow}>
+            <InitialsAvatar
+              name={profile?.display_name}
+              deviceId={deviceId ?? undefined}
+              size={32}
+            />
+            <TextInput
+              value={text}
+              onChangeText={(val) => setText(val.slice(0, 280))}
+              placeholder={replyTarget ? 'Write a reply...' : 'Add a comment...'}
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#8e8e8e'}
+              style={s.input}
+              multiline
+              maxLength={280}
+            />
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={isPosting || !text.trim()}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.postBtn, (!text.trim() || isPosting) && s.postBtnDisabled]}>
+                Post
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   )
 }
 
@@ -289,30 +259,33 @@ function CommentRow({
 }
 
 const getStyles = (isDark: boolean) => {
+  const surface = themed(isDark).sheetBg
   const onSurface = isDark ? '#f5f5f4' : '#262626'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
   const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
   const inputBg = isDark ? 'rgba(255,255,255,0.06)' : '#f5f5f5'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
 
   return StyleSheet.create({
+    modalContainer: { flex: 1, justifyContent: 'flex-end' },
+    backdrop: { flex: 1 },
     sheet: {
-      backgroundColor: isDark ? 'rgba(12,10,9,0.97)' : 'rgba(252,245,242,0.97)',
+      backgroundColor: surface,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
+      maxHeight: '70%',
+      minHeight: 300,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     },
-    sheetShadow: {
-      shadowColor: '#312e2d',
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: isDark ? 0 : 0.08,
-      shadowRadius: 40,
-      elevation: 20,
+    handleRow: {
+      alignItems: 'center',
+      paddingTop: 10,
+      paddingBottom: 4,
     },
     handle: {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: outlineVariant,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
     },
     titleRow: {
       flexDirection: 'row',
@@ -436,7 +409,6 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       paddingHorizontal: 14,
       paddingTop: 10,
-      paddingBottom: Platform.OS === 'ios' ? 34 : 16,
       borderTopWidth: 0.5,
       borderTopColor: divider,
       gap: 10,
