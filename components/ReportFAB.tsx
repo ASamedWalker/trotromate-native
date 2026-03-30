@@ -95,11 +95,15 @@ export default function ReportFAB() {
   const { profile } = useProfile(deviceId)
 
   const sheetRef = useRef<BottomSheet>(null)
-  const snapPoints = useMemo(() => ['1%'], [])
+  const hasRewards = !!(profile && getNextLevel(profile.current_level ?? 'passenger'))
+  const snapPoints = useMemo(
+    () => hasRewards ? ['48%', '62%'] : ['48%'],
+    [hasRewards],
+  )
   const isOpen = useRef(false)
 
   const handleOpen = useCallback(() => {
-    sheetRef.current?.expand()
+    sheetRef.current?.snapToIndex(0)
     isOpen.current = true
   }, [])
 
@@ -148,7 +152,6 @@ export default function ReportFAB() {
         ref={sheetRef}
         index={-1}
         snapPoints={snapPoints}
-        enableDynamicSizing
         enablePanDownToClose
         onChange={handleSheetChange}
         backdropComponent={renderBackdrop}
