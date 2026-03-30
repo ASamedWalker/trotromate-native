@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
 import { useColorScheme, StyleSheet } from 'react-native'
-import { Home, MapPin, Camera, Trophy, ReceiptText } from 'lucide-react-native'
+import { MaterialIcons } from '@expo/vector-icons'
 import { font, glass } from '@/lib/theme'
 import GlassCard from '@/components/GlassCard'
 
@@ -9,7 +9,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 
-  const activeColor = '#f59e0b'
+  const activeColor = isDark ? '#fbbf24' : '#78350f' // amber-400 / amber-900
   const inactiveColor = isDark ? '#a8a29e' : '#78716c'
 
   return (
@@ -33,6 +33,8 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 10,
           fontFamily: font.semibold,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
         },
         headerShown: false,
       }}
@@ -42,7 +44,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Home size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <MaterialIcons name={focused ? 'home-filled' : 'home'} size={24} color={color} />
           ),
         }}
       />
@@ -51,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: 'Routes',
           tabBarIcon: ({ color, focused }) => (
-            <MapPin size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <MaterialIcons name="directions-bus" size={24} color={color} />
           ),
         }}
       />
@@ -60,7 +62,7 @@ export default function TabLayout() {
         options={{
           title: 'Tales',
           tabBarIcon: ({ color, focused }) => (
-            <Camera size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <MaterialIcons name="auto-stories" size={24} color={color} />
           ),
         }}
       />
@@ -69,7 +71,7 @@ export default function TabLayout() {
         options={{
           title: 'Rewards',
           tabBarIcon: ({ color, focused }) => (
-            <Trophy size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <MaterialIcons name="military-tech" size={24} color={color} />
           ),
         }}
       />
@@ -78,7 +80,7 @@ export default function TabLayout() {
         options={{
           title: 'Activity',
           tabBarIcon: ({ color, focused }) => (
-            <ReceiptText size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+            <MaterialIcons name="history" size={24} color={color} />
           ),
         }}
       />
