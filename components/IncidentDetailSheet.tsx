@@ -15,7 +15,7 @@ import {
   Clock,
   AlertTriangle,
 } from 'lucide-react-native'
-import { font, themed } from '@/lib/theme'
+import { font } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils/time'
 import type { ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 
@@ -51,11 +51,11 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
   const minsRemaining = Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 60_000))
 
   const sheetRef = useRef<BottomSheet>(null)
-  const snapPoints = useMemo(() => ['1%'], [])
+  const snapPoints = useMemo(() => ['50%'], [])
 
-  // Expand on mount
+  // Open on mount
   useEffect(() => {
-    sheetRef.current?.expand()
+    sheetRef.current?.snapToIndex(0)
   }, [])
 
   const handleSheetChange = useCallback((index: number) => {
@@ -80,7 +80,6 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
       ref={sheetRef}
       index={-1}
       snapPoints={snapPoints}
-      enableDynamicSizing
       enablePanDownToClose
       onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
@@ -155,7 +154,6 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
 /* ── Styles ───────────────────────────────────────── */
 
 const getStyles = (isDark: boolean, accentColor: string) => {
-  const surface = themed(isDark).sheetBg
   const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
   const onSurface = isDark ? '#fafaf9' : '#312e2d'
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'

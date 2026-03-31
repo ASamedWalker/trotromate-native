@@ -26,7 +26,7 @@ export const TRAIN_STATION_COORDS: TrainStationCoords[] = [
   { name: 'Accra Central', lat: 5.5489, lng: -0.2110, line: 'TMA', accuracy: 'exact', osmNodeId: 'N1375249822' },
 
   // ── TMP Line ──
-  { name: 'Tema Harbour', lat: 5.6311, lng: 0.0018, line: 'both', accuracy: 'exact', osmNodeId: 'N9937916704' },
+  { name: 'Tema Harbour', lat: 5.6311, lng: 0.0018, line: 'TMP', accuracy: 'exact', osmNodeId: 'N9937916704' },
   { name: 'Tema Industrial Area', lat: 5.6796, lng: 0.0026, line: 'TMP', accuracy: 'approximate' },
   { name: 'Ashaiman', lat: 5.6868, lng: -0.0327, line: 'TMP', accuracy: 'approximate' },
   { name: 'Afienya', lat: 5.7981, lng: 0.0052, line: 'TMP', accuracy: 'approximate' },

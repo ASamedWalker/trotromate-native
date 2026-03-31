@@ -33,7 +33,6 @@ import Mapbox, { UserTrackingMode } from '@rnmapbox/maps'
 import { StatusBar } from 'expo-status-bar'
 import { c, font } from '@/lib/theme'
 import { getGhanaTime } from '@/lib/utils/time'
-import { TrainTopDown } from '@/components/VehicleIcons'
 import { TrainTimeline } from '@/components/TrainTimeline'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
@@ -45,6 +44,7 @@ import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { useStations } from '@/lib/hooks/useStations'
 import { getStationCoords } from '@/lib/utils/station-coords'
+import { getLineStations } from '@/lib/constants/train-stations'
 import { updateTripFare } from '@/lib/services/trips'
 import { awardPointsForTrip } from '@/lib/services/rewards'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -126,26 +126,52 @@ export default function TripScreen() {
 
   // Resolve trip stations — different logic for train vs trotro
   const tripStations = useMemo(() => {
-    // ── Train mode: stations ordered, use DB coords or fallback ──
-    if (isTrain && trainStations && trainStations.length >= 2) {
-      const resolved = trainStations
-        .sort((a, b) => a.order_index - b.order_index)
-        .map((s) => {
-          // Prefer DB coords, fall back to client-side lookup
-          const coords = (s.latitude != null && s.longitude != null)
-            ? { latitude: s.latitude, longitude: s.longitude }
-            : getStationCoords({ name: s.name })
-          if (!coords) return null
-          return { id: s.id, name: s.name, ...coords }
-        })
-        .filter(Boolean) as Array<{ id: string; name: string; latitude: number; longitude: number }>
+    // ── Train mode: merge DB stations with hardcoded coordinates ──
+    if (isTrain && line) {
+      const lineCode = line.code as 'TMA' | 'TMP'
+      const hardcoded = getLineStations(lineCode)
 
-      if (resolved.length < 2) return null
+      // Start with DB stations (have order_index)
+      const dbSorted = (trainStations ?? []).slice().sort((a, b) => a.order_index - b.order_index)
 
-      return resolved.map((s, i) => ({
+      // Build merged list: DB stations + any hardcoded stations missing from DB
+      const dbNameSet = new Set(dbSorted.map(s => s.name.toLowerCase()))
+      const merged: Array<{ id: string; name: string; latitude: number; longitude: number }> = []
+
+      // First resolve all DB stations with coords
+      for (const s of dbSorted) {
+        const coords = (s.latitude != null && s.longitude != null)
+          ? { latitude: s.latitude, longitude: s.longitude }
+          : getStationCoords({ name: s.name })
+        if (coords) merged.push({ id: s.id, name: s.name, ...coords })
+      }
+
+      // Add hardcoded stations not in DB (with synthetic IDs)
+      for (const hc of hardcoded) {
+        if (!dbNameSet.has(hc.name.toLowerCase())) {
+          merged.push({
+            id: `hc-${hc.name.toLowerCase().replace(/\s+/g, '-')}`,
+            name: hc.name,
+            latitude: hc.lat,
+            longitude: hc.lng,
+          })
+        }
+      }
+
+      // Sort by hardcoded order (which matches real station order on the line)
+      const orderMap = new Map(hardcoded.map((h, i) => [h.name.toLowerCase(), i]))
+      merged.sort((a, b) => {
+        const oa = orderMap.get(a.name.toLowerCase()) ?? 999
+        const ob = orderMap.get(b.name.toLowerCase()) ?? 999
+        return oa - ob
+      })
+
+      if (merged.length < 2) return null
+
+      return merged.map((s, i) => ({
         ...s,
         isOrigin: i === 0,
-        isDestination: i === resolved.length - 1,
+        isDestination: i === merged.length - 1,
       })) as TripStation[]
     }
 
@@ -183,7 +209,7 @@ export default function TripScreen() {
       { id: toStation?.id ?? 'dest', name: route.to_location, ...toCoords },
       stationsWithCoords,
     )
-  }, [isTrain, trainStations, route, allStations])
+  }, [isTrain, trainStations, line, route, allStations])
 
   // Build GeoJSON for the trip route line — split into traveled + remaining
   const routeLineGeojson = useMemo(() => {
@@ -731,13 +757,6 @@ export default function TripScreen() {
           animationDuration={1000}
         />
 
-        {/* Vehicle icons for GO Mode marker */}
-        <Mapbox.Images>
-          <Mapbox.Image name="vehicle-train">
-            <TrainTopDown size={44} />
-          </Mapbox.Image>
-        </Mapbox.Images>
-
         {/* Show blue dot with heading arrow when idle */}
         <Mapbox.UserLocation
           visible={!isActive}
@@ -745,18 +764,26 @@ export default function TripScreen() {
           androidRenderMode="compass"
         />
 
-        {/* Vehicle marker — replaces blue dot during active trip */}
+        {/* Vehicle marker — pulsing dot during active trip */}
         {vehicleGeojson && (
           <Mapbox.ShapeSource id="vehicle-marker" shape={vehicleGeojson as any}>
-            <Mapbox.SymbolLayer
-              id="vehicle-icon"
+            {/* Outer glow */}
+            <Mapbox.CircleLayer
+              id="vehicle-glow"
               style={{
-                iconImage: ['get', 'icon'],
-                iconSize: 1,
-                iconRotate: ['get', 'heading'],
-                iconRotationAlignment: 'map',
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
+                circleRadius: 18,
+                circleColor: lineColor,
+                circleOpacity: 0.15,
+              }}
+            />
+            {/* White border ring */}
+            <Mapbox.CircleLayer
+              id="vehicle-ring"
+              style={{
+                circleRadius: 10,
+                circleColor: lineColor,
+                circleStrokeColor: '#ffffff',
+                circleStrokeWidth: 3,
               }}
             />
           </Mapbox.ShapeSource>

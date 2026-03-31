@@ -244,7 +244,6 @@ export default function HomeScreen() {
   }, [center])
 
   const handleModeChange = useCallback((mode: ServiceMode) => {
-    setServiceMode(mode)
     if (mode === 'go') {
       if (activeTrip) {
         router.push({
@@ -261,6 +260,9 @@ export default function HomeScreen() {
       router.push('/train')
     } else if (mode === 'tales') {
       router.push('/(tabs)/tales' as Href)
+    } else {
+      // Only persist mode for trotro (the home tab) — others navigate away
+      setServiceMode(mode)
     }
   }, [activeTrip, router])
 
