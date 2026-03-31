@@ -48,7 +48,7 @@ import { getLineStations } from '@/lib/constants/train-stations'
 import { updateTripFare } from '@/lib/services/trips'
 import { awardPointsForTrip } from '@/lib/services/rewards'
 import { useApp } from '@/lib/contexts/AppContext'
-import { buildTripStations, formatDistance, estimateETA, type TripStation } from '@/lib/services/trip'
+import { buildTripStations, formatDistance, estimateETA, getDistanceKm, type TripStation } from '@/lib/services/trip'
 import { TRIP_POINTS } from '@/lib/constants/rewards'
 import type { RewardResult } from '@/lib/types'
 
@@ -516,6 +516,39 @@ export default function TripScreen() {
     ? (progress?.progressPercent ?? 0)
     : simProgress
 
+  // Simulated station statuses for remote testing (derive from effectiveProgress)
+  const effectiveStationStatuses = useMemo(() => {
+    if (isNearRoute && progress?.stationStatuses && progress.stationStatuses.length > 0) {
+      return progress.stationStatuses
+    }
+    if (!tripStations || tripStations.length < 2) return []
+    const pct = effectiveProgress / 100
+    const totalSegments = tripStations.length - 1
+    const currentIdx = Math.min(Math.round(pct * totalSegments), tripStations.length - 1)
+    return tripStations.map((station, i) => ({
+      station: { id: station.id, name: station.name, latitude: station.latitude, longitude: station.longitude, isOrigin: station.isOrigin, isDestination: station.isDestination },
+      status: (i < currentIdx ? 'passed' : i === currentIdx ? 'current' : 'upcoming') as 'passed' | 'current' | 'upcoming',
+      distanceKm: 0,
+    }))
+  }, [isNearRoute, progress?.stationStatuses, effectiveProgress, tripStations])
+
+  // Effective nearest station for the hero card
+  const effectiveNearestStation = useMemo(() => {
+    if (isNearRoute) return progress?.nearestStation ?? null
+    const current = effectiveStationStatuses.find(ss => ss.status === 'current')
+    return current?.station ?? null
+  }, [isNearRoute, progress?.nearestStation, effectiveStationStatuses])
+
+  // Effective distance to destination (approximate from progress %)
+  const effectiveDistToDest = useMemo(() => {
+    if (isNearRoute) return progress?.distanceToDestinationKm ?? 0
+    if (!tripStations || tripStations.length < 2) return 0
+    const origin = tripStations[0]
+    const dest = tripStations[tripStations.length - 1]
+    const totalDist = getDistanceKm(origin.latitude, origin.longitude, dest.latitude, dest.longitude)
+    return totalDist * (1 - effectiveProgress / 100)
+  }, [isNearRoute, progress?.distanceToDestinationKm, effectiveProgress, tripStations])
+
   // Traveled portion of route (solid, bright) based on progress
   const traveledLineGeojson = useMemo(() => {
     if (!tripStations || tripStations.length < 2) return null
@@ -929,15 +962,15 @@ export default function TripScreen() {
             <View style={s.approachBanner}>
               <Flag size={18} color="#815100" />
               <Text style={s.approachText}>
-                Approaching destination — {formatDistance(progress?.distanceToDestinationKm ?? 0)}
+                Approaching destination — {formatDistance(effectiveDistToDest)}
               </Text>
             </View>
           )}
 
           {/* ── Next Station hero card ── */}
-          {isActive && progress && progress.nearestStation && (() => {
-            const nextStatus = progress.stationStatuses.find((ss) => ss.status === 'current')
-            const nextName = nextStatus?.station.name ?? progress.nearestStation.name
+          {isActive && effectiveNearestStation && (() => {
+            const nextStatus = effectiveStationStatuses.find((ss) => ss.status === 'current')
+            const nextName = nextStatus?.station.name ?? effectiveNearestStation.name
             const scheduleTime = activeSchedule?.stopMap.get(nextName.toLowerCase())
             const arriveTime = scheduleTime?.arrive ?? scheduleTime?.depart
             return (
@@ -952,7 +985,7 @@ export default function TripScreen() {
                     </View>
                   )}
                   <Text style={s.nextStationDist}>
-                    {formatDistance(nextStatus?.distanceKm ?? progress.distanceToNearestKm)}
+                    {formatDistance(nextStatus?.distanceKm ?? effectiveDistToDest)}
                   </Text>
                 </View>
               </View>
@@ -960,7 +993,7 @@ export default function TripScreen() {
           })()}
 
           {/* Progress header when active */}
-          {isActive && progress && (
+          {isActive && (effectiveProgress > 0 || progress) && (
             <>
               <View style={s.progressHeader}>
                 <View style={{ flex: 1 }}>
@@ -969,13 +1002,13 @@ export default function TripScreen() {
                     {line?.name ?? routeLabel} • ETA {
                       (() => {
                         const destTime = activeSchedule?.stopMap.get((dest?.name ?? '').toLowerCase())
-                        return destTime?.arrive ?? estimateETA(progress.distanceToDestinationKm, 'train')
+                        return destTime?.arrive ?? estimateETA(effectiveDistToDest, 'train')
                       })()
                     }
                   </Text>
                 </View>
                 <View style={s.progressBadge}>
-                  <Text style={s.progressBadgeText}>{Math.round(progress.progressPercent)}%</Text>
+                  <Text style={s.progressBadgeText}>{Math.round(effectiveProgress)}%</Text>
                 </View>
               </View>
 
@@ -985,19 +1018,19 @@ export default function TripScreen() {
                   colors={[lineColor, lineColor + 'aa']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={[s.progressBarFill, { width: `${Math.min(100, progress.progressPercent)}%` }]}
+                  style={[s.progressBarFill, { width: `${Math.min(100, effectiveProgress)}%` }]}
                 />
               </View>
 
               {/* Stats row */}
               <View style={s.statsRow}>
                 <View style={s.statItem}>
-                  <Text style={s.statValue}>{formatDistance(progress.distanceToDestinationKm)}</Text>
+                  <Text style={s.statValue}>{formatDistance(effectiveDistToDest)}</Text>
                   <Text style={s.statLabel}>remaining</Text>
                 </View>
                 <View style={s.statItem}>
                   <Text style={s.statValue}>
-                    {progress.stationStatuses.filter((ss) => ss.status === 'passed').length}/{progress.stationStatuses.length}
+                    {effectiveStationStatuses.filter((ss) => ss.status === 'passed').length}/{effectiveStationStatuses.length}
                   </Text>
                   <Text style={s.statLabel}>stations</Text>
                 </View>
@@ -1010,9 +1043,9 @@ export default function TripScreen() {
           )}
 
           {/* Station timeline — MTA-style dot timeline */}
-          {isActive && progress && progress.stationStatuses.length > 0 && (
+          {isActive && effectiveStationStatuses.length > 0 && (
             <TrainTimeline
-              stationStatuses={progress.stationStatuses}
+              stationStatuses={effectiveStationStatuses}
               lineColor={lineColor}
               scheduleStopMap={activeSchedule?.stopMap}
               formatDistance={formatDistance}
