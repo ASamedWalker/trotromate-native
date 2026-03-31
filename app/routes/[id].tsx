@@ -5,14 +5,17 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Modal,
   useColorScheme,
   ActivityIndicator,
   StyleSheet,
+  Platform,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
@@ -42,6 +45,7 @@ export default function RouteDetailScreen() {
   const router = useRouter()
   const haptics = useHaptics()
   const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
+  const [showGprtuInfo, setShowGprtuInfo] = useState(false)
 
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
@@ -147,7 +151,7 @@ export default function RouteDetailScreen() {
         <View style={s.trustSection}>
           {/* GPRTU Verified card */}
           {route.is_gprtu_verified && (
-            <View style={s.gprtuCard}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowGprtuInfo(true)} style={s.gprtuCard}>
               <View style={s.gprtuIconWrap}>
                 <ShieldCheck size={22} color="#059669" />
               </View>
@@ -156,7 +160,7 @@ export default function RouteDetailScreen() {
                 <Text style={s.gprtuSub}>Official union-approved station</Text>
               </View>
               <ChevronRight size={20} color="#b2acaa" />
-            </View>
+            </TouchableOpacity>
           )}
 
           {/* Overcharge Warning */}
@@ -380,6 +384,68 @@ export default function RouteDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* GPRTU Info Modal */}
+      <Modal visible={showGprtuInfo} transparent animationType="slide">
+        <View style={s.modalContainer}>
+          <TouchableWithoutFeedback onPress={() => setShowGprtuInfo(false)}>
+            <View style={s.modalOverlay} />
+          </TouchableWithoutFeedback>
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle} />
+
+            {/* Header */}
+            <View style={s.modalHeader}>
+              <View style={s.modalShieldWrap}>
+                <ShieldCheck size={28} color="#059669" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.modalTitle}>GPRTU Verified Route</Text>
+                <Text style={s.modalSub}>Ghana Private Road Transport Union</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowGprtuInfo(false)} hitSlop={8}>
+                <X size={20} color={isDark ? 'rgba(255,255,255,0.4)' : '#8e8e8e'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Official Fare */}
+            <View style={s.modalFareCard}>
+              <Text style={s.modalFareLabel}>OFFICIAL FARE</Text>
+              <Text style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</Text>
+              <Text style={s.modalFareSub}>Set and regulated by GPRTU</Text>
+            </View>
+
+            {/* Info Points */}
+            <View style={s.modalInfoList}>
+              <View style={s.modalInfoRow}>
+                <View style={s.modalBullet} />
+                <Text style={s.modalInfoText}>This route's fare is officially set by the Ghana Private Road Transport Union</Text>
+              </View>
+              <View style={s.modalInfoRow}>
+                <View style={s.modalBullet} />
+                <Text style={s.modalInfoText}>Drivers at GPRTU-approved stations must charge the official fare</Text>
+              </View>
+              <View style={s.modalInfoRow}>
+                <View style={s.modalBullet} />
+                <Text style={s.modalInfoText}>If you're charged more than the official rate, you can report it</Text>
+              </View>
+            </View>
+
+            {/* Report Overcharge Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                setShowGprtuInfo(false)
+                router.push('/report/fare')
+              }}
+              style={s.modalReportBtn}
+            >
+              <AlertTriangle size={16} color="#fff" />
+              <Text style={s.modalReportBtnText}>Report Overcharge</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -456,7 +522,7 @@ const getStyles = (isDark: boolean) => {
     heroFareLabel: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: onSurfaceVariant,
+      color: isDark ? 'rgba(255,255,255,0.7)' : '#44403c',
       paddingBottom: 6,
     },
     heroMeta: {
@@ -468,7 +534,7 @@ const getStyles = (isDark: boolean) => {
     heroMetaText: {
       fontSize: 13,
       fontFamily: font.medium,
-      color: onSurfaceVariant,
+      color: isDark ? 'rgba(255,255,255,0.7)' : '#44403c',
     },
 
     // ── Tab pills ──
@@ -804,6 +870,119 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.regular,
       color: onSurface,
       lineHeight: 20,
+    },
+
+    // ── GPRTU Info Modal ──
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end' as const,
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    modalSheet: {
+      backgroundColor: isDark ? '#1c1c1e' : '#fff',
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
+      padding: 24,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    },
+    modalHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
+      alignSelf: 'center' as const,
+      marginBottom: 20,
+    },
+    modalHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginBottom: 24,
+    },
+    modalShieldWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    modalSub: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      marginTop: 2,
+    },
+    modalFareCard: {
+      backgroundColor: isDark ? 'rgba(5,150,105,0.08)' : '#f0fdf4',
+      borderRadius: 20,
+      padding: 20,
+      alignItems: 'center' as const,
+      marginBottom: 20,
+    },
+    modalFareLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: '#059669',
+      letterSpacing: 1.5,
+      marginBottom: 6,
+    },
+    modalFareValue: {
+      fontSize: 36,
+      fontFamily: font.extrabold,
+      color: '#059669',
+      lineHeight: 40,
+    },
+    modalFareSub: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: onSurfaceVariant,
+      marginTop: 4,
+    },
+    modalInfoList: {
+      gap: 14,
+      marginBottom: 24,
+    },
+    modalInfoRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: 12,
+    },
+    modalBullet: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#059669',
+      marginTop: 7,
+    },
+    modalInfoText: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurface,
+      lineHeight: 20,
+    },
+    modalReportBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 16,
+      backgroundColor: '#b02500',
+    },
+    modalReportBtnText: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: '#fff',
     },
   })
 }
