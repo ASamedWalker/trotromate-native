@@ -255,7 +255,7 @@ export default function HomeScreen() {
           },
         } as Href)
       } else {
-        router.push('/routes')
+        router.push('/train')
       }
     } else if (mode === 'train') {
       router.push('/train')
