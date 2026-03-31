@@ -439,7 +439,7 @@ const getStyles = (isDark: boolean) => {
     heroRouteTitle: {
       fontSize: 34,
       fontFamily: font.extrabold,
-      color: onSurface,
+      color: isDark ? '#f5f5f4' : '#1c1917',
       letterSpacing: -0.5,
     },
     heroFareRow: {
