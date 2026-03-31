@@ -34,6 +34,7 @@ import { StatusBar } from 'expo-status-bar'
 import { c, font } from '@/lib/theme'
 import { getGhanaTime } from '@/lib/utils/time'
 import { TrainTopDown } from '@/components/VehicleIcons'
+import { TrainTimeline } from '@/components/TrainTimeline'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
 import { TRAIN_SCHEDULES, type ScheduleStop } from '@/lib/constants/train-schedule'
@@ -981,64 +982,14 @@ export default function TripScreen() {
             </>
           )}
 
-          {/* Station timeline — visible when sheet is dragged up */}
+          {/* Station timeline — MTA-style dot timeline */}
           {isActive && progress && progress.stationStatuses.length > 0 && (
-            <View>
-              {progress.stationStatuses.map((ss, i) => {
-                const isNext = ss.status === 'current'
-                const isPassed = ss.status === 'passed'
-                const isLast = i === progress.stationStatuses.length - 1
-
-                return (
-                  <View key={ss.station.id} style={s.stationRow}>
-                    <View style={s.stationTimeline}>
-                      {i > 0 && (
-                        <View style={[s.trackLine, isPassed && s.trackLinePassed]} />
-                      )}
-                      {isPassed ? (
-                        <View style={s.dotPassed}>
-                          <Check size={10} color="#fff" />
-                        </View>
-                      ) : isNext ? (
-                        <View style={s.dotActive}>
-                          <View style={s.dotActiveInner} />
-                        </View>
-                      ) : (
-                        <View style={s.dotUpcoming} />
-                      )}
-                      {!isLast && (
-                        <View style={[
-                          s.trackLine,
-                          isPassed && progress.stationStatuses[i + 1]?.status !== 'upcoming' && s.trackLinePassed,
-                        ]} />
-                      )}
-                    </View>
-                    <View style={[s.stationInfo, isNext && s.stationInfoHighlight]}>
-                      {isNext && <Text style={s.nextLabel}>NEXT STATION</Text>}
-                      <View style={s.stationNameRow}>
-                        <Text style={[
-                          s.stationName,
-                          isPassed && s.stationNamePassed,
-                          isNext && s.stationNameActive,
-                        ]} numberOfLines={1}>
-                          {ss.station.name}
-                        </Text>
-                        {(() => {
-                          const sched = activeSchedule?.stopMap.get(ss.station.name.toLowerCase())
-                          const time = sched?.arrive ?? sched?.depart
-                          return time ? (
-                            <Text style={[s.scheduleTime, isPassed && s.scheduleTimePassed]}>{time}</Text>
-                          ) : null
-                        })()}
-                      </View>
-                      {isNext && ss.distanceKm != null && (
-                        <Text style={s.stationDist}>{formatDistance(ss.distanceKm)}</Text>
-                      )}
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
+            <TrainTimeline
+              stationStatuses={progress.stationStatuses}
+              lineColor={lineColor}
+              scheduleStopMap={activeSchedule?.stopMap}
+              formatDistance={formatDistance}
+            />
           )}
 
           {/* Quick actions during trip */}
