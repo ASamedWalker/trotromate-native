@@ -42,6 +42,7 @@ import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
+import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 import { haversineKm } from '@/lib/utils/distance'
 
 // Mapbox token set centrally in _layout.tsx
@@ -726,21 +727,30 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {/* Smart Commute — hero greeting, first thing users see */}
-          <SmartCommuteCard />
+          {selectedStop ? (
+            <StopRoutesPanel
+              stop={selectedStop}
+              onClose={() => setSelectedStop(null)}
+            />
+          ) : (
+            <>
+              {/* Smart Commute — hero greeting, first thing users see */}
+              <SmartCommuteCard />
 
-          {/* Transit-style nearby lines */}
-          <NearbyLines
-            stations={stations}
-            routes={popularRoutes}
-            userLat={location?.latitude ?? null}
-            userLng={location?.longitude ?? null}
-            locationGranted={locationGranted}
-            onRequestLocation={requestLocationPermission}
-          />
+              {/* Transit-style nearby lines */}
+              <NearbyLines
+                stations={stations}
+                routes={popularRoutes}
+                userLat={location?.latitude ?? null}
+                userLng={location?.longitude ?? null}
+                locationGranted={locationGranted}
+                onRequestLocation={requestLocationPermission}
+              />
 
-          {/* Happening Now */}
-          <HappeningNow />
+              {/* Happening Now */}
+              <HappeningNow />
+            </>
+          )}
         </BottomSheetScrollView>
       </BottomSheet>
 

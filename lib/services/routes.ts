@@ -132,6 +132,22 @@ export async function fetchRouteById(
   }
 }
 
+export async function fetchRoutesByIds(ids: string[]): Promise<RouteWithStats[]> {
+  if (ids.length === 0) return []
+
+  const [{ data: routes, error }, { data: fareStats }] = await Promise.all([
+    supabase.from('routes').select('*').in('id', ids),
+    supabase.from('route_fare_stats').select('*').in('route_id', ids),
+  ])
+
+  if (error || !routes) return []
+
+  return routes.map((route: Route) => ({
+    ...route,
+    fare_stats: fareStats?.find((fs: RouteFareStats) => fs.route_id === route.id) || null,
+  }))
+}
+
 export async function fetchFareTrend(
   routeId: string,
   days: number = 30
