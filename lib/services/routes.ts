@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Route, RouteWithStats, RouteFareStats, FareReport, RouteStop, TransportType } from '@/lib/types'
 import { detectRegion } from '@/lib/config/regions'
-import { validateLocation, validateFare, validateEnum, sanitizeString, TRANSPORT_TYPES } from '@/lib/security/validate'
+import { validateGhanaLocation, validateFare, validateEnum, sanitizeString, TRANSPORT_TYPES } from '@/lib/security/validate'
 
 export async function fetchRoutes(from?: string, to?: string, transportType?: TransportType, region?: string): Promise<RouteWithStats[]> {
   let query = supabase
@@ -178,8 +178,8 @@ export async function findOrCreateRoute(
   transportType: TransportType = 'trotro',
   region?: string
 ): Promise<string | null> {
-  const from = validateLocation(fromLocation)
-  const to = validateLocation(toLocation)
+  const from = validateGhanaLocation(fromLocation)
+  const to = validateGhanaLocation(toLocation)
   const validFare = validateFare(fare)
   const transport = validateEnum(transportType, TRANSPORT_TYPES) || 'trotro'
 

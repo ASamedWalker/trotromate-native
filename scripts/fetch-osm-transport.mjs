@@ -1,5 +1,5 @@
 /**
- * Fetch OSM transport data for Greater Accra
+ * Fetch OSM transport data for Ghana cities (Accra, Kumasi, Koforidua, Takoradi, Tamale)
  *
  * Queries Overpass API for:
  *   1. Transport stops (bus stops, trotro stops, lorry parks, taxi ranks)
@@ -24,7 +24,15 @@ const ROOT = path.resolve(__dirname, '..')
 
 const HEADERS = { 'User-Agent': 'Troski-App/1.0' }
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
-const BBOX = '5.4,-0.5,5.9,0.1' // Greater Accra
+
+// City bounding boxes: south,west,north,east
+const CITY_BBOXES = {
+  'Greater Accra': '5.4,-0.5,5.9,0.1',
+  'Kumasi':        '6.6,-1.7,6.8,-1.5',
+  'Koforidua':     '6.0,-0.3,6.15,-0.2',
+  'Takoradi':      '4.85,-1.8,5.0,-1.7',
+  'Tamale':        '9.3,-0.9,9.5,-0.75',
+}
 
 // Known station names (for matching/exclusion)
 const KNOWN_STATIONS = [
@@ -113,52 +121,64 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-async function queryOverpass(query) {
-  const resp = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'data=' + encodeURIComponent(query),
-  })
-  if (!resp.ok) {
-    console.error('  Overpass error:', resp.status)
-    return []
+async function queryOverpass(query, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const resp = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      return data.elements || []
+    }
+    if (attempt < retries && (resp.status === 429 || resp.status === 504)) {
+      const wait = attempt * 10000 // 10s, 20s, 30s backoff
+      console.error(`    Overpass ${resp.status}, retrying in ${wait / 1000}s (attempt ${attempt}/${retries})...`)
+      await sleep(wait)
+    } else {
+      console.error(`    Overpass error: ${resp.status} (giving up)`)
+      return []
+    }
   }
-  const data = await resp.json()
-  return data.elements || []
+  return []
 }
 
 async function fetchTransportStops() {
   console.log('=== Fetching transport stops from Overpass API ===\n')
 
-  // Split into separate queries to avoid 504 timeouts
-  const queries = [
-    { label: 'bus_stop', q: `[out:json][timeout:60];node["highway"="bus_stop"](${BBOX});out body;` },
-    { label: 'bus_station', q: `[out:json][timeout:60];node["amenity"="bus_station"](${BBOX});out body;` },
-    { label: 'stop_position', q: `[out:json][timeout:60];node["public_transport"="stop_position"](${BBOX});out body;` },
-    { label: 'platform', q: `[out:json][timeout:60];node["public_transport"="platform"](${BBOX});out body;` },
-    { label: 'taxi', q: `[out:json][timeout:60];node["amenity"="taxi"](${BBOX});out body;` },
-    { label: 'station', q: `[out:json][timeout:60];node["public_transport"="station"](${BBOX});out body;` },
-    { label: 'railway_station', q: `[out:json][timeout:60];node["railway"="station"](${BBOX});out body;` },
-    { label: 'railway_halt', q: `[out:json][timeout:60];node["railway"="halt"](${BBOX});out body;` },
-    { label: 'tram_stop', q: `[out:json][timeout:60];node["railway"="tram_stop"](${BBOX});out body;` },
+  const stopTypes = [
+    { label: 'bus_stop', tag: '"highway"="bus_stop"' },
+    { label: 'bus_station', tag: '"amenity"="bus_station"' },
+    { label: 'stop_position', tag: '"public_transport"="stop_position"' },
+    { label: 'platform', tag: '"public_transport"="platform"' },
+    { label: 'taxi', tag: '"amenity"="taxi"' },
+    { label: 'station', tag: '"public_transport"="station"' },
+    { label: 'railway_station', tag: '"railway"="station"' },
+    { label: 'railway_halt', tag: '"railway"="halt"' },
+    { label: 'tram_stop', tag: '"railway"="tram_stop"' },
   ]
 
   const allElements = []
   const seenIds = new Set()
 
-  for (const { label, q } of queries) {
-    console.log(`  Fetching ${label}...`)
-    const elements = await queryOverpass(q)
-    let added = 0
-    for (const el of elements) {
-      if (!seenIds.has(el.id)) {
-        seenIds.add(el.id)
-        allElements.push(el)
-        added++
+  for (const [city, bbox] of Object.entries(CITY_BBOXES)) {
+    console.log(`\n--- ${city} (${bbox}) ---`)
+    for (const { label, tag } of stopTypes) {
+      console.log(`  Fetching ${label}...`)
+      const q = `[out:json][timeout:60];node[${tag}](${bbox});out body;`
+      const elements = await queryOverpass(q)
+      let added = 0
+      for (const el of elements) {
+        if (!seenIds.has(el.id)) {
+          seenIds.add(el.id)
+          allElements.push(el)
+          added++
+        }
       }
+      console.log(`    ${elements.length} nodes (${added} new)`)
+      await sleep(5000) // Be nice to Overpass — avoid 429 rate limits
     }
-    console.log(`    ${elements.length} nodes (${added} new)`)
-    await sleep(2000) // Be nice to Overpass
   }
 
   console.log(`\nTotal unique transport nodes: ${allElements.length}\n`)
@@ -227,25 +247,43 @@ async function fetchTransportStops() {
 async function fetchTransportRoutes() {
   console.log('\n=== Fetching transport routes from Overpass API ===\n')
 
-  const query = `[out:json][timeout:120];(relation["type"="route"]["route"="bus"](${BBOX});relation["type"="route"]["route"="share_taxi"](${BBOX});relation["type"="route"]["route"="minibus"](${BBOX}););out body geom;`
+  const allRelations = []
+  const seenRouteIds = new Set()
 
-  const resp = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'data=' + encodeURIComponent(query),
-  })
+  for (const [city, bbox] of Object.entries(CITY_BBOXES)) {
+    console.log(`--- ${city} routes ---`)
+    const query = `[out:json][timeout:120];(relation["type"="route"]["route"="bus"](${bbox});relation["type"="route"]["route"="share_taxi"](${bbox});relation["type"="route"]["route"="minibus"](${bbox}););out body geom;`
 
-  if (!resp.ok) {
-    console.error('Overpass error:', resp.status)
-    return []
+    const resp = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query),
+    })
+
+    if (!resp.ok) {
+      console.error(`  Overpass error for ${city}:`, resp.status)
+      await sleep(5000)
+      continue
+    }
+
+    const data = await resp.json()
+    let added = 0
+    for (const el of data.elements) {
+      if (!seenRouteIds.has(el.id)) {
+        seenRouteIds.add(el.id)
+        allRelations.push(el)
+        added++
+      }
+    }
+    console.log(`  ${data.elements.length} relations (${added} new)`)
+    await sleep(5000)
   }
 
-  const data = await resp.json()
-  console.log(`Overpass returned ${data.elements.length} route relations\n`)
+  console.log(`\nTotal unique route relations: ${allRelations.length}\n`)
 
   const routes = []
 
-  for (const rel of data.elements) {
+  for (const rel of allRelations) {
     if (!rel.members) continue
 
     // Extract coordinates from way members
@@ -296,7 +334,7 @@ async function main() {
   // Write transport-stops.json
   const stopsJson = {
     generated: new Date().toISOString(),
-    bbox: BBOX,
+    cities: Object.keys(CITY_BBOXES),
     count: stops.length,
     stops: stops.map((s) => ({
       osm_id: s.osm_id,
@@ -313,7 +351,7 @@ async function main() {
   // Write transport-routes.json
   const routesJson = {
     generated: new Date().toISOString(),
-    bbox: BBOX,
+    cities: Object.keys(CITY_BBOXES),
     count: routes.length,
     routes: routes.map((r) => ({
       osm_id: r.osm_id,

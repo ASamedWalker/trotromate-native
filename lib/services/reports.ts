@@ -3,6 +3,7 @@ import { findOrCreateRoute } from './routes'
 import type { TransportType } from '@/lib/types'
 import {
   validateLocation,
+  validateGhanaLocation,
   validateFare,
   validateEnum,
   validateIntRange,
@@ -19,8 +20,8 @@ export async function submitFareReport(params: {
   transportType?: TransportType
   region?: string
 }): Promise<{ reportId: string; routeId: string } | null> {
-  const from = validateLocation(params.fromLocation)
-  const to = validateLocation(params.toLocation)
+  const from = validateGhanaLocation(params.fromLocation)
+  const to = validateGhanaLocation(params.toLocation)
   const fare = validateFare(params.fare)
   const transport = validateEnum(params.transportType || 'trotro', TRANSPORT_TYPES) || 'trotro'
 

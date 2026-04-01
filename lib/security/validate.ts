@@ -39,10 +39,38 @@ export function validateLocation(location: string): string | null {
   return cleaned
 }
 
+// ── Ghana Location Validation ─────────────────────────────────────
+
+/** Common non-Ghana location names that indicate junk/test data */
+const BLOCKED_LOCATION_PATTERNS = [
+  /\b(america|usa|united states|china|india|uk|england|france|germany|japan|korea|nigeria|south africa|kenya|brazil|canada|australia|europe|asia|africa)\b/i,
+  /\b(new york|london|paris|beijing|tokyo|lagos|nairobi|dubai|moscow|berlin|sydney)\b/i,
+  /\b(test|testing|asdf|qwerty|xxx|abc|123|hello|foo|bar)\b/i,
+]
+
+/**
+ * Validates that a location name looks like a real Ghana location.
+ * Returns null if the location is obviously fake/non-Ghana.
+ */
+export function validateGhanaLocation(location: string): string | null {
+  const cleaned = validateLocation(location)
+  if (!cleaned) return null
+
+  // Must be at least 2 characters (no single-letter locations)
+  if (cleaned.length < 2) return null
+
+  // Check against blocked patterns
+  for (const pattern of BLOCKED_LOCATION_PATTERNS) {
+    if (pattern.test(cleaned)) return null
+  }
+
+  return cleaned
+}
+
 // ── Fare Validation ────────────────────────────────────────────────
 
 const MIN_FARE = 0.01
-const MAX_FARE = 1000
+const MAX_FARE = 200 // No trotro/okada fare in Ghana exceeds GH₵ 200
 
 export function validateFare(fare: unknown): number | null {
   const num = typeof fare === 'number' ? fare : parseFloat(String(fare))
