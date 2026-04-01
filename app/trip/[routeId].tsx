@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
+  ScrollView,
   useColorScheme,
   StyleSheet,
   Modal,
@@ -112,6 +113,7 @@ export default function TripScreen() {
   const cameraRef = useRef<Mapbox.Camera>(null)
   const [isStarting, setIsStarting] = useState(false)
   const isEndingRef = useRef(false)
+  const [stationPickerTarget, setStationPickerTarget] = useState<'origin' | 'dest' | null>(null)
 
   // Post-trip fare collection + rewards
   const [showFarePrompt, setShowFarePrompt] = useState(false)
@@ -119,59 +121,64 @@ export default function TripScreen() {
   const [completedTrip, setCompletedTrip] = useState<CompletedTripResult | null>(null)
   const [tripReward, setTripReward] = useState<RewardResult | null>(null)
 
-  // Route label for display
-  const routeLabel = isTrain
-    ? (line ? `${line.name}` : 'Train')
-    : (route ? `${route.from_location} → ${route.to_location}` : '')
+  // ── Train station selection (origin/destination picker) ──
+  const [selectedOriginIdx, setSelectedOriginIdx] = useState(0)
+  const [selectedDestIdx, setSelectedDestIdx] = useState(-1) // -1 = last station
 
-  // Resolve trip stations — different logic for train vs trotro
+  // All stations on the line (ordered), used for the picker
+  const allLineStations = useMemo(() => {
+    if (!isTrain || !line) return null
+    const lineCode = line.code as 'TMA' | 'TMP'
+    const hardcoded = getLineStations(lineCode)
+    const dbSorted = (trainStations ?? []).slice().sort((a, b) => a.order_index - b.order_index)
+    const dbNameSet = new Set(dbSorted.map(s => s.name.toLowerCase()))
+    const merged: Array<{ id: string; name: string; latitude: number; longitude: number }> = []
+
+    for (const s of dbSorted) {
+      const coords = (s.latitude != null && s.longitude != null)
+        ? { latitude: s.latitude, longitude: s.longitude }
+        : getStationCoords({ name: s.name })
+      if (coords) merged.push({ id: s.id, name: s.name, ...coords })
+    }
+    for (const hc of hardcoded) {
+      if (!dbNameSet.has(hc.name.toLowerCase())) {
+        merged.push({
+          id: `hc-${hc.name.toLowerCase().replace(/\s+/g, '-')}`,
+          name: hc.name,
+          latitude: hc.lat,
+          longitude: hc.lng,
+        })
+      }
+    }
+    const orderMap = new Map(hardcoded.map((h, i) => [h.name.toLowerCase(), i]))
+    merged.sort((a, b) => {
+      const oa = orderMap.get(a.name.toLowerCase()) ?? 999
+      const ob = orderMap.get(b.name.toLowerCase()) ?? 999
+      return oa - ob
+    })
+    return merged.length >= 2 ? merged : null
+  }, [isTrain, line, trainStations])
+
+  // Initialize dest index when stations load
+  useEffect(() => {
+    if (allLineStations && selectedDestIdx === -1) {
+      setSelectedDestIdx(allLineStations.length - 1)
+    }
+  }, [allLineStations, selectedDestIdx])
+
+  // Resolve trip stations — sliced for train based on selection
   const tripStations = useMemo(() => {
-    // ── Train mode: merge DB stations with hardcoded coordinates ──
-    if (isTrain && line) {
-      const lineCode = line.code as 'TMA' | 'TMP'
-      const hardcoded = getLineStations(lineCode)
-
-      // Start with DB stations (have order_index)
-      const dbSorted = (trainStations ?? []).slice().sort((a, b) => a.order_index - b.order_index)
-
-      // Build merged list: DB stations + any hardcoded stations missing from DB
-      const dbNameSet = new Set(dbSorted.map(s => s.name.toLowerCase()))
-      const merged: Array<{ id: string; name: string; latitude: number; longitude: number }> = []
-
-      // First resolve all DB stations with coords
-      for (const s of dbSorted) {
-        const coords = (s.latitude != null && s.longitude != null)
-          ? { latitude: s.latitude, longitude: s.longitude }
-          : getStationCoords({ name: s.name })
-        if (coords) merged.push({ id: s.id, name: s.name, ...coords })
-      }
-
-      // Add hardcoded stations not in DB (with synthetic IDs)
-      for (const hc of hardcoded) {
-        if (!dbNameSet.has(hc.name.toLowerCase())) {
-          merged.push({
-            id: `hc-${hc.name.toLowerCase().replace(/\s+/g, '-')}`,
-            name: hc.name,
-            latitude: hc.lat,
-            longitude: hc.lng,
-          })
-        }
-      }
-
-      // Sort by hardcoded order (which matches real station order on the line)
-      const orderMap = new Map(hardcoded.map((h, i) => [h.name.toLowerCase(), i]))
-      merged.sort((a, b) => {
-        const oa = orderMap.get(a.name.toLowerCase()) ?? 999
-        const ob = orderMap.get(b.name.toLowerCase()) ?? 999
-        return oa - ob
-      })
-
-      if (merged.length < 2) return null
-
-      return merged.map((s, i) => ({
+    // ── Train mode: slice allLineStations to selected range ──
+    if (isTrain && allLineStations) {
+      const destIdx = selectedDestIdx === -1 ? allLineStations.length - 1 : selectedDestIdx
+      const fromIdx = Math.min(selectedOriginIdx, destIdx)
+      const toIdx = Math.max(selectedOriginIdx, destIdx)
+      const sliced = allLineStations.slice(fromIdx, toIdx + 1)
+      if (sliced.length < 2) return null
+      return sliced.map((s, i) => ({
         ...s,
         isOrigin: i === 0,
-        isDestination: i === merged.length - 1,
+        isDestination: i === sliced.length - 1,
       })) as TripStation[]
     }
 
@@ -210,6 +217,17 @@ export default function TripScreen() {
       stationsWithCoords,
     )
   }, [isTrain, trainStations, line, route, allStations])
+
+  // Route label for display (includes selected stations for train)
+  const routeLabel = useMemo(() => {
+    if (isTrain && tripStations && tripStations.length >= 2) {
+      const from = tripStations[0].name
+      const to = tripStations[tripStations.length - 1].name
+      return `${from} → ${to}`
+    }
+    if (isTrain) return line ? line.name : 'Train'
+    return route ? `${route.from_location} → ${route.to_location}` : ''
+  }, [isTrain, tripStations, line, route])
 
   // Build GeoJSON for the trip route line — split into traveled + remaining
   const routeLineGeojson = useMemo(() => {
@@ -1094,16 +1112,23 @@ export default function TripScreen() {
             <>
               {tripStations && (
                 <View style={s.idleStops}>
-                  <View style={s.stationRow}>
+                  {/* Origin — tappable for train */}
+                  <TouchableOpacity
+                    activeOpacity={isTrain && allLineStations ? 0.6 : 1}
+                    onPress={() => isTrain && allLineStations && setStationPickerTarget('origin')}
+                    style={s.stationRow}
+                  >
                     <View style={s.stationTimeline}>
                       <View style={[s.dotIdle, { backgroundColor: '#22c55e' }]} />
                       <View style={s.trackLine} />
                     </View>
-                    <View style={s.stationInfo}>
+                    <View style={[s.stationInfo, { flex: 1 }]}>
                       <Text style={s.stationNameBold}>{origin?.name}</Text>
-                      <Text style={s.stationSub}>Origin</Text>
+                      <Text style={s.stationSub}>Origin{isTrain && allLineStations ? ' · Tap to change' : ''}</Text>
                     </View>
-                  </View>
+                    {isTrain && allLineStations && <ChevronDown size={16} color="#b2acaa" />}
+                  </TouchableOpacity>
+
                   {tripStations.length > 2 && (
                     <View style={s.stationRow}>
                       <View style={s.stationTimeline}>
@@ -1118,16 +1143,23 @@ export default function TripScreen() {
                       </View>
                     </View>
                   )}
-                  <View style={s.stationRow}>
+
+                  {/* Destination — tappable for train */}
+                  <TouchableOpacity
+                    activeOpacity={isTrain && allLineStations ? 0.6 : 1}
+                    onPress={() => isTrain && allLineStations && setStationPickerTarget('dest')}
+                    style={s.stationRow}
+                  >
                     <View style={s.stationTimeline}>
                       <View style={s.trackLine} />
                       <View style={[s.dotIdle, { backgroundColor: '#ef4444' }]} />
                     </View>
-                    <View style={s.stationInfo}>
+                    <View style={[s.stationInfo, { flex: 1 }]}>
                       <Text style={s.stationNameBold}>{dest?.name}</Text>
-                      <Text style={s.stationSub}>Destination</Text>
+                      <Text style={s.stationSub}>Destination{isTrain && allLineStations ? ' · Tap to change' : ''}</Text>
                     </View>
-                  </View>
+                    {isTrain && allLineStations && <ChevronDown size={16} color="#b2acaa" />}
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -1154,6 +1186,70 @@ export default function TripScreen() {
       </GorhomBottomSheet>
 
       {renderFareModal()}
+
+      {/* ── Station picker modal (train only) ── */}
+      <Modal
+        visible={stationPickerTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setStationPickerTarget(null)}
+      >
+        <TouchableOpacity
+          style={s.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setStationPickerTarget(null)}
+        >
+          <View style={s.pickerSheet}>
+            <View style={s.pickerHandle} />
+            <Text style={s.pickerTitle}>
+              Select {stationPickerTarget === 'origin' ? 'Origin' : 'Destination'}
+            </Text>
+            <ScrollView style={s.pickerList} bounces={false}>
+              {allLineStations?.map((station, idx) => {
+                const isSelected = stationPickerTarget === 'origin'
+                  ? idx === selectedOriginIdx
+                  : idx === (selectedDestIdx === -1 ? (allLineStations.length - 1) : selectedDestIdx)
+                const isDisabled = stationPickerTarget === 'origin'
+                  ? idx >= (selectedDestIdx === -1 ? allLineStations.length - 1 : selectedDestIdx)
+                  : idx <= selectedOriginIdx
+
+                return (
+                  <TouchableOpacity
+                    key={station.id}
+                    activeOpacity={isDisabled ? 0.3 : 0.7}
+                    onPress={() => {
+                      if (isDisabled) return
+                      if (stationPickerTarget === 'origin') {
+                        setSelectedOriginIdx(idx)
+                      } else {
+                        setSelectedDestIdx(idx)
+                      }
+                      setStationPickerTarget(null)
+                    }}
+                    style={[
+                      s.pickerItem,
+                      isSelected && { backgroundColor: (lineColor + '15') },
+                    ]}
+                  >
+                    <View style={[
+                      s.pickerDot,
+                      { backgroundColor: isDisabled ? '#d1d5db' : isSelected ? lineColor : '#b2acaa' },
+                    ]} />
+                    <Text style={[
+                      s.pickerItemText,
+                      isSelected && { color: lineColor, fontFamily: font.bold },
+                      isDisabled && { color: '#d1d5db' },
+                    ]}>
+                      {station.name}
+                    </Text>
+                    {isSelected && <Check size={18} color={lineColor} />}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   )
 }
@@ -1733,6 +1829,58 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.semibold,
       color: onSurfaceVariant,
       marginTop: -2,
+    },
+
+    // Station picker modal
+    pickerOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    pickerSheet: {
+      backgroundColor: surfaceLowest,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '60%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    },
+    pickerHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: outlineVariant,
+      alignSelf: 'center',
+      marginTop: 10,
+      marginBottom: 8,
+    },
+    pickerTitle: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: onSurface,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    pickerList: {
+      paddingHorizontal: 12,
+    },
+    pickerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+    },
+    pickerDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    pickerItemText: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: font.medium,
+      color: onSurface,
     },
 
   })
