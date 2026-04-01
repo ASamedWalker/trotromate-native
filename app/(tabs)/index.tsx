@@ -41,9 +41,13 @@ import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
+import { useQuery } from '@tanstack/react-query'
+import { X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
 import { useTransportStops } from '@/lib/hooks/useTransportStops'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
+import { fetchRoutesByIds } from '@/lib/services/routes'
+import type { RouteWithStats } from '@/lib/types'
 
 // Mapbox token set centrally in _layout.tsx
 
@@ -101,6 +105,148 @@ function AnimatedPlaceholder({ style }: { style: any }) {
   )
 }
 
+/* ── Route Preview Card (Phase 4 — search → map preview) ── */
+
+function RoutePreviewCard({ routeId, from, to, onClose }: {
+  routeId: string
+  from: string
+  to: string
+  onClose: () => void
+}) {
+  const isDark = useColorScheme() === 'dark'
+  const t = themed(isDark)
+  const router = useRouter()
+
+  const { data: routes = [], isLoading } = useQuery<RouteWithStats[]>({
+    queryKey: ['preview-route', routeId],
+    queryFn: () => fetchRoutesByIds([routeId]),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const route = routes[0]
+  const fare = route?.fare_stats?.avg_reported_fare
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+          <View style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: '#22c55e',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <RouteIcon size={18} color="#fff" strokeWidth={2.5} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{
+              fontSize: 16,
+              fontFamily: font.bold,
+              color: t.text,
+            }} numberOfLines={1}>
+              {from} → {to}
+            </Text>
+            <Text style={{
+              fontSize: 12,
+              fontFamily: font.regular,
+              color: t.textSecondary,
+              marginTop: 1,
+            }}>
+              Route preview
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <X size={16} color={isDark ? c.stone400 : c.stone500} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Route info card */}
+      {isLoading ? (
+        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <Text style={{ fontSize: 13, fontFamily: font.medium, color: t.textSecondary }}>Loading route info...</Text>
+        </View>
+      ) : route ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => router.push(`/routes/${routeId}` as Href)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 14,
+            borderRadius: 14,
+            backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.05)',
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.1)',
+            gap: 12,
+          }}
+        >
+          {/* Accent bar */}
+          <View style={{
+            width: 3,
+            height: 40,
+            borderRadius: 2,
+            backgroundColor: '#22c55e',
+          }} />
+
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {fare != null && (
+                <Text style={{
+                  fontSize: 18,
+                  fontFamily: font.bold,
+                  color: '#22c55e',
+                }}>
+                  {'\u20B5'}{fare.toFixed(2)}
+                </Text>
+              )}
+              {route.is_gprtu_verified && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
+                  backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : 'rgba(22,163,74,0.1)',
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                }}>
+                  <ShieldCheck size={11} color="#16a34a" />
+                  <Text style={{ fontSize: 10, fontFamily: font.bold, color: '#16a34a' }}>GPRTU</Text>
+                </View>
+              )}
+            </View>
+            {route.via && (
+              <Text style={{
+                fontSize: 12,
+                fontFamily: font.regular,
+                color: t.textSecondary,
+                marginTop: 2,
+              }} numberOfLines={1}>
+                via {route.via}
+              </Text>
+            )}
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 13, fontFamily: font.semibold, color: '#22c55e' }}>Details</Text>
+            <ChevronRight size={16} color="#22c55e" />
+          </View>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  )
+}
+
 /* ── Helpers ───────────────────────────────────────── */
 
 function getGreeting(): string {
@@ -155,6 +301,7 @@ export default function HomeScreen() {
   const [searchVisible, setSearchVisible] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
+  const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
   const [currentZoom, setCurrentZoom] = useState(13)
 
   // Auto-request location permission on mount if not yet granted
@@ -298,6 +445,10 @@ export default function HomeScreen() {
             setSelectedStop(null)
             bottomSheetRef.current?.snapToIndex(0)
           }
+          if (previewRoute) {
+            setPreviewRoute(null)
+            bottomSheetRef.current?.snapToIndex(0)
+          }
         }}
       >
         <Mapbox.Camera
@@ -368,6 +519,78 @@ export default function HomeScreen() {
             }}
           />
         </Mapbox.ShapeSource>
+
+        {/* ── Preview route from search — green polyline + stops ── */}
+        {previewRoute && (
+          <Mapbox.ShapeSource
+            id="preview-route-lines"
+            shape={getRouteLineGeoJSON([previewRoute.id]) as any}
+          >
+            <Mapbox.LineLayer
+              id="preview-route-lines-glow"
+              style={{
+                lineColor: '#22c55e',
+                lineWidth: 7,
+                lineOpacity: 0.2,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+            <Mapbox.LineLayer
+              id="preview-route-lines-main"
+              style={{
+                lineColor: '#22c55e',
+                lineWidth: 3.5,
+                lineOpacity: 0.9,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+        {previewRoute && (
+          <Mapbox.ShapeSource
+            id="preview-route-stops"
+            shape={getRouteStopsGeoJSON([previewRoute.id]) as any}
+          >
+            <Mapbox.CircleLayer
+              id="preview-route-stops-intermediate"
+              filter={['==', ['get', 'isTerminal'], false]}
+              style={{
+                circleRadius: 4,
+                circleColor: '#fff',
+                circleStrokeColor: '#22c55e',
+                circleStrokeWidth: 2,
+                circleOpacity: 0.8,
+              }}
+            />
+            <Mapbox.CircleLayer
+              id="preview-route-stops-terminal"
+              filter={['==', ['get', 'isTerminal'], true]}
+              style={{
+                circleRadius: 7,
+                circleColor: '#22c55e',
+                circleStrokeColor: '#fff',
+                circleStrokeWidth: 2.5,
+              }}
+            />
+            <Mapbox.SymbolLayer
+              id="preview-route-stops-labels"
+              style={{
+                textField: ['get', 'name'],
+                textSize: 11,
+                textColor: isDark ? '#fafaf9' : '#1c1917',
+                textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+                textHaloWidth: 1.5,
+                textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+                textOffset: [0, 1.4],
+                textAnchor: 'top',
+                textMaxWidth: 8,
+                textAllowOverlap: false,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
         {/* ── Selected stop route lines — only when a stop is tapped ── */}
         {selectedStop && (
@@ -758,7 +981,7 @@ export default function HomeScreen() {
         enablePanDownToClose={false}
       >
         <BottomSheetScrollView
-          key={selectedStop ? `stop-${selectedStop.name}` : 'home'}
+          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : 'home'}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
@@ -767,6 +990,16 @@ export default function HomeScreen() {
               stop={selectedStop}
               onClose={() => {
                 setSelectedStop(null)
+                bottomSheetRef.current?.snapToIndex(0)
+              }}
+            />
+          ) : previewRoute ? (
+            <RoutePreviewCard
+              routeId={previewRoute.id}
+              from={previewRoute.from}
+              to={previewRoute.to}
+              onClose={() => {
+                setPreviewRoute(null)
                 bottomSheetRef.current?.snapToIndex(0)
               }}
             />
@@ -801,7 +1034,15 @@ export default function HomeScreen() {
       )}
 
       <ReportFAB />
-      <UnifiedSearch visible={searchVisible} onClose={() => setSearchVisible(false)} />
+      <UnifiedSearch
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+        onRoutePreview={(routeId, from, to) => {
+          setPreviewRoute({ id: routeId, from, to })
+          setSelectedStop(null)
+          bottomSheetRef.current?.snapToIndex(1)
+        }}
+      />
     </View>
   )
 }

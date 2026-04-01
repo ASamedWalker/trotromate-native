@@ -37,11 +37,12 @@ import { useFavorites } from '@/lib/hooks/useFavorites'
 interface UnifiedSearchProps {
   visible: boolean
   onClose: () => void
+  onRoutePreview?: (routeId: string, from: string, to: string) => void
 }
 
 /* ── Main Component ────────────────────────────────── */
 
-export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
+export function UnifiedSearch({ visible, onClose, onRoutePreview }: UnifiedSearchProps) {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
@@ -73,8 +74,12 @@ export function UnifiedSearch({ visible, onClose }: UnifiedSearchProps) {
   const navigateToRoute = useCallback((routeId: string, from: string, to: string, transportType?: string) => {
     addSearch({ id: routeId, from, to, transportType: transportType as 'trotro' | 'okada' })
     handleClose()
-    router.push(`/routes/${routeId}` as Href)
-  }, [addSearch, handleClose, router])
+    if (onRoutePreview && transportType !== 'train') {
+      onRoutePreview(routeId, from, to)
+    } else {
+      router.push(`/routes/${routeId}` as Href)
+    }
+  }, [addSearch, handleClose, router, onRoutePreview])
 
   const navigateToTrain = useCallback((lineId: string) => {
     handleClose()
