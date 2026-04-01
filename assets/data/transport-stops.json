@@ -1,7 +1,13 @@
 {
-  "generated": "2026-02-24T03:13:03.930Z",
-  "bbox": "5.4,-0.5,5.9,0.1",
-  "count": 2386,
+  "generated": "2026-04-01T18:28:15.183Z",
+  "cities": [
+    "Greater Accra",
+    "Kumasi",
+    "Koforidua",
+    "Takoradi",
+    "Tamale"
+  ],
+  "count": 2579,
   "stops": [
     {
       "osm_id": 30729987,
@@ -1188,7 +1194,7 @@
     },
     {
       "osm_id": 4982950472,
-      "name": "Kankudi",
+      "name": "Kawukudi",
       "lat": 5.5947696,
       "lng": -0.1885244,
       "type": "bus_stop"
@@ -1539,8 +1545,8 @@
     {
       "osm_id": 4990163125,
       "name": "Circle Overhead",
-      "lat": 5.5701413,
-      "lng": -0.2139913,
+      "lat": 5.57017,
+      "lng": -0.2140057,
       "type": "bus_stop"
     },
     {
@@ -3247,8 +3253,8 @@
     {
       "osm_id": 5000996583,
       "name": "Emmanuel Presby",
-      "lat": 5.5484033,
-      "lng": -0.2646296,
+      "lat": 5.5483997,
+      "lng": -0.2646486,
       "type": "bus_stop"
     },
     {
@@ -4577,8 +4583,8 @@
     {
       "osm_id": 5014899353,
       "name": "Pentecost Junction",
-      "lat": 5.6253535,
-      "lng": -0.3065417,
+      "lat": 5.6253405,
+      "lng": -0.3065518,
       "type": "bus_stop"
     },
     {
@@ -4808,8 +4814,8 @@
     {
       "osm_id": 5020102839,
       "name": "Macedonia",
-      "lat": 5.7362667,
-      "lng": -0.3143962,
+      "lat": 5.7362525,
+      "lng": -0.3144628,
       "type": "bus_stop"
     },
     {
@@ -5585,8 +5591,8 @@
     {
       "osm_id": 5023043422,
       "name": "Court",
-      "lat": 5.5444356,
-      "lng": -0.20435,
+      "lat": 5.5442788,
+      "lng": -0.2044875,
       "type": "bus_stop"
     },
     {
@@ -5601,13 +5607,6 @@
       "name": "Champion",
       "lat": 5.6425907,
       "lng": -0.2493454,
-      "type": "bus_stop"
-    },
-    {
-      "osm_id": 5088471612,
-      "name": "Accra Bishop",
-      "lat": 5.5437448,
-      "lng": -0.2048637,
       "type": "bus_stop"
     },
     {
@@ -10072,8 +10071,8 @@
     {
       "osm_id": 5047020130,
       "name": "Special Ice",
-      "lat": 5.6122814,
-      "lng": -0.1977866,
+      "lat": 5.6123168,
+      "lng": -0.1978288,
       "type": "bus_stop"
     },
     {
@@ -11969,8 +11968,8 @@
     {
       "osm_id": 5084413302,
       "name": "Tsuibleoo",
-      "lat": 5.6416429,
-      "lng": -0.3372154,
+      "lat": 5.6415942,
+      "lng": -0.3372201,
       "type": "bus_stop"
     },
     {
@@ -12013,6 +12012,13 @@
       "name": "Block Factory",
       "lat": 5.6202937,
       "lng": -0.2972155,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5084413314,
+      "name": "Oduman",
+      "lat": 5.6404555,
+      "lng": -0.3343916,
       "type": "bus_stop"
     },
     {
@@ -12132,6 +12138,13 @@
       "name": "Presby",
       "lat": 5.5888854,
       "lng": -0.2498154,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5088471612,
+      "name": "Accra Bishop",
+      "lat": 5.5437448,
+      "lng": -0.2048637,
       "type": "bus_stop"
     },
     {
@@ -12627,8 +12640,8 @@
     {
       "osm_id": 5104904324,
       "name": "Ridge",
-      "lat": 5.5635957,
-      "lng": -0.2016935,
+      "lat": 5.5636144,
+      "lng": -0.2016559,
       "type": "bus_stop"
     },
     {
@@ -14881,8 +14894,8 @@
     {
       "osm_id": 7192894770,
       "name": "Sethoo Junction",
-      "lat": 5.5907164,
-      "lng": -0.2858126,
+      "lat": 5.5906868,
+      "lng": -0.2858296,
       "type": "bus_stop"
     },
     {
@@ -16064,8 +16077,8 @@
     {
       "osm_id": 13208963560,
       "name": "Frimps",
-      "lat": 5.542052,
-      "lng": -0.3825781,
+      "lat": 5.5420488,
+      "lng": -0.3825517,
       "type": "bus_stop"
     },
     {
@@ -16503,6 +16516,167 @@
       "type": "lorry_park"
     },
     {
+      "osm_id": 133027073,
+      "name": "Baatsona",
+      "lat": 5.6197201,
+      "lng": -0.1196762,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1215470107,
+      "name": null,
+      "lat": 5.5599096,
+      "lng": -0.15812,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1810235149,
+      "name": "Community 1 Train Station",
+      "lat": 5.6525455,
+      "lng": 0.0037124,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1840170014,
+      "name": null,
+      "lat": 5.6208252,
+      "lng": -0.2259642,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 2018321897,
+      "name": "Tema Harbour Train Station",
+      "lat": 5.6311246,
+      "lng": 0.001807,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 4458416036,
+      "name": null,
+      "lat": 5.5272744,
+      "lng": -0.2741124,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 4995598758,
+      "name": null,
+      "lat": 5.5654038,
+      "lng": -0.2354202,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5005092628,
+      "name": null,
+      "lat": 5.5487884,
+      "lng": -0.2019302,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5005092632,
+      "name": null,
+      "lat": 5.5485426,
+      "lng": -0.2025872,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5019572063,
+      "name": "Six to Six Market",
+      "lat": 5.6202849,
+      "lng": -0.2538854,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5024320805,
+      "name": null,
+      "lat": 5.7351568,
+      "lng": -0.2719662,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5058536218,
+      "name": null,
+      "lat": 5.676095,
+      "lng": -0.171819,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 5058537127,
+      "name": null,
+      "lat": 5.5888723,
+      "lng": -0.2509786,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 6244348689,
+      "name": "Asaprochona",
+      "lat": 5.6144951,
+      "lng": -0.0550194,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 6244376317,
+      "name": "Odo",
+      "lat": 5.5654548,
+      "lng": -0.2191328,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 6245062257,
+      "name": "Tema Fishing Harbour Train Station",
+      "lat": 5.6447098,
+      "lng": 0.0115925,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1375249822,
+      "name": "Accra",
+      "lat": 5.5489157,
+      "lng": -0.2110196,
+      "type": "train_station"
+    },
+    {
+      "osm_id": 10536249407,
+      "name": null,
+      "lat": 5.7321144,
+      "lng": -0.203907,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 10536249408,
+      "name": null,
+      "lat": 5.7347377,
+      "lng": -0.2034124,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 10536308009,
+      "name": null,
+      "lat": 5.7362481,
+      "lng": -0.2038209,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 9472263265,
+      "name": "Teiman Bus Station",
+      "lat": 5.7511881,
+      "lng": -0.1840566,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 9590449185,
+      "name": null,
+      "lat": 5.5506983,
+      "lng": -0.329438,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 13207465130,
+      "name": "Flower Pot",
+      "lat": 5.6310285,
+      "lng": -0.151693,
+      "type": "trotro_stop"
+    },
+    {
       "osm_id": 1616146875,
       "name": "Last Jericho Stop",
       "lat": 5.6960297,
@@ -16629,13 +16803,6 @@
       "type": "taxi_rank"
     },
     {
-      "osm_id": 1375249822,
-      "name": "Accra",
-      "lat": 5.5489157,
-      "lng": -0.2110196,
-      "type": "train_station"
-    },
-    {
       "osm_id": 2360467122,
       "name": "Amasaman",
       "lat": 5.7049254,
@@ -16671,39 +16838,1229 @@
       "type": "train_station"
     },
     {
-      "osm_id": 9937916699,
-      "name": "Community 1 Train Station",
-      "lat": 5.6524526,
-      "lng": 0.003563,
+      "osm_id": 2167480351,
+      "name": null,
+      "lat": 6.6420287,
+      "lng": -1.5906859,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3057177352,
+      "name": "Tech Junction",
+      "lat": 6.6867141,
+      "lng": -1.5734545,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3057184986,
+      "name": "Top High",
+      "lat": 6.6872394,
+      "lng": -1.5779659,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3057184987,
+      "name": "Children's Park",
+      "lat": 6.6895699,
+      "lng": -1.6046016,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 3057192973,
+      "name": "Blue Gate",
+      "lat": 6.7097669,
+      "lng": -1.5262121,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3057209023,
+      "name": "Kejetia Junction",
+      "lat": 6.6972208,
+      "lng": -1.6216135,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3057219957,
+      "name": "Asafo Market",
+      "lat": 6.6892736,
+      "lng": -1.6155196,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3077261334,
+      "name": "Campus Shuttle- Start location",
+      "lat": 6.6752942,
+      "lng": -1.5675779,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821087815,
+      "name": "Conti Roundabout",
+      "lat": 6.6792032,
+      "lng": -1.5708295,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821087816,
+      "name": "Grasag bus stop",
+      "lat": 6.6785868,
+      "lng": -1.5702665,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099690,
+      "name": "Agric Stop",
+      "lat": 6.6774187,
+      "lng": -1.5673112,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099691,
+      "name": "Steps",
+      "lat": 6.6760699,
+      "lng": -1.5650284,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099692,
+      "name": "Ayeduase Gate",
+      "lat": 6.6756569,
+      "lng": -1.5636068,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099694,
+      "name": "Atta Mills junction",
+      "lat": 6.6758456,
+      "lng": -1.5622176,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099695,
+      "name": "Asore Junction",
+      "lat": 6.6759427,
+      "lng": -1.5612524,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 3821099697,
+      "name": "Ayeduase Junction",
+      "lat": 6.6759244,
+      "lng": -1.5589014,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 4741673124,
+      "name": "Anloga Junction",
+      "lat": 6.6885593,
+      "lng": -1.5970898,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 4937184135,
+      "name": null,
+      "lat": 6.6633428,
+      "lng": -1.6021404,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 4955246521,
+      "name": "Amangoase",
+      "lat": 6.6898698,
+      "lng": -1.559007,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6033118205,
+      "name": "Boadi",
+      "lat": 6.6923765,
+      "lng": -1.548971,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6036653073,
+      "name": "Indece",
+      "lat": 6.6770436,
+      "lng": -1.572417,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6342585061,
+      "name": "Conti",
+      "lat": 6.6792868,
+      "lng": -1.5728193,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6533664267,
+      "name": null,
+      "lat": 6.7598778,
+      "lng": -1.6453622,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6810514287,
+      "name": "Tech",
+      "lat": 6.6868858,
+      "lng": -1.5728956,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6810523215,
+      "name": "Anloga Junction",
+      "lat": 6.6888053,
+      "lng": -1.597546,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6936389387,
+      "name": null,
+      "lat": 6.6952881,
+      "lng": -1.6748314,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6938179355,
+      "name": "Top High",
+      "lat": 6.6871008,
+      "lng": -1.5784905,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6939558571,
+      "name": "Labour",
+      "lat": 6.6893211,
+      "lng": -1.6118642,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 7243620946,
+      "name": "Labour",
+      "lat": 6.6893446,
+      "lng": -1.6136926,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280735703,
+      "name": "Post Office",
+      "lat": 6.7224272,
+      "lng": -1.6331092,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280800707,
+      "name": "Mpatasie",
+      "lat": 6.7316057,
+      "lng": -1.6467335,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280811702,
+      "name": "Daavi",
+      "lat": 6.7230987,
+      "lng": -1.6386595,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280823727,
+      "name": "Theresa Junction",
+      "lat": 6.7295363,
+      "lng": -1.6446247,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280837557,
+      "name": "Station",
+      "lat": 6.7284883,
+      "lng": -1.6433604,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280837558,
+      "name": "Amangoase",
+      "lat": 6.727653,
+      "lng": -1.6427263,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280839344,
+      "name": "Post Office",
+      "lat": 6.7225625,
+      "lng": -1.633547,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280844504,
+      "name": "Polease",
+      "lat": 6.7245769,
+      "lng": -1.6412836,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8280846272,
+      "name": "Asuogya Junction",
+      "lat": 6.7263306,
+      "lng": -1.6422568,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8714824539,
+      "name": "Communication",
+      "lat": 6.7229229,
+      "lng": -1.636692,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 8714824540,
+      "name": "Ebenezer",
+      "lat": 6.7239598,
+      "lng": -1.6401292,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9765835514,
+      "name": null,
+      "lat": 6.6965836,
+      "lng": -1.6672868,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9948699153,
+      "name": "Chapel Bus Stop",
+      "lat": 6.684417,
+      "lng": -1.5727166,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9950703560,
+      "name": "Poolside",
+      "lat": 6.6838901,
+      "lng": -1.5702704,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9955639465,
+      "name": "Commercial Bus Stop",
+      "lat": 6.6827996,
+      "lng": -1.5769049,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10000675894,
+      "name": null,
+      "lat": 6.6775869,
+      "lng": -1.5733617,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10261203815,
+      "name": "Business School Bus Stop",
+      "lat": 6.6693173,
+      "lng": -1.5671584,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10278947376,
+      "name": "Pentecost Bus Stop",
+      "lat": 6.6745731,
+      "lng": -1.5675463,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10281594730,
+      "name": "CCB Bustop",
+      "lat": 6.6750567,
+      "lng": -1.5645962,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10295750396,
+      "name": null,
+      "lat": 6.6777959,
+      "lng": -1.5669117,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10295750397,
+      "name": null,
+      "lat": 6.6781366,
+      "lng": -1.566488,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10884351676,
+      "name": null,
+      "lat": 6.6912748,
+      "lng": -1.5539031,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10884358666,
+      "name": "Boadi Junction",
+      "lat": 6.6932946,
+      "lng": -1.5469907,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10884359091,
+      "name": null,
+      "lat": 6.7156984,
+      "lng": -1.5073696,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 11399022161,
+      "name": "Aprabon Station, Kumasi",
+      "lat": 6.6323651,
+      "lng": -1.5826007,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 2167621796,
+      "name": "Agogo Lorry Station",
+      "lat": 6.6528125,
+      "lng": -1.5864055,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4327137092,
+      "name": "VIP Bus Station",
+      "lat": 6.6862373,
+      "lng": -1.6148132,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4350177531,
+      "name": "VVIP Bus Station",
+      "lat": 6.688878,
+      "lng": -1.6171735,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4727389489,
+      "name": "Long Distance Trotro Station",
+      "lat": 6.6875038,
+      "lng": -1.6150787,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4881949999,
+      "name": "Africa Tours Trans",
+      "lat": 6.7014611,
+      "lng": -1.6153966,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4910910948,
+      "name": "Abinkyi",
+      "lat": 6.6800667,
+      "lng": -1.6155767,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4955246421,
+      "name": "Nsenie Last Stop",
+      "lat": 6.7001565,
+      "lng": -1.5507397,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5352978321,
+      "name": "Santasi bus station",
+      "lat": 6.6580289,
+      "lng": -1.6421468,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5355078621,
+      "name": "Pampaso station",
+      "lat": 6.69745,
+      "lng": -1.6242153,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5492999921,
+      "name": "Sofoline Trotro Station",
+      "lat": 6.6990042,
+      "lng": -1.6486529,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5643509522,
+      "name": "Suame taxi station",
+      "lat": 6.6994839,
+      "lng": -1.6183083,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5729989919,
+      "name": null,
+      "lat": 6.7369015,
+      "lng": -1.6122571,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5794606453,
+      "name": "Adishi",
+      "lat": 6.7038411,
+      "lng": -1.6251634,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5843872190,
+      "name": "Intercity STC Bus Terminal",
+      "lat": 6.6867973,
+      "lng": -1.6203474,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6036942061,
+      "name": "Kumasi - Accra",
+      "lat": 6.6900167,
+      "lng": -1.55666,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6082967243,
+      "name": "OA bus WA station",
+      "lat": 6.6964479,
+      "lng": -1.6077798,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6810538362,
+      "name": "Tamale",
+      "lat": 6.6975506,
+      "lng": -1.614215,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6848899585,
+      "name": "Sofoline - Atimatim, Mampong",
+      "lat": 6.6994488,
+      "lng": -1.650546,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 7194923687,
+      "name": "Busses to Techiman",
+      "lat": 6.7001196,
+      "lng": -1.6221656,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 7669779980,
+      "name": "Apeadu-Kokoben station",
+      "lat": 6.6654422,
+      "lng": -1.512557,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 8279114616,
+      "name": "Anomangye-Mpatasie Station",
+      "lat": 6.7029764,
+      "lng": -1.623887,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 10887564705,
+      "name": "ESP Transport",
+      "lat": 6.7031221,
+      "lng": -1.6244039,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 12556609495,
+      "name": "Siloam Junction",
+      "lat": 6.6980693,
+      "lng": -1.660416,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 12598212520,
+      "name": "Kejetia",
+      "lat": 6.698728,
+      "lng": -1.6234218,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 11398871096,
+      "name": "Ahodwo Taxi Station",
+      "lat": 6.6690834,
+      "lng": -1.6171704,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 7728589367,
+      "name": "Kaase",
+      "lat": 6.6464328,
+      "lng": -1.6124073,
       "type": "train_station"
     },
     {
-      "osm_id": 9937916700,
-      "name": "Tema Fishing Harbour Train Station",
-      "lat": 5.6446393,
-      "lng": 0.0115442,
-      "type": "train_station"
+      "osm_id": 5894876587,
+      "name": "Asuoyaa",
+      "lat": 6.0211719,
+      "lng": -0.2541132,
+      "type": "bus_stop"
     },
     {
-      "osm_id": 9937916704,
-      "name": "Tema Harbour Train Station",
-      "lat": 5.6312847,
-      "lng": 0.0018083,
-      "type": "train_station"
+      "osm_id": 5894876588,
+      "name": "Mile 50",
+      "lat": 6.0551311,
+      "lng": -0.2613572,
+      "type": "bus_stop"
     },
     {
-      "osm_id": 9937963686,
-      "name": "Asaprochona",
-      "lat": 5.6143974,
-      "lng": -0.055086,
-      "type": "train_station"
+      "osm_id": 5894876885,
+      "name": "Osubetor",
+      "lat": 6.0110586,
+      "lng": -0.2512134,
+      "type": "bus_stop"
     },
     {
-      "osm_id": 9937963687,
-      "name": "Baatsona",
-      "lat": 5.6198657,
-      "lng": -0.1196171,
-      "type": "train_station"
+      "osm_id": 6256637677,
+      "name": null,
+      "lat": 6.108035,
+      "lng": -0.2466867,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6270275333,
+      "name": null,
+      "lat": 6.0950723,
+      "lng": -0.2563637,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6288682513,
+      "name": "Protoa Station",
+      "lat": 6.0932845,
+      "lng": -0.2572712,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330496323,
+      "name": "Bus stop",
+      "lat": 6.0928747,
+      "lng": -0.258919,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6310950196,
+      "name": null,
+      "lat": 6.094563,
+      "lng": -0.2602379,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6310950266,
+      "name": "Bus stop",
+      "lat": 6.0977698,
+      "lng": -0.2625683,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6312188039,
+      "name": null,
+      "lat": 6.0787298,
+      "lng": -0.2500363,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6312188489,
+      "name": null,
+      "lat": 6.0793832,
+      "lng": -0.2501714,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6316768892,
+      "name": null,
+      "lat": 6.0971783,
+      "lng": -0.2549034,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330202980,
+      "name": null,
+      "lat": 6.0726401,
+      "lng": -0.2504753,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330208147,
+      "name": null,
+      "lat": 6.0719708,
+      "lng": -0.2507145,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330329326,
+      "name": null,
+      "lat": 6.1095683,
+      "lng": -0.2455207,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330338828,
+      "name": null,
+      "lat": 6.1120975,
+      "lng": -0.2424305,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330467056,
+      "name": null,
+      "lat": 6.089446,
+      "lng": -0.2559306,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330470258,
+      "name": null,
+      "lat": 6.0913911,
+      "lng": -0.2577653,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330472556,
+      "name": null,
+      "lat": 6.0853273,
+      "lng": -0.2509912,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330505927,
+      "name": null,
+      "lat": 6.0979836,
+      "lng": -0.2632714,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6330514596,
+      "name": null,
+      "lat": 6.1112262,
+      "lng": -0.2690583,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6331582183,
+      "name": null,
+      "lat": 6.106185,
+      "lng": -0.2477272,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6331584185,
+      "name": null,
+      "lat": 6.1057061,
+      "lng": -0.2478419,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6389450684,
+      "name": null,
+      "lat": 6.0703009,
+      "lng": -0.2506416,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6389454820,
+      "name": null,
+      "lat": 6.0847467,
+      "lng": -0.2583668,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6389455417,
+      "name": null,
+      "lat": 6.0789364,
+      "lng": -0.2595889,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6389456909,
+      "name": null,
+      "lat": 6.0783355,
+      "lng": -0.2565456,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6389457041,
+      "name": null,
+      "lat": 6.0784595,
+      "lng": -0.2577959,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6609203339,
+      "name": null,
+      "lat": 6.0917525,
+      "lng": -0.2710465,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6256524456,
+      "name": "Metro Mass Terminal",
+      "lat": 6.0942125,
+      "lng": -0.2575976,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6389554923,
+      "name": "Bus station",
+      "lat": 6.0928636,
+      "lng": -0.2595328,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 12197670785,
+      "name": "Koforidua",
+      "lat": 6.0914305,
+      "lng": -0.2632967,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 4941816208,
+      "name": null,
+      "lat": 4.9112704,
+      "lng": -1.7827818,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5046973346,
+      "name": null,
+      "lat": 4.9092743,
+      "lng": -1.7793608,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5091710960,
+      "name": null,
+      "lat": 4.9095271,
+      "lng": -1.7949982,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5331848743,
+      "name": null,
+      "lat": 4.9079616,
+      "lng": -1.7695284,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5702633575,
+      "name": null,
+      "lat": 4.9408351,
+      "lng": -1.7126316,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6282892365,
+      "name": "Effiakuma Bus stop",
+      "lat": 4.9207243,
+      "lng": -1.7664481,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6386023524,
+      "name": "Kwekuma",
+      "lat": 4.9315242,
+      "lng": -1.73888,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6721180037,
+      "name": "TTI",
+      "lat": 4.9173263,
+      "lng": -1.7686661,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6721193262,
+      "name": "Washing Bay",
+      "lat": 4.9300414,
+      "lng": -1.7633208,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6721194899,
+      "name": "Total",
+      "lat": 4.9023399,
+      "lng": -1.7674203,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6721518685,
+      "name": "Night Market",
+      "lat": 4.9257932,
+      "lng": -1.7645051,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6721538799,
+      "name": "Fijai",
+      "lat": 4.9391229,
+      "lng": -1.7547376,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6928157487,
+      "name": "Poultry Farm",
+      "lat": 4.8800465,
+      "lng": -1.79998,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9609527910,
+      "name": null,
+      "lat": 4.9033576,
+      "lng": -1.7532374,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9609544380,
+      "name": null,
+      "lat": 4.9026092,
+      "lng": -1.7606569,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9609546351,
+      "name": null,
+      "lat": 4.9102316,
+      "lng": -1.7530148,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9609552577,
+      "name": null,
+      "lat": 4.9086762,
+      "lng": -1.7787196,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9609553345,
+      "name": null,
+      "lat": 4.9154606,
+      "lng": -1.751097,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 9645381100,
+      "name": null,
+      "lat": 4.9337495,
+      "lng": -1.7790866,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10998362804,
+      "name": null,
+      "lat": 4.9299321,
+      "lng": -1.7806196,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10998405565,
+      "name": null,
+      "lat": 4.9516002,
+      "lng": -1.7601497,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 10998419014,
+      "name": null,
+      "lat": 4.9167541,
+      "lng": -1.791005,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 11768800069,
+      "name": "Road Worthy (Bilbesiktning)",
+      "lat": 4.9241734,
+      "lng": -1.7525006,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 2024377640,
+      "name": null,
+      "lat": 4.901403,
+      "lng": -1.7566007,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 3780917483,
+      "name": "Kwasimintsim Trotro Station",
+      "lat": 4.8982023,
+      "lng": -1.7620479,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 3782638071,
+      "name": "Sekondi Trotro Station",
+      "lat": 4.9009551,
+      "lng": -1.7579369,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 3783842675,
+      "name": "Takoradi-Old Accra Bus Station",
+      "lat": 4.8966687,
+      "lng": -1.7647155,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6205051924,
+      "name": "Tarkwa",
+      "lat": 4.8989762,
+      "lng": -1.7660701,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 4291858012,
+      "name": "Metro Mass Transit Takoradi",
+      "lat": 4.8959665,
+      "lng": -1.7645291,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4552168184,
+      "name": "Intercity STC, Takoradi",
+      "lat": 4.8948051,
+      "lng": -1.7648234,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 5831955487,
+      "name": "VIP bus terminal",
+      "lat": 4.9112387,
+      "lng": -1.7936255,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6720942975,
+      "name": "VVIP Kumasi",
+      "lat": 4.9121045,
+      "lng": -1.7929105,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 1812807615,
+      "name": "Takoradi",
+      "lat": 4.8826429,
+      "lng": -1.7495536,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1812807682,
+      "name": "New Takoradi",
+      "lat": 4.9046419,
+      "lng": -1.7478698,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 2145888391,
+      "name": "Ketan",
+      "lat": 4.9510165,
+      "lng": -1.7287742,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 4089915463,
+      "name": "Kojokrom",
+      "lat": 4.9635722,
+      "lng": -1.7247129,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 6244517712,
+      "name": "Bakado",
+      "lat": 4.9379368,
+      "lng": -1.7296011,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 6244529423,
+      "name": "Essaman",
+      "lat": 4.9237382,
+      "lng": -1.7369295,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 2024377637,
+      "name": "Market Circle Taxi Station",
+      "lat": 4.8972398,
+      "lng": -1.7612066,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 3780283857,
+      "name": "Habour Taxi Station",
+      "lat": 4.8964962,
+      "lng": -1.7589192,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 5676532969,
+      "name": "Secondi Station",
+      "lat": 4.9591661,
+      "lng": -1.7369315,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 30933315,
+      "name": null,
+      "lat": 9.4498916,
+      "lng": -0.845144,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 1799111092,
+      "name": "Jimli station",
+      "lat": 9.392959,
+      "lng": -0.8210208,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5250352164,
+      "name": null,
+      "lat": 9.4081707,
+      "lng": -0.8422176,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 5303556414,
+      "name": null,
+      "lat": 9.4135267,
+      "lng": -0.8608067,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6467379238,
+      "name": null,
+      "lat": 9.40052,
+      "lng": -0.8508398,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6467778925,
+      "name": "Jimli station",
+      "lat": 9.3938347,
+      "lng": -0.8224321,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 6476500008,
+      "name": null,
+      "lat": 9.3885676,
+      "lng": -0.8157295,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 7117592114,
+      "name": null,
+      "lat": 9.4042111,
+      "lng": -0.8537853,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 7117623329,
+      "name": null,
+      "lat": 9.4044812,
+      "lng": -0.8547777,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 11113089329,
+      "name": "VIP Bus Station",
+      "lat": 9.4125911,
+      "lng": -0.8419473,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 11935773966,
+      "name": "Kukuo Last stop",
+      "lat": 9.4008219,
+      "lng": -0.8183735,
+      "type": "bus_stop"
+    },
+    {
+      "osm_id": 31032416,
+      "name": "STC Station",
+      "lat": 9.4063192,
+      "lng": -0.8426672,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 1791481012,
+      "name": "Trotro Station",
+      "lat": 9.4066575,
+      "lng": -0.8432546,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 4741636453,
+      "name": "Real VVIP Bus Station",
+      "lat": 9.3973306,
+      "lng": -0.8456683,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 1836476554,
+      "name": "Metro Mass Bus Station",
+      "lat": 9.4068293,
+      "lng": -0.8481641,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6453192585,
+      "name": "A.Y. Station for Damongo",
+      "lat": 9.400751,
+      "lng": -0.8460296,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6467396590,
+      "name": "OA Travel",
+      "lat": 9.4073033,
+      "lng": -0.8473542,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6815860668,
+      "name": "VVIP Station",
+      "lat": 9.4064242,
+      "lng": -0.8610443,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 7119404941,
+      "name": "Bolgatanga",
+      "lat": 9.406953,
+      "lng": -0.8426828,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 7199959085,
+      "name": "VVIP Station",
+      "lat": 9.4027828,
+      "lng": -0.8411296,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 6478033777,
+      "name": "Neoplan MMT Yard",
+      "lat": 9.3843584,
+      "lng": -0.8621012,
+      "type": "trotro_stop"
+    },
+    {
+      "osm_id": 1791501046,
+      "name": "Main Taxi Rank",
+      "lat": 9.4037771,
+      "lng": -0.8418451,
+      "type": "taxi_rank"
     }
   ]
 }
