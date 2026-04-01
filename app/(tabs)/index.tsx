@@ -41,7 +41,8 @@ import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
-import { useRouteStopsMap } from '@/lib/hooks/useRouteStopsMap'
+import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
+import { haversineKm } from '@/lib/utils/distance'
 
 // Mapbox token set centrally in _layout.tsx
 
@@ -139,13 +140,20 @@ export default function HomeScreen() {
   const { stations } = useStations()
   const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
   const { incidents } = useActiveIncidents()
-  const { linesGeoJSON: trotroLinesGeoJSON, stopsGeoJSON: trotroStopsGeoJSON } = useRouteStopsMap()
+  const {
+    nearbyStopsGeoJSON,
+    getRoutesForStop,
+    getRouteLineGeoJSON,
+    getRouteStopsGeoJSON,
+  } = useNearbyRouteStops(location?.latitude ?? null, location?.longitude ?? null)
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
   const [serviceMode, setServiceMode] = useState<ServiceMode>('trotro')
   const [searchVisible, setSearchVisible] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
+  const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
+  const [currentZoom, setCurrentZoom] = useState(13)
 
   // Auto-request location permission on mount if not yet granted
   useEffect(() => {
@@ -179,9 +187,10 @@ export default function HomeScreen() {
     })),
   }), [incidents])
 
-  // Station pin data for PointAnnotations
+  // Filtered station pins — only train, active queues, and nearest 3 major stations
+  // (Progressive disclosure: don't dump every station on load)
   const stationPins = useMemo(() => {
-    return stations
+    const allPins = stations
       .map((station) => {
         const coords = getStationCoords(station)
         if (!coords) return null
@@ -195,6 +204,10 @@ export default function HomeScreen() {
         else if (hasQueue) pinType = 'queue'
         else if (station.is_major) pinType = 'major'
 
+        const distKm = location
+          ? haversineKm(location.latitude, location.longitude, coords.latitude, coords.longitude)
+          : null
+
         return {
           id: station.id,
           name: station.name,
@@ -202,6 +215,7 @@ export default function HomeScreen() {
           pinType,
           waitText,
           queueStatus: stat?.current_status,
+          distKm,
         }
       })
       .filter(Boolean) as Array<{
@@ -211,8 +225,21 @@ export default function HomeScreen() {
         pinType: StationPinType
         waitText: string
         queueStatus?: string
+        distKm: number | null
       }>
-  }, [stations])
+
+    // Always show: train stations + stations with active queues
+    const always = allPins.filter((p) => p.pinType === 'train' || p.pinType === 'queue')
+    const alwaysIds = new Set(always.map((p) => p.id))
+
+    // Add nearest 3 major stations (not already included)
+    const majors = allPins
+      .filter((p) => p.pinType === 'major' && !alwaysIds.has(p.id))
+      .sort((a, b) => (a.distKm ?? Infinity) - (b.distKm ?? Infinity))
+      .slice(0, 3)
+
+    return [...always, ...majors]
+  }, [stations, location])
 
   // Train route polylines (TMA = blue, TMP = sky)
   const trainLinesGeojson = useMemo(() => {
@@ -276,7 +303,16 @@ export default function HomeScreen() {
         logoEnabled={false}
         compassEnabled={false}
         scaleBarEnabled={false}
-        onPress={() => { if (selectedIncident) setSelectedIncident(null) }}
+        onCameraChanged={(state: any) => {
+          const zoom = state.properties?.zoom
+          if (zoom != null && Math.abs(zoom - currentZoom) > 0.5) {
+            setCurrentZoom(zoom)
+          }
+        }}
+        onPress={() => {
+          if (selectedIncident) setSelectedIncident(null)
+          if (selectedStop) setSelectedStop(null)
+        }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -294,14 +330,14 @@ export default function HomeScreen() {
           androidRenderMode="compass"
         />
 
-        {/* Train route lines — blue polylines */}
+        {/* ── Train route lines — subtle blue dashed polylines ── */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
           <Mapbox.LineLayer
             id="train-lines-layer"
             style={{
               lineColor: '#0ea5e9',
               lineWidth: 3,
-              lineOpacity: 0.6,
+              lineOpacity: 0.3,
               lineCap: 'round',
               lineJoin: 'round',
               lineDasharray: [2, 3],
@@ -309,56 +345,133 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* Trotro route lines — gold polylines from route_stops */}
-        <Mapbox.ShapeSource id="trotro-lines" shape={trotroLinesGeoJSON as any}>
-          <Mapbox.LineLayer
-            id="trotro-lines-glow"
-            style={{
-              lineColor: '#f8a010',
-              lineWidth: 5,
-              lineOpacity: 0.15,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }}
-          />
-          <Mapbox.LineLayer
-            id="trotro-lines-main"
-            style={{
-              lineColor: '#f8a010',
-              lineWidth: 2.5,
-              lineOpacity: 0.7,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }}
-          />
-        </Mapbox.ShapeSource>
+        {/* ── Selected stop route lines — only when a stop is tapped ── */}
+        {selectedStop && (
+          <Mapbox.ShapeSource
+            id="selected-route-lines"
+            shape={getRouteLineGeoJSON(selectedStop.routeIds) as any}
+          >
+            <Mapbox.LineLayer
+              id="selected-route-lines-glow"
+              style={{
+                lineColor: '#f8a010',
+                lineWidth: 6,
+                lineOpacity: 0.2,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+            <Mapbox.LineLayer
+              id="selected-route-lines-main"
+              style={{
+                lineColor: '#f8a010',
+                lineWidth: 3,
+                lineOpacity: 0.85,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
-        {/* Trotro stop dots along routes */}
-        <Mapbox.ShapeSource id="trotro-stops" shape={trotroStopsGeoJSON as any}>
+        {/* ── Selected stop's route stops — subtle dots along highlighted routes ── */}
+        {selectedStop && (
+          <Mapbox.ShapeSource
+            id="selected-route-stops"
+            shape={getRouteStopsGeoJSON(selectedStop.routeIds) as any}
+          >
+            <Mapbox.CircleLayer
+              id="selected-route-stops-intermediate"
+              filter={['==', ['get', 'isTerminal'], false]}
+              style={{
+                circleRadius: 3.5,
+                circleColor: '#fff',
+                circleStrokeColor: '#f8a010',
+                circleStrokeWidth: 1.5,
+                circleOpacity: 0.7,
+              }}
+            />
+            <Mapbox.CircleLayer
+              id="selected-route-stops-terminal"
+              filter={['==', ['get', 'isTerminal'], true]}
+              style={{
+                circleRadius: 6,
+                circleColor: '#f8a010',
+                circleStrokeColor: '#fff',
+                circleStrokeWidth: 2,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* ── Nearby trotro stops — clean 3-5 dots, progressive disclosure ── */}
+        <Mapbox.ShapeSource
+          id="nearby-stops"
+          shape={nearbyStopsGeoJSON as any}
+          hitbox={{ width: 44, height: 44 }}
+          onPress={(e: any) => {
+            const feature = e.features?.[0]
+            if (!feature?.properties?.name) return
+            const name = feature.properties.name
+            const coords = feature.geometry?.coordinates
+            const routeIds = getRoutesForStop(name)
+            setSelectedStop({
+              name,
+              latitude: coords[1],
+              longitude: coords[0],
+              routeIds,
+              distanceKm: feature.properties.distanceKm,
+            })
+            // Pan camera to tapped stop
+            if (coords && cameraRef.current) {
+              cameraRef.current.setCamera({
+                centerCoordinate: coords,
+                zoomLevel: 14,
+                animationDuration: 600,
+              })
+            }
+            bottomSheetRef.current?.snapToIndex(1)
+          }}
+        >
+          {/* Halo for nearest stop (rank 0) */}
           <Mapbox.CircleLayer
-            id="trotro-stops-intermediate"
-            filter={['==', ['get', 'isTerminal'], false]}
+            id="nearby-stops-halo"
+            filter={['==', ['get', 'rank'], 0]}
             style={{
-              circleRadius: 3,
-              circleColor: '#fff',
-              circleStrokeColor: '#f8a010',
-              circleStrokeWidth: 1.5,
-              circleOpacity: 0.8,
+              circleRadius: 18,
+              circleColor: '#f8a010',
+              circleOpacity: 0.12,
             }}
           />
+          {/* Stop dots — data-driven sizing by rank */}
           <Mapbox.CircleLayer
-            id="trotro-stops-terminal"
-            filter={['==', ['get', 'isTerminal'], true]}
+            id="nearby-stops-dots"
             style={{
-              circleRadius: 5,
+              circleRadius: ['match', ['get', 'rank'], 0, 9, 1, 7, 2, 6, 5],
               circleColor: '#f8a010',
               circleStrokeColor: '#fff',
-              circleStrokeWidth: 2,
+              circleStrokeWidth: ['match', ['get', 'rank'], 0, 3, 2],
+            }}
+          />
+          {/* Stop name labels */}
+          <Mapbox.SymbolLayer
+            id="nearby-stops-labels"
+            style={{
+              textField: ['get', 'name'],
+              textSize: ['match', ['get', 'rank'], 0, 13, 11],
+              textColor: isDark ? '#fafaf9' : '#1c1917',
+              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+              textHaloWidth: 1.5,
+              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              textOffset: [0, 1.6],
+              textAnchor: 'top',
+              textMaxWidth: 8,
+              textAllowOverlap: false,
             }}
           />
         </Mapbox.ShapeSource>
 
-        {/* All stations — Waze-style animated MarkerViews */}
+        {/* ── Filtered station pins — train + live queues + nearest majors ── */}
         {stationPins.map((pin) => (
           <Mapbox.MarkerView
             key={pin.id}
@@ -377,7 +490,7 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
-        {/* Incident markers — native Mapbox layers with clustering */}
+        {/* ── Incident markers — native Mapbox layers with clustering ── */}
         <Mapbox.ShapeSource
           id="incident-markers"
           shape={incidentGeojson}
@@ -388,7 +501,6 @@ export default function HomeScreen() {
           onPress={(e: any) => {
             const feature = e.features?.[0]
             if (!feature) return
-            // Cluster tap — zoom into it
             if (feature.properties?.cluster === true) {
               const coords = feature.geometry?.coordinates
               if (coords && cameraRef.current) {
@@ -400,14 +512,11 @@ export default function HomeScreen() {
               }
               return
             }
-            // Individual incident tap
             if (!feature.properties?.id) return
             const tapped = incidents.find((i) => i.id === feature.properties.id)
             if (tapped) setSelectedIncident(tapped)
           }}
         >
-          {/* ── Cluster layers ── */}
-          {/* Cluster halo */}
           <Mapbox.CircleLayer
             id="incident-cluster-halo"
             filter={['has', 'point_count']}
@@ -417,7 +526,6 @@ export default function HomeScreen() {
               circleOpacity: 0.12,
             }}
           />
-          {/* Cluster circle */}
           <Mapbox.CircleLayer
             id="incident-cluster-circle"
             filter={['has', 'point_count']}
@@ -429,7 +537,6 @@ export default function HomeScreen() {
               circleStrokeWidth: 2.5,
             }}
           />
-          {/* Cluster count label */}
           <Mapbox.SymbolLayer
             id="incident-cluster-count"
             filter={['has', 'point_count']}
@@ -441,9 +548,6 @@ export default function HomeScreen() {
               textAllowOverlap: true,
             }}
           />
-
-          {/* ── Individual incident layers (unclustered) ── */}
-          {/* Halo glow ring */}
           <Mapbox.CircleLayer
             id="incident-halo"
             filter={['!', ['has', 'point_count']]}
@@ -463,7 +567,6 @@ export default function HomeScreen() {
               circleOpacity: 0.15,
             }}
           />
-          {/* Main colored circle with white border */}
           <Mapbox.CircleLayer
             id="incident-main"
             filter={['!', ['has', 'point_count']]}
@@ -485,7 +588,6 @@ export default function HomeScreen() {
               circleStrokeWidth: 2.5,
             }}
           />
-          {/* Inner white dot */}
           <Mapbox.CircleLayer
             id="incident-inner"
             filter={['!', ['has', 'point_count']]}
@@ -495,7 +597,6 @@ export default function HomeScreen() {
               circleOpacity: 0.9,
             }}
           />
-          {/* "!" text label */}
           <Mapbox.SymbolLayer
             id="incident-label"
             filter={['!', ['has', 'point_count']]}
@@ -510,8 +611,6 @@ export default function HomeScreen() {
             }}
           />
         </Mapbox.ShapeSource>
-
-        {/* Incident callout handled by IncidentDetailSheet outside MapView */}
       </Mapbox.MapView>
 
       {/* ── Floating search bar + service pills ── */}
