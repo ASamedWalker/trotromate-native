@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import { haversineKm } from '@/lib/utils/distance'
 import type { RouteStop } from '@/lib/types'
 
-const MAX_NEARBY = 5
+const MAX_NEARBY = 12
 
 export interface NearbyStop {
   name: string
@@ -115,7 +115,7 @@ export function useNearbyRouteStops(
       if (result.length >= MAX_NEARBY) break
       const primaryRoute = stop.routeIds[0] ?? ''
       const hits = routeHits.get(primaryRoute) ?? 0
-      if (hits >= 2) continue
+      if (hits >= 3) continue
       routeHits.set(primaryRoute, hits + 1)
       result.push(stop)
     }
