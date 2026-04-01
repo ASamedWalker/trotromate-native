@@ -42,6 +42,7 @@ import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
+import { useTransportStops } from '@/lib/hooks/useTransportStops'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 
 // Mapbox token set centrally in _layout.tsx
@@ -146,6 +147,7 @@ export default function HomeScreen() {
     getRouteLineGeoJSON,
     getRouteStopsGeoJSON,
   } = useNearbyRouteStops(location?.latitude ?? null, location?.longitude ?? null)
+  const { geojson: osmStopsGeoJSON } = useTransportStops()
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
@@ -325,6 +327,44 @@ export default function HomeScreen() {
               lineCap: 'round',
               lineJoin: 'round',
               lineDasharray: [2, 3],
+            }}
+          />
+        </Mapbox.ShapeSource>
+
+        {/* ── OSM transport stops — 2,300+ stops from OpenStreetMap ── */}
+        <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
+          {/* Small dots visible at zoom 12+ */}
+          <Mapbox.CircleLayer
+            id="osm-stops-dots"
+            minZoomLevel={12}
+            style={{
+              circleRadius: ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 5],
+              circleColor: ['match', ['get', 'type'],
+                'lorry_park', '#8b5cf6',
+                'taxi_rank', '#06b6d4',
+                'train_station', '#7c3aed',
+                '#94a3b8', // bus_stop — subtle gray
+              ],
+              circleStrokeColor: '#fff',
+              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 1.5],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0.4, 14, 0.7, 16, 0.9],
+            }}
+          />
+          {/* Name labels at zoom 14+ */}
+          <Mapbox.SymbolLayer
+            id="osm-stops-labels"
+            minZoomLevel={14}
+            style={{
+              textField: ['get', 'name'],
+              textSize: ['interpolate', ['linear'], ['zoom'], 14, 9, 16, 11],
+              textColor: isDark ? '#d6d3d1' : '#57534e',
+              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+              textHaloWidth: 1.2,
+              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              textOffset: [0, 1.2],
+              textAnchor: 'top',
+              textMaxWidth: 7,
+              textAllowOverlap: false,
             }}
           />
         </Mapbox.ShapeSource>
