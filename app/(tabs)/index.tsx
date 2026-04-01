@@ -45,6 +45,7 @@ import { useQuery } from '@tanstack/react-query'
 import { X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
 import { useTransportStops } from '@/lib/hooks/useTransportStops'
+import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import type { RouteWithStats } from '@/lib/types'
@@ -294,6 +295,7 @@ export default function HomeScreen() {
     getRouteStopsGeoJSON,
   } = useNearbyRouteStops(location?.latitude ?? null, location?.longitude ?? null)
   const { geojson: osmStopsGeoJSON } = useTransportStops()
+  const { geojson: railwayLinesGeoJSON } = useRailwayLines()
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
@@ -482,7 +484,22 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* ── OSM transport stops — 2,300+ stops from OpenStreetMap ── */}
+        {/* ── OSM railway lines — Takoradi-Awaso + Dunkwa-Kumasi corridors ── */}
+        <Mapbox.ShapeSource id="railway-lines" shape={railwayLinesGeoJSON as any}>
+          <Mapbox.LineLayer
+            id="railway-lines-layer"
+            style={{
+              lineColor: '#0ea5e9',
+              lineWidth: ['interpolate', ['linear'], ['zoom'], 8, 1.5, 12, 3, 16, 5],
+              lineOpacity: ['interpolate', ['linear'], ['zoom'], 8, 0.15, 11, 0.3, 14, 0.5, 16, 0.7],
+              lineCap: 'round',
+              lineJoin: 'round',
+              lineDasharray: [2, 3],
+            }}
+          />
+        </Mapbox.ShapeSource>
+
+        {/* ── OSM transport stops — 2,500+ stops from OpenStreetMap ── */}
         <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
           {/* Small dots visible at zoom 12+ */}
           <Mapbox.CircleLayer
