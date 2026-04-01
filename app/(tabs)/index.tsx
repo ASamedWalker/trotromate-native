@@ -322,8 +322,8 @@ export default function HomeScreen() {
             id="train-lines-layer"
             style={{
               lineColor: '#0ea5e9',
-              lineWidth: 3,
-              lineOpacity: 0.3,
+              lineWidth: ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 4],
+              lineOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.2, 13, 0.4, 16, 0.7],
               lineCap: 'round',
               lineJoin: 'round',
               lineDasharray: [2, 3],
@@ -457,32 +457,41 @@ export default function HomeScreen() {
             bottomSheetRef.current?.snapToIndex(1)
           }}
         >
-          {/* Halo for nearest stop (rank 0) */}
+          {/* Halo for nearest stop (rank 0) — visible at zoom 11+ */}
           <Mapbox.CircleLayer
             id="nearby-stops-halo"
+            minZoomLevel={11}
             filter={['==', ['get', 'rank'], 0]}
             style={{
-              circleRadius: 18,
+              circleRadius: ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 18],
               circleColor: '#f8a010',
-              circleOpacity: 0.12,
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 11, 0.06, 14, 0.12],
             }}
           />
-          {/* Stop dots — data-driven sizing by rank */}
+          {/* Stop dots — visible at zoom 11+, grow with zoom */}
           <Mapbox.CircleLayer
             id="nearby-stops-dots"
+            minZoomLevel={11}
             style={{
-              circleRadius: ['match', ['get', 'rank'], 0, 9, 1, 7, 2, 6, 5],
+              circleRadius: ['interpolate', ['linear'], ['zoom'],
+                11, ['match', ['get', 'rank'], 0, 5, 1, 4, 3],
+                14, ['match', ['get', 'rank'], 0, 9, 1, 7, 2, 6, 5],
+              ],
               circleColor: '#f8a010',
               circleStrokeColor: '#fff',
-              circleStrokeWidth: ['match', ['get', 'rank'], 0, 3, 2],
+              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 11, 1, 14, ['match', ['get', 'rank'], 0, 3, 2]],
             }}
           />
-          {/* Stop name labels */}
+          {/* Stop name labels — only at zoom 13+ */}
           <Mapbox.SymbolLayer
             id="nearby-stops-labels"
+            minZoomLevel={13}
             style={{
               textField: ['get', 'name'],
-              textSize: ['match', ['get', 'rank'], 0, 13, 11],
+              textSize: ['interpolate', ['linear'], ['zoom'],
+                13, ['match', ['get', 'rank'], 0, 11, 9],
+                16, ['match', ['get', 'rank'], 0, 14, 12],
+              ],
               textColor: isDark ? '#fafaf9' : '#1c1917',
               textHaloColor: isDark ? '#0c0a09' : '#ffffff',
               textHaloWidth: 1.5,
@@ -495,8 +504,10 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* ── Filtered station pins — train + live queues + nearest majors ── */}
-        {stationPins.map((pin) => (
+        {/* ── Station pins — zoom-aware: train always, others at zoom 12+ ── */}
+        {stationPins
+          .filter((pin) => pin.pinType === 'train' || pin.pinType === 'queue' || currentZoom >= 12)
+          .map((pin) => (
           <Mapbox.MarkerView
             key={pin.id}
             coordinate={pin.coordinate}
