@@ -19,8 +19,7 @@ import { RouteInfoCard } from '@/components/stations/RouteInfoCard'
 import type { SortTab } from '@/components/stations/SortTabs'
 import type { StationWithQueue } from '@/lib/services/stations'
 
-// Public token for map rendering
-Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+// Mapbox token set centrally in _layout.tsx
 
 type QueueStatus = 'empty' | 'short' | 'moderate' | 'long' | 'very_long'
 

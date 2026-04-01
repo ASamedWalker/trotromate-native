@@ -36,7 +36,7 @@ import { c, font } from '@/lib/theme'
 import { getGhanaTime } from '@/lib/utils/time'
 import { TrainTimeline } from '@/components/TrainTimeline'
 
-Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+// Mapbox token set centrally in _layout.tsx
 import { TRAIN_SCHEDULES, type ScheduleStop } from '@/lib/constants/train-schedule'
 import { useTrip, type CompletedTripResult } from '@/lib/hooks/useTrip'
 import { useLocation } from '@/lib/hooks/useLocation'

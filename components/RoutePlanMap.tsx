@@ -12,7 +12,7 @@ import Mapbox from '@rnmapbox/maps'
 import { c, themed, font } from '@/lib/theme'
 import type { TransferPlan } from '@/lib/services/route-planner'
 
-Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+// Mapbox token set centrally in _layout.tsx
 
 const MAP_HEIGHT = 220
 

@@ -29,7 +29,11 @@ import AppErrorBoundary from '@/components/AppErrorBoundary'
 import { useAppUpdate } from '@/lib/hooks/useAppUpdate'
 import StoreUpdateModal from '@/components/StoreUpdateModal'
 
+import Mapbox from '@rnmapbox/maps'
 import '../global.css'
+
+// Centralized Mapbox init — must happen ONCE, early, before any MapView renders
+Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
 
 export { ErrorBoundary } from 'expo-router'
 

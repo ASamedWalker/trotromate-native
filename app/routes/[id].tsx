@@ -390,7 +390,7 @@ export default function RouteDetailScreen() {
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 16 }} />
       </ScrollView>
 
       {/* GPRTU Info Modal */}
@@ -846,7 +846,7 @@ const getStyles = (isDark: boolean) => {
     // ── GPRTU Bulletins ──
     bulletinSection: {
       paddingHorizontal: 24,
-      paddingTop: 28,
+      paddingTop: 16,
       gap: 12,
     },
     bulletinHeader: {

@@ -43,7 +43,7 @@ import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 import { useRouteStopsMap } from '@/lib/hooks/useRouteStopsMap'
 
-Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+// Mapbox token set centrally in _layout.tsx
 
 /* ── Constants ─────────────────────────────────────── */
 
@@ -147,6 +147,14 @@ export default function HomeScreen() {
   const [searchVisible, setSearchVisible] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
 
+  // Auto-request location permission on mount if not yet granted
+  useEffect(() => {
+    if (!locationGranted) {
+      requestLocationPermission()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reactive center — updates when user location arrives
   const center: [number, number] = location
     ? [location.longitude, location.latitude]
     : ACCRA_CENTER
@@ -272,10 +280,11 @@ export default function HomeScreen() {
       >
         <Mapbox.Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: center,
-            zoomLevel: 13,
-          }}
+          centerCoordinate={center}
+          zoomLevel={13}
+          animationMode="flyTo"
+          animationDuration={0}
+          triggerKey={center.join(',')}
         />
 
         <Mapbox.UserLocation

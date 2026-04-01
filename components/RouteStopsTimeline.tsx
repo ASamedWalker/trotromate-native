@@ -1,8 +1,10 @@
-import React from 'react'
-import { View, Text, StyleSheet, useColorScheme } from 'react-native'
-import { MapPin, Navigation } from 'lucide-react-native'
+import React, { useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native'
+import { MapPin, Navigation, ChevronUp } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import type { RouteStop } from '@/lib/types'
+
+const COLLAPSED_LIMIT = 5 // Show first stop, last stop, and 3 intermediate
 
 interface Props {
   stops: RouteStop[]
@@ -12,11 +14,19 @@ interface Props {
 export function RouteStopsTimeline({ stops, accentColor = '#815100' }: Props) {
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark, accentColor)
+  const [expanded, setExpanded] = useState(false)
 
   if (!stops || stops.length < 2) return null
 
   const terminalStops = stops.filter(s => s.is_terminal)
   const intermediateCount = stops.length - terminalStops.length
+  const canCollapse = stops.length > COLLAPSED_LIMIT
+
+  // When collapsed: show first 2 stops, then "... X more stops", then last 2
+  const visibleStops = canCollapse && !expanded
+    ? [...stops.slice(0, 3), ...stops.slice(-2)]
+    : stops
+  const hiddenCount = canCollapse && !expanded ? stops.length - 5 : 0
 
   return (
     <View style={s.container}>
@@ -34,59 +44,91 @@ export function RouteStopsTimeline({ stops, accentColor = '#815100' }: Props) {
       </View>
 
       {/* Timeline */}
-      {stops.map((stop, i) => {
-        const isFirst = i === 0
-        const isLast = i === stops.length - 1
+      {visibleStops.map((stop, i) => {
+        const realIndex = canCollapse && !expanded && i >= 3 ? stops.length - (5 - i) : i
+        const isFirst = realIndex === 0
+        const isLast = realIndex === stops.length - 1
         const isTerminal = stop.is_terminal
+        const showDivider = canCollapse && !expanded && i === 3
 
         return (
-          <View key={`${stop.stop_order}-${stop.stop_name}`} style={s.row}>
-            {/* Track column */}
-            <View style={s.trackColumn}>
-              {/* Top segment */}
-              {!isFirst && <View style={s.trackSegment} />}
-
-              {/* Dot */}
-              {isTerminal ? (
-                <View style={[s.dotTerminal, { backgroundColor: accentColor }]}>
-                  <MapPin size={10} color="#fff" />
+          <React.Fragment key={`${stop.stop_order}-${stop.stop_name}`}>
+            {/* "X more stops" divider between collapsed halves */}
+            {showDivider && (
+              <TouchableOpacity style={s.moreRow} onPress={() => setExpanded(true)} activeOpacity={0.7}>
+                <View style={s.trackColumn}>
+                  <View style={s.trackSegment} />
+                  <View style={s.moreDots}>
+                    <View style={[s.moreDot, { backgroundColor: accentColor + '40' }]} />
+                    <View style={[s.moreDot, { backgroundColor: accentColor + '40' }]} />
+                    <View style={[s.moreDot, { backgroundColor: accentColor + '40' }]} />
+                  </View>
+                  <View style={s.trackSegment} />
                 </View>
-              ) : (
-                <View style={s.dotIntermediate}>
-                  <View style={[s.dotInner, { backgroundColor: accentColor + '60' }]} />
+                <View style={s.stopInfo}>
+                  <Text style={[s.moreText, { color: accentColor }]}>
+                    +{hiddenCount} more stops
+                  </Text>
                 </View>
-              )}
+              </TouchableOpacity>
+            )}
 
-              {/* Bottom segment */}
-              {!isLast && <View style={s.trackSegment} />}
-            </View>
+            <View style={s.row}>
+              {/* Track column */}
+              <View style={s.trackColumn}>
+                {/* Top segment */}
+                {!isFirst && <View style={s.trackSegment} />}
 
-            {/* Stop info */}
-            <View style={[s.stopInfo, isTerminal && s.stopInfoTerminal]}>
-              <Text
-                style={[s.stopName, isTerminal && s.stopNameTerminal]}
-                numberOfLines={1}
-              >
-                {stop.stop_name}
-              </Text>
+                {/* Dot */}
+                {isTerminal ? (
+                  <View style={[s.dotTerminal, { backgroundColor: accentColor }]}>
+                    <MapPin size={10} color="#fff" />
+                  </View>
+                ) : (
+                  <View style={s.dotIntermediate}>
+                    <View style={[s.dotInner, { backgroundColor: accentColor + '60' }]} />
+                  </View>
+                )}
 
-              {/* Distance + duration */}
-              {stop.distance_from_origin_km != null && stop.distance_from_origin_km > 0 && (
-                <Text style={s.meta}>
-                  {stop.distance_from_origin_km.toFixed(1)} km
-                  {stop.duration_from_origin_mins != null && stop.duration_from_origin_mins > 0
-                    ? ` · ~${stop.duration_from_origin_mins} min`
-                    : ''
-                  }
+                {/* Bottom segment */}
+                {!isLast && <View style={s.trackSegment} />}
+              </View>
+
+              {/* Stop info */}
+              <View style={[s.stopInfo, isTerminal && s.stopInfoTerminal]}>
+                <Text
+                  style={[s.stopName, isTerminal && s.stopNameTerminal]}
+                  numberOfLines={1}
+                >
+                  {stop.stop_name}
                 </Text>
-              )}
 
-              {isFirst && <Text style={s.terminalLabel}>BOARD HERE</Text>}
-              {isLast && <Text style={s.terminalLabel}>ALIGHT HERE</Text>}
+                {/* Distance + duration */}
+                {stop.distance_from_origin_km != null && stop.distance_from_origin_km > 0 && (
+                  <Text style={s.meta}>
+                    {stop.distance_from_origin_km.toFixed(1)} km
+                    {stop.duration_from_origin_mins != null && stop.duration_from_origin_mins > 0
+                      ? ` · ~${stop.duration_from_origin_mins} min`
+                      : ''
+                    }
+                  </Text>
+                )}
+
+                {isFirst && <Text style={s.terminalLabel}>BOARD HERE</Text>}
+                {isLast && <Text style={s.terminalLabel}>ALIGHT HERE</Text>}
+              </View>
             </View>
-          </View>
+          </React.Fragment>
         )
       })}
+
+      {/* Show less button when expanded */}
+      {canCollapse && expanded && (
+        <TouchableOpacity style={s.toggleBtn} onPress={() => setExpanded(false)} activeOpacity={0.7}>
+          <ChevronUp size={14} color={accentColor} />
+          <Text style={[s.toggleText, { color: accentColor }]}>Show less</Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 }
@@ -188,6 +230,38 @@ const getStyles = (isDark: boolean, accent: string) => {
       color: accent,
       letterSpacing: 1.5,
       marginTop: 2,
+    },
+
+    moreRow: {
+      flexDirection: 'row' as const,
+      minHeight: 36,
+    },
+    moreDots: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 3,
+      paddingVertical: 2,
+    },
+    moreDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+    },
+    moreText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+    },
+    toggleBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 4,
+      marginTop: 8,
+      paddingVertical: 6,
+    },
+    toggleText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
     },
   })
 }
