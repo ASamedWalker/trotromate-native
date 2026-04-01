@@ -24,7 +24,7 @@ const QUEUE_COLORS: Record<QueueStatus, string> = {
 function getColor(type: StationPinType, queueStatus?: QueueStatus): string {
   if (type === 'queue' && queueStatus) return QUEUE_COLORS[queueStatus]
   if (type === 'train') return '#7c3aed' // Purple like Mapcarta
-  return '#f59e0b' // Amber for trotro/major
+  return '#2563eb' // Blue for trotro/major — distinct from gold route stop dots
 }
 
 const ICON_SIZE = 14
