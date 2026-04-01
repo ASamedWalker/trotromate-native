@@ -216,7 +216,7 @@ export default function TripScreen() {
       { id: toStation?.id ?? 'dest', name: route.to_location, ...toCoords },
       stationsWithCoords,
     )
-  }, [isTrain, trainStations, line, route, allStations])
+  }, [isTrain, allLineStations, selectedOriginIdx, selectedDestIdx, route, allStations])
 
   // Route label for display (includes selected stations for train)
   const routeLabel = useMemo(() => {
