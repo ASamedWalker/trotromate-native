@@ -63,6 +63,14 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
       vibrationPattern: [0, 500, 200, 500],
       lightColor: '#f59e0b',
     })
+    await Notifications.setNotificationChannelAsync('go-mode', {
+      name: 'GO Mode Trip Tracking',
+      description: 'Live trip progress updates during GO Mode',
+      importance: Notifications.AndroidImportance.LOW,
+      vibrationPattern: [],
+      lightColor: '#f59e0b',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    })
   }
 
   try {

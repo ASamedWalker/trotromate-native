@@ -10,6 +10,7 @@ import {
   type TripProgress,
 } from '@/lib/services/trip'
 import { buildCompletedTrip, saveCompletedTrip, type CompletedTripPayload } from '@/lib/services/trips'
+import { startTripActivity, updateTripActivity, endTripActivity } from '@/lib/services/liveActivity'
 
 const TRIP_STORAGE_KEY = '@troski_active_trip'
 const BACKGROUND_TASK = 'TROSKI_TRIP_TRACKING'
@@ -86,6 +87,10 @@ TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
       })
       await AsyncStorage.removeItem(TRIP_STORAGE_KEY)
       await Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {})
+      await endTripActivity().catch(() => {})
+    } else {
+      // Update Live Activity with latest progress from background
+      await updateTripActivity(trip, progress).catch(() => {})
     }
   } catch {
     // silent
@@ -136,6 +141,9 @@ export function useTrip(): UseTripReturn {
       })
       prevProgressRef.current = p.progressPercent
       setProgress(p)
+
+      // Update Live Activity / Android notification with new progress
+      updateTripActivity(trip, p).catch(() => {})
 
       if (p.shouldAlertGetOff && !hasAlerted.current) {
         hasAlerted.current = true
@@ -218,6 +226,9 @@ export function useTrip(): UseTripReturn {
       // Persist for background task
       await AsyncStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(trip))
 
+      // Start Live Activity (iOS) / rich notification (Android)
+      startTripActivity(trip).catch(() => {})
+
       // Start foreground tracking
       startWatching(handleLocationUpdate, 8000)
 
@@ -262,6 +273,9 @@ export function useTrip(): UseTripReturn {
     stopWatching()
     AsyncStorage.removeItem(TRIP_STORAGE_KEY)
     Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {})
+
+    // End Live Activity / dismiss Android notification
+    endTripActivity().catch(() => {})
 
     // Persist trip data to Supabase
     if (trip && deviceId && trip.stations.length >= 2) {
