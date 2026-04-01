@@ -244,19 +244,7 @@ export default function HomeScreen() {
   }, [center])
 
   const handleModeChange = useCallback((mode: ServiceMode) => {
-    if (mode === 'go') {
-      if (activeTrip) {
-        router.push({
-          pathname: '/trip/[routeId]',
-          params: {
-            routeId: activeTrip.routeId,
-            ...(activeTrip.transportType === 'train' ? { type: 'train', lineId: activeTrip.trainLineId ?? activeTrip.routeId } : {}),
-          },
-        } as Href)
-      } else {
-        router.push('/train')
-      }
-    } else if (mode === 'train') {
+    if (mode === 'train') {
       router.push('/train')
     } else if (mode === 'tales') {
       router.push('/(tabs)/tales' as Href)
@@ -264,7 +252,7 @@ export default function HomeScreen() {
       // Only persist mode for trotro (the home tab) — others navigate away
       setServiceMode(mode)
     }
-  }, [activeTrip, router])
+  }, [router])
 
   return (
     <View style={s.container}>
@@ -494,7 +482,6 @@ export default function HomeScreen() {
         <ServiceModePills
           activeMode={serviceMode}
           onModeChange={handleModeChange}
-          hasActiveTrip={tripState !== 'idle'}
         />
       </SafeAreaView>
 
