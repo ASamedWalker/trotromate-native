@@ -43,7 +43,6 @@ import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
-import { haversineKm } from '@/lib/utils/distance'
 
 // Mapbox token set centrally in _layout.tsx
 
@@ -188,10 +187,9 @@ export default function HomeScreen() {
     })),
   }), [incidents])
 
-  // Filtered station pins — only train, active queues, and nearest 3 major stations
-  // (Progressive disclosure: don't dump every station on load)
+  // All stations with valid coordinates — Mapcarta-style pins
   const stationPins = useMemo(() => {
-    const allPins = stations
+    return stations
       .map((station) => {
         const coords = getStationCoords(station)
         if (!coords) return null
@@ -205,10 +203,6 @@ export default function HomeScreen() {
         else if (hasQueue) pinType = 'queue'
         else if (station.is_major) pinType = 'major'
 
-        const distKm = location
-          ? haversineKm(location.latitude, location.longitude, coords.latitude, coords.longitude)
-          : null
-
         return {
           id: station.id,
           name: station.name,
@@ -216,7 +210,6 @@ export default function HomeScreen() {
           pinType,
           waitText,
           queueStatus: stat?.current_status,
-          distKm,
         }
       })
       .filter(Boolean) as Array<{
@@ -226,21 +219,8 @@ export default function HomeScreen() {
         pinType: StationPinType
         waitText: string
         queueStatus?: string
-        distKm: number | null
       }>
-
-    // Always show: train stations + stations with active queues
-    const always = allPins.filter((p) => p.pinType === 'train' || p.pinType === 'queue')
-    const alwaysIds = new Set(always.map((p) => p.id))
-
-    // Add nearest 8 major stations (not already included)
-    const majors = allPins
-      .filter((p) => p.pinType === 'major' && !alwaysIds.has(p.id))
-      .sort((a, b) => (a.distKm ?? Infinity) - (b.distKm ?? Infinity))
-      .slice(0, 8)
-
-    return [...always, ...majors]
-  }, [stations, location])
+  }, [stations])
 
   // Train route polylines (TMA = blue, TMP = sky)
   const trainLinesGeojson = useMemo(() => {
