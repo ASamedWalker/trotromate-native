@@ -1,5 +1,6 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, Platform } from 'react-native'
+import { BusFront, TrainFront, Users } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import type { QueueStatus } from '@/lib/services/stations'
 
@@ -20,16 +21,17 @@ const QUEUE_COLORS: Record<QueueStatus, string> = {
   very_long: '#ef4444',
 }
 
-const TYPE_CONFIG: Record<StationPinType, { color: string; size: number; emoji: string }> = {
-  trotro: { color: '#f59e0b', size: 10, emoji: '' },
-  train: { color: '#0ea5e9', size: 12, emoji: '🚆' },
-  major: { color: '#f59e0b', size: 12, emoji: '' },
-  queue: { color: '#f59e0b', size: 12, emoji: '' },
+function getColor(type: StationPinType, queueStatus?: QueueStatus): string {
+  if (type === 'queue' && queueStatus) return QUEUE_COLORS[queueStatus]
+  if (type === 'train') return '#7c3aed' // Purple like Mapcarta
+  return '#f59e0b' // Amber for trotro/major
 }
 
+const ICON_SIZE = 14
+
 /**
- * Compact station pin — small colored dot with optional label.
- * Designed to not block nearby route stop dots.
+ * Mapcarta-style station pin — colored circle with white icon inside.
+ * Visually distinct from route stop dots (small gold circles).
  */
 export const StationMapPin = React.memo(function StationMapPin({
   type,
@@ -37,51 +39,27 @@ export const StationMapPin = React.memo(function StationMapPin({
   waitText,
   queueStatus,
 }: StationMapPinProps) {
-  const config = TYPE_CONFIG[type]
-  const color = type === 'queue' && queueStatus ? QUEUE_COLORS[queueStatus] : config.color
-  const sz = config.size
+  const color = getColor(type, queueStatus)
+
+  const Icon =
+    type === 'train' ? TrainFront :
+    type === 'queue' ? Users :
+    BusFront
 
   return (
     <View style={s.container}>
-      {/* Outer glow ring for train/queue */}
-      {(type === 'train' || type === 'queue') && (
-        <View
-          style={[
-            s.glowRing,
-            {
-              width: sz + 10,
-              height: sz + 10,
-              borderRadius: (sz + 10) / 2,
-              backgroundColor: color,
-            },
-          ]}
-        />
-      )}
-
-      {/* Main dot */}
-      <View
-        style={[
-          s.dot,
-          {
-            width: sz,
-            height: sz,
-            borderRadius: sz / 2,
-            backgroundColor: color,
-            borderWidth: type === 'train' ? 2 : 1.5,
-          },
-        ]}
-      >
-        {type === 'train' && <Text style={s.trainIcon}>🚆</Text>}
+      {/* Colored circle with white icon */}
+      <View style={[s.badge, { backgroundColor: color }]}>
+        <Icon size={ICON_SIZE} color="#fff" strokeWidth={2.5} />
       </View>
 
-      {/* Label — only for train and queue (high-value info) */}
-      {(type === 'train' || type === 'queue' || type === 'major') && (
-        <Text style={[s.label, { color }]} numberOfLines={1}>
-          {name}
-        </Text>
-      )}
+      {/* Pointer triangle */}
+      <View style={[s.pointer, { borderTopColor: color }]} />
 
-      {/* Wait time chip for queue stations */}
+      {/* Station name */}
+      <Text style={s.label} numberOfLines={1}>{name}</Text>
+
+      {/* Wait time for queue */}
       {type === 'queue' && waitText ? (
         <View style={[s.waitChip, { backgroundColor: color }]}>
           <Text style={s.waitText}>{waitText}</Text>
@@ -91,44 +69,56 @@ export const StationMapPin = React.memo(function StationMapPin({
   )
 })
 
+const BADGE_SIZE = 28
+
 const s = StyleSheet.create({
   container: {
     alignItems: 'center',
-    width: 70,
+    width: 76,
   },
-  glowRing: {
-    position: 'absolute',
-    top: 0,
-    opacity: 0.15,
-  },
-  dot: {
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
+  badge: {
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: BADGE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#fff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: { elevation: 6 },
+    }),
   },
-  trainIcon: {
-    fontSize: 6,
-    lineHeight: 10,
+  pointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -1,
   },
   label: {
-    marginTop: 2,
+    marginTop: 1,
     fontSize: 9,
     fontFamily: font.semibold,
+    color: '#374151',
     textAlign: 'center',
-    maxWidth: 68,
+    maxWidth: 74,
     textShadowColor: 'rgba(255,255,255,0.95)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
   },
   waitChip: {
     marginTop: 1,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 6,
   },
   waitText: {
