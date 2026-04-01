@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import { haversineKm } from '@/lib/utils/distance'
 import type { RouteStop } from '@/lib/types'
 
-const MAX_NEARBY = 12
+const MAX_NEARBY = 25
 
 export interface NearbyStop {
   name: string
@@ -107,19 +107,7 @@ export function useNearbyRouteStops(
       all.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
     }
 
-    // Diversify: max 2 stops whose primary route is the same
-    // Prevents all 5 dots lining up on a single route corridor
-    const result: NearbyStop[] = []
-    const routeHits = new Map<string, number>()
-    for (const stop of all) {
-      if (result.length >= MAX_NEARBY) break
-      const primaryRoute = stop.routeIds[0] ?? ''
-      const hits = routeHits.get(primaryRoute) ?? 0
-      if (hits >= 3) continue
-      routeHits.set(primaryRoute, hits + 1)
-      result.push(stop)
-    }
-    return result
+    return all.slice(0, MAX_NEARBY)
   }, [stopIndex, userLat, userLng])
 
   // GeoJSON for nearby stops with rank for data-driven styling
