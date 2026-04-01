@@ -455,51 +455,48 @@ export default function TripScreen() {
 
   useEffect(() => {
     if (!isActive) return
+    const stationCount = tripStations?.length ?? 0
+    if (stationCount < 2) return
 
-    // Build dwell time map from schedule (in seconds)
-    const dwellMap = new Map<number, number>() // stationIndex → dwell seconds
+    const segments = stationCount - 1
+    // Each segment takes ~8 seconds (4 ticks × 2s), so a 2-stop trip ≈ 8s, 8-stop ≈ 56s
+    const ticksPerSegment = 4
+    const totalTicks = segments * ticksPerSegment
+
+    // Build dwell time map from schedule
+    const dwellMap = new Map<number, number>()
     if (activeSchedule && tripStations) {
-      for (let i = 0; i < tripStations.length; i++) {
+      for (let i = 0; i < stationCount; i++) {
         const sched = activeSchedule.stopMap.get(tripStations[i].name.toLowerCase())
         if (sched?.arrive && sched?.depart) {
           const [aH, aM] = sched.arrive.split(':').map(Number)
           const [dH, dM] = sched.depart.split(':').map(Number)
           const dwellMins = (dH * 60 + dM) - (aH * 60 + aM)
-          if (dwellMins > 0) {
-            // Scale: 1 real minute of dwell → 3 seconds in simulation
-            dwellMap.set(i, Math.max(dwellMins * 3, 2))
-          }
+          if (dwellMins > 0) dwellMap.set(i, Math.max(dwellMins * 2, 2))
         }
       }
     }
 
-    const totalStations = tripStations?.length ?? 1
+    let tick = 0
     const interval = setInterval(() => {
       if (isNearRouteRef.current) return
-
       const now = Date.now()
-
-      // If we're dwelling at a station, don't advance
       if (simDwellUntilRef.current > now) return
 
-      setSimProgress((prev) => {
-        const next = Math.min(prev + 1, 98)
+      tick++
+      const pct = Math.min(100, (tick / totalTicks) * 100)
 
-        // Check if we just arrived at a station (each station = 100/totalStations %)
-        if (totalStations > 1) {
-          const stationPct = 100 / (totalStations - 1)
-          const stationIdx = Math.round(next / stationPct)
-          const atStation = Math.abs(next - stationIdx * stationPct) < 1.5
+      // Check if we just arrived at a station
+      const stationIdx = Math.round((pct / 100) * segments)
+      const stationPct = (stationIdx / segments) * 100
+      if (Math.abs(pct - stationPct) < (100 / totalTicks) && dwellMap.has(stationIdx)) {
+        const dwellSecs = dwellMap.get(stationIdx)!
+        simDwellUntilRef.current = now + dwellSecs * 1000
+        dwellMap.delete(stationIdx) // only dwell once per station
+      }
 
-          if (atStation && dwellMap.has(stationIdx)) {
-            const dwellSecs = dwellMap.get(stationIdx)!
-            simDwellUntilRef.current = now + dwellSecs * 1000
-            console.log(`[GO Mode] Dwelling at station ${stationIdx} for ${dwellSecs}s`)
-          }
-        }
-
-        return next
-      })
+      setSimProgress(pct)
+      if (pct >= 100) clearInterval(interval)
     }, 2000)
     return () => clearInterval(interval)
   }, [isActive, activeSchedule, tripStations])
@@ -513,7 +510,7 @@ export default function TripScreen() {
   }, [tripState])
 
   // Auto-end trip on arrival — from real GPS or simulation reaching 100%
-  const shouldAutoEnd = tripState === 'arrived' || (!isNearRoute && simProgress >= 98)
+  const shouldAutoEnd = tripState === 'arrived' || (!isNearRoute && simProgress >= 100)
 
   useEffect(() => {
     if (shouldAutoEnd && isActive && deviceId && !showFarePrompt && !completedTrip && !isEndingRef.current) {
@@ -540,14 +537,44 @@ export default function TripScreen() {
       return progress.stationStatuses
     }
     if (!tripStations || tripStations.length < 2) return []
+
+    const segments = tripStations.length - 1
     const pct = effectiveProgress / 100
-    const totalSegments = tripStations.length - 1
-    const currentIdx = Math.min(Math.round(pct * totalSegments), tripStations.length - 1)
-    return tripStations.map((station, i) => ({
-      station: { id: station.id, name: station.name, latitude: station.latitude, longitude: station.longitude, isOrigin: station.isOrigin, isDestination: station.isDestination },
-      status: (i < currentIdx ? 'passed' : i === currentIdx ? 'current' : 'upcoming') as 'passed' | 'current' | 'upcoming',
-      distanceKm: 0,
-    }))
+
+    // Determine which station the user is approaching (floor = last passed, ceil = next)
+    const exactPos = pct * segments // 0 = origin, segments = destination
+    const currentIdx = Math.min(Math.ceil(exactPos), segments) // station we're heading toward
+    const passedUpTo = Math.floor(exactPos) // stations fully behind us
+
+    return tripStations.map((station, i) => {
+      let status: 'passed' | 'current' | 'upcoming'
+      if (effectiveProgress >= 100) {
+        // Trip complete — all passed except destination is current
+        status = i < tripStations.length - 1 ? 'passed' : 'current'
+      } else if (i < passedUpTo) {
+        status = 'passed'
+      } else if (i === currentIdx) {
+        status = 'current'
+      } else if (i < currentIdx) {
+        status = 'passed'
+      } else {
+        status = 'upcoming'
+      }
+
+      // Approximate distance to this station from current position
+      const stationPct = i / segments
+      const distPct = Math.abs(stationPct - pct)
+      const origin = tripStations[0]
+      const dest = tripStations[tripStations.length - 1]
+      const totalDist = getDistanceKm(origin.latitude, origin.longitude, dest.latitude, dest.longitude)
+      const distanceKm = distPct * totalDist
+
+      return {
+        station: { id: station.id, name: station.name, latitude: station.latitude, longitude: station.longitude, isOrigin: station.isOrigin, isDestination: station.isDestination },
+        status,
+        distanceKm,
+      }
+    })
   }, [isNearRoute, progress?.stationStatuses, effectiveProgress, tripStations])
 
   // Effective nearest station for the hero card
