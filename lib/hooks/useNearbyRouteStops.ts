@@ -87,7 +87,7 @@ export function useNearbyRouteStops(
     return index
   }, [routeLines])
 
-  // Nearest unique stops sorted by distance
+  // Nearest unique stops — diversified so they don't all cluster on one route
   const nearbyStops = useMemo((): NearbyStop[] => {
     const all: NearbyStop[] = []
     for (const [name, entry] of stopIndex) {
@@ -106,7 +106,20 @@ export function useNearbyRouteStops(
     if (userLat != null) {
       all.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
     }
-    return all.slice(0, MAX_NEARBY)
+
+    // Diversify: max 2 stops whose primary route is the same
+    // Prevents all 5 dots lining up on a single route corridor
+    const result: NearbyStop[] = []
+    const routeHits = new Map<string, number>()
+    for (const stop of all) {
+      if (result.length >= MAX_NEARBY) break
+      const primaryRoute = stop.routeIds[0] ?? ''
+      const hits = routeHits.get(primaryRoute) ?? 0
+      if (hits >= 2) continue
+      routeHits.set(primaryRoute, hits + 1)
+      result.push(stop)
+    }
+    return result
   }, [stopIndex, userLat, userLng])
 
   // GeoJSON for nearby stops with rank for data-driven styling

@@ -233,11 +233,11 @@ export default function HomeScreen() {
     const always = allPins.filter((p) => p.pinType === 'train' || p.pinType === 'queue')
     const alwaysIds = new Set(always.map((p) => p.id))
 
-    // Add nearest 3 major stations (not already included)
+    // Add nearest 8 major stations (not already included)
     const majors = allPins
       .filter((p) => p.pinType === 'major' && !alwaysIds.has(p.id))
       .sort((a, b) => (a.distKm ?? Infinity) - (b.distKm ?? Infinity))
-      .slice(0, 3)
+      .slice(0, 8)
 
     return [...always, ...majors]
   }, [stations, location])
@@ -312,7 +312,10 @@ export default function HomeScreen() {
         }}
         onPress={() => {
           if (selectedIncident) setSelectedIncident(null)
-          if (selectedStop) setSelectedStop(null)
+          if (selectedStop) {
+            setSelectedStop(null)
+            bottomSheetRef.current?.snapToIndex(0)
+          }
         }}
       >
         <Mapbox.Camera
@@ -724,13 +727,17 @@ export default function HomeScreen() {
         enablePanDownToClose={false}
       >
         <BottomSheetScrollView
+          key={selectedStop ? `stop-${selectedStop.name}` : 'home'}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
           {selectedStop ? (
             <StopRoutesPanel
               stop={selectedStop}
-              onClose={() => setSelectedStop(null)}
+              onClose={() => {
+                setSelectedStop(null)
+                bottomSheetRef.current?.snapToIndex(0)
+              }}
             />
           ) : (
             <>
