@@ -41,6 +41,7 @@ import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
+import { useRouteStopsMap } from '@/lib/hooks/useRouteStopsMap'
 
 Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
 
@@ -138,6 +139,7 @@ export default function HomeScreen() {
   const { stations } = useStations()
   const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
   const { incidents } = useActiveIncidents()
+  const { linesGeoJSON: trotroLinesGeoJSON, stopsGeoJSON: trotroStopsGeoJSON } = useRouteStopsMap()
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
@@ -294,6 +296,55 @@ export default function HomeScreen() {
               lineCap: 'round',
               lineJoin: 'round',
               lineDasharray: [2, 3],
+            }}
+          />
+        </Mapbox.ShapeSource>
+
+        {/* Trotro route lines — gold polylines from route_stops */}
+        <Mapbox.ShapeSource id="trotro-lines" shape={trotroLinesGeoJSON as any}>
+          <Mapbox.LineLayer
+            id="trotro-lines-glow"
+            style={{
+              lineColor: '#f8a010',
+              lineWidth: 5,
+              lineOpacity: 0.15,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+          <Mapbox.LineLayer
+            id="trotro-lines-main"
+            style={{
+              lineColor: '#f8a010',
+              lineWidth: 2.5,
+              lineOpacity: 0.7,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        </Mapbox.ShapeSource>
+
+        {/* Trotro stop dots along routes */}
+        <Mapbox.ShapeSource id="trotro-stops" shape={trotroStopsGeoJSON as any}>
+          <Mapbox.CircleLayer
+            id="trotro-stops-intermediate"
+            filter={['==', ['get', 'isTerminal'], false]}
+            style={{
+              circleRadius: 3,
+              circleColor: '#fff',
+              circleStrokeColor: '#f8a010',
+              circleStrokeWidth: 1.5,
+              circleOpacity: 0.8,
+            }}
+          />
+          <Mapbox.CircleLayer
+            id="trotro-stops-terminal"
+            filter={['==', ['get', 'isTerminal'], true]}
+            style={{
+              circleRadius: 5,
+              circleColor: '#f8a010',
+              circleStrokeColor: '#fff',
+              circleStrokeWidth: 2,
             }}
           />
         </Mapbox.ShapeSource>

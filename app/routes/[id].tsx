@@ -26,6 +26,7 @@ import { BusynessMeter } from '@/components/BusynessMeter'
 import { useTrafficInfo } from '@/lib/hooks/useTraffic'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { RouteStopsTimeline } from '@/components/RouteStopsTimeline'
 // GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 
@@ -261,6 +262,13 @@ export default function RouteDetailScreen() {
                 </View>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Route Stops Timeline */}
+        {route.stops && route.stops.length >= 3 && (
+          <View style={s.pulseCard}>
+            <RouteStopsTimeline stops={route.stops} />
           </View>
         )}
           </>

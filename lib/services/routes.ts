@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Route, RouteWithStats, RouteFareStats, FareReport, TransportType } from '@/lib/types'
+import type { Route, RouteWithStats, RouteFareStats, FareReport, RouteStop, TransportType } from '@/lib/types'
 import { detectRegion } from '@/lib/config/regions'
 import { validateLocation, validateFare, validateEnum, sanitizeString, TRANSPORT_TYPES } from '@/lib/security/validate'
 
@@ -108,15 +108,26 @@ export async function fetchRouteById(
     .eq('route_id', id)
     .single()
 
-  const { data: reports } = await supabase
-    .from('fare_reports')
-    .select('*')
-    .eq('route_id', id)
-    .order('reported_at', { ascending: false })
-    .limit(10)
+  const [{ data: reports }, { data: stops }] = await Promise.all([
+    supabase
+      .from('fare_reports')
+      .select('*')
+      .eq('route_id', id)
+      .order('reported_at', { ascending: false })
+      .limit(10),
+    supabase
+      .from('route_stops')
+      .select('*')
+      .eq('route_id', id)
+      .order('stop_order', { ascending: true }),
+  ])
 
   return {
-    route: { ...route, fare_stats: fareStats || null },
+    route: {
+      ...route,
+      fare_stats: fareStats || null,
+      stops: (stops as RouteStop[] | null) || [],
+    },
     recentReports: reports || [],
   }
 }

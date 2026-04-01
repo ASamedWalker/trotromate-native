@@ -67,6 +67,22 @@ export interface RouteFareStats {
   last_report_at: string | null
 }
 
+// Intermediate stop along a trotro route
+export interface RouteStop {
+  id: string
+  route_id: string
+  transport_stop_id: string | null
+  stop_name: string
+  latitude: number
+  longitude: number
+  stop_order: number
+  is_terminal: boolean
+  distance_from_origin_km: number | null
+  duration_from_origin_mins: number | null
+  source: 'osm' | 'community' | 'admin'
+  is_verified: boolean
+}
+
 // Cached traffic info for a route
 export interface RouteTraffic {
   duration_in_traffic_mins: number
@@ -78,6 +94,7 @@ export interface RouteTraffic {
 export interface RouteWithStats extends Route {
   fare_stats: RouteFareStats | null
   traffic?: RouteTraffic | null
+  stops?: RouteStop[]
 }
 
 // === Rewards System ===
