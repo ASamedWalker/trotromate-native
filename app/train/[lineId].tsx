@@ -91,7 +91,7 @@ export default function LineDetailScreen() {
   const { lineId } = useLocalSearchParams<{ lineId: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { line, stations, recentReports, isLoading, refetch } = useTrainLineDetail(lineId!)
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null)
@@ -195,7 +195,10 @@ export default function LineDetailScreen() {
       } else if (report.report_type === 'delay' && report.delay_mins) {
         feedbackText = `Train running ~${report.delay_mins} minutes late at ${report.station_name || 'this station'}.`
       } else if (report.report_type === 'schedule') {
-        const dir = report.direction === 'inbound' ? 'heading to Accra' : 'heading outbound'
+        const schedules = line?.code ? TRAIN_SCHEDULES[line.code] : null
+        const inboundDest = schedules?.[0]?.stops[schedules[0].stops.length - 1]?.station || 'terminal'
+        const outboundDest = schedules?.[1]?.stops[schedules[1].stops.length - 1]?.station || 'terminal'
+        const dir = report.direction === 'inbound' ? `heading to ${inboundDest}` : `heading to ${outboundDest}`
         feedbackText = `Train spotted at ${report.station_name || 'station'}, ${dir}.`
       } else {
         feedbackText = `Report from ${report.station_name || 'station'}.`

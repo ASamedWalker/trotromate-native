@@ -1,7 +1,7 @@
 // Troski Core Types
 
 // Transport types supported
-export type TransportType = 'trotro' | 'okada'
+export type TransportType = 'trotro' | 'okada' | 'train'
 
 // Route represents a trotro/okada route (e.g., Circle → Madina)
 export interface Route {

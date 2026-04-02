@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "Troski",
     slug: "troski",
-    version: "1.1.2",
+    version: "1.1.1",
     description: "Know your trotro fare, beat the queue. Community-powered transit updates for Ghana.",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

@@ -88,7 +88,16 @@ function computeLineDeparture(
   const currentSeconds = ghana.seconds
   const totalSeconds = currentMinutes * 60 + currentSeconds
 
-  if (day === 0 || schedules.length === 0) return { type: 'no-service' }
+  if (schedules.length === 0) return { type: 'no-service' }
+
+  // Check if any schedule runs today
+  const isSunday = day === 0
+  const isSaturday = day === 6
+  const hasWeekdayOnly = schedules.every((s) => s.days.includes('Fri') && !s.days.includes('Sat'))
+  const hasNoSunday = schedules.every((s) => !s.days.includes('Sun'))
+
+  if (isSunday && hasNoSunday) return { type: 'no-service' }
+  if (isSaturday && hasWeekdayOnly) return { type: 'no-service' }
 
   const sorted = [...schedules].sort(
     (a, b) => parseTimeToMinutes(a.stops[0].depart!) - parseTimeToMinutes(b.stops[0].depart!)
@@ -216,7 +225,7 @@ export default function TrainLinesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { lines, isLoading, refetch } = useTrainLines()
 
@@ -553,7 +562,16 @@ export default function TrainLinesScreen() {
             <View style={s.noService}>
               <TrainFront size={32} color="rgba(255,255,255,0.25)" />
               <Text style={s.noServiceTitle}>No Service Today</Text>
-              <Text style={s.noServiceSub}>Sunday · Resumes Monday 06:00</Text>
+              <Text style={s.noServiceSub}>
+                {(() => {
+                  const allSchedules = Object.values(TRAIN_SCHEDULES).flat()
+                  const earliest = allSchedules.reduce((min, s) => {
+                    const t = s.stops[0].depart!
+                    return t < min ? t : min
+                  }, '23:59')
+                  return `Resumes next service day at ${earliest}`
+                })()}
+              </Text>
             </View>
           )}
 
@@ -562,7 +580,11 @@ export default function TrainLinesScreen() {
             <GRDABadge size="small" />
             <Text style={s.stripText}>GRDA Official</Text>
             <View style={s.stripDot} />
-            <Text style={s.stripText}>Mon – Sat</Text>
+            <Text style={s.stripText}>
+              {departure.type !== 'no-service' && departure.lineCode
+                ? TRAIN_SCHEDULES[departure.lineCode]?.[0]?.days || 'Mon – Sat'
+                : 'Mon – Sat'}
+            </Text>
             {departure.type !== 'no-service' && (
               <>
                 <View style={s.stripDot} />

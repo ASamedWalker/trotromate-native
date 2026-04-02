@@ -167,7 +167,7 @@ export const INCIDENT_TYPES = [
 ] as const
 export type IncidentType = (typeof INCIDENT_TYPES)[number]
 
-export const TRANSPORT_TYPES = ['trotro', 'okada'] as const
+export const TRANSPORT_TYPES = ['trotro', 'okada', 'train'] as const
 export type TransportTypeEnum = (typeof TRANSPORT_TYPES)[number]
 
 export const SAFETY_RATINGS = ['positive', 'negative'] as const

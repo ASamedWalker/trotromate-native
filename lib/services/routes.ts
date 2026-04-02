@@ -16,14 +16,16 @@ export async function fetchRoutes(from?: string, to?: string, transportType?: Tr
   if (transportType) query = query.eq('transport_type', transportType)
   if (region) query = query.eq('region', region)
 
-  const { data: routes, error } = await query
+  const [{ data: routes, error }, { data: fareStats }] = await Promise.all([
+    query,
+    supabase.from('route_fare_stats').select('*'),
+  ])
   if (error || !routes) return []
 
-  const { data: fareStats } = await supabase.from('route_fare_stats').select('*')
-
+  const statsMap = new Map(fareStats?.map((fs: RouteFareStats) => [fs.route_id, fs]) || [])
   const routesWithStats = routes.map((route: Route) => ({
     ...route,
-    fare_stats: fareStats?.find((fs: RouteFareStats) => fs.route_id === route.id) || null,
+    fare_stats: statsMap.get(route.id) || null,
   }))
 
   // Sort: recently reported first, then popular, then alphabetical
@@ -50,20 +52,16 @@ export async function fetchPopularRoutes(): Promise<RouteWithStats[]> {
 
   const routeIds = fareStats.map((fs: RouteFareStats) => fs.route_id)
 
-  const { data: routes, error } = await supabase
-    .from('routes')
-    .select('*')
-    .in('id', routeIds)
+  const [{ data: routes, error }, { data: trafficCache }] = await Promise.all([
+    supabase.from('routes').select('*').in('id', routeIds),
+    supabase.from('traffic_cache')
+      .select('route_id, duration_in_traffic_mins, traffic_condition')
+      .in('route_id', routeIds)
+      .gt('expires_at', new Date().toISOString())
+      .order('fetched_at', { ascending: false }),
+  ])
 
   if (error || !routes) return []
-
-  // Fetch cached traffic data for these routes
-  const { data: trafficCache } = await supabase
-    .from('traffic_cache')
-    .select('route_id, duration_in_traffic_mins, traffic_condition')
-    .in('route_id', routeIds)
-    .gt('expires_at', new Date().toISOString())
-    .order('fetched_at', { ascending: false })
 
   const trafficByRoute = new Map<string, { duration_in_traffic_mins: number; traffic_condition: string }>()
   for (const t of trafficCache || []) {
@@ -73,9 +71,10 @@ export async function fetchPopularRoutes(): Promise<RouteWithStats[]> {
   }
 
   // Return routes ordered by report count (most reports first)
+  const routeMap = new Map(routes.map((r: Route) => [r.id, r]))
   return fareStats
     .map((fs: RouteFareStats) => {
-      const route = routes.find((r: Route) => r.id === fs.route_id)
+      const route = routeMap.get(fs.route_id)
       if (!route) return null
       const tc = trafficByRoute.get(route.id)
       return {
@@ -142,9 +141,10 @@ export async function fetchRoutesByIds(ids: string[]): Promise<RouteWithStats[]>
 
   if (error || !routes) return []
 
+  const statsMap = new Map(fareStats?.map((fs: RouteFareStats) => [fs.route_id, fs]) || [])
   return routes.map((route: Route) => ({
     ...route,
-    fare_stats: fareStats?.find((fs: RouteFareStats) => fs.route_id === route.id) || null,
+    fare_stats: statsMap.get(route.id) || null,
   }))
 }
 

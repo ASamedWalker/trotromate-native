@@ -18,6 +18,7 @@ export function useTrainLines() {
   const { data: lines = [], isLoading, refetch } = useQuery({
     queryKey: ['trainLines'],
     queryFn: fetchTrainLines,
+    staleTime: 60_000, // Train data changes infrequently — avoid refetching on every nav
   })
 
   return { lines, isLoading, error: null, refetch }
@@ -28,6 +29,7 @@ export function useTrainLineDetail(lineId: string) {
     queryKey: ['trainLine', lineId],
     queryFn: () => fetchTrainLineDetail(lineId),
     enabled: !!lineId,
+    staleTime: 30_000,
   })
 
   const line: TrainLine | null = data?.line ?? null

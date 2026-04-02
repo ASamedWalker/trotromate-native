@@ -8,6 +8,15 @@ import type { TripProgress } from '@/lib/services/trip'
 // Track the current Live Activity ID (iOS only)
 let currentActivityId: string | null = null
 
+// Cache the voltra/client import to avoid repeated dynamic imports on every location update
+let voltraClientCache: any = null
+async function getVoltraClient() {
+  if (!voltraClientCache) {
+    voltraClientCache = await import('voltra/client')
+  }
+  return voltraClientCache
+}
+
 const GO_MODE_NOTIFICATION_ID = 'go-mode-progress'
 
 /**
@@ -51,7 +60,7 @@ export async function startTripActivity(trip: ActiveTrip): Promise<void> {
 
   if (Platform.OS === 'ios') {
     try {
-      const { startLiveActivity } = await import('voltra/client')
+      const { startLiveActivity } = await getVoltraClient()
       const variants = buildTripActivityVariants(data)
       currentActivityId = await startLiveActivity(variants, {
         activityName: 'troski-trip',
@@ -77,7 +86,7 @@ export async function updateTripActivity(trip: ActiveTrip, progress: TripProgres
 
   if (Platform.OS === 'ios' && currentActivityId) {
     try {
-      const { updateLiveActivity } = await import('voltra/client')
+      const { updateLiveActivity } = await getVoltraClient()
       const variants = buildTripActivityVariants(data)
       await updateLiveActivity(currentActivityId, variants, {
         relevanceScore: data.tripState === 'approaching' ? 1.0 : 0.8,
@@ -98,7 +107,7 @@ export async function updateTripActivity(trip: ActiveTrip, progress: TripProgres
 export async function endTripActivity(): Promise<void> {
   if (Platform.OS === 'ios' && currentActivityId) {
     try {
-      const { stopLiveActivity } = await import('voltra/client')
+      const { stopLiveActivity } = await getVoltraClient()
       await stopLiveActivity(currentActivityId, { dismissalPolicy: { after: 5000 } })
     } catch (e) {
       console.warn('[LiveActivity] End failed:', e)

@@ -278,7 +278,7 @@ export default function HomeScreen() {
   const isDark = useColorScheme() === 'dark'
   const mapStyle = useAutoMapStyle(isDark)
   const isNightMap = mapStyle === Mapbox.StyleURL.Dark
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { profile, deviceId } = useApp()
   const { routes: popularRoutes } = usePopularRoutes()
@@ -304,7 +304,8 @@ export default function HomeScreen() {
   const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
   const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
-  const [currentZoom, setCurrentZoom] = useState(13)
+  const zoomRef = useRef(13)
+  const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
 
   // Auto-request location permission on mount if not yet granted
   useEffect(() => {
@@ -437,8 +438,11 @@ export default function HomeScreen() {
         scaleBarEnabled={false}
         onCameraChanged={(state: any) => {
           const zoom = state.properties?.zoom
-          if (zoom != null && Math.abs(zoom - currentZoom) > 0.5) {
-            setCurrentZoom(zoom)
+          if (zoom != null) {
+            const wasAbove12 = zoomRef.current >= 12
+            const isAbove12 = zoom >= 12
+            zoomRef.current = zoom
+            if (wasAbove12 !== isAbove12) setShowAllPins(isAbove12)
           }
         }}
         onPress={() => {
@@ -746,7 +750,7 @@ export default function HomeScreen() {
 
         {/* ── Station pins — zoom-aware: train always, others at zoom 12+ ── */}
         {stationPins
-          .filter((pin) => pin.pinType === 'train' || pin.pinType === 'queue' || currentZoom >= 12)
+          .filter((pin) => pin.pinType === 'train' || pin.pinType === 'queue' || showAllPins)
           .map((pin) => (
           <Mapbox.MarkerView
             key={pin.id}

@@ -62,19 +62,21 @@ export async function fetchTrainLineDetail(lineId: string): Promise<{
 
   if (error || !line) return null
 
-  const { data: stations } = await supabase
-    .from('train_stations')
-    .select('*')
-    .eq('line_id', lineId)
-    .eq('is_active', true)
-    .order('order_index')
-
-  const { data: reports } = await supabase
-    .from('train_reports')
-    .select('*, train_stations(name), train_lines(name)')
-    .eq('line_id', lineId)
-    .order('reported_at', { ascending: false })
-    .limit(20)
+  // Fetch stations and reports in parallel — both depend only on lineId
+  const [{ data: stations }, { data: reports }] = await Promise.all([
+    supabase
+      .from('train_stations')
+      .select('*')
+      .eq('line_id', lineId)
+      .eq('is_active', true)
+      .order('order_index'),
+    supabase
+      .from('train_reports')
+      .select('*, train_stations(name), train_lines(name)')
+      .eq('line_id', lineId)
+      .order('reported_at', { ascending: false })
+      .limit(20),
+  ])
 
   const recentReports: TrainReportWithNames[] = (reports || []).map((r: any) => ({
     ...r,

@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import transportStopsData from '@/assets/data/transport-stops.json'
 
 interface TransportStop {
@@ -9,33 +8,31 @@ interface TransportStop {
   type: 'bus_stop' | 'lorry_park' | 'taxi_rank' | 'train_station'
 }
 
+// Static data — compute GeoJSON once at module level, not per render
+const stops = transportStopsData.stops as TransportStop[]
+
+const geojson = {
+  type: 'FeatureCollection' as const,
+  features: stops
+    .filter((s) => s.lat && s.lng && s.name)
+    .map((s) => ({
+      type: 'Feature' as const,
+      properties: {
+        name: s.name,
+        type: s.type,
+        osmId: s.osm_id,
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [s.lng, s.lat],
+      },
+    })),
+}
+
 /**
- * Loads bundled OSM transport stops and returns GeoJSON for Mapbox layers.
- * Uses static JSON — no network call, instant load.
+ * Returns bundled OSM transport stops as GeoJSON for Mapbox layers.
+ * Static data — computed once at module load, zero per-render cost.
  */
 export function useTransportStops() {
-  const stops = transportStopsData.stops as TransportStop[]
-
-  const geojson = useMemo(
-    () => ({
-      type: 'FeatureCollection' as const,
-      features: stops
-        .filter((s) => s.lat && s.lng && s.name)
-        .map((s) => ({
-          type: 'Feature' as const,
-          properties: {
-            name: s.name,
-            type: s.type,
-            osmId: s.osm_id,
-          },
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [s.lng, s.lat],
-          },
-        })),
-    }),
-    [stops],
-  )
-
   return { geojson, count: stops.length }
 }
