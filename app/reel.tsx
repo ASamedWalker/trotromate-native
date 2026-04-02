@@ -287,13 +287,13 @@ export default function ReelScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Location */}
+        {/* Location pill */}
         {params.locationName ? (
-          <View style={styles.locationRow}>
-            <MapPin size={12} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.locationText}>{params.locationName}</Text>
+          <View style={styles.locationPill}>
+            <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
+            <Text style={styles.locationPillText} numberOfLines={1}>{params.locationName}</Text>
             {params.timeAgo ? (
-              <Text style={styles.locationText}> · {params.timeAgo}</Text>
+              <Text style={styles.locationPillText}> · {params.timeAgo}</Text>
             ) : null}
           </View>
         ) : null}
@@ -490,15 +490,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: font.semibold,
   },
-  locationRow: {
+  locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     marginBottom: 6,
+    alignSelf: 'flex-start',
   },
-  locationText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+  locationPillText: {
+    color: '#fff',
+    fontSize: 11,
     fontFamily: font.medium,
   },
   caption: {

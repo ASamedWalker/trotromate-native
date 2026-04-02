@@ -85,8 +85,10 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
   }, [onDoubleTap, heartScale, heartOpacity])
 
   return (
-    <Pressable onPress={handlePress}>
-      {children}
+    <View>
+      <Pressable onPress={handlePress} style={{ zIndex: 0 }}>
+        {children}
+      </Pressable>
       <Animated.View
         pointerEvents="none"
         style={[
@@ -96,7 +98,7 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
       >
         <Heart size={80} color="#fff" fill="#fff" />
       </Animated.View>
-    </Pressable>
+    </View>
   )
 }
 
@@ -252,6 +254,14 @@ function TaleCard({
               <Text style={s.videoBadgeText}>LIVE</Text>
             </View>
           )}
+
+          {/* Location pill — glassmorphic overlay (images only, videos show location in reel) */}
+          {post.media_type !== 'video' && post.location_name ? (
+            <View style={s.locationPill} pointerEvents="none">
+              <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
+              <Text style={s.locationPillText} numberOfLines={1}>{post.location_name}</Text>
+            </View>
+          ) : null}
         </View>
       </DoubleTapLike>
 
@@ -396,10 +406,10 @@ export default function TalesScreen() {
     ])
   }
 
-  const renderItem = ({ item, index }: { item: TalePost; index: number }) => {
+  const renderItem = ({ item }: { item: TalePost }) => {
     const isVisible = isFocused && visiblePostIds.has(item.id)
-    const isMounted = item.media_type !== 'video' || isVisible ||
-      posts.some((p, i) => visiblePostIds.has(p.id) && Math.abs(i - index) <= 3)
+    // Keep videos mounted once visible to avoid rapid create/destroy crashes on Android
+    const isMounted = item.media_type !== 'video' || true
 
     return (
       <TaleCard
@@ -621,6 +631,27 @@ const cardStyles = (isDark: boolean) => {
       fontFamily: font.bold,
       color: '#fff',
       letterSpacing: 1.5,
+    },
+
+    // ── Location pill (glass overlay on media) ──
+    locationPill: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 12,
+      maxWidth: '70%' as any,
+      zIndex: 10,
+    },
+    locationPillText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: '#fff',
     },
 
     // ── Action Row ──

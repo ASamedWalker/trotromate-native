@@ -82,8 +82,7 @@ function AppInner() {
   // Watch for incidents/queues on saved commute routes
   useCommuteAlerts()
 
-  // Silent OTA updates — download in background, apply on next launch
-  useAppUpdate()
+  // OTA update hook moved to RootLayout for earlier execution
 
   // Apply stored theme preference
   useEffect(() => {
@@ -143,6 +142,9 @@ function AppInner() {
 }
 
 export default function RootLayout() {
+  // OTA updates — runs immediately on cold start, before splash/onboarding
+  useAppUpdate()
+
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     Poppins_400Regular,

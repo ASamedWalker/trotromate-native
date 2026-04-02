@@ -19,8 +19,8 @@ export default {
         NSPhotoLibraryUsageDescription: "Troski accesses your photo library so you can select existing photos to attach to your Troski Tales posts — for example, a photo of a busy station queue or a trotro fare board.",
         NSPhotoLibraryAddUsageDescription: "Troski saves receipt images and fare screenshots to your photo library so you can keep a record of your transport expenses.",
         ITSAppUsesNonExemptEncryption: false,
-        NSSupportsLiveActivities: true,
-        NSSupportsLiveActivitiesFrequentUpdates: true,
+        // NSSupportsLiveActivities: true,        // Requires native build v1.1.2
+        // NSSupportsLiveActivitiesFrequentUpdates: true,
       },
     },
     android: {
@@ -83,13 +83,7 @@ export default {
           RNMapboxMapsDownloadToken: process.env.MAPBOX_SECRET_TOKEN || "MAPBOX_SECRET_TOKEN",
         },
       ],
-      [
-        "voltra",
-        {
-          widgetName: "TroskiTripActivity",
-          deploymentTarget: "16.2",
-        },
-      ],
+      // ["voltra", { widgetName: "TroskiTripActivity", deploymentTarget: "16.2" }], // Requires native build v1.1.2
       "expo-video",
       [
         "expo-location",

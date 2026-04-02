@@ -28,6 +28,7 @@ import { Linking } from 'react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { Appearance } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { usePreferences, type ThemeMode } from '@/lib/hooks/usePreferences'
@@ -256,8 +257,14 @@ export default function SettingsScreen() {
 
         {/* Footer */}
         <View style={s.footer}>
-          <Text style={s.version}>Troski v1.0.0</Text>
+          <Text style={s.version}>Troski v{Updates.runtimeVersion ?? '?'}</Text>
           <Text style={s.footerText}>Made with love in Accra</Text>
+          {!__DEV__ && (
+            <Text style={s.footerText}>
+              {Updates.isEmbeddedLaunch ? 'Embedded' : `OTA ${Updates.updateId?.slice(0, 8) ?? '—'}`}
+              {' · '}{Updates.channel ?? 'no-channel'}
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

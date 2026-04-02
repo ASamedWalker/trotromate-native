@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
-import { View, FlatList, StyleSheet, Text, ViewToken } from 'react-native'
+import { View, FlatList, StyleSheet, Text, TouchableOpacity, ViewToken } from 'react-native'
 import { Image } from 'expo-image'
+import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 
 interface ImageCarouselProps {
   images: string[]
@@ -9,6 +10,7 @@ interface ImageCarouselProps {
 
 export default function ImageCarousel({ images, width }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
+  const flatListRef = useRef<FlatList>(null)
   const imageHeight = (width * 3) / 4 // 4:3 aspect ratio
 
   const onViewableItemsChanged = useCallback(
@@ -21,6 +23,10 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
   )
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current
+
+  const goTo = useCallback((index: number) => {
+    flatListRef.current?.scrollToIndex({ index, animated: true })
+  }, [])
 
   // Single image — no carousel
   if (images.length === 1) {
@@ -37,15 +43,22 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
   return (
     <View>
       <FlatList
+        ref={flatListRef}
         data={images}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         snapToAlignment="center"
         decelerationRate="fast"
+        nestedScrollEnabled
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         keyExtractor={(_, i) => String(i)}
+        getItemLayout={(_, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
         renderItem={({ item }) => (
           <Image
             source={{ uri: item }}
@@ -55,6 +68,28 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
           />
         )}
       />
+
+      {/* Left chevron */}
+      {activeIndex > 0 && (
+        <TouchableOpacity
+          style={[styles.chevron, styles.chevronLeft]}
+          activeOpacity={0.8}
+          onPress={() => goTo(activeIndex - 1)}
+        >
+          <ChevronLeft size={20} color="#fff" strokeWidth={2.5} />
+        </TouchableOpacity>
+      )}
+
+      {/* Right chevron */}
+      {activeIndex < images.length - 1 && (
+        <TouchableOpacity
+          style={[styles.chevron, styles.chevronRight]}
+          activeOpacity={0.8}
+          onPress={() => goTo(activeIndex + 1)}
+        >
+          <ChevronRight size={20} color="#fff" strokeWidth={2.5} />
+        </TouchableOpacity>
+      )}
 
       {/* Dot indicators */}
       <View style={styles.dotsContainer}>
@@ -80,6 +115,24 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
 }
 
 const styles = StyleSheet.create({
+  chevron: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  chevronLeft: {
+    left: 10,
+  },
+  chevronRight: {
+    right: 10,
+  },
   dotsContainer: {
     position: 'absolute',
     bottom: 12,

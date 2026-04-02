@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Search,
   Navigation,
   Locate,
+  BusFront,
 } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
@@ -268,8 +269,68 @@ function useAutoMapStyle(isDark: boolean): string {
 }
 
 /** Mapbox traffic-aware style URLs */
-const TRAFFIC_STYLE_LIGHT = 'mapbox://styles/mapbox/navigation-day-v1'
-const TRAFFIC_STYLE_DARK = 'mapbox://styles/mapbox/navigation-night-v1'
+const MAP_STYLE_LIGHT = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
+const MAP_STYLE_DARK = 'mapbox://styles/sampy1/cmnhpb34g00eq01qq854gbezx'
+
+/* ── Nearby stop pin — Uber/Grab style marker ── */
+const NearbyStopPin = React.memo(function NearbyStopPin({
+  name,
+  isNearest,
+  isDark,
+}: {
+  name: string
+  isNearest: boolean
+  isDark: boolean
+}) {
+  const size = isNearest ? 32 : 26
+  return (
+    <View style={{ alignItems: 'center', width: 80 }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: '#f59e0b',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 2.5,
+          borderColor: '#fff',
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+            android: { elevation: 5 },
+          }),
+        }}
+      >
+        <BusFront size={isNearest ? 16 : 13} color="#fff" strokeWidth={2.5} />
+      </View>
+      <View
+        style={{
+          width: 0, height: 0,
+          borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6,
+          borderLeftColor: 'transparent', borderRightColor: 'transparent',
+          borderTopColor: '#f59e0b',
+          marginTop: -1,
+        }}
+      />
+      <Text
+        numberOfLines={1}
+        style={{
+          marginTop: 2,
+          fontSize: isNearest ? 10 : 9,
+          fontFamily: font.semibold,
+          color: isDark ? '#fafaf9' : '#1c1917',
+          textAlign: 'center',
+          maxWidth: 78,
+          textShadowColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+          textShadowOffset: { width: 0, height: 0 },
+          textShadowRadius: 4,
+        }}
+      >
+        {name}
+      </Text>
+    </View>
+  )
+})
 
 /* ── Component ─────────────────────────────────────── */
 
@@ -289,7 +350,7 @@ export default function HomeScreen() {
   const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
   const { incidents } = useActiveIncidents()
   const {
-    nearbyStopsGeoJSON,
+    nearbyStops,
     getRoutesForStop,
     getRouteLineGeoJSON,
     getRouteStopsGeoJSON,
@@ -314,10 +375,19 @@ export default function HomeScreen() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reactive center — updates when user location arrives
-  const center: [number, number] = location
-    ? [location.longitude, location.latitude]
-    : ACCRA_CENTER
+  // Snap to user location once (instant, no animation), then let user pan/zoom freely
+  const hasLocated = useRef(false)
+  useEffect(() => {
+    if (location && !hasLocated.current) {
+      hasLocated.current = true
+      cameraRef.current?.setCamera({
+        centerCoordinate: [location.longitude, location.latitude],
+        zoomLevel: 15,
+        animationDuration: 0, // instant — no visible fly animation
+      })
+    }
+  }, [location])
+  const center: [number, number] = ACCRA_CENTER
 
   // GeoJSON for incident markers — offset slightly so they don't hide behind station MarkerViews
   const incidentGeojson = useMemo(() => ({
@@ -406,12 +476,15 @@ export default function HomeScreen() {
   const snapPoints = useMemo(() => ['18%', '50%', '88%'], [])
 
   const handleRecenter = useCallback(() => {
+    const target: [number, number] = location
+      ? [location.longitude, location.latitude]
+      : center
     cameraRef.current?.setCamera({
-      centerCoordinate: center,
-      zoomLevel: 13,
+      centerCoordinate: target,
+      zoomLevel: 15,
       animationDuration: 800,
     })
-  }, [center])
+  }, [location, center])
 
   const handleModeChange = useCallback((mode: ServiceMode) => {
     if (mode === 'train') {
@@ -431,7 +504,7 @@ export default function HomeScreen() {
       {/* ── Full-bleed map ── */}
       <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={isNightMap ? TRAFFIC_STYLE_DARK : TRAFFIC_STYLE_LIGHT}
+        styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         attributionEnabled={false}
         logoEnabled={false}
         compassEnabled={false}
@@ -459,11 +532,10 @@ export default function HomeScreen() {
       >
         <Mapbox.Camera
           ref={cameraRef}
-          centerCoordinate={center}
-          zoomLevel={13}
-          animationMode="flyTo"
-          animationDuration={0}
-          triggerKey={center.join(',')}
+          defaultSettings={{
+            centerCoordinate: center,
+            zoomLevel: 15,
+          }}
         />
 
         <Mapbox.UserLocation
@@ -503,43 +575,27 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* ── OSM transport stops — 2,500+ stops from OpenStreetMap ── */}
-        <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
-          {/* Small dots visible at zoom 12+ */}
-          <Mapbox.CircleLayer
-            id="osm-stops-dots"
-            minZoomLevel={12}
-            style={{
-              circleRadius: ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 5],
-              circleColor: ['match', ['get', 'type'],
-                'lorry_park', '#8b5cf6',
-                'taxi_rank', '#06b6d4',
-                'train_station', '#7c3aed',
-                '#94a3b8', // bus_stop — subtle gray
-              ],
-              circleStrokeColor: '#fff',
-              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 1.5],
-              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0.4, 14, 0.7, 16, 0.9],
-            }}
-          />
-          {/* Name labels at zoom 14+ */}
-          <Mapbox.SymbolLayer
-            id="osm-stops-labels"
-            minZoomLevel={14}
-            style={{
-              textField: ['get', 'name'],
-              textSize: ['interpolate', ['linear'], ['zoom'], 14, 9, 16, 11],
-              textColor: isDark ? '#d6d3d1' : '#57534e',
-              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
-              textHaloWidth: 1.2,
-              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              textOffset: [0, 1.2],
-              textAnchor: 'top',
-              textMaxWidth: 7,
-              textAllowOverlap: false,
-            }}
-          />
-        </Mapbox.ShapeSource>
+        {/* ── OSM transport stops — only shown contextually (search/route preview) ── */}
+        {(previewRoute || selectedStop) && (
+          <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
+            <Mapbox.SymbolLayer
+              id="osm-stops-labels"
+              minZoomLevel={14}
+              style={{
+                textField: ['get', 'name'],
+                textSize: ['interpolate', ['linear'], ['zoom'], 14, 9, 16, 11],
+                textColor: isDark ? '#d6d3d1' : '#57534e',
+                textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+                textHaloWidth: 1.2,
+                textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+                textOffset: [0, 1.2],
+                textAnchor: 'top',
+                textMaxWidth: 7,
+                textAllowOverlap: false,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
         {/* ── Preview route from search — green polyline + stops ── */}
         {previewRoute && (
@@ -672,81 +728,37 @@ export default function HomeScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* ── Nearby trotro stops — clean 3-5 dots, progressive disclosure ── */}
-        <Mapbox.ShapeSource
-          id="nearby-stops"
-          shape={nearbyStopsGeoJSON as any}
-          hitbox={{ width: 44, height: 44 }}
-          onPress={(e: any) => {
-            const feature = e.features?.[0]
-            if (!feature?.properties?.name) return
-            const name = feature.properties.name
-            const coords = feature.geometry?.coordinates
-            const routeIds = getRoutesForStop(name)
-            setSelectedStop({
-              name,
-              latitude: coords[1],
-              longitude: coords[0],
-              routeIds,
-              distanceKm: feature.properties.distanceKm,
-            })
-            // Pan camera to tapped stop
-            if (coords && cameraRef.current) {
-              cameraRef.current.setCamera({
-                centerCoordinate: coords,
-                zoomLevel: 14,
-                animationDuration: 600,
-              })
-            }
-            bottomSheetRef.current?.snapToIndex(1)
-          }}
-        >
-          {/* Halo for nearest stop (rank 0) — visible at zoom 11+ */}
-          <Mapbox.CircleLayer
-            id="nearby-stops-halo"
-            minZoomLevel={11}
-            filter={['==', ['get', 'rank'], 0]}
-            style={{
-              circleRadius: ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 18],
-              circleColor: '#f8a010',
-              circleOpacity: ['interpolate', ['linear'], ['zoom'], 11, 0.06, 14, 0.12],
-            }}
-          />
-          {/* Stop dots — visible at zoom 11+, grow with zoom */}
-          <Mapbox.CircleLayer
-            id="nearby-stops-dots"
-            minZoomLevel={11}
-            style={{
-              circleRadius: ['interpolate', ['linear'], ['zoom'],
-                11, ['match', ['get', 'rank'], 0, 5, 1, 4, 3],
-                14, ['match', ['get', 'rank'], 0, 9, 1, 7, 2, 6, 5],
-              ],
-              circleColor: '#f8a010',
-              circleStrokeColor: '#fff',
-              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 11, 1, 14, ['match', ['get', 'rank'], 0, 3, 2]],
-            }}
-          />
-          {/* Stop name labels — only at zoom 13+ */}
-          <Mapbox.SymbolLayer
-            id="nearby-stops-labels"
-            minZoomLevel={13}
-            style={{
-              textField: ['get', 'name'],
-              textSize: ['interpolate', ['linear'], ['zoom'],
-                13, ['match', ['get', 'rank'], 0, 11, 9],
-                16, ['match', ['get', 'rank'], 0, 14, 12],
-              ],
-              textColor: isDark ? '#fafaf9' : '#1c1917',
-              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
-              textHaloWidth: 1.5,
-              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              textOffset: [0, 1.6],
-              textAnchor: 'top',
-              textMaxWidth: 8,
-              textAllowOverlap: false,
-            }}
-          />
-        </Mapbox.ShapeSource>
+        {/* ── Nearby trotro stops — clean MarkerView pins ── */}
+        {nearbyStops.slice(0, 5).map((stop, i) => (
+          <Mapbox.MarkerView
+            key={`nearby-${stop.name}`}
+            coordinate={[stop.longitude, stop.latitude]}
+            allowOverlap={false}
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const routeIds = getRoutesForStop(stop.name)
+                setSelectedStop({
+                  name: stop.name,
+                  latitude: stop.latitude,
+                  longitude: stop.longitude,
+                  routeIds,
+                  distanceKm: stop.distanceKm,
+                })
+                cameraRef.current?.setCamera({
+                  centerCoordinate: [stop.longitude, stop.latitude],
+                  zoomLevel: 14,
+                  animationDuration: 600,
+                })
+                bottomSheetRef.current?.snapToIndex(1)
+              }}
+            >
+              <NearbyStopPin name={stop.name} isNearest={i === 0} isDark={isDark} />
+            </TouchableOpacity>
+          </Mapbox.MarkerView>
+        ))}
 
         {/* ── Station pins — zoom-aware: train always, others at zoom 12+ ── */}
         {stationPins
