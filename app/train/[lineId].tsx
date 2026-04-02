@@ -60,6 +60,7 @@ const REPORT_CONFIG: Record<string, { Icon: typeof Clock; label: string; color: 
 const HERO_IMAGES: Record<string, string> = {
   TMA: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80',
   TMP: 'https://images.unsplash.com/photo-1532105956626-9569c03602f6?w=800&q=80',
+  STK: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&q=80',
 }
 const FALLBACK_HERO = 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80'
 
@@ -71,6 +72,10 @@ const LINE_META: Record<string, { heroTitle: string; heroDesc: string }> = {
   TMP: {
     heroTitle: 'Tema – Mpakadan',
     heroDesc: 'Inter-regional service through the Eastern Corridor connecting Tema Port to Mpakadan via Koforidua.',
+  },
+  STK: {
+    heroTitle: 'Sekondi – Takoradi',
+    heroDesc: 'Western Line commuter shuttle via Kojokrom. Connecting Sekondi and Takoradi harbour along the coastal rail corridor.',
   },
 }
 

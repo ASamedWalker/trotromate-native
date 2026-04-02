@@ -191,6 +191,14 @@ const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColo
     gradientFrom: '#f59e0b',
     gradientTo: '#ea580c',
   },
+  STK: {
+    subtitle: 'Western Line Commuter',
+    fareRange: '₵10',
+    badgeColor: '#065f46',
+    badgeBg: '#ecfdf5',
+    gradientFrom: '#10b981',
+    gradientTo: '#0d9488',
+  },
 }
 
 const DEFAULT_LINE_META = {

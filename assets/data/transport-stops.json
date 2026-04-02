@@ -1,13 +1,14 @@
 {
-  "generated": "2026-04-01T18:28:15.183Z",
+  "generated": "2026-04-01T23:48:02.140Z",
   "cities": [
     "Greater Accra",
     "Kumasi",
     "Koforidua",
     "Takoradi",
-    "Tamale"
+    "Tamale",
+    "Ho"
   ],
-  "count": 2579,
+  "count": 2584,
   "stops": [
     {
       "osm_id": 30729987,
@@ -18061,6 +18062,41 @@
       "lat": 9.4037771,
       "lng": -0.8418451,
       "type": "taxi_rank"
+    },
+    {
+      "osm_id": 99900001,
+      "name": "Ho Main Lorry Station (GPRTU)",
+      "lat": 6.6198,
+      "lng": 0.471,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 99900002,
+      "name": "Ho STC Terminal",
+      "lat": 6.6147,
+      "lng": 0.4693,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 99900003,
+      "name": "OSA Station Ho",
+      "lat": 6.6185,
+      "lng": 0.4711,
+      "type": "lorry_park"
+    },
+    {
+      "osm_id": 99900004,
+      "name": "Kpeve Taxi Station",
+      "lat": 6.6187,
+      "lng": 0.4698,
+      "type": "taxi_rank"
+    },
+    {
+      "osm_id": 99900005,
+      "name": "Ho MMT Station",
+      "lat": 6.5987,
+      "lng": 0.4466,
+      "type": "bus_stop"
     }
   ]
 }

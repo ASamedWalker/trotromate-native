@@ -110,4 +110,46 @@ export const TRAIN_SCHEDULES: Record<string, TrainSchedule[]> = {
       ],
     },
   ],
+
+  // ─── Sekondi–Takoradi Commuter (STK) ──────────────────────
+  // Commuter shuttle via Kojokrom · Mon–Fri
+  // Stations: Sekondi → Kojokrom → Ketan → Essaman → Bakado → Butuah → New Takoradi → Takoradi
+  // Schedule estimated from GRCL announcements + historical data
+  // Note: Service reliability is inconsistent — infrastructure under renovation
+  STK: [
+    {
+      id: 'W101',
+      code: 'W101',
+      label: 'Morning — To Takoradi',
+      direction: 'inbound',
+      days: 'Mon – Fri',
+      fare: 10.0,
+      stops: [
+        { station: 'Sekondi', arrive: null, depart: '06:30', lat: 4.9377, lng: -1.7102 },
+        { station: 'Kojokrom', arrive: '06:40', depart: '06:42', lat: 4.9636, lng: -1.7245 },
+        { station: 'Ketan', arrive: '06:48', depart: '06:49', lat: 4.9511, lng: -1.7289 },
+        { station: 'Essaman', arrive: '06:53', depart: '06:54', lat: 4.9237, lng: -1.7369 },
+        { station: 'Bakado', arrive: '06:58', depart: '06:59', lat: 4.9379, lng: -1.7295 },
+        { station: 'New Takoradi', arrive: '07:05', depart: '07:06', lat: 4.9046, lng: -1.7479 },
+        { station: 'Takoradi', arrive: '07:12', depart: null, lat: 4.8824, lng: -1.7496 },
+      ],
+    },
+    {
+      id: 'W102',
+      code: 'W102',
+      label: 'Evening — To Sekondi',
+      direction: 'outbound',
+      days: 'Mon – Fri',
+      fare: 10.0,
+      stops: [
+        { station: 'Takoradi', arrive: null, depart: '17:15', lat: 4.8824, lng: -1.7496 },
+        { station: 'New Takoradi', arrive: '17:21', depart: '17:22', lat: 4.9046, lng: -1.7479 },
+        { station: 'Bakado', arrive: '17:28', depart: '17:29', lat: 4.9379, lng: -1.7295 },
+        { station: 'Essaman', arrive: '17:33', depart: '17:34', lat: 4.9237, lng: -1.7369 },
+        { station: 'Ketan', arrive: '17:38', depart: '17:39', lat: 4.9511, lng: -1.7289 },
+        { station: 'Kojokrom', arrive: '17:45', depart: '17:47', lat: 4.9636, lng: -1.7245 },
+        { station: 'Sekondi', arrive: '17:57', depart: null, lat: 4.9377, lng: -1.7102 },
+      ],
+    },
+  ],
 }

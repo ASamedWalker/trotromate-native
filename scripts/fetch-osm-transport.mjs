@@ -32,6 +32,7 @@ const CITY_BBOXES = {
   'Koforidua':     '6.0,-0.3,6.15,-0.2',
   'Takoradi':      '4.85,-1.8,5.0,-1.7',
   'Tamale':        '9.3,-0.9,9.5,-0.75',
+  'Ho':            '6.55,0.40,6.65,0.50',
 }
 
 // Known station names (for matching/exclusion)

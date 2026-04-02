@@ -301,6 +301,21 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Kpong':                { latitude: 6.1759, longitude: 0.0591 },  // OSM verified station node
   'Juapong':              { latitude: 6.2545, longitude: 0.1353 },  // Mapcarta verified
   'Mpakadan':             { latitude: 6.3322, longitude: 0.1090 },  // Mapcarta verified
+
+  // ─── Train stations: Sekondi–Takoradi Commuter (STK) ─────────
+  // OSM verified station coordinates
+  'Sekondi':              { latitude: 4.9377, longitude: -1.7102 },  // OSM way center
+  'Kojokrom':             { latitude: 4.9636, longitude: -1.7245 },  // OSM way center
+  'Ketan':                { latitude: 4.9511, longitude: -1.7289 },  // OSM node
+  'Essaman':              { latitude: 4.9237, longitude: -1.7369 },  // OSM node
+  'Bakado':               { latitude: 4.9379, longitude: -1.7295 },  // OSM node
+  'New Takoradi':         { latitude: 4.9046, longitude: -1.7479 },  // OSM node
+  'Takoradi':             { latitude: 4.8824, longitude: -1.7496 },  // OSM way center (railway station)
+
+  // ─── Ho (Volta Region) ────────────────────────────────────────
+  'Ho Main Lorry Station': { latitude: 6.6198, longitude: 0.4710 },  // Mapcarta/Waze
+  'Ho STC Terminal':       { latitude: 6.6147, longitude: 0.4693 },  // Mapcarta
+  'Ho MMT Station':        { latitude: 6.5987, longitude: 0.4466 },  // Mapcarta
 }
 
 /**
