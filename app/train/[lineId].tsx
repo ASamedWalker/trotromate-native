@@ -457,20 +457,22 @@ export default function LineDetailScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* ─── ACTIVATE GO MODE ──────────────────────────── */}
-      <View style={s.goModeWrap}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => router.push({
-            pathname: '/trip/[routeId]',
-            params: { routeId: lineId!, type: 'train', lineId: lineId! },
-          } as any)}
-          style={s.goModeBtn}
-        >
-          <Text style={s.goModeBtnText}>ACTIVATE GO MODE</Text>
-          <Zap size={20} color="#0c4a6e" />
-        </TouchableOpacity>
-      </View>
+      {/* ─── ACTIVATE GO MODE (only for lines with GO Mode support) ── */}
+      {line?.code !== 'STK' && (
+        <View style={s.goModeWrap}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push({
+              pathname: '/trip/[routeId]',
+              params: { routeId: lineId!, type: 'train', lineId: lineId! },
+            } as any)}
+            style={s.goModeBtn}
+          >
+            <Text style={s.goModeBtnText}>ACTIVATE GO MODE</Text>
+            <Zap size={20} color="#0c4a6e" />
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
