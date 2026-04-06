@@ -7,8 +7,10 @@ import {
   StyleSheet,
   Platform,
   Animated,
+  AccessibilityInfo,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as Haptics from 'expo-haptics'
 import { useRouter, type Href } from 'expo-router'
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import Mapbox from '@rnmapbox/maps'
@@ -17,6 +19,8 @@ import {
   Navigation,
   Locate,
   BusFront,
+  TrainFront,
+  MapPin,
 } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
@@ -41,7 +45,7 @@ import { getGhanaTime } from '@/lib/utils/time'
 import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
 import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
-import { StationMapPin, type StationPinType } from '@/components/StationMapPin'
+import { type StationPinType } from '@/components/StationMapPin'
 import { useQuery } from '@tanstack/react-query'
 import { X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
@@ -104,6 +108,36 @@ function AnimatedPlaceholder({ style }: { style: any }) {
     >
       {SEARCH_HINTS[index]}
     </Animated.Text>
+  )
+}
+
+/* ── Animated Map Pin — springs up when appearing (like Transit/Citibike) ── */
+
+function AnimatedMapPin({ children }: { children: React.ReactNode }) {
+  const scale = useRef(new Animated.Value(0)).current
+  const [reduceMotion, setReduceMotion] = useState(false)
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
+  }, [])
+
+  useEffect(() => {
+    if (reduceMotion) {
+      scale.setValue(1)
+      return
+    }
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 12,
+      bounciness: 8,
+    }).start()
+  }, [reduceMotion])
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      {children}
+    </Animated.View>
   )
 }
 
@@ -367,6 +401,7 @@ export default function HomeScreen() {
   const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
   const zoomRef = useRef(13)
   const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
+  const [mapReady, setMapReady] = useState(false)
 
   // Auto-request location permission on mount if not yet granted
   useEffect(() => {
@@ -375,19 +410,24 @@ export default function HomeScreen() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Snap to user location once (instant, no animation), then let user pan/zoom freely
-  const hasLocated = useRef(false)
+  // Manual camera follow — avoids Mapbox native followUserLocation which causes globe spin.
+  // Camera moves to user location via setCamera with controlled animation.
+  const [followUser, setFollowUser] = useState(true)
+  const center: [number, number] = location
+    ? [location.longitude, location.latitude]
+    : ACCRA_CENTER
+
+  const hasSetInitialCamera = useRef(false)
   useEffect(() => {
-    if (location && !hasLocated.current) {
-      hasLocated.current = true
-      cameraRef.current?.setCamera({
-        centerCoordinate: [location.longitude, location.latitude],
-        zoomLevel: 15,
-        animationDuration: 0, // instant — no visible fly animation
-      })
-    }
-  }, [location])
-  const center: [number, number] = ACCRA_CENTER
+    if (!location || !followUser || !cameraRef.current) return
+    const isFirst = !hasSetInitialCamera.current
+    hasSetInitialCamera.current = true
+    cameraRef.current.setCamera({
+      centerCoordinate: [location.longitude, location.latitude],
+      zoomLevel: 15,
+      animationDuration: isFirst ? 0 : 1000,
+    })
+  }, [location, followUser])
 
   // GeoJSON for incident markers — offset slightly so they don't hide behind station MarkerViews
   const incidentGeojson = useMemo(() => ({
@@ -444,6 +484,29 @@ export default function HomeScreen() {
       }>
   }, [stations])
 
+  // Station pins as native GeoJSON for SymbolLayer/CircleLayer (performance: no JS MarkerViews)
+  const stationPinsGeojson = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: stationPins.map((pin) => ({
+      type: 'Feature' as const,
+      id: pin.id,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: pin.coordinate,
+      },
+      properties: {
+        name: pin.name,
+        pinType: pin.pinType,
+        waitText: pin.waitText || '',
+        queueStatus: pin.queueStatus || '',
+        iconName: pin.pinType === 'train' ? 'pin-train'
+          : pin.pinType === 'major' ? 'pin-major'
+          : pin.pinType === 'queue' ? `pin-queue-${pin.queueStatus || 'empty'}`
+          : 'pin-trotro',
+      },
+    })),
+  }), [stationPins])
+
   // Train route polylines (TMA = blue, TMP = sky)
   const trainLinesGeojson = useMemo(() => {
     const features = Object.entries(TRAIN_SCHEDULES).map(([lineId, schedules]) => {
@@ -473,18 +536,11 @@ export default function HomeScreen() {
   ).length
 
   // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['18%', '50%', '88%'], [])
+  const snapPoints = useMemo(() => ['18%', '45%'], [])
 
   const handleRecenter = useCallback(() => {
-    const target: [number, number] = location
-      ? [location.longitude, location.latitude]
-      : center
-    cameraRef.current?.setCamera({
-      centerCoordinate: target,
-      zoomLevel: 15,
-      animationDuration: 800,
-    })
-  }, [location, center])
+    setFollowUser(true)
+  }, [])
 
   const handleModeChange = useCallback((mode: ServiceMode) => {
     if (mode === 'train') {
@@ -501,14 +557,31 @@ export default function HomeScreen() {
     <View style={s.container}>
       <OfflineBanner />
 
-      {/* ── Full-bleed map ── */}
-      <Mapbox.MapView
+      {/* ── Full-bleed map — only mounts after location to prevent ocean/globe flash ── */}
+      {!location ? (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4', alignItems: 'center', justifyContent: 'center' }]}>
+          <Animated.View style={{ opacity: 0.4 }}>
+            <Navigation size={32} color={isDark ? c.stone400 : c.stone400} />
+          </Animated.View>
+        </View>
+      ) : <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
         styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
-        attributionEnabled={false}
+        attributionEnabled
+        attributionPosition={{ bottom: 8, left: 8 }}
         logoEnabled={false}
-        compassEnabled={false}
+        compassEnabled
+        compassViewPosition={1}
+        compassViewMargins={{ x: 16, y: 120 }}
         scaleBarEnabled={false}
+        pitchEnabled={false}
+        onDidFinishLoadingMap={() => setMapReady(true)}
+        onTouchStart={() => {
+          if (followUser) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            setFollowUser(false)
+          }
+        }}
         onCameraChanged={(state: any) => {
           const zoom = state.properties?.zoom
           if (zoom != null) {
@@ -530,13 +603,20 @@ export default function HomeScreen() {
           }
         }}
       >
-        <Mapbox.Camera
-          ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: center,
-            zoomLevel: 15,
-          }}
-        />
+        {/* Camera — no followUserLocation (causes globe spin). Position managed via setCamera. */}
+        {location && (
+          <Mapbox.Camera
+            ref={cameraRef}
+            defaultSettings={{
+              centerCoordinate: center,
+              zoomLevel: 15,
+              padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
+            }}
+            animationDuration={0}
+            minZoomLevel={3}
+            maxZoomLevel={18}
+          />
+        )}
 
         <Mapbox.UserLocation
           visible
@@ -544,6 +624,59 @@ export default function HomeScreen() {
           showsUserHeadingIndicator
           androidRenderMode="compass"
         />
+
+        {/* ── Transport icons for circle-to-icon transition ── */}
+        <Mapbox.Images>
+          <Mapbox.Image name="pin-trotro">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <BusFront size={18} color="#2563eb" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-train">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <TrainFront size={18} color="#7c3aed" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-major">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <MapPin size={18} color="#2563eb" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-queue-empty">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#22c55e', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <BusFront size={18} color="#22c55e" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-queue-moderate">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#f59e0b', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <BusFront size={18} color="#f59e0b" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-queue-long">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <BusFront size={18} color="#f97316" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+          <Mapbox.Image name="pin-queue-very_long">
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                <BusFront size={18} color="#ef4444" strokeWidth={2.5} />
+              </View>
+            </View>
+          </Mapbox.Image>
+        </Mapbox.Images>
 
         {/* ── Train route lines — subtle blue dashed polylines ── */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
@@ -736,50 +869,156 @@ export default function HomeScreen() {
             allowOverlap={false}
             anchor={{ x: 0.5, y: 1 }}
           >
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                const routeIds = getRoutesForStop(stop.name)
-                setSelectedStop({
-                  name: stop.name,
-                  latitude: stop.latitude,
-                  longitude: stop.longitude,
-                  routeIds,
-                  distanceKm: stop.distanceKm,
-                })
-                cameraRef.current?.setCamera({
-                  centerCoordinate: [stop.longitude, stop.latitude],
-                  zoomLevel: 14,
-                  animationDuration: 600,
-                })
-                bottomSheetRef.current?.snapToIndex(1)
-              }}
-            >
-              <NearbyStopPin name={stop.name} isNearest={i === 0} isDark={isDark} />
-            </TouchableOpacity>
+            <AnimatedMapPin>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                accessibilityLabel={`${stop.name} stop${stop.distanceKm ? `, ${stop.distanceKm.toFixed(1)} km away` : ''}`}
+                accessibilityRole="button"
+                onPress={() => {
+                  const routeIds = getRoutesForStop(stop.name)
+                  setSelectedStop({
+                    name: stop.name,
+                    latitude: stop.latitude,
+                    longitude: stop.longitude,
+                    routeIds,
+                    distanceKm: stop.distanceKm,
+                  })
+                  cameraRef.current?.setCamera({
+                    centerCoordinate: [stop.longitude, stop.latitude],
+                    zoomLevel: 14,
+                    animationDuration: 600,
+                  })
+                  bottomSheetRef.current?.snapToIndex(1)
+                }}
+              >
+                <NearbyStopPin name={stop.name} isNearest={i === 0} isDark={isDark} />
+              </TouchableOpacity>
+            </AnimatedMapPin>
           </Mapbox.MarkerView>
         ))}
 
-        {/* ── Station pins — zoom-aware: train always, others at zoom 12+ ── */}
-        {stationPins
-          .filter((pin) => pin.pinType === 'train' || pin.pinType === 'queue' || showAllPins)
-          .map((pin) => (
-          <Mapbox.MarkerView
-            key={pin.id}
-            coordinate={pin.coordinate}
-            allowOverlap={false}
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View pointerEvents="box-none">
-              <StationMapPin
-                type={pin.pinType}
-                name={pin.name}
-                waitText={pin.waitText}
-                queueStatus={pin.queueStatus as any}
-              />
-            </View>
-          </Mapbox.MarkerView>
-        ))}
+        {/* ── Station pins — native CircleLayer + SymbolLayer for performance ── */}
+        <Mapbox.ShapeSource
+          id="station-pins"
+          shape={stationPinsGeojson as any}
+          onPress={(e) => {
+            const feature = e.features?.[0]
+            if (!feature?.properties) return
+            const { name } = feature.properties
+            const pin = stationPins.find((p) => p.name === name)
+            if (!pin) return
+            const routeIds = getRoutesForStop(name)
+            setSelectedStop({
+              name,
+              latitude: pin.coordinate[1],
+              longitude: pin.coordinate[0],
+              routeIds,
+              distanceKm: null,
+            })
+            cameraRef.current?.setCamera({
+              centerCoordinate: pin.coordinate,
+              zoomLevel: 14,
+              animationDuration: 600,
+            })
+            bottomSheetRef.current?.snapToIndex(1)
+          }}
+          hitbox={{ width: 30, height: 30 }}
+        >
+          {/* ── Phase 1: Flat colored dots (zoom 11–12) — fade out as icons appear ── */}
+          <Mapbox.CircleLayer
+            id="station-halo"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 6, 12, 10, 13, 0],
+              circleColor: ['match', ['get', 'pinType'],
+                'train', '#7c3aed',
+                'queue', ['match', ['get', 'queueStatus'],
+                  'empty', '#22c55e', 'short', '#22c55e',
+                  'moderate', '#f59e0b',
+                  'long', '#f97316', 'very_long', '#ef4444',
+                  '#22c55e',
+                ],
+                '#2563eb',
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0.15, 13, 0],
+            }}
+          />
+          <Mapbox.CircleLayer
+            id="station-dot"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 3, 11, 4, 12, 6, 13, 0],
+              circleColor: ['match', ['get', 'pinType'],
+                'train', '#7c3aed',
+                'queue', ['match', ['get', 'queueStatus'],
+                  'empty', '#22c55e', 'short', '#22c55e',
+                  'moderate', '#f59e0b',
+                  'long', '#f97316', 'very_long', '#ef4444',
+                  '#22c55e',
+                ],
+                '#2563eb',
+              ],
+              circleStrokeColor: isDark ? '#1c1917' : '#ffffff',
+              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 10, 1, 12, 2, 13, 0],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 1, 13, 0],
+              circleStrokeOpacity: ['interpolate', ['linear'], ['zoom'], 12, 1, 13, 0],
+            }}
+          />
+
+          {/* ── Phase 2: Icon pins (zoom 13+) — fade in as dots disappear ── */}
+          <Mapbox.SymbolLayer
+            id="station-icon"
+            minZoomLevel={12}
+            style={{
+              iconImage: ['get', 'iconName'],
+              iconSize: ['interpolate', ['exponential', 1.2], ['zoom'], 12, 0, 13, 0.7, 14, 0.85, 16, 1.1],
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+              iconOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0, 13, 1],
+              iconAnchor: 'center',
+            }}
+          />
+
+          {/* Station name labels — below the icon pin */}
+          <Mapbox.SymbolLayer
+            id="station-labels"
+            minZoomLevel={13}
+            style={{
+              textField: ['get', 'name'],
+              textSize: ['interpolate', ['linear'], ['zoom'], 13, 9, 16, 12],
+              textColor: isDark ? '#d6d3d1' : '#374151',
+              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+              textHaloWidth: 1.5,
+              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, 1.6]], 14, ['literal', [0, 2.0]], 16, ['literal', [0, 2.4]]],
+              textAnchor: 'top',
+              textMaxWidth: 7,
+              textAllowOverlap: false,
+            }}
+          />
+          {/* Wait time badges — above the icon pin */}
+          <Mapbox.SymbolLayer
+            id="station-wait"
+            minZoomLevel={13}
+            filter={['!=', ['get', 'waitText'], '']}
+            style={{
+              textField: ['get', 'waitText'],
+              textSize: 9,
+              textColor: '#ffffff',
+              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, -1.6]], 14, ['literal', [0, -2.0]], 16, ['literal', [0, -2.4]]],
+              textAnchor: 'bottom',
+              textAllowOverlap: true,
+              textHaloColor: ['match', ['get', 'queueStatus'],
+                'empty', '#22c55e', 'short', '#22c55e',
+                'moderate', '#f59e0b',
+                'long', '#f97316', 'very_long', '#ef4444',
+                '#22c55e',
+              ],
+              textHaloWidth: 4,
+            }}
+          />
+        </Mapbox.ShapeSource>
 
         {/* ── Incident markers — native Mapbox layers with clustering ── */}
         <Mapbox.ShapeSource
@@ -902,7 +1141,7 @@ export default function HomeScreen() {
             }}
           />
         </Mapbox.ShapeSource>
-      </Mapbox.MapView>
+      </Mapbox.MapView>}
 
       {/* ── Floating search bar + service pills ── */}
       <SafeAreaView edges={['top']} style={s.floatingTop} pointerEvents="box-none">
@@ -1012,6 +1251,7 @@ export default function HomeScreen() {
           width: 40,
         }}
         enablePanDownToClose={false}
+        enableDynamicSizing={false}
       >
         <BottomSheetScrollView
           key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : 'home'}
