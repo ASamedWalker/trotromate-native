@@ -31,8 +31,8 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Lapaz':                { latitude: 5.6058, longitude: -0.2464 }, // Lapaz Junction
   'Lapaz-Nii Boi Junction': { latitude: 5.6077, longitude: -0.2452 }, // OSM N4982950480
   'Abeka Lapaz':          { latitude: 5.6073, longitude: -0.2482 }, // OSM N4980841285
-  'Achimota':             { latitude: 5.6133, longitude: -0.2255 }, // OSM: Achimota Overhead
-  'Achimota Terminal':    { latitude: 5.6215, longitude: -0.2259 }, // OSM: Achimota New Station
+  'Achimota':             { latitude: 5.6198, longitude: -0.2305 }, // Mapcarta N5030857589
+  'Achimota Terminal':    { latitude: 5.6198, longitude: -0.2305 }, // Mapcarta N5030857589
   'Legon':                { latitude: 5.6502, longitude: -0.1790 }, // OSM: Legon Station N4981090362
   'Legon Station':        { latitude: 5.6502, longitude: -0.1790 }, // Alias
   'Adenta':               { latitude: 5.7060, longitude: -0.1656 }, // OSM: Adenta Trotro Station
@@ -45,16 +45,16 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Mallam Gbawe':         { latitude: 5.5766, longitude: -0.3096 }, // OSM: Gbawe Station
   'Dansoman':             { latitude: 5.5640, longitude: -0.2381 }, // OSM: Dansoman Station N2815317517
   'Dansoman Last Stop':   { latitude: 5.5300, longitude: -0.2652 }, // OSM N2026403681
-  'Ashaiman':             { latitude: 5.6868, longitude: -0.0327 }, // OSM: Ashaiman Main Station
-  'Ashaiman Main Station': { latitude: 5.6868, longitude: -0.0327 }, // Alias
-  'Ashaiaman':            { latitude: 5.6868, longitude: -0.0327 }, // Misspelling in routes
-  'Ashiaman':             { latitude: 5.6868, longitude: -0.0327 }, // Misspelling in routes
+  'Ashaiman':             { latitude: 5.6878, longitude: -0.0301 }, // Mapcarta N5113398166
+  'Ashaiman Main Station': { latitude: 5.6878, longitude: -0.0301 }, // Mapcarta N5113398166
+  'Ashaiaman':            { latitude: 5.6878, longitude: -0.0301 }, // Misspelling alias
+  'Ashiaman':             { latitude: 5.6878, longitude: -0.0301 }, // Misspelling alias
   'Spintex':              { latitude: 5.6288, longitude: -0.0902 }, // Spintex Road junction
-  'Accra Central':        { latitude: 5.5446, longitude: -0.2048 }, // OSM: Tudu Station
-  'Accra':                { latitude: 5.5446, longitude: -0.2048 }, // General Accra = Tudu
-  'Accra CMB':            { latitude: 5.5446, longitude: -0.2048 }, // CMB = central motor block
-  'Accra UTC':            { latitude: 5.5446, longitude: -0.2048 }, // UTC area
-  'Accra U.T.C':          { latitude: 5.5446, longitude: -0.2048 }, // Alias
+  'Accra Central':        { latitude: 5.5498, longitude: -0.2070 }, // Mapcarta N5078026280
+  'Accra':                { latitude: 5.5498, longitude: -0.2070 }, // Mapcarta N5078026280
+  'Accra CMB':            { latitude: 5.5507, longitude: -0.2131 }, // Mapcarta N5040045045
+  'Accra UTC':            { latitude: 5.5498, longitude: -0.2070 }, // Mapcarta N5078026280
+  'Accra U.T.C':          { latitude: 5.5498, longitude: -0.2070 }, // Alias
   'Accra Post Office':    { latitude: 5.5475, longitude: -0.2100 }, // Near GPO
   'Accra Post - Office':  { latitude: 5.5475, longitude: -0.2100 }, // Alias
   'Accra Rawlings Park':  { latitude: 5.5500, longitude: -0.2059 }, // Near STC Tudu
@@ -71,10 +71,10 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Okponglo':             { latitude: 5.6413, longitude: -0.1781 }, // OSM: Okponglo bus stop
   'Taifa':                { latitude: 5.6584, longitude: -0.2529 }, // OSM: Taifa
   'Tetteh Quarshie':      { latitude: 5.6240, longitude: -0.1738 }, // OSM: Tetteh Quarshie Roundabout
-  '37':                   { latitude: 5.5889, longitude: -0.1796 }, // OSM N4980841300
-  '37 Military Hospital': { latitude: 5.5869, longitude: -0.2076 }, // OSM: 37 station N6968590872
-  '37 Station':           { latitude: 5.5869, longitude: -0.2076 }, // Mapcarta N6968590872
-  '37 Lorry Park':        { latitude: 5.5884, longitude: -0.1798 }, // OSM: 37 Last Stop
+  '37':                   { latitude: 5.58897, longitude: -0.17991 }, // Mapcarta W238521540
+  '37 Military Hospital': { latitude: 5.58691, longitude: -0.18471 }, // Mapcarta W786143438 (hospital)
+  '37 Station':           { latitude: 5.58897, longitude: -0.17991 }, // Mapcarta W238521540
+  '37 Lorry Park':        { latitude: 5.58897, longitude: -0.17991 }, // Mapcarta W238521540
   'Ablekuma':             { latitude: 5.5480, longitude: -0.2520 }, // Ablekuma junction
   'Abokobi':              { latitude: 5.7150, longitude: -0.1530 }, // Abokobi town
   'Adjringanor':          { latitude: 5.6497, longitude: -0.1367 }, // Adjringanor
@@ -86,11 +86,11 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Atadeka':              { latitude: 5.6906, longitude: -0.0320 }, // OSM: Atadeka Station N4327136891
   'Dodowa':               { latitude: 5.8881, longitude: -0.0899 }, // OSM: Dodowa Last Stop
   'Dome':                 { latitude: 5.6452, longitude: -0.2372 }, // OSM: Dome Crossing
-  'Dome /Ashongman Estates': { latitude: 5.6605, longitude: -0.2373 }, // OSM: Dome New Station
+  'Dome /Ashongman Estates': { latitude: 5.7022, longitude: -0.2358 }, // Mapcarta N5035642562
   'Dome Kwabenya':        { latitude: 5.6907, longitude: -0.2477 }, // OSM: Kwabenya N4990251206
-  'Dome Pillar 2':        { latitude: 5.6539, longitude: -0.2373 }, // OSM: Dome Mobil
+  'Dome Pillar 2':        { latitude: 5.6532, longitude: -0.2167 }, // Mapcarta N5021998662
   'Dome Railway Crossing': { latitude: 5.6472, longitude: -0.2365 }, // OSM: Dome Crossing
-  'East Legon':           { latitude: 5.6483, longitude: -0.1508 }, // OSM: East Legon
+  'East Legon':           { latitude: 5.6393, longitude: -0.1625 }, // Mapcarta N373823745
   'Maamobi':              { latitude: 5.5905, longitude: -0.1970 }, // Maamobi
   'Nima':                 { latitude: 5.5820, longitude: -0.1988 }, // Nima
   'Nima Station':         { latitude: 5.5820, longitude: -0.1988 }, // Alias
@@ -103,8 +103,8 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Nima Overhead Maamobi': { latitude: 5.5860, longitude: -0.1980 }, // Between
   'Nungua':               { latitude: 5.6022, longitude: -0.0792 }, // OSM: Nugua Station N6433613586
   'Nungua Authority':     { latitude: 5.6022, longitude: -0.0792 }, // Same area
-  'Osu':                  { latitude: 5.5541, longitude: -0.1836 }, // OSM: Osu
-  'Osu (37 Station)':     { latitude: 5.5541, longitude: -0.1836 }, // Route alias
+  'Osu':                  { latitude: 5.5522, longitude: -0.1782 }, // Mapcarta N5023989069
+  'Osu (37 Station)':     { latitude: 5.5522, longitude: -0.1782 }, // Mapcarta N5023989069
   'Osu Penta Hotel':      { latitude: 5.5570, longitude: -0.1800 }, // Osu area
   'Osu Presby':           { latitude: 5.5530, longitude: -0.1830 }, // Osu Presby area
   'Osu RE':               { latitude: 5.5541, longitude: -0.1836 }, // Osu area
@@ -133,7 +133,7 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Alajo Station':        { latitude: 5.5909, longitude: -0.2183 }, // OSM N4990163121
   'Alhaji':               { latitude: 5.6060, longitude: -0.2494 }, // Darkuman area (OSM N3154416434)
   'Amasaman':             { latitude: 5.7010, longitude: -0.3070 }, // Amasaman town
-  'American House':       { latitude: 5.6190, longitude: -0.1508 }, // East Legon area
+  'American House':       { latitude: 5.6458, longitude: -0.1481 }, // Mapcarta N5020282544
   'Antie Aku':            { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Antie-Eku Pallas Town': { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Anyah':                { latitude: 5.5560, longitude: -0.2970 }, // Anyaa area near Mallam
@@ -177,8 +177,8 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Immesco Rice':         { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Israel Lomnava':       { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Kokomlemle':           { latitude: 5.5790, longitude: -0.2060 }, // Near Paloma
-  'Korle Bu':             { latitude: 5.5362, longitude: -0.2264 }, // OSM N4979349924
-  'Korlebu':              { latitude: 5.5362, longitude: -0.2264 }, // Alias
+  'Korle Bu':             { latitude: 5.5358, longitude: -0.2308 }, // Mapcarta N5013113660
+  'Korlebu':              { latitude: 5.5358, longitude: -0.2308 }, // Alias
   'Kotobabi Down':        { latitude: 5.5840, longitude: -0.2100 }, // Kotobabi area
   'Kotobabi Down Polo Park': { latitude: 5.5840, longitude: -0.2100 }, // Alias
   'Kotobabi Down/Polo park': { latitude: 5.5840, longitude: -0.2100 }, // Alias
@@ -229,7 +229,7 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Ridge Hospital':       { latitude: 5.5605, longitude: -0.1966 }, // OSM: Ridge N4974193125
   'Russia':               { latitude: 5.5546, longitude: -0.2546 }, // OSM: Russia Station N4996742714
   'Russia Last Stop':     { latitude: 5.5546, longitude: -0.2546 }, // Alias
-  'SSNIT Flats':          { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'SSNIT Flats':          { latitude: 5.5624, longitude: -0.2730 }, // Mapcarta N5087182231
   'Sakaman Blue Lagoon':  { latitude: 5.5640, longitude: -0.2360 }, // Sakaman area
   'Santa Maria':          { latitude: 5.5900, longitude: -0.2500 }, // Santa Maria junction
   'Sapeiman':             { latitude: 5.6800, longitude: -0.2900 }, // Sapeiman town
@@ -247,7 +247,7 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Tabora Alhaji':        { latitude: 5.6037, longitude: -0.2578 }, // OSM: Tabora Number 1 N3154321446
   'Teachers Hall':        { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Tema Community One Market': { latitude: 5.6580, longitude: -0.0035 }, // OSM: Community 4 N3676894848
-  'Trade Fair (La)':      { latitude: 5.5856, longitude: -0.1440 }, // La Trade Fair area
+  'Trade Fair (La)':      { latitude: 5.5689, longitude: -0.1483 }, // Mapcarta N5023989055
   'Tse Addo':             { latitude: 5.5600, longitude: -0.1600 }, // Near La
   'Tsui Bleoo':           { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'WAEC':                 { latitude: 5.5950, longitude: -0.1850 }, // WAEC office near 37
