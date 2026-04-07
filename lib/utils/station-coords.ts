@@ -135,7 +135,7 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Amasaman':             { latitude: 5.7010, longitude: -0.3070 }, // Amasaman town
   'American House':       { latitude: 5.6458, longitude: -0.1481 }, // Mapcarta N5020282544
   'Antie Aku':            { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
-  'Antie-Eku Pallas Town': { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Antie-Eku Pallas Town': { latitude: 5.6126691, longitude: -0.2847954 }, // OSM bus_stop
   'Anyah':                { latitude: 5.5560, longitude: -0.2970 }, // Anyaa area near Mallam
   'Apapa':                { latitude: 5.5673, longitude: -0.1637 }, // OSM: Apaapa lorry station N4324423391
   'Appiah Danquah':       { latitude: 5.5675, longitude: -0.1817 }, // OSM: Danquah Second N4198267793
@@ -174,8 +174,8 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Glefe':                { latitude: 5.5260, longitude: -0.2520 }, // Glefe coastal area
   'Good Shepherd':        { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
   'Hansonic':             { latitude: 5.6230, longitude: -0.0730 }, // Near Sakumono
-  'Immesco Rice':         { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
-  'Israel Lomnava':       { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Immesco Rice':         { latitude: 5.5899273, longitude: -0.231307 }, // OSM bus_stop
+  'Israel Lomnava':       { latitude: 5.6311312, longitude: -0.2688401 }, // OSM bus_stop
   'Kokomlemle':           { latitude: 5.5790, longitude: -0.2060 }, // Near Paloma
   'Korle Bu':             { latitude: 5.5358, longitude: -0.2308 }, // Mapcarta N5013113660
   'Korlebu':              { latitude: 5.5358, longitude: -0.2308 }, // Alias
@@ -190,18 +190,18 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Kwashieman Junction':  { latitude: 5.5840, longitude: -0.2670 }, // Alias
   'Kwashieman/Santa Maria': { latitude: 5.5850, longitude: -0.2600 }, // Between
   'La Olympia':           { latitude: 5.5595, longitude: -0.1585 }, // OSM: La Main Lorry Station N2151944574
-  'Lomnava':              { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Lomnava':              { latitude: 5.6395023, longitude: -0.2791562 }, // OSM bus_stop
   'Makola Tudu':          { latitude: 5.5446, longitude: -0.2048 }, // OSM: Tudu Station N3095484237
-  'Mamponse':             { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Mamponse':             { latitude: 5.52768, longitude: -0.2736519 }, // OSM bus_stop
   'Mamprobi':             { latitude: 5.5347, longitude: -0.2378 }, // OSM: Mamprobi Station N4980974744
   'Mamprobi Alhaji':      { latitude: 5.5347, longitude: -0.2378 }, // Same area
   'Mamprobi C Lante':     { latitude: 5.5335, longitude: -0.2376 }, // OSM: Mamprobi Shell N4980974768
   'Manhean':              { latitude: 5.6569, longitude: -0.0210 }, // OSM: Manhean Bus Station N4350218309
   'Manhean Afuaman':      { latitude: 5.6569, longitude: -0.0210 }, // Same area
-  'Mataheko':             { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
-  'Mateytse':             { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
-  'Mayera':               { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
-  'Mayera/Adusa':         { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Mataheko':             { latitude: 5.5629792, longitude: -0.2439524 }, // OSM bus_stop
+  'Mateytse':             { latitude: 5.8872683, longitude: -0.0908446 }, // OSM bus_stop
+  'Mayera':               { latitude: 5.7262195, longitude: -0.2765037 }, // OSM: Mayera Market
+  'Mayera/Adusa':         { latitude: 5.7356167, longitude: -0.2718504 }, // OSM bus_stop
   'Medie/Kotoku':         { latitude: 5.7300, longitude: -0.2700 }, // Medie town north of Ofankor
   'Ministries':           { latitude: 5.5560, longitude: -0.1950 }, // Near Ridge
   'New Fadama':           { latitude: 5.6017, longitude: -0.2408 }, // Fadama area
@@ -230,12 +230,12 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Russia':               { latitude: 5.5546, longitude: -0.2546 }, // OSM: Russia Station N4996742714
   'Russia Last Stop':     { latitude: 5.5546, longitude: -0.2546 }, // Alias
   'SSNIT Flats':          { latitude: 5.5624, longitude: -0.2730 }, // Mapcarta N5087182231
-  'Sakaman Blue Lagoon':  { latitude: 5.5640, longitude: -0.2360 }, // Sakaman area
+  'Sakaman Blue Lagoon':  { latitude: 5.5715646, longitude: -0.2722016 }, // OSM: Sakaman area
   'Santa Maria':          { latitude: 5.5900, longitude: -0.2500 }, // Santa Maria junction
   'Sapeiman':             { latitude: 5.6800, longitude: -0.2900 }, // Sapeiman town
   'Shalom':               { latitude: 5.5312, longitude: -0.2322 }, // OSM N4980974748
   'Shiabu':               { latitude: 5.6277, longitude: -0.1764 }, // OSM: Shiashie N2581150583
-  'Six to Six Market':    { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Six to Six Market':    { latitude: 5.6202849, longitude: -0.2538854 }, // OSM trotro_stop
   'Soko':                 { latitude: 5.5675, longitude: -0.1817 }, // Danquah area
   'South Odorkor':        { latitude: 5.5797, longitude: -0.2648 }, // Odorkor area
   'Sowutuom':             { latitude: 5.6248, longitude: -0.2834 }, // OSM N325329480
@@ -245,14 +245,14 @@ export const FALLBACK_STATION_COORDS: Record<string, { latitude: number; longitu
   'Swanlake':             { latitude: 5.5870, longitude: -0.2100 }, // Swan Lake area
   'Swanlake Last Stop':   { latitude: 5.5870, longitude: -0.2100 }, // Alias
   'Tabora Alhaji':        { latitude: 5.6037, longitude: -0.2578 }, // OSM: Tabora Number 1 N3154321446
-  'Teachers Hall':        { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Teachers Hall':        { latitude: 5.5576823, longitude: -0.2079485 }, // OSM bus_stop
   'Tema Community One Market': { latitude: 5.6580, longitude: -0.0035 }, // OSM: Community 4 N3676894848
   'Trade Fair (La)':      { latitude: 5.5689, longitude: -0.1483 }, // Mapcarta N5023989055
   'Tse Addo':             { latitude: 5.5600, longitude: -0.1600 }, // Near La
-  'Tsui Bleoo':           { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Tsui Bleoo':           { latitude: 5.606019, longitude: -0.1154929 }, // OSM bus_stop
   'WAEC':                 { latitude: 5.5950, longitude: -0.1850 }, // WAEC office near 37
   'Weija':                { latitude: 5.5512, longitude: -0.3292 }, // OSM: Weija Barrier N4740682127
-  'Yellow House':         { latitude: 5.5640, longitude: -0.2360 }, // Kaneshie area
+  'Yellow House':         { latitude: 5.6382209, longitude: -0.2690014 }, // OSM bus_stop
   'Zambrama Line':        { latitude: 5.5446, longitude: -0.2048 }, // Tudu area
   'Zamrama Line':         { latitude: 5.5446, longitude: -0.2048 }, // Alias
   'Zongo Junction':       { latitude: 5.5578, longitude: -0.2398 }, // OSM N4980974735
