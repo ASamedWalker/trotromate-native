@@ -13,6 +13,46 @@ import {
 const MAX_IMAGES = 5
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50 MB
+// Long-lived immutable cache: filenames are unique per upload, so we never need to revalidate.
+// Drastically reduces Supabase Storage egress on repeat views.
+const STORAGE_CACHE_CONTROL = '31536000' // 1 year (Supabase passes this through to CDN)
+
+// ─── Compression (egress reduction) ───────────────────────────
+// Both libs are native modules — only available after the v1.1.2 native rebuild.
+// Guarded with try/catch so the same JS bundle is OTA-safe on v1.1.0/v1.1.1
+// (compression silently skipped) and v1.1.2 (compression active).
+const IMAGE_MAX_DIMENSION = 1600 // px
+const IMAGE_QUALITY = 0.7 // 0-1
+const VIDEO_BITRATE = 1_500_000 // 1.5 Mbps
+
+async function compressImage(uri: string): Promise<string> {
+  try {
+    const ImageManipulator = require('expo-image-manipulator')
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: IMAGE_MAX_DIMENSION } }],
+      { compress: IMAGE_QUALITY, format: ImageManipulator.SaveFormat.JPEG }
+    )
+    return result.uri
+  } catch (e) {
+    // Native module not bound (pre-v1.1.2) or compression failed — fall back to original
+    return uri
+  }
+}
+
+async function compressVideo(uri: string): Promise<string> {
+  try {
+    const { Video } = require('react-native-compressor')
+    const compressedUri = await Video.compress(
+      uri,
+      { compressionMethod: 'manual', bitrate: VIDEO_BITRATE, maxSize: 1280 },
+      () => {}
+    )
+    return compressedUri
+  } catch (e) {
+    return uri
+  }
+}
 
 export async function fetchTales(params: {
   limit?: number
@@ -155,7 +195,9 @@ export async function submitTale(params: {
       params.onProgress?.(0.1)
       const safeDeviceId = sanitizeString(deviceId, 32).replace(/[^a-f0-9]/g, '')
       const videoFileName = `${safeDeviceId}-${Date.now()}.mp4`
-      const videoFile = new File(params.videoUri)
+      // Compress (no-op on pre-v1.1.2 builds)
+      const compressedVideoUri = await compressVideo(params.videoUri)
+      const videoFile = new File(compressedVideoUri)
       const videoBuffer = await videoFile.arrayBuffer()
 
       if (videoBuffer.byteLength > MAX_VIDEO_SIZE) {
@@ -166,7 +208,10 @@ export async function submitTale(params: {
       params.onProgress?.(0.3)
       const { error: videoUploadError } = await supabase.storage
         .from('tale-videos')
-        .upload(videoFileName, videoBuffer, { contentType: 'video/mp4' })
+        .upload(videoFileName, videoBuffer, {
+          contentType: 'video/mp4',
+          cacheControl: STORAGE_CACHE_CONTROL,
+        })
 
       if (videoUploadError) {
         console.error('Video upload failed:', videoUploadError.message)
@@ -187,7 +232,10 @@ export async function submitTale(params: {
 
         const { error: thumbError } = await supabase.storage
           .from('tale-images')
-          .upload(thumbFileName, thumbBuffer, { contentType: 'image/jpeg' })
+          .upload(thumbFileName, thumbBuffer, {
+            contentType: 'image/jpeg',
+            cacheControl: STORAGE_CACHE_CONTROL,
+          })
 
         if (!thumbError) {
           const { data: thumbUrlData } = supabase.storage
@@ -206,7 +254,9 @@ export async function submitTale(params: {
         imageUris.map(async (uri, index) => {
           const safeDeviceId = sanitizeString(deviceId, 32).replace(/[^a-f0-9]/g, '')
           const fileName = `${safeDeviceId}-${Date.now()}-${index}.jpg`
-          const file = new File(uri)
+          // Compress (no-op on pre-v1.1.2 builds)
+          const compressedUri = await compressImage(uri)
+          const file = new File(compressedUri)
           const arrayBuffer = await file.arrayBuffer()
 
           if (arrayBuffer.byteLength > MAX_IMAGE_SIZE) {
@@ -216,7 +266,10 @@ export async function submitTale(params: {
 
           const { error: uploadError } = await supabase.storage
             .from('tale-images')
-            .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' })
+            .upload(fileName, arrayBuffer, {
+              contentType: 'image/jpeg',
+              cacheControl: STORAGE_CACHE_CONTROL,
+            })
 
           if (uploadError) {
             console.warn(`Image ${index} upload failed:`, uploadError.message)

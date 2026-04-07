@@ -15,9 +15,10 @@ import {
   DeviceEventEmitter,
   Animated,
 } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
-import { useIsFocused } from '@react-navigation/native'
+import { Image as ExpoImage } from 'expo-image'
 import {
   MessageCircle,
   MapPin,
@@ -28,6 +29,7 @@ import {
   Heart,
   Send,
   Bookmark,
+  Play,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
@@ -41,7 +43,6 @@ import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
-import VideoPlayer from '@/components/VideoPlayer'
 import type { TalePost } from '@/lib/types'
 
 const { width: SCREEN_W } = Dimensions.get('window')
@@ -64,15 +65,13 @@ function getDisplayName(post: TalePost): string {
 // ─── Double-tap like overlay ────────────────────────────
 
 function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; children: React.ReactNode }) {
-  const lastTap = useRef(0)
   const heartScale = useRef(new Animated.Value(0)).current
   const heartOpacity = useRef(new Animated.Value(0)).current
 
-  const handlePress = useCallback(() => {
-    const now = Date.now()
-    if (now - lastTap.current < 300) {
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
       onDoubleTap()
-      // Show heart animation
       heartScale.setValue(0)
       heartOpacity.setValue(1)
       Animated.sequence([
@@ -80,25 +79,23 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
         Animated.delay(400),
         Animated.timing(heartOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start()
-    }
-    lastTap.current = now
-  }, [onDoubleTap, heartScale, heartOpacity])
+    })
 
   return (
-    <View>
-      <Pressable onPress={handlePress} style={{ zIndex: 0 }}>
+    <GestureDetector gesture={doubleTap}>
+      <View>
         {children}
-      </Pressable>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.doubleTapHeart,
-          { transform: [{ scale: heartScale }], opacity: heartOpacity },
-        ]}
-      >
-        <Heart size={80} color="#fff" fill="#fff" />
-      </Animated.View>
-    </View>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.doubleTapHeart,
+            { transform: [{ scale: heartScale }], opacity: heartOpacity },
+          ]}
+        >
+          <Heart size={80} color="#fff" fill="#fff" />
+        </Animated.View>
+      </View>
+    </GestureDetector>
   )
 }
 
@@ -110,8 +107,6 @@ function TaleCard({
   reactionSummary,
   userReactions,
   isOwn,
-  isVisible,
-  isMounted,
   onReact,
   onComment,
   onDelete,
@@ -124,8 +119,6 @@ function TaleCard({
   reactionSummary: Record<string, number>
   userReactions: string[]
   isOwn: boolean
-  isVisible: boolean
-  isMounted: boolean
   onReact: (emoji: string) => void
   onComment: () => void
   onDelete?: () => void
@@ -231,15 +224,34 @@ function TaleCard({
       <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
         <View style={s.mediaWrap}>
           {post.media_type === 'video' && post.video_url ? (
-            <VideoPlayer
-              uri={post.video_url}
-              thumbnailUri={post.video_thumbnail_url}
-              width={SCREEN_W}
-              isVisible={isVisible}
-              isMounted={isMounted}
-              durationSecs={post.video_duration_secs}
-              onExpand={onVideoPress}
-            />
+            // Egress saver: never stream video bytes in feed.
+            // Show thumbnail only — tap opens /reel for full playback.
+            <Pressable
+              onPress={onVideoPress}
+              style={{ width: SCREEN_W, aspectRatio: 3 / 4, backgroundColor: '#000' }}
+            >
+              {post.video_thumbnail_url ? (
+                <ExpoImage
+                  source={{ uri: post.video_thumbnail_url }}
+                  style={StyleSheet.absoluteFillObject}
+                  contentFit="cover"
+                  cachePolicy="disk"
+                />
+              ) : null}
+              <View style={s.videoPlayOverlay}>
+                <View style={s.videoPlayBtn}>
+                  <Play size={36} color="#fff" fill="#fff" />
+                </View>
+              </View>
+              {post.video_duration_secs != null && (
+                <View style={s.videoDurationBadge}>
+                  <Text style={s.videoDurationText}>
+                    {Math.floor(post.video_duration_secs / 60)}:
+                    {String(Math.floor(post.video_duration_secs % 60)).padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
           ) : post.image_url ? (
             <ImageCarousel
               images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
@@ -354,7 +366,6 @@ export default function TalesScreen() {
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
 
-  const isFocused = useIsFocused()
   const { deviceId } = useApp()
   const {
     posts, isLoading, isRefreshing, hasMore,
@@ -365,7 +376,6 @@ export default function TalesScreen() {
   const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
-  const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set())
 
   // Listen for comment open signal from reel screen
   useEffect(() => {
@@ -375,12 +385,6 @@ export default function TalesScreen() {
     })
     return () => { sub.remove(); clearTimeout(timer) }
   }, [])
-
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    setVisiblePostIds(new Set(viewableItems.map((v: any) => v.item.id)))
-  }).current
-
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current
 
   const handleReact = (postId: string, emoji: string) => {
     haptics.light()
@@ -407,10 +411,6 @@ export default function TalesScreen() {
   }
 
   const renderItem = ({ item }: { item: TalePost }) => {
-    const isVisible = isFocused && visiblePostIds.has(item.id)
-    // Keep videos mounted once visible to avoid rapid create/destroy crashes on Android
-    const isMounted = item.media_type !== 'video' || true
-
     return (
       <TaleCard
         post={item}
@@ -418,8 +418,6 @@ export default function TalesScreen() {
         reactionSummary={reactionSummaries.get(item.id) || {}}
         userReactions={userReactions.get(item.id) || []}
         isOwn={item.device_id === deviceId}
-        isVisible={isVisible}
-        isMounted={isMounted}
         onReact={(emoji) => handleReact(item.id, emoji)}
         onComment={() => setCommentPostId(item.id)}
         onDelete={() => deletePost(item.id)}
@@ -500,8 +498,6 @@ export default function TalesScreen() {
           }
           onEndReached={hasMore ? loadMore : undefined}
           onEndReachedThreshold={0.5}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
           ListFooterComponent={
             hasMore ? (
               <ActivityIndicator size="small" color="#815100" style={{ paddingVertical: 20 }} />
@@ -631,6 +627,37 @@ const cardStyles = (isDark: boolean) => {
       fontFamily: font.bold,
       color: '#fff',
       letterSpacing: 1.5,
+    },
+    videoPlayOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    videoPlayBtn: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingLeft: 4,
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.25)',
+    },
+    videoDurationBadge: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      borderRadius: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    videoDurationText: {
+      color: '#fff',
+      fontSize: 12,
+      fontFamily: font.semibold,
     },
 
     // ── Location pill (glass overlay on media) ──
