@@ -48,9 +48,7 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        snapToAlignment="center"
-        decelerationRate="fast"
-        nestedScrollEnabled
+        disableIntervalMomentum
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         keyExtractor={(_, i) => String(i)}

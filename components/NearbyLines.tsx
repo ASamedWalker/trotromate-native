@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { ChevronRight, MapPin, ShieldCheck } from 'lucide-react-native'
+import { ChevronRight, MapPin, ShieldCheck, Clock } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { getStationCoords } from '@/lib/utils/station-coords'
 import { haversineKm } from '@/lib/utils/distance'
@@ -217,47 +217,58 @@ export function NearbyLines({
 
       {/* ── Trotro cards ── */}
       {trotroLines.map((line, idx) => {
-        const borderColor = TRANSPORT_COLORS.trotro
+        const accentColor = TRANSPORT_COLORS.trotro
         const queueColor = line.queueStatus ? QUEUE_COLORS[line.queueStatus] : undefined
-        const queueLabel = line.queueStatus ? QUEUE_LABELS[line.queueStatus] : undefined
 
         return (
           <AnimatedCard
             key={line.id}
             index={idx}
             onPress={() => router.push(line.href as Href)}
-            style={[s.card, { borderLeftColor: borderColor }]}
+            style={s.card}
           >
+            {/* Accent bar */}
+            <View style={[s.accentBar, { backgroundColor: accentColor }]} />
+
             <View style={s.cardBody}>
-              {/* Left content */}
-              <View style={s.cardLeft}>
-                <View style={s.labelRow}>
-                  <Text style={s.categoryLabel}>Route Destination</Text>
+              {/* Left: time box */}
+              <View style={[s.timeBox, { backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)' }]}>
+                <Text style={[s.timeBoxNumber, { color: queueColor ?? accentColor }]}>
+                  {line.timeNumber === '--' ? '--' : line.timeNumber}
+                </Text>
+                {line.timeUnit === 'minutes' && (
+                  <Text style={[s.timeBoxUnit, { color: queueColor ?? accentColor }]}>MIN</Text>
+                )}
+              </View>
+
+              {/* Middle: route info */}
+              <View style={s.cardMiddle}>
+                <Text style={s.destLabel}>To {line.to}</Text>
+                <Text style={s.routeName} numberOfLines={1}>{line.from} - {line.to}</Text>
+                <View style={s.badgeRow}>
                   {line.isVerified && (
                     <View style={s.gprtuBadge}>
-                      <ShieldCheck size={10} color="#16a34a" />
-                      <Text style={s.gprtuText}>GPRTU</Text>
+                      <ShieldCheck size={12} color="#16a34a" fill="#16a34a" />
+                      <Text style={s.gprtuText}>GPRTU Verified</Text>
                     </View>
                   )}
-                  {queueLabel && (
+                  {line.queueStatus && (
                     <View style={[s.queueBadge, { backgroundColor: `${queueColor}18` }]}>
                       <View style={[s.queueDot, { backgroundColor: queueColor }]} />
-                      <Text style={[s.queueText, { color: queueColor }]}>{queueLabel}</Text>
+                      <Text style={[s.queueText, { color: queueColor }]}>
+                        {QUEUE_LABELS[line.queueStatus]}
+                      </Text>
                     </View>
                   )}
                 </View>
-                <Text style={[s.routeCode, { color: borderColor }]}>{line.routeLabel}-{abbreviate(line.to)}</Text>
-                <Text style={s.routeSubtitle} numberOfLines={1}>{line.from} to {line.to}</Text>
               </View>
 
-              {/* Right: time */}
+              {/* Right: fare + chevron */}
               <View style={s.cardRight}>
-                <Text style={[s.timeNumber, { color: queueColor ?? borderColor }]}>
-                  {line.timeNumber === '--' ? '--' : `${line.timeNumber}m`}
-                </Text>
-                {line.timeUnit === 'minutes' && (
-                  <Text style={s.timeLabel}>Minutes</Text>
+                {line.fare != null && (
+                  <Text style={s.fareText}>GH₵ {line.fare.toFixed(2)}</Text>
                 )}
+                <ChevronRight size={18} color={t.textTertiary} />
               </View>
             </View>
           </AnimatedCard>
@@ -266,7 +277,7 @@ export function NearbyLines({
 
       {/* ── Train cards ── */}
       {trainLines.map((line, idx) => {
-        const borderColor = TRANSPORT_COLORS.train
+        const accentColor = TRANSPORT_COLORS.train
         const isLive = line.liveTag === 'live'
 
         return (
@@ -274,53 +285,66 @@ export function NearbyLines({
             key={line.id}
             index={trotroLines.length + idx}
             onPress={() => router.push(line.href as Href)}
-            style={[s.card, { borderLeftColor: borderColor }]}
+            style={s.card}
           >
+            {/* Accent bar */}
+            <View style={[s.accentBar, { backgroundColor: accentColor }]} />
+
             <View style={s.cardBody}>
-              {/* Left content */}
-              <View style={s.cardLeft}>
-                <View style={s.labelRow}>
-                  <Text style={[s.categoryLabel, { color: borderColor }]}>Rail Link</Text>
+              {/* Left: time box */}
+              <View style={[s.timeBox, { backgroundColor: isDark ? 'rgba(34,211,238,0.1)' : 'rgba(34,211,238,0.08)' }]}>
+                <Text style={[s.timeBoxNumber, { color: isLive ? '#22c55e' : accentColor }]}>
+                  {line.timeNumber === '--' ? '--' : line.timeNumber}
+                </Text>
+                {line.timeUnit !== '' && line.liveTag !== 'done' && (
+                  <Text style={[s.timeBoxUnit, { color: isLive ? '#22c55e' : accentColor }]}>
+                    {line.liveTag === 'scheduled' ? 'DEP' : 'MIN'}
+                  </Text>
+                )}
+              </View>
+
+              {/* Middle: route info */}
+              <View style={s.cardMiddle}>
+                <Text style={s.destLabel}>To {line.to}</Text>
+                <Text style={s.routeName} numberOfLines={1}>{line.from} - {line.to}</Text>
+                <View style={s.badgeRow}>
                   {isLive && (
                     <View style={s.liveBadge}>
                       <View style={s.liveDot} />
                       <Text style={s.liveText}>LIVE</Text>
                     </View>
                   )}
+                  <Text style={[s.railLabel, { color: accentColor }]}>Rail Link</Text>
                 </View>
-                <Text style={[s.routeCode, { color: borderColor }]}>{line.lineName ?? 'TR'}</Text>
-                <Text style={s.routeSubtitle} numberOfLines={1}>{line.from} to {line.to}</Text>
               </View>
 
-              {/* Right: time */}
+              {/* Right: fare + chevron */}
               <View style={s.cardRight}>
-                <Text style={[
-                  s.timeNumber,
-                  { color: isLive ? '#22c55e' : borderColor },
-                  line.liveTag === 'done' && s.timeDone,
-                ]}>
-                  {line.timeNumber === '--' ? '--' : line.timeUnit === 'minutes' ? `${line.timeNumber}m` : line.timeNumber}
-                </Text>
-                {line.timeUnit !== '' && line.liveTag !== 'done' && (
-                  <Text style={s.timeLabel}>
-                    {line.liveTag === 'scheduled' ? 'Departs' : 'Minutes'}
-                  </Text>
+                {line.fare != null && (
+                  <Text style={s.fareText}>GH₵ {line.fare.toFixed(2)}</Text>
                 )}
+                <ChevronRight size={18} color={t.textTertiary} />
               </View>
             </View>
           </AnimatedCard>
         )
       })}
 
-      {/* View all routes */}
+      {/* Looking for more? card */}
       {lines.length > 0 && (
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.7}
           onPress={() => router.push('/routes')}
-          style={s.viewAllBtn}
+          style={s.moreCard}
         >
-          <Text style={s.viewAllText}>VIEW ALL ROUTES</Text>
-          <ChevronRight size={16} color="#fff" />
+          <View style={s.moreIcon}>
+            <Clock size={20} color={t.textTertiary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.moreTitle}>Looking for more?</Text>
+            <Text style={s.moreSub}>View all routes and search</Text>
+          </View>
+          <ChevronRight size={18} color={t.textTertiary} />
         </TouchableOpacity>
       )}
 
@@ -394,14 +418,12 @@ const getStyles = (isDark: boolean) => {
       color: t.textTertiary,
     },
 
-    // Card — white bg, thick left border
+    // Card — compact with left accent bar
     card: {
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#fff',
       borderRadius: 16,
       marginBottom: 10,
-      borderLeftWidth: 8,
-      borderWidth: isDark ? 0 : StyleSheet.hairlineWidth,
-      borderColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
+      overflow: 'hidden',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: isDark ? 0 : 0.06,
@@ -409,46 +431,75 @@ const getStyles = (isDark: boolean) => {
       elevation: isDark ? 0 : 2,
     },
 
+    accentBar: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 4,
+    },
+
     cardBody: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 14,
-      paddingLeft: 14,
-      paddingRight: 16,
+      padding: 14,
+      paddingLeft: 16,
+      gap: 14,
     },
 
-    cardLeft: {
+    // Left: time box
+    timeBox: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    timeBoxNumber: {
+      fontSize: 20,
+      fontFamily: font.black,
+      lineHeight: 22,
+    },
+    timeBoxUnit: {
+      fontSize: 8,
+      fontFamily: font.bold,
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+    },
+
+    // Middle: route info
+    cardMiddle: {
       flex: 1,
     },
-
-    // Category label row
-    labelRow: {
+    destLabel: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+      marginBottom: 1,
+    },
+    routeName: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: t.text,
+      lineHeight: 20,
+    },
+    badgeRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 2,
-    },
-    categoryLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: TRANSPORT_COLORS.trotro,
-      textTransform: 'uppercase',
-      letterSpacing: 1.2,
+      marginTop: 4,
     },
     gprtuBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
-      backgroundColor: 'rgba(22,163,74,0.1)',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
+      gap: 4,
     },
     gprtuText: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      color: '#16a34a',
-      letterSpacing: 0.5,
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: t.textSecondary,
     },
     queueBadge: {
       flexDirection: 'row',
@@ -469,44 +520,22 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 0.3,
     },
 
-    // Route code — large bold
-    routeCode: {
-      fontSize: 26,
-      fontFamily: font.extrabold,
-      lineHeight: 30,
-      letterSpacing: -0.5,
-    },
-
-    // From → To subtitle
-    routeSubtitle: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginTop: 2,
-    },
-
-    // Right side — time
+    // Right: fare + chevron
     cardRight: {
       alignItems: 'flex-end',
-      marginLeft: 12,
+      gap: 4,
     },
-    timeNumber: {
-      fontSize: 28,
-      fontFamily: font.extrabold,
-      lineHeight: 32,
+    fareText: {
+      fontSize: 11,
+      fontFamily: font.bold,
+      color: t.textSecondary,
     },
-    timeDone: {
-      fontSize: 16,
-      lineHeight: 20,
-      color: t.textTertiary,
-    },
-    timeLabel: {
+
+    // Rail label
+    railLabel: {
       fontSize: 10,
-      fontFamily: font.medium,
-      color: t.textTertiary,
-      textTransform: 'uppercase',
+      fontFamily: font.bold,
       letterSpacing: 0.5,
-      marginTop: 1,
     },
 
     // Live badge for trains
@@ -532,22 +561,37 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 0.5,
     },
 
-    // View all routes CTA
-    viewAllBtn: {
+    // "Looking for more?" card
+    moreCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      marginTop: 6,
-      paddingVertical: 14,
+      padding: 14,
       borderRadius: 16,
-      backgroundColor: c.amber500,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+      gap: 14,
+      marginBottom: 10,
     },
-    viewAllText: {
+    moreIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    moreTitle: {
       fontSize: 14,
-      fontFamily: font.bold,
-      color: '#fff',
-      letterSpacing: 0.8,
+      fontFamily: font.semibold,
+      color: t.textSecondary,
+    },
+    moreSub: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: t.textTertiary,
+      marginTop: 1,
     },
 
     // Empty state

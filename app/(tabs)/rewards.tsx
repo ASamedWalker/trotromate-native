@@ -24,6 +24,7 @@ import { useLeaderboard } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { ReferralCard } from '@/components/ReferralCard'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { SkeletonRewards } from '@/components/Skeleton'
 import type { LeaderboardEntry } from '@/lib/types'
 
 /* ── Constants ──────────────────────────────────────── */
@@ -146,7 +147,7 @@ export default function RewardsScreen() {
   const s = getStyles(isDark)
   const t = themed(isDark)
   const { deviceId, refreshProfile } = useApp()
-  const { entries: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
+  const { entries: leaderboard, isLoading, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
 
   const [period, setPeriod] = useState<'week' | 'all'>('week')
@@ -187,47 +188,53 @@ export default function RewardsScreen() {
           <View style={[s.heroDecor, { top: -40, right: -30, width: 160, height: 160 }]} />
           <View style={[s.heroDecor, { bottom: 40, left: -50, width: 120, height: 120 }]} />
 
-          <Text style={s.heroTitle}>Leaderboard</Text>
-          <Text style={s.heroSubtitle}>Season 4 • Accra Metro</Text>
-
-          {/* Period tabs */}
-          <View style={s.periodRow}>
-            <TouchableOpacity
-              onPress={() => setPeriod('week')}
-              activeOpacity={0.7}
-              style={[s.periodTab, period === 'week' && s.periodTabActive]}
-            >
-              <Text style={[s.periodText, period === 'week' && s.periodTextActive]}>
-                THIS WEEK
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setPeriod('all')}
-              activeOpacity={0.7}
-              style={[s.periodTab, period === 'all' && s.periodTabActive]}
-            >
-              <Text style={[s.periodText, period === 'all' && s.periodTextActive]}>
-                ALL TIME
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Podium */}
-          {sortedBoard.length > 0 ? (
-            <View style={s.podiumRow}>
-              <View style={{ marginTop: 24 }}>
-                <PodiumAvatar entry={sortedBoard[1]} rank={2} />
-              </View>
-              <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
-              <View style={{ marginTop: 24 }}>
-                <PodiumAvatar entry={sortedBoard[2]} rank={3} />
-              </View>
-            </View>
+          {isLoading ? (
+            <SkeletonRewards isDark={isDark} />
           ) : (
-            <View style={s.emptyPodium}>
-              <Trophy size={40} color="rgba(255,255,255,0.3)" />
-              <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
-            </View>
+            <>
+              <Text style={s.heroTitle}>Leaderboard</Text>
+              <Text style={s.heroSubtitle}>Season 4 • Accra Metro</Text>
+
+              {/* Period tabs */}
+              <View style={s.periodRow}>
+                <TouchableOpacity
+                  onPress={() => setPeriod('week')}
+                  activeOpacity={0.7}
+                  style={[s.periodTab, period === 'week' && s.periodTabActive]}
+                >
+                  <Text style={[s.periodText, period === 'week' && s.periodTextActive]}>
+                    THIS WEEK
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setPeriod('all')}
+                  activeOpacity={0.7}
+                  style={[s.periodTab, period === 'all' && s.periodTabActive]}
+                >
+                  <Text style={[s.periodText, period === 'all' && s.periodTextActive]}>
+                    ALL TIME
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Podium */}
+              {sortedBoard.length > 0 ? (
+                <View style={s.podiumRow}>
+                  <View style={{ marginTop: 24 }}>
+                    <PodiumAvatar entry={sortedBoard[1]} rank={2} />
+                  </View>
+                  <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
+                  <View style={{ marginTop: 24 }}>
+                    <PodiumAvatar entry={sortedBoard[2]} rank={3} />
+                  </View>
+                </View>
+              ) : (
+                <View style={s.emptyPodium}>
+                  <Trophy size={40} color="rgba(255,255,255,0.3)" />
+                  <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -237,7 +244,7 @@ export default function RewardsScreen() {
           <ReferralCard />
 
           {/* Ranked list 4–7 */}
-          {sortedBoard.length > 3 && (
+          {!isLoading && sortedBoard.length > 3 && (
             <View style={s.rankedSection}>
               <Text style={s.rankedSectionTitle}>Top Contributors</Text>
 

@@ -97,6 +97,55 @@ export function SkeletonActivityItem({ isDark }: { isDark: boolean }) {
   )
 }
 
+export function SkeletonRewards({ isDark }: { isDark: boolean }) {
+  return (
+    <View>
+      {/* Podium skeleton */}
+      <View style={{ alignItems: 'center', paddingTop: 20, paddingBottom: 30 }}>
+        <Skeleton width={120} height={16} borderRadius={8} style={{ marginBottom: 6 }} />
+        <Skeleton width={160} height={10} borderRadius={6} style={{ marginBottom: 24 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 16 }}>
+          <View style={{ alignItems: 'center', marginTop: 24 }}>
+            <Skeleton width={80} height={80} borderRadius={40} />
+            <Skeleton width={60} height={12} borderRadius={6} style={{ marginTop: 10 }} />
+            <Skeleton width={40} height={10} borderRadius={5} style={{ marginTop: 4 }} />
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Skeleton width={112} height={112} borderRadius={56} />
+            <Skeleton width={80} height={14} borderRadius={7} style={{ marginTop: 10 }} />
+            <Skeleton width={50} height={10} borderRadius={5} style={{ marginTop: 4 }} />
+          </View>
+          <View style={{ alignItems: 'center', marginTop: 24 }}>
+            <Skeleton width={80} height={80} borderRadius={40} />
+            <Skeleton width={60} height={12} borderRadius={6} style={{ marginTop: 10 }} />
+            <Skeleton width={40} height={10} borderRadius={5} style={{ marginTop: 4 }} />
+          </View>
+        </View>
+      </View>
+
+      {/* Ranked list skeleton */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <View key={i} style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 14,
+            borderRadius: 18,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f6efed',
+            marginBottom: 8,
+          }}>
+            <Skeleton width={22} height={14} borderRadius={4} />
+            <Skeleton width={40} height={40} borderRadius={20} style={{ marginLeft: 12 }} />
+            <Skeleton width="40%" height={13} borderRadius={6} style={{ marginLeft: 12 }} />
+            <View style={{ flex: 1 }} />
+            <Skeleton width={50} height={14} borderRadius={6} />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 const skeletons = StyleSheet.create({
   card: {
     borderRadius: 20,
