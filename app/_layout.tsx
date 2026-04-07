@@ -28,6 +28,7 @@ import TroskiSplash from '@/components/TroskiSplash'
 import AppErrorBoundary from '@/components/AppErrorBoundary'
 import { useAppUpdate } from '@/lib/hooks/useAppUpdate'
 import StoreUpdateModal from '@/components/StoreUpdateModal'
+import OtaUpdateBanner from '@/components/OtaUpdateBanner'
 
 import Mapbox from '@rnmapbox/maps'
 import '../global.css'
@@ -136,6 +137,7 @@ function AppInner() {
       </Stack>
       <StatusBar style="auto" />
       <StoreUpdateModal />
+      <OtaUpdateBanner />
       <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>
   )
