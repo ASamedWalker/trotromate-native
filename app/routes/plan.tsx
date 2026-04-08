@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   ArrowLeft,
   ArrowUpDown,
+  Map as MapIcon,
   MapPin,
   Navigation,
   Search,
@@ -77,7 +78,14 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 
 export default function RoutePlannerScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string }>()
+  const params = useLocalSearchParams<{
+    from?: string
+    to?: string
+    picked_target?: 'from' | 'to'
+    picked_label?: string
+    picked_lat?: string
+    picked_lng?: string
+  }>()
   const isDark = useColorScheme() === 'dark'
   const s = getStyles(isDark)
   const t = themed(isDark)
@@ -90,6 +98,24 @@ export default function RoutePlannerScreen() {
   const [hasSearched, setHasSearched] = useState(!!params.from && !!params.to)
   const [transportMode, setTransportMode] = useState<TransportMode>('all')
   const [selectedPlanIndex, setSelectedPlanIndex] = useState<number | null>(null)
+
+  // Handle returned location from /routes/pick-location
+  useEffect(() => {
+    if (!params.picked_target || !params.picked_label) return
+    if (params.picked_target === 'from') {
+      setFrom(params.picked_label)
+    } else {
+      setTo(params.picked_label)
+    }
+    setHasSearched(false)
+    // Clear the params so this doesn't re-fire on re-render
+    router.setParams({
+      picked_target: undefined,
+      picked_label: undefined,
+      picked_lat: undefined,
+      picked_lng: undefined,
+    })
+  }, [params.picked_target, params.picked_label, params.picked_lat, params.picked_lng, router])
 
   const toRef = useRef<TextInput>(null)
   const transportTypeParam = transportMode === 'all' || transportMode === 'walk' ? undefined : transportMode
@@ -188,6 +214,14 @@ export default function RoutePlannerScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => toRef.current?.focus()}
                 />
+                <TouchableOpacity
+                  onPress={() => router.push('/routes/pick-location?target=from')}
+                  activeOpacity={0.7}
+                  hitSlop={10}
+                  style={s.pickOnMapBtn}
+                >
+                  <MapIcon size={14} color={c.amber600} />
+                </TouchableOpacity>
               </View>
               <View style={s.inputWrapper}>
                 <Navigation size={14} color="#22c55e" />
@@ -202,6 +236,14 @@ export default function RoutePlannerScreen() {
                   returnKeyType="search"
                   onSubmitEditing={handleSearch}
                 />
+                <TouchableOpacity
+                  onPress={() => router.push('/routes/pick-location?target=to')}
+                  activeOpacity={0.7}
+                  hitSlop={10}
+                  style={s.pickOnMapBtn}
+                >
+                  <MapIcon size={14} color={c.amber600} />
+                </TouchableOpacity>
               </View>
             </View>
             <TouchableOpacity
@@ -396,6 +438,14 @@ const getStyles = (isDark: boolean) => {
       height: 36,
       borderRadius: 18,
       backgroundColor: isDark ? c.stone800 : c.stone100,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickOnMapBtn: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.18)' : 'rgba(245,158,11,0.14)',
       alignItems: 'center',
       justifyContent: 'center',
     },

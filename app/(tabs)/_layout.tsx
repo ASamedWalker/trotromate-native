@@ -4,6 +4,7 @@ import { useColorScheme, StyleSheet } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, glass } from '@/lib/theme'
 import GlassCard from '@/components/GlassCard'
+import { HapticTab } from '@/components/HapticTab'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
@@ -15,6 +16,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBarButton: HapticTab,
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {

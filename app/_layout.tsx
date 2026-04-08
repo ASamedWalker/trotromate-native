@@ -108,6 +108,7 @@ function AppInner() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
+        <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
         <Stack.Screen name="report/fare" options={{ headerShown: false, presentation: 'modal' }} />
