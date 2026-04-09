@@ -23,6 +23,7 @@ import {
   Smartphone,
   Camera,
   Globe,
+  Megaphone,
 } from 'lucide-react-native'
 import { Linking } from 'react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
@@ -161,6 +162,25 @@ export default function SettingsScreen() {
             >
               <View style={{ width: 18 }} />
               <Text style={s.linkLabel}>Notification Preferences</Text>
+              <ChevronRight size={18} color={t.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Preview Features (internal — remove before partnership launch) */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Preview Features</Text>
+          <View style={s.card}>
+            <TouchableOpacity
+              onPress={() => router.push('/bulletin' as Href)}
+              activeOpacity={0.7}
+              style={s.linkRow}
+            >
+              <Megaphone size={18} color={c.amber500} />
+              <View style={s.settingInfo}>
+                <Text style={s.settingLabel}>Transport Pulse</Text>
+                <Text style={s.settingDesc}>Official announcements from GPRTU & GRDA (preview)</Text>
+              </View>
               <ChevronRight size={18} color={t.textTertiary} />
             </TouchableOpacity>
           </View>

@@ -572,7 +572,7 @@ export default function HomeScreen() {
         logoEnabled={false}
         compassEnabled
         compassViewPosition={1}
-        compassViewMargins={{ x: 16, y: 120 }}
+        compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
         scaleBarEnabled={false}
         pitchEnabled={false}
         onDidFinishLoadingMap={() => setMapReady(true)}

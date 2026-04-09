@@ -123,6 +123,7 @@ function AppInner() {
         <Stack.Screen name="settings/edit-name" options={{ headerShown: false }} />
         <Stack.Screen name="settings/edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
+        <Stack.Screen name="bulletin/index" options={{ headerShown: false }} />
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
         <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />

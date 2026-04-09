@@ -18,7 +18,9 @@ import {
   Award,
   Star,
   MessageCircle,
+  Megaphone,
 } from 'lucide-react-native'
+import { router, type Href } from 'expo-router'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -33,6 +35,7 @@ const ICON_MAP: Record<NotificationType, { icon: typeof Bell; color: string }> =
   level_up: { icon: Award, color: '#f59e0b' },
   badge_earned: { icon: Star, color: '#8b5cf6' },
   community: { icon: MessageCircle, color: '#8b5cf6' },
+  official_announcement: { icon: Megaphone, color: '#f59e0b' },
 }
 
 export default function NotificationsScreen() {
@@ -59,7 +62,10 @@ export default function NotificationsScreen() {
 
     return (
       <TouchableOpacity
-        onPress={() => markAsRead(item.id)}
+        onPress={() => {
+          markAsRead(item.id)
+          if (item.linkTo) router.push(item.linkTo as Href)
+        }}
         activeOpacity={0.7}
         style={[s.card, !item.read && s.cardUnread]}
       >

@@ -15,6 +15,7 @@ export type NotificationType =
   | 'level_up'
   | 'badge_earned'
   | 'community'
+  | 'official_announcement'
 
 export interface AppNotification {
   id: string
@@ -23,6 +24,17 @@ export interface AppNotification {
   body: string
   timestamp: string
   color: string
+  linkTo?: string
+  source?: string
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  GPRTU: '#10b981',
+  GRDA: '#3b82f6',
+  GRA: '#8b5cf6',
+  MMTL: '#f59e0b',
+  MOT: '#6366f1',
+  TROSKI: '#f59e0b',
 }
 
 export async function fetchNotifications(
@@ -130,6 +142,32 @@ export async function fetchNotifications(
       timestamp: oneDayAgo,
       color: '#8b5cf6',
     })
+  }
+
+  // 5. Official announcements (GPRTU, GRDA, etc.) — Transport Pulse
+  const { data: announcements } = await supabase
+    .from('official_announcements')
+    .select('id, source, title, body, priority, published_at, expires_at, is_published')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .limit(20)
+
+  if (announcements) {
+    const nowMs = now.getTime()
+    for (const a of announcements) {
+      if (a.expires_at && new Date(a.expires_at as string).getTime() < nowMs) continue
+      const source = (a.source as string) || 'TROSKI'
+      notifications.push({
+        id: `official-${a.id}`,
+        type: 'official_announcement',
+        title: `${source}: ${a.title}`,
+        body: a.body as string,
+        timestamp: a.published_at as string,
+        color: SOURCE_COLORS[source] ?? '#f59e0b',
+        linkTo: '/bulletin',
+        source,
+      })
+    }
   }
 
   notifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
