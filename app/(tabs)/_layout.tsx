@@ -80,9 +80,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="activity"
         options={{
-          title: 'Activity',
+          title: 'Updates',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons name="history" size={24} color={color} />
+            <MaterialIcons name={focused ? 'notifications' : 'notifications-none'} size={24} color={color} />
           ),
         }}
       />

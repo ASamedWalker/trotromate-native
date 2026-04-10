@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
 
   const menuItems: Array<{ icon: typeof Bell; label: string; onPress: () => void; badge?: number }> = [
-    { icon: Bell, label: 'Notifications', onPress: () => router.push('/notifications' as Href), badge: unreadCount },
+    { icon: Bell, label: 'Notifications', onPress: () => router.navigate('/activity' as Href), badge: unreadCount },
     { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as Href) },
     { icon: Shield, label: 'Privacy', onPress: () => router.push('/privacy' as Href) },
     { icon: HelpCircle, label: 'Help & Support', onPress: () => router.push('/terms' as Href) },
