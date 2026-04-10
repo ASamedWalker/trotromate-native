@@ -26,7 +26,7 @@ export default function SetCommuteStep({ onCommuteSet, isSaving }: SetCommuteSte
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [activeField, setActiveField] = useState<'from' | 'to'>('from')
-  const [fromEditing, setFromEditing] = useState(true)
+  const [fromEditing, setFromEditing] = useState(false)
   const [toEditing, setToEditing] = useState(false)
   const [fromQuery, setFromQuery] = useState('')
   const [toQuery, setToQuery] = useState('')
@@ -136,7 +136,6 @@ export default function SetCommuteStep({ onCommuteSet, isSaving }: SetCommuteSte
                 placeholderTextColor="rgba(255,255,255,0.25)"
                 autoCapitalize="words"
                 autoCorrect={false}
-                autoFocus
               />
             ) : (
               <Text style={[styles.fieldValue, !from && styles.fieldPlaceholder]}>
