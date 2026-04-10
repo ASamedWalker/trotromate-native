@@ -290,7 +290,7 @@ export default function UpdatesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>Updates</Text>
+        <Text style={s.headerTitle}>Pulse</Text>
         {isNotifSegment && unreadCount > 0 ? (
           <TouchableOpacity activeOpacity={0.7} onPress={markAllRead}>
             <Text style={s.markRead}>Mark all read</Text>
