@@ -155,8 +155,10 @@ export function SmartCommuteCard() {
   let personalMessage = info.subtitle
   let commuteRouteId: string | undefined
   if (primaryCommute) {
-    personalMessage = `${primaryCommute.from} → ${primaryCommute.to} — tap to check today's fare.`
     commuteRouteId = primaryCommute.routeId || undefined
+    personalMessage = commuteRouteId
+      ? `${primaryCommute.from} → ${primaryCommute.to} — tap to check today's fare.`
+      : `${primaryCommute.from} → ${primaryCommute.to} — be the first to report this fare!`
   } else if (topSuggestion && (context === 'morning' || context === 'evening')) {
     personalMessage = `Your regular Trotro to ${topSuggestion.to} is nearby.`
     commuteRouteId = topSuggestion.routeId
@@ -227,6 +229,14 @@ export function SmartCommuteCard() {
               style={s.ctaBtn}
             >
               <Text style={s.ctaBtnText}>Check Fare</Text>
+            </TouchableOpacity>
+          ) : primaryCommute ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/report/fare' as any)}
+              style={s.ctaBtn}
+            >
+              <Text style={s.ctaBtnText}>Report This Fare</Text>
             </TouchableOpacity>
           ) : topSuggestion && (context === 'morning' || context === 'evening') ? (
             <TouchableOpacity
