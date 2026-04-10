@@ -8,10 +8,12 @@ import {
   Coffee,
   Palmtree,
   Moon,
+  Flame,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { themed, font } from '@/lib/theme'
 import { useSmartSuggestions } from '@/lib/hooks/useSmartSuggestions'
+import { useMyCommutes } from '@/lib/hooks/useMyCommutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { getNextTrain, formatMinsLeft } from '@/lib/utils/train'
@@ -143,13 +145,21 @@ export function SmartCommuteCard() {
   const { suggestions } = useSmartSuggestions()
   const topSuggestion = suggestions[0]
   const nextTrain = getNextTrain()
+  const { commutes } = useMyCommutes()
+  const primaryCommute = commutes[0]
 
   const displayName = profile?.display_name?.split(' ')[0] ?? ''
+  const viewStreak = profile?.view_streak ?? 0
 
-  // Build personalized subtitle
+  // Build personalized subtitle — commute always wins if set, then suggestions, then train
   let personalMessage = info.subtitle
-  if (topSuggestion && (context === 'morning' || context === 'evening')) {
+  let commuteRouteId: string | undefined
+  if (primaryCommute) {
+    personalMessage = `${primaryCommute.from} → ${primaryCommute.to} — tap to check today's fare.`
+    commuteRouteId = primaryCommute.routeId || undefined
+  } else if (topSuggestion && (context === 'morning' || context === 'evening')) {
     personalMessage = `Your regular Trotro to ${topSuggestion.to} is nearby.`
+    commuteRouteId = topSuggestion.routeId
   } else if (nextTrain.status === 'upcoming') {
     personalMessage = `Train departs in ${formatMinsLeft(nextTrain.minsLeft)} from ${nextTrain.from}.`
   }
@@ -199,8 +209,26 @@ export function SmartCommuteCard() {
           {/* Personal message */}
           <Text style={s.message}>{personalMessage}</Text>
 
+          {/* Streak badge */}
+          {viewStreak >= 2 && (
+            <View style={s.streakRow}>
+              <Flame size={14} color="#fbbf24" />
+              <Text style={s.streakText}>
+                {viewStreak}-day streak{viewStreak >= 7 ? ' — on fire!' : ''}
+              </Text>
+            </View>
+          )}
+
           {/* CTA button */}
-          {topSuggestion && (context === 'morning' || context === 'evening') && (
+          {commuteRouteId ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push(`/routes/${commuteRouteId}`)}
+              style={s.ctaBtn}
+            >
+              <Text style={s.ctaBtnText}>Check Fare</Text>
+            </TouchableOpacity>
+          ) : topSuggestion && (context === 'morning' || context === 'evening') ? (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => router.push(`/routes/${topSuggestion.routeId}`)}
@@ -208,7 +236,7 @@ export function SmartCommuteCard() {
             >
               <Text style={s.ctaBtnText}>Track Ride</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </LinearGradient>
 
@@ -288,6 +316,22 @@ const getStyles = (isDark: boolean) => {
       color: '#fff',
       textTransform: 'uppercase',
       letterSpacing: 0.8,
+    },
+    streakRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 14,
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+    },
+    streakText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: 'rgba(255,255,255,0.85)',
     },
 
   })

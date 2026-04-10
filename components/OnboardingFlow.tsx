@@ -25,7 +25,10 @@ import {
   MapPin,
 } from 'lucide-react-native'
 import * as Notifications from 'expo-notifications'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { c } from '@/lib/theme'
+import SetCommuteStep from '@/components/SetCommuteStep'
+import { upsertUserCommute, matchRoute } from '@/lib/services/user-commutes'
 
 const { width } = Dimensions.get('window')
 
@@ -37,6 +40,7 @@ interface OnboardingSlide {
   gradientColors: [string, string, string]
   accentColor: string
   isNotificationSlide?: boolean
+  isCommuteSlide?: boolean
 }
 
 // Animated bell that rocks back and forth
@@ -94,6 +98,16 @@ const SLIDES: OnboardingSlide[] = [
     accentColor: '#60a5fa',
     isNotificationSlide: true,
   },
+  {
+    id: 'commute',
+    title: 'Set Your Commute',
+    subtitle: 'Personalize your experience',
+    description:
+      'Tell us your daily route and we\u2019ll show you fares, queues, and alerts every morning.',
+    gradientColors: ['#10b981', '#22c55e', '#059669'],
+    accentColor: '#34d399',
+    isCommuteSlide: true,
+  },
 ]
 
 const FEATURES = [
@@ -120,11 +134,13 @@ const ALERT_EXAMPLES = [
 
 interface OnboardingFlowProps {
   onComplete: () => void
+  deviceId: string | null
 }
 
-export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
+export default function OnboardingFlow({ onComplete, deviceId }: OnboardingFlowProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [notifStatus, setNotifStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle')
+  const [isSavingCommute, setIsSavingCommute] = useState(false)
   const flatListRef = useRef<FlatList>(null)
 
   const onViewableItemsChanged = useRef(
@@ -145,6 +161,40 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
   }, [currentIndex, onComplete])
 
+  const handleCommuteSet = useCallback(async (from: string, to: string) => {
+    if (!deviceId) {
+      onComplete()
+      return
+    }
+    setIsSavingCommute(true)
+    try {
+      const routeId = await matchRoute(from, to)
+      await upsertUserCommute({
+        device_id: deviceId,
+        from_location: from,
+        to_location: to,
+        route_id: routeId,
+      })
+
+      // Also save locally so SmartCommuteCard reads it immediately on first home render
+      const localCommute = {
+        id: Math.random().toString(36).slice(2),
+        label: 'Morning commute',
+        routeId: routeId ?? '',
+        from,
+        to,
+        icon: 'sunrise',
+        createdAt: Date.now(),
+      }
+      await AsyncStorage.setItem('troski-my-commutes', JSON.stringify([localCommute]))
+    } catch (err) {
+      console.warn('Failed to save commute:', err)
+    } finally {
+      setIsSavingCommute(false)
+      onComplete()
+    }
+  }, [deviceId, onComplete])
+
   const handleEnableNotifications = useCallback(async () => {
     setNotifStatus('loading')
     try {
@@ -157,12 +207,17 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const currentSlide = SLIDES[currentIndex]
   const isNotifSlide = currentSlide.isNotificationSlide
+  const isCommuteSlide = currentSlide.isCommuteSlide
 
   const renderSlide = ({ item }: { item: OnboardingSlide }) => {
     return (
       <LinearGradient
         colors={['#0c0a09', '#0c0a09']}
-        style={[styles.slide, { width }]}
+        style={[
+          styles.slide,
+          { width },
+          item.isCommuteSlide && styles.slideCommute,
+        ]}
       >
         {/* Background gradient overlay */}
         <LinearGradient
@@ -180,37 +235,39 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         <View style={[styles.orb, styles.orbTopRight, { backgroundColor: `${item.accentColor}40` }]} />
         <View style={[styles.orb, styles.orbBottomLeft, { backgroundColor: `${item.accentColor}20` }]} />
 
-        {/* Icon with glow */}
-        <View style={styles.iconContainer}>
-          <View style={[styles.iconGlow, { shadowColor: item.gradientColors[0] }]}>
-            <LinearGradient
-              colors={item.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconBox}
-            >
-              {/* Inner shine */}
+        {/* Icon with glow — hidden on commute slide */}
+        {!item.isCommuteSlide && (
+          <View style={styles.iconContainer}>
+            <View style={[styles.iconGlow, { shadowColor: item.gradientColors[0] }]}>
               <LinearGradient
-                colors={['rgba(255,255,255,0.25)', 'transparent', 'transparent']}
+                colors={item.gradientColors}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              {item.id === 'welcome' ? (
-                <Image
-                  source={require('@/assets/images/logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
+                style={styles.iconBox}
+              >
+                {/* Inner shine */}
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.25)', 'transparent', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
                 />
-              ) : (
-                <AnimatedBellIcon
-                  granted={notifStatus === 'granted'}
-                  denied={notifStatus === 'denied'}
-                />
-              )}
-            </LinearGradient>
+                {item.id === 'welcome' ? (
+                  <Image
+                    source={require('@/assets/images/logo.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <AnimatedBellIcon
+                    granted={notifStatus === 'granted'}
+                    denied={notifStatus === 'denied'}
+                  />
+                )}
+              </LinearGradient>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Subtitle (above title, small uppercase) */}
         <Text style={[styles.subtitleLabel, { color: item.accentColor }]}>
@@ -262,6 +319,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             })}
           </View>
         )}
+
+        {/* Commute slide: station picker */}
+        {item.isCommuteSlide && (
+          <SetCommuteStep
+            onCommuteSet={handleCommuteSet}
+            isSaving={isSavingCommute}
+          />
+        )}
       </LinearGradient>
     )
   }
@@ -302,8 +367,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           ))}
         </View>
 
-        {/* Buttons */}
-        {isNotifSlide ? (
+        {/* Buttons — commute slide handles its own confirm button, dots only here */}
+        {isCommuteSlide ? null : isNotifSlide ? (
           <View style={styles.notifButtonsContainer}>
             {notifStatus === 'idle' || notifStatus === 'loading' ? (
               <>
@@ -356,10 +421,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   {notifStatus === 'granted' && (
                     <Check size={20} color={c.white} strokeWidth={2.5} />
                   )}
-                  <Text style={styles.gradientBtnText}>Let&apos;s Go!</Text>
-                  {notifStatus !== 'granted' && (
-                    <ChevronRight size={20} color={c.white} strokeWidth={2} />
-                  )}
+                  <Text style={styles.gradientBtnText}>Continue</Text>
+                  <ChevronRight size={20} color={c.white} strokeWidth={2} />
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -412,6 +475,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+  },
+  slideCommute: {
+    justifyContent: 'flex-start',
+    paddingTop: 120,
   },
   orb: {
     position: 'absolute',

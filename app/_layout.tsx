@@ -22,6 +22,7 @@ import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import { useCommuteAlerts } from '@/lib/hooks/useCommuteAlerts'
+import { useCheckin } from '@/lib/hooks/useCheckin'
 import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
@@ -83,6 +84,9 @@ function AppInner() {
   // Watch for incidents/queues on saved commute routes
   useCommuteAlerts()
 
+  // Record daily check-in for view-based streaks
+  useCheckin(deviceId)
+
   // OTA update hook moved to RootLayout for earlier execution
 
   // Apply stored theme preference
@@ -98,7 +102,7 @@ function AppInner() {
   if (onboardingLoading) return null
 
   if (showOnboarding) {
-    return <OnboardingFlow onComplete={completeOnboarding} />
+    return <OnboardingFlow onComplete={completeOnboarding} deviceId={deviceId} />
   }
 
   const isDark = colorScheme === 'dark'

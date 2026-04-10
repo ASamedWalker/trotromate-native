@@ -128,6 +128,9 @@ export interface ContributorProfile {
   current_streak: number
   longest_streak: number
   last_report_date: string | null
+  view_streak: number
+  longest_view_streak: number
+  last_checkin_date: string | null
   total_reports: number
   fare_reports: number
   queue_reports: number
