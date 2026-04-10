@@ -233,7 +233,7 @@ export function SmartCommuteCard() {
           ) : primaryCommute ? (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push('/report/fare' as any)}
+              onPress={() => router.push(`/report/fare?from=${encodeURIComponent(primaryCommute.from)}&to=${encodeURIComponent(primaryCommute.to)}` as any)}
               style={s.ctaBtn}
             >
               <Text style={s.ctaBtnText}>Report This Fare</Text>

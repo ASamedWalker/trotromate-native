@@ -36,7 +36,7 @@ import type { TransportType } from '@/lib/types'
 
 export default function FareReportScreen() {
   const router = useRouter()
-  const { transport_type: urlTransportType } = useLocalSearchParams<{ transport_type?: string }>()
+  const { transport_type: urlTransportType, from: urlFrom, to: urlTo } = useLocalSearchParams<{ transport_type?: string; from?: string; to?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
@@ -46,8 +46,8 @@ export default function FareReportScreen() {
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitFareReport(deviceId)
 
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = useState(urlFrom ?? '')
+  const [to, setTo] = useState(urlTo ?? '')
   const [fare, setFare] = useState('')
   const [transportType, setTransportType] = useState<TransportType>(
     urlTransportType === 'okada' ? 'okada' : 'trotro'
