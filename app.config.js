@@ -51,6 +51,14 @@ export default {
       favicon: "./assets/images/favicon.png",
     },
     plugins: [
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            deploymentTarget: "16.2",
+          },
+        },
+      ],
       "expo-router",
       "expo-secure-store",
       "expo-font",
