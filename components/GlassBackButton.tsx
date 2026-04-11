@@ -1,6 +1,7 @@
 import { TouchableOpacity, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
+import { useHaptics } from '@/lib/hooks/useHaptics'
 
 interface GlassBackButtonProps {
   isDark: boolean
@@ -11,13 +12,15 @@ interface GlassBackButtonProps {
 
 export function GlassBackButton({ isDark, color, size = 40, onPress }: GlassBackButtonProps) {
   const router = useRouter()
+  const haptics = useHaptics()
   const iconColor = color ?? (isDark ? '#fafaf9' : '#1c1917')
   const borderRadius = size / 2
 
   return (
     <TouchableOpacity
-      onPress={onPress ?? (() => router.back())}
-      activeOpacity={0.7}
+      onPress={onPress ?? (() => { haptics.light(); router.back() })}
+      activeOpacity={0.6}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[styles.container, { width: size, height: size, borderRadius }]}
     >
       <View

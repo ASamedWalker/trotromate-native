@@ -190,6 +190,10 @@ export default function IncidentReportScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      {/* Close button */}
+      <TouchableOpacity onPress={() => { haptics.light(); router.back() }} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.closeBtn}>
+        <X size={20} color={isDark ? '#fafaf9' : '#44403c'} />
+      </TouchableOpacity>
       <ScrollView
         style={s.scroll}
         showsVerticalScrollIndicator={false}
@@ -422,6 +426,18 @@ const getStyles = (isDark: boolean) => {
     container: {
       flex: 1,
       backgroundColor: surface,
+    },
+    closeBtn: {
+      position: 'absolute',
+      top: 48,
+      right: 16,
+      zIndex: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     scroll: {
       flex: 1,

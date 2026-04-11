@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
@@ -87,6 +88,11 @@ export default function RouteDetailScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
+      {/* Floating back button */}
+      <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 52, left: 16, zIndex: 20 }}>
+        <GlassBackButton isDark={true} />
+      </View>
+
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Stitch Hero — tall with cinematic image */}
         <View style={s.heroSection}>

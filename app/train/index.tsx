@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
@@ -381,7 +382,8 @@ export default function TrainLinesScreen() {
         end={{ x: 1, y: 0 }}
         style={s.headerBar}
       >
-        <View style={s.headerLogo}>
+        <GlassBackButton isDark={true} size={36} />
+        <View style={[s.headerLogo, { marginLeft: 10 }]}>
           <ShieldCheck size={18} color="#fff" />
         </View>
         <Text style={s.headerTitle}>GRDA Official</Text>
