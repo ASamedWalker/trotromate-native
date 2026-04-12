@@ -566,7 +566,7 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
       ) : <Mapbox.MapView
-        style={StyleSheet.absoluteFillObject}
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4' }]}
         styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         surfaceView={Platform.OS === 'android'}
         attributionEnabled
