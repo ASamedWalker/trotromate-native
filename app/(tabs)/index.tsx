@@ -576,20 +576,7 @@ export default function HomeScreen() {
         compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
         scaleBarEnabled={false}
         pitchEnabled={false}
-        onDidFinishLoadingMap={() => {
-          setMapReady(true)
-          // Force camera to user location on first load — fixes Android blank map on cold start
-          if (cameraRef.current && center) {
-            setTimeout(() => {
-              cameraRef.current?.setCamera({
-                centerCoordinate: center,
-                zoomLevel: 15,
-                padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
-                animationDuration: 0,
-              })
-            }, 100)
-          }
-        }}
+        onDidFinishLoadingMap={() => setMapReady(true)}
         onTouchStart={() => {
           if (followUser) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -617,15 +604,15 @@ export default function HomeScreen() {
           }
         }}
       >
-        {/* Camera — no followUserLocation (causes globe spin). Position managed via setCamera. */}
+        {/* Camera — uses followUserLocation for reliable initial positioning on fresh installs */}
         {location && (
           <Mapbox.Camera
             ref={cameraRef}
-            defaultSettings={{
-              centerCoordinate: center,
-              zoomLevel: 15,
-              padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
-            }}
+            followUserLocation={followUser}
+            followUserMode={Mapbox.UserTrackingMode.Follow}
+            followZoomLevel={15}
+            followPadding={{ paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 }}
+            animationMode="moveTo"
             animationDuration={0}
             minZoomLevel={3}
             maxZoomLevel={18}
