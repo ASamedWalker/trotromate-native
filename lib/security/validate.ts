@@ -188,7 +188,7 @@ export type TrainDirection = (typeof TRAIN_DIRECTIONS)[number]
 export const CROWD_LEVELS = ['empty', 'few_seats', 'standing', 'packed'] as const
 export type CrowdLevel = (typeof CROWD_LEVELS)[number]
 
-export const TALE_POST_TYPES = ['tale', 'queue_update', 'fare_receipt', 'station_photo'] as const
+export const TALE_POST_TYPES = ['tale', 'queue_update', 'fare_receipt', 'station_photo', 'text'] as const
 export type TalePostType = (typeof TALE_POST_TYPES)[number]
 
 export const SAFETY_CATEGORIES = [

@@ -31,7 +31,7 @@ import {
   Bookmark,
   Play,
 } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { c, font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -220,15 +220,26 @@ function TaleCard({
         </>
       )}
 
+      {/* ── Text-first caption for text posts (Threads/Twitter style) ── */}
+      {post.media_type === 'text' && post.caption ? (
+        <View style={s.textPostBody}>
+          <Text style={s.textPostText}>{post.caption}</Text>
+          {post.location_name ? (
+            <View style={s.textPostLocation}>
+              <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
+              <Text style={s.textPostLocationText}>{post.location_name}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+      <>
       {/* ── Media (edge-to-edge) ── */}
       <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
         <View style={s.mediaWrap}>
           {post.media_type === 'video' && post.video_url ? (
-            // Egress saver: never stream video bytes in feed.
-            // Show thumbnail only — tap opens /reel for full playback.
             <Pressable
               onPress={onVideoPress}
-              style={{ width: SCREEN_W, aspectRatio: 3 / 4, backgroundColor: '#000' }}
+              style={{ width: SCREEN_W, aspectRatio: 16 / 9, backgroundColor: '#000' }}
             >
               {post.video_thumbnail_url ? (
                 <ExpoImage
@@ -276,6 +287,8 @@ function TaleCard({
           ) : null}
         </View>
       </DoubleTapLike>
+      </>
+      )}
 
       {/* ── Action Row (Instagram-style) ── */}
       <View style={s.actionRow}>
@@ -319,8 +332,8 @@ function TaleCard({
         <Text style={s.likeCount}>{likeCount.toLocaleString()} like{likeCount !== 1 ? 's' : ''}</Text>
       )}
 
-      {/* ── Caption ── */}
-      {post.caption && (
+      {/* ── Caption (skip for text posts — already shown above) ── */}
+      {post.caption && post.media_type !== 'text' && (
         <View style={s.captionWrap}>
           <Text style={s.captionText}>
             <Text style={s.captionAuthor}>{displayName}</Text>{'  '}{post.caption}
@@ -467,6 +480,27 @@ export default function TalesScreen() {
       </View>
 
       <View style={s.headerDivider} />
+
+      {/* Threads-style compose bar */}
+      <View style={s.composeBar}>
+        <View style={s.composeAvatar}>
+          <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={36} />
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/report/photo?mode=text' as Href)}
+          activeOpacity={0.7}
+          style={s.composeInput}
+        >
+          <Text style={s.composePlaceholder}>What&apos;s your trotro fare today?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/report/photo' as Href)}
+          activeOpacity={0.7}
+          style={s.composeCamera}
+        >
+          <Camera size={20} color={isDark ? c.stone400 : c.stone500} />
+        </TouchableOpacity>
+      </View>
 
       {isLoading ? (
         <View style={{ paddingTop: 12 }}>
@@ -793,6 +827,29 @@ const cardStyles = (isDark: boolean) => {
       fontFamily: font.medium,
       color: '#ef4444',
     },
+
+    // Text-only post (Threads/Twitter style)
+    textPostBody: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    textPostText: {
+      fontSize: 16,
+      fontFamily: font.regular,
+      color: isDark ? '#fafaf9' : '#1c1917',
+      lineHeight: 24,
+    },
+    textPostLocation: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 10,
+    },
+    textPostLocationText: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
+    },
   })
 }
 
@@ -887,5 +944,39 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 8,
     },
     emptyBtnText: { color: '#fff', fontFamily: font.bold, fontSize: 14 },
+
+    // Threads-style compose bar
+    composeBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: divider,
+    },
+    composeAvatar: {},
+    composeInput: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    },
+    composePlaceholder: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+    },
+    composeCamera: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   })
 }

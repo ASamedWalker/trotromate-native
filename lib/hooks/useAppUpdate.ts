@@ -56,7 +56,15 @@ export function useAppUpdate(): void {
   useEffect(() => {
     if (__DEV__) return
 
+    const lastCheckRef = { time: 0 }
+    const COOLDOWN_MS = 60 * 60 * 1000 // 1 hour between checks
+
     const check = async () => {
+      // Don't check if banner already shown or cooldown not elapsed
+      if (bannerShown.current) return
+      if (Date.now() - lastCheckRef.time < COOLDOWN_MS) return
+      lastCheckRef.time = Date.now()
+
       try {
         const result = await Updates.checkForUpdateAsync()
         if (result.isAvailable) {
@@ -71,7 +79,7 @@ export function useAppUpdate(): void {
     // Delayed check — gives native auto-check time to complete first
     const timer = setTimeout(check, 5000)
 
-    // Re-check when app returns from background
+    // Re-check when app returns from background (respects cooldown)
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         setTimeout(check, 2000)

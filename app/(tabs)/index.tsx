@@ -567,6 +567,7 @@ export default function HomeScreen() {
       ) : <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
         styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        surfaceView={Platform.OS === 'android'}
         attributionEnabled
         attributionPosition={{ bottom: 8, left: 8 }}
         logoEnabled={false}
@@ -575,7 +576,20 @@ export default function HomeScreen() {
         compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
         scaleBarEnabled={false}
         pitchEnabled={false}
-        onDidFinishLoadingMap={() => setMapReady(true)}
+        onDidFinishLoadingMap={() => {
+          setMapReady(true)
+          // Force camera to user location on first load — fixes Android blank map on cold start
+          if (cameraRef.current && center) {
+            setTimeout(() => {
+              cameraRef.current?.setCamera({
+                centerCoordinate: center,
+                zoomLevel: 15,
+                padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
+                animationDuration: 0,
+              })
+            }, 100)
+          }
+        }}
         onTouchStart={() => {
           if (followUser) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

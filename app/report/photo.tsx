@@ -14,9 +14,9 @@ import {
   FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video } from 'lucide-react-native'
+import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video, Type } from 'lucide-react-native'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -36,6 +36,7 @@ const LOCATIONS = [
 
 export default function TrotroTalesPostScreen() {
   const router = useRouter()
+  const { mode } = useLocalSearchParams<{ mode?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -49,7 +50,7 @@ export default function TrotroTalesPostScreen() {
   const [imageUris, setImageUris] = useState<string[]>([])
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
-  const [mediaType, setMediaType] = useState<TaleMediaType>('image')
+  const [mediaType, setMediaType] = useState<TaleMediaType>(mode === 'text' ? 'text' : 'image')
   const [videoUri, setVideoUri] = useState<string | null>(null)
   const [videoThumbnailUri, setVideoThumbnailUri] = useState<string | null>(null)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
@@ -131,8 +132,25 @@ export default function TrotroTalesPostScreen() {
     setUploadProgress(null)
   }
 
+  const switchToText = () => {
+    setMediaType('text')
+    setImageUris([])
+    setVideoUri(null)
+    setVideoThumbnailUri(null)
+    setVideoDuration(null)
+  }
+
+  const switchToImage = () => {
+    setMediaType('image')
+  }
+
   const handleSubmit = async () => {
-    if (mediaType === 'video') {
+    if (mediaType === 'text') {
+      if (!caption.trim() || caption.trim().length < 3) {
+        Alert.alert('Missing Text', 'Please write at least a few words')
+        return
+      }
+    } else if (mediaType === 'video') {
       if (!videoUri) {
         Alert.alert('Missing Video', 'Please select a video')
         return
@@ -203,6 +221,33 @@ export default function TrotroTalesPostScreen() {
 
           {/* Media Section */}
           <View style={s.formCard}>
+            {/* Mode tabs */}
+            <View style={s.modeTabs}>
+              <TouchableOpacity
+                onPress={switchToImage}
+                activeOpacity={0.7}
+                style={[s.modeTab, mediaType !== 'text' && s.modeTabActive]}
+              >
+                <Camera size={16} color={mediaType !== 'text' ? c.amber500 : (isDark ? c.stone400 : c.stone500)} />
+                <Text style={[s.modeTabText, mediaType !== 'text' && s.modeTabTextActive]}>Photo / Video</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={switchToText}
+                activeOpacity={0.7}
+                style={[s.modeTab, mediaType === 'text' && s.modeTabActive]}
+              >
+                <Type size={16} color={mediaType === 'text' ? c.amber500 : (isDark ? c.stone400 : c.stone500)} />
+                <Text style={[s.modeTabText, mediaType === 'text' && s.modeTabTextActive]}>Text</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Text-only mode */}
+            {mediaType === 'text' ? (
+              <View style={s.textModeHint}>
+                <Text style={s.textModeHintText}>Share a fare, a tip, or a trotro moment — no photo needed.</Text>
+              </View>
+            ) : (
+            <>
             <View style={s.labelRow}>
               <Text style={s.label}>{mediaType === 'video' ? 'Video' : 'Photos'}</Text>
               {mediaType === 'image' && imageUris.length > 0 && (
@@ -321,9 +366,14 @@ export default function TrotroTalesPostScreen() {
                 </TouchableOpacity>
               </View>
             )}
+            </>
+            )}
 
             {/* Caption */}
-            <Text style={[s.label, { marginTop: 20 }]}>Caption</Text>
+            <Text style={[s.label, { marginTop: 20 }]}>
+              {mediaType === 'text' ? 'What\u2019s on your mind?' : 'Caption'}
+              {mediaType === 'text' && <Text style={s.required}> Required</Text>}
+            </Text>
             <View style={s.captionBox}>
               <TextInput
                 value={caption}
@@ -589,5 +639,50 @@ const getStyles = (isDark: boolean) => {
     },
     submitBtnDisabled: { backgroundColor: c.stone400 },
     submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
+
+    // Mode tabs (Photo/Video vs Text)
+    modeTabs: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 16,
+    },
+    modeTab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+    },
+    modeTabActive: {
+      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.25)',
+    },
+    modeTabText: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: isDark ? c.stone400 : c.stone500,
+    },
+    modeTabTextActive: {
+      color: c.amber500,
+      fontFamily: font.semibold,
+    },
+    textModeHint: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.05)',
+      marginBottom: 4,
+    },
+    textModeHintText: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: isDark ? c.stone300 : c.stone600,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
   })
 }

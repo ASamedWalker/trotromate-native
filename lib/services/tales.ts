@@ -184,6 +184,42 @@ export async function submitTale(params: {
 
   if (!location) return null
 
+  // Text-only posts require caption, skip all media upload
+  if (mediaType === 'text') {
+    if (!caption || caption.trim().length < 3) return null
+    try {
+      const { data, error: insertError } = await supabase
+        .from('tale_posts')
+        .insert({
+          device_id: deviceId,
+          display_name: displayName,
+          is_anonymous: false,
+          image_url: null,
+          image_urls: null,
+          caption,
+          post_type: 'text',
+          location_name: location,
+          media_type: 'text',
+          video_url: null,
+          video_thumbnail_url: null,
+          video_duration_secs: null,
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        console.error('Error posting text tale:', insertError)
+        return null
+      }
+
+      params.onProgress?.(1)
+      return { postId: data.id }
+    } catch (err) {
+      console.error('Error submitting text tale:', err)
+      return null
+    }
+  }
+
   try {
     let imageUrl: string | null = null
     let imageUrls: string[] | null = null
