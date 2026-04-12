@@ -143,8 +143,7 @@ function AppInner() {
       </Stack>
       <StatusBar style="auto" />
       <StoreUpdateModal />
-      {/* OtaUpdateBanner temporarily disabled — re-enable after stabilization */}
-      {/* <OtaUpdateBanner /> */}
+      <OtaUpdateBanner />
       <ConfettiCelebration reward={lastReward} onDismiss={clearLastReward} />
     </ThemeProvider>
   )

@@ -390,7 +390,7 @@ export default function TalesScreen() {
   const isDark = colorScheme === 'dark'
   const s = getStyles(isDark)
 
-  const { deviceId } = useApp()
+  const { deviceId, profile } = useApp()
   const {
     posts, isLoading, isRefreshing, hasMore,
     userReactions, reactionSummaries,
@@ -469,7 +469,7 @@ export default function TalesScreen() {
       {/* Compose bar — single entry point for text + photo/video */}
       <View style={s.composeBar}>
         <View style={s.composeAvatar}>
-          <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={36} />
+          <InitialsAvatar name={profile?.display_name ?? null} deviceId={deviceId ?? ''} size={36} />
         </View>
         <TouchableOpacity
           onPress={() => router.push('/report/photo?mode=text' as Href)}

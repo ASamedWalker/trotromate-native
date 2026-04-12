@@ -402,6 +402,7 @@ export default function HomeScreen() {
   const zoomRef = useRef(13)
   const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
   const [mapReady, setMapReady] = useState(false)
+  const [mapIdle, setMapIdle] = useState(false)
 
   // Auto-request location permission on mount if not yet granted
   useEffect(() => {
@@ -577,6 +578,7 @@ export default function HomeScreen() {
         scaleBarEnabled={false}
         pitchEnabled={false}
         onDidFinishLoadingMap={() => setMapReady(true)}
+        onMapIdle={() => { if (!mapIdle) setMapIdle(true) }}
         onTouchStart={() => {
           if (followUser) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -604,11 +606,16 @@ export default function HomeScreen() {
           }
         }}
       >
-        {/* Camera — uses followUserLocation for reliable initial positioning on fresh installs */}
+        {/* Camera — defaultSettings for instant snap, followUserLocation only after map is idle */}
         {location && (
           <Mapbox.Camera
             ref={cameraRef}
-            followUserLocation={followUser}
+            defaultSettings={{
+              centerCoordinate: [location.longitude, location.latitude],
+              zoomLevel: 15,
+              padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
+            }}
+            followUserLocation={followUser && mapIdle}
             followUserMode={Mapbox.UserTrackingMode.Follow}
             followZoomLevel={15}
             followPadding={{ paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 }}
@@ -619,12 +626,15 @@ export default function HomeScreen() {
           />
         )}
 
-        <Mapbox.UserLocation
-          visible
-          animated
-          showsUserHeadingIndicator
-          androidRenderMode="compass"
-        />
+        {/* Delay UserLocation until map is idle — prevents Camera/UserLocation race (#2980) */}
+        {mapIdle && (
+          <Mapbox.UserLocation
+            visible
+            animated
+            showsUserHeadingIndicator
+            androidRenderMode="compass"
+          />
+        )}
 
         {/* ── Transport icons for circle-to-icon transition ── */}
         <Mapbox.Images>
