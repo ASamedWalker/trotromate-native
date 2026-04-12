@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -46,6 +46,15 @@ export default function TrotroTalesPostScreen() {
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
+
+  const captionRef = useRef<TextInput>(null)
+
+  // Auto-focus caption when opening in text mode
+  useEffect(() => {
+    if (mode === 'text') {
+      setTimeout(() => captionRef.current?.focus(), 300)
+    }
+  }, [mode])
 
   const [imageUris, setImageUris] = useState<string[]>([])
   const [caption, setCaption] = useState('')
@@ -376,13 +385,14 @@ export default function TrotroTalesPostScreen() {
             </Text>
             <View style={s.captionBox}>
               <TextInput
+                ref={captionRef}
                 value={caption}
                 onChangeText={(text) => setCaption(text.slice(0, 280))}
-                placeholder="Write a caption..."
+                placeholder={mediaType === 'text' ? "Just paid GH₵9 from Circle to Madina..." : "Write a caption..."}
                 placeholderTextColor={t.textSecondary}
-                style={s.captionInput}
+                style={[s.captionInput, mediaType === 'text' && { minHeight: 100 }]}
                 multiline
-                numberOfLines={3}
+                numberOfLines={mediaType === 'text' ? 5 : 3}
               />
               <Text style={s.charCount}>{caption.length}/280</Text>
             </View>

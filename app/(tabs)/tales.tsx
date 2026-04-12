@@ -222,8 +222,14 @@ function TaleCard({
 
       {/* ── Text-first caption for text posts (Threads/Twitter style) ── */}
       {post.media_type === 'text' && post.caption ? (
-        <View style={s.textPostBody}>
-          <Text style={s.textPostText}>{post.caption}</Text>
+        <View style={s.textPostCard}>
+          <Text style={s.textPostText}>
+            {post.caption.split(/(#\w+)/g).map((part, i) =>
+              part.startsWith('#') ? (
+                <Text key={i} style={s.hashtag}>{part}</Text>
+              ) : part
+            )}
+          </Text>
           {post.location_name ? (
             <View style={s.textPostLocation}>
               <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
@@ -336,7 +342,12 @@ function TaleCard({
       {post.caption && post.media_type !== 'text' && (
         <View style={s.captionWrap}>
           <Text style={s.captionText}>
-            <Text style={s.captionAuthor}>{displayName}</Text>{'  '}{post.caption}
+            <Text style={s.captionAuthor}>{displayName}</Text>{'  '}
+            {post.caption.split(/(#\w+)/g).map((part, i) =>
+              part.startsWith('#') ? (
+                <Text key={i} style={s.hashtag}>{part}</Text>
+              ) : part
+            )}
           </Text>
         </View>
       )}
@@ -453,35 +464,9 @@ export default function TalesScreen() {
       {/* Header */}
       <View style={s.header}>
         <Text style={s.headerTitle}>Tales</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/report/photo' as Href)}
-          style={s.newBtn}
-          activeOpacity={0.7}
-        >
-          <Camera size={20} color="#fff" />
-        </TouchableOpacity>
       </View>
 
-      {/* Stories-style avatar strip */}
-      <View style={s.storyStrip}>
-        <TouchableOpacity
-          onPress={() => router.push('/report/photo' as Href)}
-          style={s.storyItem}
-          activeOpacity={0.7}
-        >
-          <View style={s.storyAddRing}>
-            <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={56} />
-            <View style={s.storyAddBadge}>
-              <Text style={s.storyAddPlus}>+</Text>
-            </View>
-          </View>
-          <Text style={s.storyLabel}>Your Story</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={s.headerDivider} />
-
-      {/* Threads-style compose bar */}
+      {/* Compose bar — single entry point for text + photo/video */}
       <View style={s.composeBar}>
         <View style={s.composeAvatar}>
           <InitialsAvatar name={null} deviceId={deviceId ?? ''} size={36} />
@@ -491,7 +476,7 @@ export default function TalesScreen() {
           activeOpacity={0.7}
           style={s.composeInput}
         >
-          <Text style={s.composePlaceholder}>What&apos;s your trotro fare today?</Text>
+          <Text style={s.composePlaceholder}>What&apos;s happening on your route?</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push('/report/photo' as Href)}
@@ -512,14 +497,13 @@ export default function TalesScreen() {
         <View style={s.centered}>
           <Camera size={48} color={isDark ? '#57534e' : '#a8a29e'} />
           <Text style={s.emptyTitle}>No tales yet</Text>
-          <Text style={s.emptySub}>Be the first to share a Trotro Tale!</Text>
+          <Text style={s.emptySub}>Share a fare, a queue update, or a trotro moment!</Text>
           <TouchableOpacity
-            onPress={() => router.push('/report/photo' as Href)}
+            onPress={() => router.push('/report/photo?mode=text' as Href)}
             style={s.emptyBtn}
             activeOpacity={0.8}
           >
-            <Camera size={16} color="#fff" />
-            <Text style={s.emptyBtnText}>Share a Tale</Text>
+            <Text style={s.emptyBtnText}>Post a Tale</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -828,16 +812,23 @@ const cardStyles = (isDark: boolean) => {
       color: '#ef4444',
     },
 
-    // Text-only post (Threads/Twitter style)
-    textPostBody: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+    // Text-only post (Threads/Twitter style — polished card)
+    textPostCard: {
+      marginHorizontal: 14,
+      marginVertical: 8,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fafaf9',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
     },
     textPostText: {
       fontSize: 16,
       fontFamily: font.regular,
       color: isDark ? '#fafaf9' : '#1c1917',
       lineHeight: 24,
+      letterSpacing: 0.1,
     },
     textPostLocation: {
       flexDirection: 'row',
@@ -849,6 +840,14 @@ const cardStyles = (isDark: boolean) => {
       fontSize: 12,
       fontFamily: font.medium,
       color: isDark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
+    },
+    hashtag: {
+      color: '#3b82f6',
+      fontFamily: font.semibold,
+    },
+    textPostAuthor: {
+      fontFamily: font.bold,
+      color: isDark ? '#fafaf9' : '#1c1917',
     },
   })
 }
