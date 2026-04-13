@@ -404,6 +404,10 @@ export default function HomeScreen() {
   const [mapIdle, setMapIdle] = useState(false)
   const [mountMap, setMountMap] = useState(false)
 
+  // Pulsing rings — refs only, no setState to avoid re-rendering
+  const pulseSourceRef = useRef<any>(null)
+  const pulseTickRef = useRef(0)
+
   // Delay MapView mount slightly so placeholder paints first — prevents green flash
   useEffect(() => {
     if (location && !mountMap) {
@@ -492,6 +496,39 @@ export default function HomeScreen() {
         queueStatus?: string
       }>
   }, [stations])
+
+  // Active stations with queue data (for pulse animation)
+  const activeQueueStations = useMemo(() =>
+    stationPins.filter((p) => p.queueStatus && p.queueStatus !== ''),
+    [stationPins]
+  )
+
+  // Pulse animation loop — updates ShapeSource via ref, no React re-renders
+  useEffect(() => {
+    if (!mapIdle || activeQueueStations.length === 0) return
+    const id = setInterval(() => {
+      pulseTickRef.current = (pulseTickRef.current + 1) % 40
+      const phase = pulseTickRef.current * Math.PI / 20
+      const geojson = {
+        type: 'FeatureCollection',
+        features: activeQueueStations.map((s) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: s.coordinate },
+          properties: {
+            radius: 14 + Math.sin(phase) * 10,
+            opacity: 0.25 - Math.sin(phase) * 0.2,
+            color: s.queueStatus === 'long' || s.queueStatus === 'very_long'
+              ? '#ef4444'
+              : s.queueStatus === 'moderate'
+              ? '#f59e0b'
+              : '#22c55e',
+          },
+        })),
+      }
+      pulseSourceRef.current?.setNativeProps({ shape: JSON.stringify(geojson) })
+    }, 100)
+    return () => clearInterval(id)
+  }, [mapIdle, activeQueueStations])
 
   // Station pins as native GeoJSON for SymbolLayer/CircleLayer (performance: no JS MarkerViews)
   const stationPinsGeojson = useMemo(() => ({
@@ -910,6 +947,26 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
+        {/* ── Pulsing rings for active stations (updated via ref, no re-renders) ── */}
+        {mapIdle && activeQueueStations.length > 0 && (
+          <Mapbox.ShapeSource
+            ref={pulseSourceRef}
+            id="pulse-rings"
+            shape={{ type: 'FeatureCollection', features: [] } as any}
+          >
+            <Mapbox.CircleLayer
+              id="pulse-ring"
+              minZoomLevel={showAllPins ? 8 : 11}
+              style={{
+                circleRadius: ['get', 'radius'],
+                circleColor: ['get', 'color'],
+                circleOpacity: ['get', 'opacity'],
+                circleStrokeWidth: 0,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
         {/* ── Station pins — native CircleLayer + SymbolLayer for performance ── */}
         <Mapbox.ShapeSource
           id="station-pins"
@@ -937,6 +994,46 @@ export default function HomeScreen() {
           }}
           hitbox={{ width: 30, height: 30 }}
         >
+          {/* ── Ambient glow — soft diffused aura around stations (zero CPU cost) ── */}
+          <Mapbox.CircleLayer
+            id="station-ambient-outer"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 24, 12, 40, 13, 0],
+              circleColor: ['match', ['get', 'queueStatus'],
+                'empty', '#22c55e', 'short', '#22c55e',
+                'moderate', '#f59e0b',
+                'long', '#f97316', 'very_long', '#ef4444',
+                ['match', ['get', 'pinType'],
+                  'train', '#7c3aed',
+                  'major', '#3b82f6',
+                  '#3b82f6',
+                ],
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.04, 12, 0.08, 13, 0],
+              circleBlur: 1.5,
+            }}
+          />
+          <Mapbox.CircleLayer
+            id="station-ambient-inner"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 12, 12, 20, 13, 0],
+              circleColor: ['match', ['get', 'queueStatus'],
+                'empty', '#22c55e', 'short', '#22c55e',
+                'moderate', '#f59e0b',
+                'long', '#f97316', 'very_long', '#ef4444',
+                ['match', ['get', 'pinType'],
+                  'train', '#7c3aed',
+                  'major', '#3b82f6',
+                  '#3b82f6',
+                ],
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.06, 12, 0.12, 13, 0],
+              circleBlur: 0.8,
+            }}
+          />
+
           {/* ── Phase 1: Flat colored dots (zoom 11–12) — fade out as icons appear ── */}
           <Mapbox.CircleLayer
             id="station-halo"
