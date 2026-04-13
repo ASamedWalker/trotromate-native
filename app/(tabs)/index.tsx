@@ -401,8 +401,16 @@ export default function HomeScreen() {
   const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
   const zoomRef = useRef(13)
   const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
-  const [mapReady, setMapReady] = useState(false)
   const [mapIdle, setMapIdle] = useState(false)
+  const [mountMap, setMountMap] = useState(false)
+
+  // Delay MapView mount slightly so placeholder paints first — prevents green flash
+  useEffect(() => {
+    if (location && !mountMap) {
+      const timer = setTimeout(() => setMountMap(true), 50)
+      return () => clearTimeout(timer)
+    }
+  }, [location, mountMap])
 
   // Auto-request location permission on mount if not yet granted
   useEffect(() => {
@@ -558,15 +566,9 @@ export default function HomeScreen() {
     <View style={s.container}>
       <OfflineBanner />
 
-      {/* ── Full-bleed map — only mounts after location to prevent ocean/globe flash ── */}
-      {!location ? (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4', alignItems: 'center', justifyContent: 'center' }]}>
-          <Animated.View style={{ opacity: 0.4 }}>
-            <Navigation size={32} color={isDark ? c.stone400 : c.stone400} />
-          </Animated.View>
-        </View>
-      ) : <Mapbox.MapView
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4' }]}
+      {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
+      {mountMap && <Mapbox.MapView
+        style={StyleSheet.absoluteFillObject}
         styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         surfaceView={Platform.OS === 'android'}
         attributionEnabled
@@ -577,7 +579,7 @@ export default function HomeScreen() {
         compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
         scaleBarEnabled={false}
         pitchEnabled={false}
-        onDidFinishLoadingMap={() => setMapReady(true)}
+        onDidFinishLoadingMap={() => {}}
         onMapIdle={() => { if (!mapIdle) setMapIdle(true) }}
         onTouchStart={() => {
           if (followUser) {
@@ -1153,6 +1155,15 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
       </Mapbox.MapView>}
+
+      {/* Placeholder — stays on top until map tiles are fully painted */}
+      {!mapIdle && (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4', alignItems: 'center', justifyContent: 'center' }]} pointerEvents={mapIdle ? 'none' : 'auto'}>
+          <Animated.View style={{ opacity: 0.4 }}>
+            <Navigation size={32} color={c.stone400} />
+          </Animated.View>
+        </View>
+      )}
 
       {/* ── Floating search bar + service pills ── */}
       <SafeAreaView edges={['top']} style={s.floatingTop} pointerEvents="box-none">
