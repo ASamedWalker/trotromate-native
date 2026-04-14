@@ -405,6 +405,8 @@ export default function HomeScreen() {
   const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
   const [mapIdle, setMapIdle] = useState(false)
   const [mountMap, setMountMap] = useState(false)
+  const [liveBadgeExpanded, setLiveBadgeExpanded] = useState(false)
+  const [liveBadgeDismissed, setLiveBadgeDismissed] = useState(false)
 
   // Pulsing rings — refs only, no setState to avoid re-rendering
   const pulseSourceRef = useRef<any>(null)
@@ -508,6 +510,38 @@ export default function HomeScreen() {
     stationPins.filter((p) => p.queueStatus && p.queueStatus !== ''),
     [stationPins]
   )
+
+  // 3D Fire tower polygons — small hexagons at congested stations
+  const fireTowersGeojson = useMemo(() => {
+    const features = activeQueueStations
+      .filter((s) => s.queueStatus === 'moderate' || s.queueStatus === 'long' || s.queueStatus === 'very_long')
+      .map((s) => {
+        // Generate hexagon polygon (~15m radius)
+        const radius = 0.00015
+        const [lng, lat] = s.coordinate
+        const hexCoords = Array.from({ length: 7 }, (_, i) => {
+          const angle = (Math.PI / 3) * (i % 6)
+          return [lng + radius * Math.cos(angle), lat + radius * Math.sin(angle)]
+        })
+
+        // Height based on queue severity
+        const height = s.queueStatus === 'very_long' ? 250
+          : s.queueStatus === 'long' ? 150
+          : 80 // moderate
+
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: [hexCoords] },
+          properties: {
+            height,
+            color: s.queueStatus === 'very_long' ? '#ef4444'
+              : s.queueStatus === 'long' ? '#f97316'
+              : '#f59e0b',
+          },
+        }
+      })
+    return { type: 'FeatureCollection' as const, features }
+  }, [activeQueueStations])
 
   // Pulse animation loop — updates ShapeSource via ref, no React re-renders
   // Scales with zoom so pulse is visible behind capsules at high zoom
@@ -628,7 +662,7 @@ export default function HomeScreen() {
         compassViewPosition={1}
         compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
         scaleBarEnabled={false}
-        pitchEnabled={false}
+        pitchEnabled={true}
         onDidFinishLoadingMap={() => {}}
         onMapIdle={() => { if (!mapIdle) setMapIdle(true) }}
         onTouchStart={() => {
@@ -665,6 +699,7 @@ export default function HomeScreen() {
             defaultSettings={{
               centerCoordinate: [location.longitude, location.latitude],
               zoomLevel: 15,
+              pitch: 30,
               padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
             }}
             followUserLocation={followUser && mapIdle}
@@ -1063,6 +1098,30 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
+        {/* ── 3D Fire towers at congested stations ── */}
+        {mapIdle && fireTowersGeojson.features.length > 0 && (
+          <Mapbox.ShapeSource id="fire-towers" shape={fireTowersGeojson as any}>
+            <Mapbox.FillExtrusionLayer
+              id="fire-tower-layer"
+              minZoomLevel={13}
+              maxZoomLevel={22}
+              style={{
+                fillExtrusionHeight: ['get', 'height'],
+                fillExtrusionBase: 0,
+                fillExtrusionColor: ['match', ['get', 'color'],
+                  '#ef4444', '#ff6b6b',
+                  '#f97316', '#ffaa5c',
+                  '#f59e0b', '#ffc94d',
+                  '#ff6b6b',
+                ],
+                fillExtrusionOpacity: 0.85,
+                fillExtrusionVerticalGradient: true,
+                fillExtrusionEmissiveStrength: 1.5,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
         {/* ── Pulsing rings for active stations (updated via ref, no re-renders) ── */}
         {mapIdle && activeQueueStations.length > 0 && (
           <Mapbox.ShapeSource
@@ -1426,33 +1485,67 @@ export default function HomeScreen() {
         <Locate size={20} color={c.amber500} />
       </TouchableOpacity>
 
-      {/* Live activity counter */}
-      {(activeQueueCount > 0 || incidents.length > 0) && (
-        <View style={s.liveCounter}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-          <Text style={s.liveCounterText}>
-            {activeQueueCount + incidents.length} live update{(activeQueueCount + incidents.length) !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
+      {/* Live status badge — tappable, expandable, dismissible */}
+      {(activeQueueCount > 0 || incidents.length > 0) && !liveBadgeDismissed && (
+        <View style={s.liveBadgeStack}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setLiveBadgeExpanded(!liveBadgeExpanded)}
+            style={s.liveBadge}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activeQueueCount >= 3 ? '#ef4444' : '#f59e0b' }} />
+            <Text style={s.liveBadgeText}>
+              {activeQueueCount > 0 ? `${activeQueueCount} ${activeQueueCount >= 3 ? '🔥' : '⚠️'} queue${activeQueueCount !== 1 ? 's' : ''}` : ''}
+              {activeQueueCount > 0 && incidents.length > 0 ? ' · ' : ''}
+              {incidents.length > 0 ? `${incidents.length} incident${incidents.length !== 1 ? 's' : ''}` : ''}
+            </Text>
+            <TouchableOpacity
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={(e) => { e.stopPropagation(); setLiveBadgeDismissed(true) }}
+            >
+              <X size={14} color={isDark ? '#78716c' : '#a8a29e'} />
+            </TouchableOpacity>
+          </TouchableOpacity>
 
-      {/* Live queue badge */}
-      {activeQueueCount > 0 && (
-        <View style={s.queueBadge}>
-          <View style={s.queueBadgeDot} />
-          <Text style={s.queueBadgeText}>
-            {activeQueueCount} live queue{activeQueueCount !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
-
-      {/* Live incidents badge */}
-      {incidents.length > 0 && (
-        <View style={s.incidentBadge}>
-          <View style={s.incidentBadgeDot} />
-          <Text style={s.incidentBadgeText}>
-            {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
-          </Text>
+          {/* Expanded detail panel */}
+          {liveBadgeExpanded && (
+            <View style={s.liveBadgeDetail}>
+              {activeQueueStations.slice(0, 5).map((station) => (
+                <TouchableOpacity
+                  key={station.name}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const routeIds = getRoutesForStop(station.name)
+                    setSelectedStop({
+                      name: station.name,
+                      latitude: station.coordinate[1],
+                      longitude: station.coordinate[0],
+                      routeIds,
+                      distanceKm: null,
+                      queueStatus: station.queueStatus,
+                      waitText: station.waitText,
+                      lastReportAt: station.lastReportAt,
+                      reportCount: station.reportCount,
+                    })
+                    cameraRef.current?.setCamera({
+                      centerCoordinate: station.coordinate,
+                      zoomLevel: 14,
+                      animationDuration: 600,
+                    })
+                    bottomSheetRef.current?.snapToIndex(1)
+                    setLiveBadgeExpanded(false)
+                  }}
+                  style={s.liveBadgeDetailRow}
+                >
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: station.queueStatus === 'very_long' ? '#ef4444' : station.queueStatus === 'long' ? '#f97316' : '#f59e0b' }} />
+                  <Text style={s.liveBadgeDetailName} numberOfLines={1}>{station.name}</Text>
+                  <Text style={s.liveBadgeDetailStatus}>
+                    {station.waitText || (station.queueStatus === 'very_long' ? 'Very Long' : station.queueStatus === 'long' ? 'Long' : 'Moderate')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -1650,27 +1743,72 @@ const getStyles = (isDark: boolean) => {
     },
 
     // Queue badge
-    liveCounter: {
+    liveBadgeStack: {
       position: 'absolute',
       left: 16,
-      bottom: '32%',
+      bottom: '22%',
+      gap: 8,
+    },
+    liveBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      backgroundColor: isDark ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.95)',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(255,255,255,0.95)',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 16,
+      borderLeftWidth: 3,
+      borderLeftColor: '#f59e0b',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      elevation: 6,
     },
-    liveCounterText: {
-      fontSize: 12,
+    liveBadgeText: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: isDark ? '#fafaf9' : '#1c1917',
+      letterSpacing: 0.3,
+      flex: 1,
+    },
+    liveBadgeDetail: {
+      backgroundColor: isDark ? 'rgba(12,10,9,0.95)' : 'rgba(255,255,255,0.95)',
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+      minWidth: 220,
+    },
+    liveBadgeDetailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    },
+    liveBadgeDetailName: {
+      flex: 1,
+      fontSize: 14,
       fontFamily: font.semibold,
       color: isDark ? '#fafaf9' : '#1c1917',
+    },
+    liveBadgeDetailStatus: {
+      fontSize: 12,
+      fontFamily: font.bold,
+      color: '#f97316',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(249,115,22,0.12)' : 'rgba(249,115,22,0.08)',
+      overflow: 'hidden',
     },
     queueBadge: {
       position: 'absolute',
