@@ -14,6 +14,8 @@ export interface NearbyStop {
   distanceKm: number | null
   queueStatus?: string
   waitText?: string
+  lastReportAt?: string
+  reportCount?: number
 }
 
 interface RouteLineData {

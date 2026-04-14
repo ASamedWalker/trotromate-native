@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { X, MapPin, Clock, ShieldCheck, ChevronRight, Users, Flame, BusFront, AlertTriangle } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
+import { timeAgo } from '@/lib/utils/time'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import { formatDistance } from '@/lib/utils/distance'
 import type { NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
@@ -81,6 +82,23 @@ export function StopRoutesPanel({ stop, onClose }: Props) {
               </Text>
               {stop.waitText ? (
                 <Text style={s.queueCardWait}>Estimated wait: ~{stop.waitText}</Text>
+              ) : null}
+              {stop.lastReportAt ? (
+                <View style={s.freshnessRow}>
+                  <View style={[s.freshnessDot, {
+                    backgroundColor: (Date.now() - new Date(stop.lastReportAt).getTime()) < 15 * 60 * 1000
+                      ? '#22c55e'
+                      : (Date.now() - new Date(stop.lastReportAt).getTime()) < 45 * 60 * 1000
+                      ? '#f59e0b'
+                      : '#ef4444',
+                  }]} />
+                  <Text style={s.freshnessText}>
+                    {timeAgo(stop.lastReportAt)}
+                    {stop.reportCount && stop.reportCount > 0
+                      ? ` · ${stop.reportCount} report${stop.reportCount !== 1 ? 's' : ''}`
+                      : ''}
+                  </Text>
+                </View>
               ) : null}
             </View>
             <View style={[s.queueBadge, {
@@ -250,6 +268,22 @@ const getStyles = (isDark: boolean) => {
       fontSize: 10,
       fontFamily: font.bold,
       letterSpacing: 1.5,
+    },
+    freshnessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 4,
+    },
+    freshnessDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    freshnessText: {
+      fontSize: 11,
+      fontFamily: font.medium,
+      color: isDark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
     },
     routesLabel: {
       fontSize: 13,

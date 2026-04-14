@@ -487,6 +487,8 @@ export default function HomeScreen() {
           pinType,
           waitText,
           queueStatus: stat?.current_status,
+          lastReportAt: stat?.last_report_at,
+          reportCount: stat?.report_count_last_hour ?? 0,
         }
       })
       .filter(Boolean) as Array<{
@@ -496,6 +498,8 @@ export default function HomeScreen() {
         pinType: StationPinType
         waitText: string
         queueStatus?: string
+        lastReportAt?: string
+        reportCount: number
       }>
   }, [stations])
 
@@ -1005,6 +1009,8 @@ export default function HomeScreen() {
                   distanceKm: null,
                   queueStatus: station.queueStatus,
                   waitText: station.waitText,
+                  lastReportAt: station.lastReportAt,
+                  reportCount: station.reportCount,
                 })
                 cameraRef.current?.setCamera({
                   centerCoordinate: station.coordinate,
@@ -1096,6 +1102,8 @@ export default function HomeScreen() {
               distanceKm: null,
               queueStatus: pin.queueStatus,
               waitText: pin.waitText,
+              lastReportAt: pin.lastReportAt,
+              reportCount: pin.reportCount,
             })
             cameraRef.current?.setCamera({
               centerCoordinate: pin.coordinate,
