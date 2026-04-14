@@ -1426,6 +1426,16 @@ export default function HomeScreen() {
         <Locate size={20} color={c.amber500} />
       </TouchableOpacity>
 
+      {/* Live activity counter */}
+      {(activeQueueCount > 0 || incidents.length > 0) && (
+        <View style={s.liveCounter}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+          <Text style={s.liveCounterText}>
+            {activeQueueCount + incidents.length} live update{(activeQueueCount + incidents.length) !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+
       {/* Live queue badge */}
       {activeQueueCount > 0 && (
         <View style={s.queueBadge}>
@@ -1640,6 +1650,28 @@ const getStyles = (isDark: boolean) => {
     },
 
     // Queue badge
+    liveCounter: {
+      position: 'absolute',
+      left: 16,
+      bottom: '32%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.95)',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    liveCounterText: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: isDark ? '#fafaf9' : '#1c1917',
+    },
     queueBadge: {
       position: 'absolute',
       left: 16,

@@ -72,7 +72,7 @@ export async function fetchStations(): Promise<StationWithQueue[]> {
   const { data: reports } = await supabase
     .from('queue_reports')
     .select('station_name, queue_status, reported_at')
-    .gte('reported_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .gte('reported_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
     .order('reported_at', { ascending: false })
 
   return stations.map((station: Station) => {

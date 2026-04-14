@@ -146,10 +146,13 @@ export default function RouteDetailScreen() {
               </Text>
             </View>
 
-            {/* Meta */}
+            {/* Trust signal — report count + freshness */}
             <View style={s.heroMeta}>
               <Users size={16} color="#815100" />
-              <Text style={s.heroMetaText}>{reportCount} Reports</Text>
+              <Text style={s.heroMetaText}>
+                Based on {reportCount} report{reportCount !== 1 ? 's' : ''}
+                {lastUpdated && lastUpdated !== 'No data' ? ` · ${lastUpdated}` : ''}
+              </Text>
             </View>
           </View>
         </View>
