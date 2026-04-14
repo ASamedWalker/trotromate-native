@@ -59,12 +59,52 @@ export async function awardPointsForReport(params: {
     let basePoints = REPORT_POINTS[reportType]
     let bonusReason = ''
 
+    // Coverage gap 3X bonus — route/station has no reports in last 4 hours
+    if (reportType === 'fare' && routeId) {
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+      const { count } = await supabase
+        .from('fare_reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('route_id', routeId)
+        .gte('reported_at', fourHoursAgo)
+
+      if ((count ?? 0) === 0) {
+        basePoints = basePoints * 3
+        bonusReason = '3X First Report'
+      }
+    } else if (reportType === 'queue') {
+      // For queue reports, check by the report ID's station
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+      const { data: thisReport } = await supabase
+        .from('queue_reports')
+        .select('station_name')
+        .eq('id', reportId)
+        .single()
+
+      if (thisReport?.station_name) {
+        const { count } = await supabase
+          .from('queue_reports')
+          .select('id', { count: 'exact', head: true })
+          .eq('station_name', thisReport.station_name)
+          .gte('reported_at', fourHoursAgo)
+
+        if ((count ?? 0) <= 1) {
+          basePoints = basePoints * 3
+          bonusReason = '3X First Report'
+        }
+      }
+    }
+
     // Peak hour 2X bonus (6-9 AM, 4-7 PM Ghana time = UTC)
+    // Stacks with coverage gap: 3X * 2X = 6X during peak with no data
     const hour = new Date().getUTCHours()
     const isPeakHour = (hour >= 6 && hour < 9) || (hour >= 16 && hour < 19)
-    if (isPeakHour) {
+    if (isPeakHour && !bonusReason) {
       basePoints = basePoints * 2
       bonusReason = '2X Peak Hour'
+    } else if (isPeakHour && bonusReason) {
+      // Already has coverage gap bonus — don't stack, but note it
+      bonusReason += ' + Peak Hour'
     }
 
     // Calculate streak
