@@ -985,6 +985,78 @@ export default function HomeScreen() {
           </Mapbox.MarkerView>
         ))}
 
+        {/* ── Active queue station badges — MarkerView with rounded card wait time ── */}
+        {mapIdle && activeQueueStations.slice(0, 12).map((station) => (
+          <Mapbox.MarkerView
+            key={`queue-badge-${station.name}`}
+            coordinate={station.coordinate}
+            allowOverlap={true}
+            anchor={{ x: 0.5, y: -0.8 }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const routeIds = getRoutesForStop(station.name)
+                setSelectedStop({
+                  name: station.name,
+                  latitude: station.coordinate[1],
+                  longitude: station.coordinate[0],
+                  routeIds,
+                  distanceKm: null,
+                  queueStatus: station.queueStatus,
+                  waitText: station.waitText,
+                })
+                cameraRef.current?.setCamera({
+                  centerCoordinate: station.coordinate,
+                  zoomLevel: 14,
+                  animationDuration: 600,
+                })
+                bottomSheetRef.current?.snapToIndex(1)
+              }}
+            >
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: station.queueStatus === 'very_long' || station.queueStatus === 'long'
+                  ? 'rgba(239,68,68,0.9)'
+                  : station.queueStatus === 'moderate'
+                  ? 'rgba(245,158,11,0.9)'
+                  : 'rgba(34,197,94,0.9)',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 6,
+              }}>
+                {(station.queueStatus === 'very_long' || station.queueStatus === 'long') ? (
+                  <Flame size={12} color="#fff" strokeWidth={2.5} />
+                ) : station.queueStatus === 'moderate' ? (
+                  <AlertTriangle size={12} color="#fff" strokeWidth={2.5} />
+                ) : (
+                  <BusFront size={12} color="#fff" strokeWidth={2.5} />
+                )}
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 11,
+                  fontFamily: 'Poppins_700Bold',
+                  letterSpacing: 0.3,
+                }}>
+                  {station.waitText || (
+                    station.queueStatus === 'very_long' ? 'Very Long'
+                    : station.queueStatus === 'long' ? 'Long'
+                    : station.queueStatus === 'moderate' ? 'Moderate'
+                    : 'Short'
+                  )}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Mapbox.MarkerView>
+        ))}
+
         {/* ── Pulsing rings for active stations (updated via ref, no re-renders) ── */}
         {mapIdle && activeQueueStations.length > 0 && (
           <Mapbox.ShapeSource
@@ -1146,26 +1218,30 @@ export default function HomeScreen() {
               textAllowOverlap: false,
             }}
           />
-          {/* Wait time badges — above the icon pin */}
+          {/* Wait time pill badge — styled card below the capsule */}
           <Mapbox.SymbolLayer
             id="station-wait"
             minZoomLevel={13}
             filter={['!=', ['get', 'waitText'], '']}
             style={{
-              textField: ['get', 'waitText'],
-              textSize: 9,
+              textField: ['concat', '⏱ ', ['get', 'waitText']],
+              textSize: ['interpolate', ['linear'], ['zoom'], 13, 10, 14, 11, 16, 13],
               textColor: '#ffffff',
               textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, -1.6]], 14, ['literal', [0, -2.0]], 16, ['literal', [0, -2.4]]],
-              textAnchor: 'bottom',
+              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, 2.2]], 14, ['literal', [0, 2.6]], 16, ['literal', [0, 3.0]]],
+              textAnchor: 'top',
               textAllowOverlap: true,
+              textIgnorePlacement: true,
+              textPadding: 0,
               textHaloColor: ['match', ['get', 'queueStatus'],
-                'empty', '#22c55e', 'short', '#22c55e',
-                'moderate', '#f59e0b',
-                'long', '#f97316', 'very_long', '#ef4444',
-                '#22c55e',
+                'empty', 'rgba(34,197,94,0.9)', 'short', 'rgba(34,197,94,0.9)',
+                'moderate', 'rgba(245,158,11,0.9)',
+                'long', 'rgba(249,115,22,0.9)', 'very_long', 'rgba(239,68,68,0.9)',
+                'rgba(34,197,94,0.9)',
               ],
-              textHaloWidth: 4,
+              textHaloWidth: 6,
+              textHaloBlur: 1,
+              textLetterSpacing: 0.05,
             }}
           />
         </Mapbox.ShapeSource>
