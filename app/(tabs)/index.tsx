@@ -21,6 +21,8 @@ import {
   BusFront,
   TrainFront,
   MapPin,
+  Flame,
+  AlertTriangle,
 } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
@@ -504,19 +506,26 @@ export default function HomeScreen() {
   )
 
   // Pulse animation loop — updates ShapeSource via ref, no React re-renders
+  // Scales with zoom so pulse is visible behind capsules at high zoom
   useEffect(() => {
     if (!mapIdle || activeQueueStations.length === 0) return
     const id = setInterval(() => {
       pulseTickRef.current = (pulseTickRef.current + 1) % 40
       const phase = pulseTickRef.current * Math.PI / 20
+      const zoom = zoomRef.current
+      // Scale pulse radius based on zoom: small at low zoom, large at high zoom
+      const baseRadius = zoom >= 14 ? 30 : zoom >= 13 ? 22 : 14
+      const expandRange = zoom >= 14 ? 25 : zoom >= 13 ? 16 : 10
+      const baseOpacity = zoom >= 14 ? 0.35 : 0.25
+
       const geojson = {
         type: 'FeatureCollection',
         features: activeQueueStations.map((s) => ({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: s.coordinate },
           properties: {
-            radius: 14 + Math.sin(phase) * 10,
-            opacity: 0.25 - Math.sin(phase) * 0.2,
+            radius: baseRadius + Math.sin(phase) * expandRange,
+            opacity: baseOpacity - Math.sin(phase) * (baseOpacity - 0.05),
             color: s.queueStatus === 'long' || s.queueStatus === 'very_long'
               ? '#ef4444'
               : s.queueStatus === 'moderate'
@@ -677,52 +686,81 @@ export default function HomeScreen() {
 
         {/* ── Transport icons for circle-to-icon transition ── */}
         <Mapbox.Images>
+          {/* ── Capsule pill markers — Stitch-inspired design ── */}
           <Mapbox.Image name="pin-trotro">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <BusFront size={18} color="#2563eb" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#60a5fa', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(96,165,250,0.2)' }}>
+                <BusFront size={16} color="#93bbfd" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(96,165,250,0.3)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-train">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <TrainFront size={18} color="#7c3aed" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#7c3aed', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,58,237,0.12)' }}>
+                <TrainFront size={16} color="#7c3aed" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(124,58,237,0.25)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#7c3aed' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-major">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <MapPin size={18} color="#2563eb" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#60a5fa', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(96,165,250,0.2)' }}>
+                <MapPin size={16} color="#93bbfd" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(96,165,250,0.3)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-queue-empty">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#22c55e', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <BusFront size={18} color="#22c55e" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#22c55e', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(34,197,94,0.12)' }}>
+                <BusFront size={16} color="#22c55e" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(34,197,94,0.25)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-queue-moderate">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#f59e0b', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <BusFront size={18} color="#f59e0b" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#f59e0b', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(245,158,11,0.12)' }}>
+                <AlertTriangle size={16} color="#f59e0b" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(245,158,11,0.25)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-queue-long">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <BusFront size={18} color="#f97316" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#f97316', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.15)' }}>
+                <Flame size={16} color="#f97316" strokeWidth={2.5} />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(249,115,22,0.3)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f97316' }} />
               </View>
             </View>
           </Mapbox.Image>
           <Mapbox.Image name="pin-queue-very_long">
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', elevation: 4 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#292524' : '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
-                <BusFront size={18} color="#ef4444" strokeWidth={2.5} />
+            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#ef4444', elevation: 8 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.18)' }}>
+                <Flame size={18} color="#ef4444" strokeWidth={2.5} fill="#ef4444" />
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(239,68,68,0.35)' }} />
+              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444' }} />
               </View>
             </View>
           </Mapbox.Image>
@@ -984,6 +1022,8 @@ export default function HomeScreen() {
               longitude: pin.coordinate[0],
               routeIds,
               distanceKm: null,
+              queueStatus: pin.queueStatus,
+              waitText: pin.waitText,
             })
             cameraRef.current?.setCamera({
               centerCoordinate: pin.coordinate,
@@ -994,31 +1034,31 @@ export default function HomeScreen() {
           }}
           hitbox={{ width: 30, height: 30 }}
         >
-          {/* ── Ambient glow — soft diffused aura around stations (zero CPU cost) ── */}
+          {/* ── Ambient glow — visible aura around capsules at all zoom levels ── */}
           <Mapbox.CircleLayer
             id="station-ambient-outer"
             minZoomLevel={showAllPins ? 8 : 11}
             style={{
-              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 24, 12, 40, 13, 0],
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 24, 12, 40, 14, 50, 16, 60],
               circleColor: ['match', ['get', 'queueStatus'],
                 'empty', '#22c55e', 'short', '#22c55e',
                 'moderate', '#f59e0b',
                 'long', '#f97316', 'very_long', '#ef4444',
                 ['match', ['get', 'pinType'],
                   'train', '#7c3aed',
-                  'major', '#3b82f6',
-                  '#3b82f6',
+                  'major', '#60a5fa',
+                  '#60a5fa',
                 ],
               ],
-              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.04, 12, 0.08, 13, 0],
-              circleBlur: 1.5,
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.08, 12, 0.15, 14, 0.25, 16, 0.3],
+              circleBlur: 0.8,
             }}
           />
           <Mapbox.CircleLayer
             id="station-ambient-inner"
             minZoomLevel={showAllPins ? 8 : 11}
             style={{
-              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 12, 12, 20, 13, 0],
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 12, 12, 20, 14, 28, 16, 36],
               circleColor: ['match', ['get', 'queueStatus'],
                 'empty', '#22c55e', 'short', '#22c55e',
                 'moderate', '#f59e0b',
@@ -1029,8 +1069,8 @@ export default function HomeScreen() {
                   '#3b82f6',
                 ],
               ],
-              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.06, 12, 0.12, 13, 0],
-              circleBlur: 0.8,
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.1, 12, 0.2, 14, 0.35, 16, 0.4],
+              circleBlur: 0.5,
             }}
           />
 

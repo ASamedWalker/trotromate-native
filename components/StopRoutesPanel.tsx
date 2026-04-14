@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
-import { X, MapPin, Clock, ShieldCheck, ChevronRight } from 'lucide-react-native'
+import { X, MapPin, Clock, ShieldCheck, ChevronRight, Users, Flame, BusFront, AlertTriangle } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import { formatDistance } from '@/lib/utils/distance'
@@ -54,6 +54,51 @@ export function StopRoutesPanel({ stop, onClose }: Props) {
           <X size={18} color={isDark ? c.stone400 : c.stone500} />
         </TouchableOpacity>
       </View>
+
+      {/* Live Queue Status Card */}
+      {stop.queueStatus ? (
+        <View style={[s.queueCard, {
+          borderLeftColor: stop.queueStatus === 'very_long' ? '#ef4444'
+            : stop.queueStatus === 'long' ? '#f97316'
+            : stop.queueStatus === 'moderate' ? '#f59e0b'
+            : '#22c55e',
+        }]}>
+          <View style={s.queueCardTop}>
+            {stop.queueStatus === 'very_long' || stop.queueStatus === 'long' ? (
+              <Flame size={20} color={stop.queueStatus === 'very_long' ? '#ef4444' : '#f97316'} fill={stop.queueStatus === 'very_long' ? '#ef4444' : undefined} />
+            ) : stop.queueStatus === 'moderate' ? (
+              <AlertTriangle size={20} color="#f59e0b" />
+            ) : (
+              <BusFront size={20} color="#22c55e" />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={s.queueCardTitle}>
+                {stop.queueStatus === 'very_long' ? 'Very Long Queue'
+                  : stop.queueStatus === 'long' ? 'Long Queue'
+                  : stop.queueStatus === 'moderate' ? 'Moderate Queue'
+                  : stop.queueStatus === 'short' ? 'Short Queue'
+                  : 'No Queue'}
+              </Text>
+              {stop.waitText ? (
+                <Text style={s.queueCardWait}>Estimated wait: ~{stop.waitText}</Text>
+              ) : null}
+            </View>
+            <View style={[s.queueBadge, {
+              backgroundColor: stop.queueStatus === 'very_long' ? 'rgba(239,68,68,0.15)'
+                : stop.queueStatus === 'long' ? 'rgba(249,115,22,0.15)'
+                : stop.queueStatus === 'moderate' ? 'rgba(245,158,11,0.15)'
+                : 'rgba(34,197,94,0.15)',
+            }]}>
+              <Text style={[s.queueBadgeText, {
+                color: stop.queueStatus === 'very_long' ? '#ef4444'
+                  : stop.queueStatus === 'long' ? '#f97316'
+                  : stop.queueStatus === 'moderate' ? '#f59e0b'
+                  : '#22c55e',
+              }]}>LIVE</Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
 
       {/* Routes count */}
       <Text style={s.routesLabel}>
@@ -170,6 +215,41 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    queueCard: {
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fafaf9',
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 14,
+      borderLeftWidth: 3,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    },
+    queueCardTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    queueCardTitle: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: isDark ? '#fafaf9' : '#1c1917',
+    },
+    queueCardWait: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: isDark ? 'rgba(255,255,255,0.5)' : '#78716c',
+      marginTop: 2,
+    },
+    queueBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    queueBadgeText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      letterSpacing: 1.5,
     },
     routesLabel: {
       fontSize: 13,
