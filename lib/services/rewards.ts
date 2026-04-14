@@ -55,8 +55,17 @@ export async function awardPointsForReport(params: {
     const profile = await getOrCreateProfile(deviceId)
     if (!profile) return null
 
-    // Calculate base points
-    const basePoints = REPORT_POINTS[reportType]
+    // Calculate base points with multipliers
+    let basePoints = REPORT_POINTS[reportType]
+    let bonusReason = ''
+
+    // Peak hour 2X bonus (6-9 AM, 4-7 PM Ghana time = UTC)
+    const hour = new Date().getUTCHours()
+    const isPeakHour = (hour >= 6 && hour < 9) || (hour >= 16 && hour < 19)
+    if (isPeakHour) {
+      basePoints = basePoints * 2
+      bonusReason = '2X Peak Hour'
+    }
 
     // Calculate streak
     const today = new Date().toISOString().split('T')[0]
@@ -136,8 +145,11 @@ export async function awardPointsForReport(params: {
       report_id: reportId,
       report_type: reportType,
       points: totalPoints,
-      reason: `${reportType}_report`,
-      metadata: streakBonus > 0 ? { streak_bonus: streakBonus } : null,
+      reason: bonusReason ? `${reportType}_report (${bonusReason})` : `${reportType}_report`,
+      metadata: {
+        ...(streakBonus > 0 ? { streak_bonus: streakBonus } : {}),
+        ...(bonusReason ? { bonus: bonusReason } : {}),
+      },
     })
 
     // Check and award badges
