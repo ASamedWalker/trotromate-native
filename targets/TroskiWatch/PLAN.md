@@ -32,12 +32,22 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
 
 #### 🔴 Blockers
 - [x] **Wire sync calls to real data** — DONE. `lib/hooks/useWatchSync.ts` syncs commute data. Homepage `index.tsx` syncs active queue stations + sends alerts for very_long queues.
-- [x] **EAS iOS Preview build** — DONE. Build `c701ae40` finished 2026-04-14. Install via TestFlight; Watch app appears automatically on paired Apple Watch.
+- [x] **EAS iOS Preview build** — DONE. Build `c701ae40` finished 2026-04-14. But Watch app doesn't install on physical Watch via ad-hoc distribution — Watch apps require TestFlight or App Store.
   - Build: https://expo.dev/accounts/swalker01/projects/troski/builds/c701ae40-8e21-46e6-8d8c-b007564feed8
-  - Next: test on physical Apple Watch, then production build:
-    ```bash
-    npx eas-cli build --platform ios --profile production --clear-cache
-    ```
+- [ ] **EAS iOS Production build + TestFlight submission** — NEXT STEP. Run these commands on Mac:
+  ```bash
+  cd ~/trotromate-native
+  git pull origin main
+  npx eas-cli build --platform ios --profile production --clear-cache
+  ```
+  Wait for the build to complete. It will prompt for Apple credentials for the Watch target provisioning profile.
+  
+  After build completes, submit to TestFlight:
+  ```bash
+  npx eas-cli submit --platform ios --profile production --latest
+  ```
+  
+  Once submitted, Apple reviews it (24-48 hrs). After approval, the Watch app appears in TestFlight on iPhone. Open the Watch app on iPhone → find Troski → Install on Watch.
 
 #### 🟡 Required before App Store
 - [ ] **Watch app icon** — 1024x1024 marketing icon is done (`watch-1024.png`). Remaining sizes need generating on Mac using `sips`. Run these commands:
