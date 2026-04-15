@@ -32,20 +32,12 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
 
 #### 🔴 Blockers
 - [x] **Wire sync calls to real data** — DONE. `lib/hooks/useWatchSync.ts` syncs commute data. Homepage `index.tsx` syncs active queue stations + sends alerts for very_long queues.
-- [ ] **EAS iOS Preview build (test Watch app before PROD)** — Run this command on Mac to build iOS with Watch target included. This creates a TestFlight build so we can test on a real Apple Watch before submitting to the App Store:
-  ```bash
-  cd ~/trotromate-native
-  git pull origin main
-  npx eas-cli build --platform ios --profile preview --clear-cache
-  ```
-  This will prompt for Apple credentials — the Watch target (`com.troski.app.watchkitapp`) needs a new provisioning profile. EAS generates it automatically once you log in.
-  
-  After the build completes, install via TestFlight. The Watch app will automatically appear on the paired Apple Watch.
-  
-  If the preview build works, then build for production:
-  ```bash
-  npx eas-cli build --platform ios --profile production --clear-cache
-  ```
+- [x] **EAS iOS Preview build** — DONE. Build `c701ae40` finished 2026-04-14. Install via TestFlight; Watch app appears automatically on paired Apple Watch.
+  - Build: https://expo.dev/accounts/swalker01/projects/troski/builds/c701ae40-8e21-46e6-8d8c-b007564feed8
+  - Next: test on physical Apple Watch, then production build:
+    ```bash
+    npx eas-cli build --platform ios --profile production --clear-cache
+    ```
 
 #### 🟡 Required before App Store
 - [ ] **Watch app icon** — 1024x1024 marketing icon is done (`watch-1024.png`). Remaining sizes need generating on Mac using `sips`. Run these commands:
