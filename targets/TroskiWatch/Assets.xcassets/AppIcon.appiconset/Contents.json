@@ -1,31 +1,37 @@
 {
   "images": [
     {
+      "filename": "watch-44@2x.png",
       "idiom": "watch",
       "scale": "2x",
       "size": "44x44"
     },
     {
+      "filename": "watch-50@2x.png",
       "idiom": "watch",
       "scale": "2x",
       "size": "50x50"
     },
     {
+      "filename": "watch-86@2x.png",
       "idiom": "watch",
       "scale": "2x",
       "size": "86x86"
     },
     {
+      "filename": "watch-98@2x.png",
       "idiom": "watch",
       "scale": "2x",
       "size": "98x98"
     },
     {
+      "filename": "watch-108@2x.png",
       "idiom": "watch",
       "scale": "2x",
       "size": "108x108"
     },
     {
+      "filename": "watch-1024.png",
       "idiom": "watch-marketing",
       "scale": "1x",
       "size": "1024x1024"
