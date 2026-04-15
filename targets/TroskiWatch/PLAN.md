@@ -35,7 +35,19 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
 - [ ] **EAS build** — Watch target won't compile into the binary until a new build runs: `npx eas-cli build --platform ios --profile production --clear-cache`
 
 #### 🟡 Required before App Store
-- [ ] **Watch app icon** — `Assets.xcassets/AppIcon.appiconset/` has the manifest but no PNG files. Need icons at 44×44, 50×50, 86×86, 98×98, 108×108 (@2x) and 1024×1024 marketing.
+- [ ] **Watch app icon** — 1024x1024 marketing icon is done (`watch-1024.png`). Remaining sizes need generating on Mac using `sips`. Run these commands:
+  ```bash
+  cd targets/TroskiWatch/Assets.xcassets/AppIcon.appiconset
+  cp ../../../../assets/images/icon.png ./source.png
+  sips -z 88 88 source.png --out watch-44@2x.png
+  sips -z 100 100 source.png --out watch-50@2x.png
+  sips -z 172 172 source.png --out watch-86@2x.png
+  sips -z 196 196 source.png --out watch-98@2x.png
+  sips -z 216 216 source.png --out watch-108@2x.png
+  rm source.png
+  git add . && git commit -m "Add Watch app icons (all sizes)" && git push
+  ```
+  `Contents.json` already has the filenames mapped. After running sips, all icons are ready.
 - [ ] **Phase 2: Complication** — `CLKComplicationDataSource` for circular dot, modular text ("Circle→Madina 🟢"), and corner fare. Updates ~2x/hour + APNs push for urgent spikes.
 
 #### 🟢 Nice to have
