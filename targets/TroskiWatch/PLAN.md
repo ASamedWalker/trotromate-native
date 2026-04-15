@@ -84,11 +84,12 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
 - [x] **CommuteSummaryView layout** — "Leave by" card moved below queue status line
 
 #### 🟢 Nice to have
-- [ ] Navigate button in `AlertView` — deep link to Maps with the alternative station pre-filled
-- [ ] `relativeTime` auto-refresh — currently static on render; add a `Timer` to tick every 60s
-- [ ] `accessoryInline` complication variant for watch faces that support inline text
+- [x] **Navigate deep link** — DONE. AlertView "Navigate" opens Apple Maps with alternative station in Accra, Ghana
+- [x] **relativeTime auto-refresh** — DONE. 60s Timer in ContentView triggers re-render for "Updated X min ago"
+- [x] **accessoryInline complication** — DONE. "Circle→Madina · ₵8.50" single-line text for inline-capable faces
 - [ ] APNs complication push for urgent queue spikes
 - [ ] Test on physical Apple Watch SE 2nd gen (40mm)
+- [ ] Production EAS build + TestFlight submission
 
 ---
 

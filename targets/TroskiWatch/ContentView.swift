@@ -5,6 +5,9 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject private var connector = WatchConnector.shared
     @State private var showAlert = false
+    /// Ticks every 60s to refresh "Updated X min ago" timestamps.
+    let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    @State private var now = Date()
 
     var body: some View {
         Group {
@@ -42,6 +45,10 @@ struct ContentView: View {
         .onChange(of: connector.activeAlert != nil) { hasAlert in
             showAlert = hasAlert
         }
+        .onReceive(refreshTimer) { _ in
+            now = Date() // triggers view re-render for relativeTime
+        }
+        .id(now) // forces child views to recompute relativeTime
     }
 
     private var emptyState: some View {

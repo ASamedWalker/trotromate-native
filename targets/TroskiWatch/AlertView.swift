@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// Alert screen — fire warning with alternative station suggestion.
 /// Kinetic glow: amber blur at top, red blur at bottom (per DESIGN.md).
@@ -51,8 +52,17 @@ struct AlertView: View {
                         .lineLimit(3)
 
                     VStack(spacing: 6) {
-                        Button("Navigate", action: onNavigate)
-                            .buttonStyle(TroskiGradientButtonStyle())
+                        Button(action: {
+                            openMapsToStation(alert.alternative)
+                            onNavigate()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "location.fill")
+                                    .font(.troskiCaption)
+                                Text("Navigate")
+                            }
+                        }
+                        .buttonStyle(TroskiGradientButtonStyle())
 
                         Button("Dismiss", action: onDismiss)
                             .buttonStyle(TroskiOutlineButtonStyle())
@@ -62,6 +72,15 @@ struct AlertView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 12)
             }
+        }
+    }
+
+    /// Open Apple Maps with the alternative station as destination.
+    private func openMapsToStation(_ station: String) {
+        let query = "\(station) Station, Accra, Ghana"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? station
+        if let url = URL(string: "maps://?q=\(query)") {
+            WKExtension.shared().openSystemURL(url)
         }
     }
 }

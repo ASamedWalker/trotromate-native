@@ -7,5 +7,6 @@ struct TroskiWidgetBundle: WidgetBundle {
         TroskiCircularWidget()
         TroskiModularWidget()
         TroskiCornerWidget()
+        TroskiInlineWidget()
     }
 }
