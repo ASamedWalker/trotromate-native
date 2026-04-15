@@ -73,12 +73,22 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
   git add . && git commit -m "Add Watch app icons (all sizes)" && git push
   ```
   `Contents.json` already has the filenames mapped. After running sips, all icons are ready.
-- [ ] **Phase 2: Complication** — `CLKComplicationDataSource` for circular dot, modular text ("Circle→Madina 🟢"), and corner fare. Updates ~2x/hour + APNs push for urgent spikes.
+- [x] **Phase 2: Complications** — DONE. WidgetKit-based (not ClockKit). Separate `targets/TroskiWatchWidget/` extension target (type: `watch-widget`, bundleId: `com.troski.app.watch.widget`).
+  - **Circular** (accessoryCircular): queue dot + fare
+  - **Rectangular** (accessoryRectangular): "CURRENT ROUTE" label + dot, route + fare
+  - **Corner** (accessoryCorner): fare on bezel + route as widget label
+  - Data flows via shared App Group UserDefaults (`group.com.troski.app`)
+  - Timeline refreshes every 30 min (~2 updates/hour, within watchOS budget)
+  - Works on Infograph Modular, Metropolitan, Chronograph Pro faces (not Numerals — it doesn't support accessory complications)
+- [x] **Watch app icons** — all sizes generated and committed
+- [x] **CommuteSummaryView layout** — "Leave by" card moved below queue status line
 
 #### 🟢 Nice to have
 - [ ] Navigate button in `AlertView` — deep link to Maps with the alternative station pre-filled
 - [ ] `relativeTime` auto-refresh — currently static on render; add a `Timer` to tick every 60s
-- [ ] Test on watchOS Simulator, then physical Apple Watch
+- [ ] `accessoryInline` complication variant for watch faces that support inline text
+- [ ] APNs complication push for urgent queue spikes
+- [ ] Test on physical Apple Watch SE 2nd gen (40mm)
 
 ---
 

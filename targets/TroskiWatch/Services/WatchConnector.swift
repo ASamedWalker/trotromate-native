@@ -39,6 +39,10 @@ class WatchConnector: NSObject, ObservableObject, WCSessionDelegate {
             queueStatus: .veryLong,
             alternative: "Kaneshie"
         )
+        // Persist mock data for complication widget
+        if let commute = self.commute {
+            persistForComplication(commute)
+        }
     }
     #endif
 
@@ -80,11 +84,25 @@ class WatchConnector: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Parsing
 
+    private static let sharedDefaults = UserDefaults(suiteName: "group.com.troski.app")
+
+    /// Persist commute data to App Group so the widget extension can read it.
+    private func persistForComplication(_ data: CommuteData) {
+        let defaults = Self.sharedDefaults
+        defaults?.set(data.from, forKey: "commute_from")
+        defaults?.set(data.to, forKey: "commute_to")
+        defaults?.set(data.fare, forKey: "commute_fare")
+        defaults?.set(data.queueStatus.rawValue, forKey: "commute_queueStatus")
+        defaults?.set(data.waitTime, forKey: "commute_waitTime")
+        defaults?.set(data.lastUpdated.timeIntervalSince1970, forKey: "commute_lastUpdated")
+    }
+
     private func handleIncomingMessage(_ message: [String: Any]) {
         // Commute data
         if let commuteDict = message["commute"] as? [String: Any],
            let data = CommuteData(from: commuteDict) {
             DispatchQueue.main.async { self.commute = data }
+            persistForComplication(data)
         }
 
         // Station list

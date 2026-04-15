@@ -55,7 +55,26 @@ struct CommuteSummaryView: View {
                     Text("GH₵\(String(format: "%.2f", commute.fare))")
                         .font(.troskiFare)
                         .foregroundColor(.troskiAmber)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 6)
+
+                    // Queue status
+                    HStack(spacing: 5) {
+                        ZStack {
+                            Circle()
+                                .fill(commute.queueStatus.swiftUIColor.opacity(0.2))
+                                .frame(width: 18, height: 18)
+                            Circle()
+                                .fill(commute.queueStatus.swiftUIColor)
+                                .frame(width: 7, height: 7)
+                        }
+                        Text(commute.queueStatus.label)
+                            .font(.troskiBody)
+                            .foregroundColor(.white)
+                        Text("· \(commute.waitTime)")
+                            .font(.troskiBody)
+                            .foregroundColor(.troskiMuted)
+                    }
+                    .padding(.bottom, 6)
 
                     // Smart leave-by suggestion
                     HStack(spacing: 6) {
@@ -75,25 +94,6 @@ struct CommuteSummaryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.troskiMint.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.bottom, 8)
-
-                    // Queue status
-                    HStack(spacing: 5) {
-                        ZStack {
-                            Circle()
-                                .fill(commute.queueStatus.swiftUIColor.opacity(0.2))
-                                .frame(width: 18, height: 18)
-                            Circle()
-                                .fill(commute.queueStatus.swiftUIColor)
-                                .frame(width: 7, height: 7)
-                        }
-                        Text(commute.queueStatus.label)
-                            .font(.troskiBody)
-                            .foregroundColor(.white)
-                        Text("· \(commute.waitTime)")
-                            .font(.troskiBody)
-                            .foregroundColor(.troskiMuted)
-                    }
                     .padding(.bottom, 4)
 
                     Text("Updated \(commute.relativeTime)")
