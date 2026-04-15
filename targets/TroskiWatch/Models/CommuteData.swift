@@ -64,18 +64,22 @@ struct Station: Identifiable, Codable {
     var waitTime: String
     var fare: Double
 
+    var isDistant: Bool
+
     init(
         id: UUID = UUID(),
         name: String,
         queueStatus: QueueStatus,
         waitTime: String,
-        fare: Double
+        fare: Double,
+        isDistant: Bool = false
     ) {
         self.id = id
         self.name = name
         self.queueStatus = queueStatus
         self.waitTime = waitTime
         self.fare = fare
+        self.isDistant = isDistant
     }
 }
 
@@ -131,6 +135,7 @@ extension Station {
         self.queueStatus = queueStatus
         self.waitTime = waitTime
         self.fare = fare
+        self.isDistant = dict["isDistant"] as? Bool ?? false
     }
 }
 

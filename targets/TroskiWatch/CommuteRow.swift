@@ -6,36 +6,32 @@ struct CommuteRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            // Route
             HStack(spacing: 4) {
                 Text(commute.from)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.troskiHeadline)
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.troskiDetail)
                     .foregroundColor(.troskiMuted)
                 Text(commute.to)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.troskiHeadline)
             }
             .foregroundColor(.white)
 
-            // Fare
             Text("GH₵\(String(format: "%.2f", commute.fare))")
                 .font(.system(size: 18, weight: .black))
                 .foregroundColor(.troskiAmber)
 
-            // Queue + wait
             HStack(spacing: 5) {
                 Circle()
                     .fill(commute.queueStatus.swiftUIColor)
                     .frame(width: 7, height: 7)
                 Text("\(commute.queueStatus.label) · \(commute.waitTime)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.troskiBody)
                     .foregroundColor(.white.opacity(0.85))
             }
 
-            // Freshness
             Text("Updated \(commute.relativeTime)")
-                .font(.system(size: 9))
+                .font(.troskiCaption)
                 .foregroundColor(.troskiMuted)
         }
         .padding(.vertical, 4)

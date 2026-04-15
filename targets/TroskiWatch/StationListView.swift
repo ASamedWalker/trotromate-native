@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Scrollable list of nearby stations with colored status dots and wait times.
+/// Scrollable station list — "Nearby Hubs" with colored left-border cards.
 struct StationListView: View {
     @ObservedObject private var connector = WatchConnector.shared
 
     var body: some View {
+        NavigationView {
         ZStack {
             Color.troskiBackground.ignoresSafeArea()
 
@@ -18,71 +19,118 @@ struct StationListView: View {
                         .foregroundColor(.troskiMuted)
                 }
             } else {
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        ForEach(connector.stations) { station in
-                            StationRow(station: station)
-                            Rectangle()
-                                .fill(Color.troskiBorder.opacity(0.4))
-                                .frame(height: 1)
-                                .padding(.leading, 36)
+                        // Header
+                        VStack(spacing: 2) {
+                            Text("TROSKI")
+                                .font(.troskiBrand)
+                                .tracking(2.5)
+                                .foregroundColor(.troskiAmber)
+                            Text("NEARBY HUBS")
+                                .font(.troskiTiny)
+                                .tracking(1.5)
+                                .foregroundColor(.troskiMuted)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 8)
+
+                        // Station cards
+                        VStack(spacing: 6) {
+                            ForEach(connector.stations) { station in
+                                NavigationLink(destination: StationDetailView(station: station)) {
+                                    StationCard(station: station)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 4)
                     }
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                 }
             }
         }
+        } // NavigationView
     }
 }
 
-// MARK: - Station Row
+// MARK: - Station Card
 
-struct StationRow: View {
+struct StationCard: View {
     let station: Station
+    @State private var isPressed = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Tinted dot icon
-            ZStack {
-                Circle()
-                    .fill(station.queueStatus.swiftUIColor.opacity(0.18))
-                    .frame(width: 22, height: 22)
-                Circle()
-                    .fill(station.queueStatus.swiftUIColor)
-                    .frame(width: 8, height: 8)
-            }
+        HStack(spacing: 0) {
+            // Colored left border
+            RoundedRectangle(cornerRadius: 2)
+                .fill(borderColor)
+                .frame(width: 4)
+                .padding(.vertical, 4)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(station.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
-                HStack(spacing: 4) {
-                    Text(station.waitTime)
-                        .font(.system(size: 10))
-                        .foregroundColor(.troskiMuted)
-                    Text("·")
-                        .foregroundColor(.troskiBorder)
-                        .font(.system(size: 10))
-                    Text("GH₵\(String(format: "%.2f", station.fare))")
-                        .font(.system(size: 10))
-                        .foregroundColor(.troskiMuted)
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(station.name)
+                        .font(.troskiHeadline)
+                        .foregroundColor(.white)
+
+                    HStack(spacing: 3) {
+                        Text(statusEmoji)
+                            .font(.troskiTiny)
+                        Text(station.queueStatus.label)
+                            .font(.troskiDetail)
+                            .foregroundColor(station.queueStatus.swiftUIColor)
+                    }
+
+                    if station.isDistant {
+                        HStack(spacing: 3) {
+                            Image(systemName: "timer")
+                                .font(.troskiCaption)
+                            Text(station.waitTime + " away")
+                                .font(.troskiCaption)
+                        }
+                        .foregroundColor(.troskiMuted.opacity(0.6))
+                    } else {
+                        Text("GH₵\(String(format: "%.2f", station.fare)) · \(station.waitTime)")
+                            .font(.troskiCaption)
+                            .foregroundColor(.troskiMuted)
+                    }
                 }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.troskiDetail)
+                    .foregroundColor(.troskiBorder)
             }
-
-            Spacer()
-
-            // Queue label pill
-            Text(station.queueStatus.label)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(station.queueStatus.swiftUIColor)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule()
-                        .fill(station.queueStatus.swiftUIColor.opacity(0.12))
-                )
+            .padding(.leading, 8)
+            .padding(.trailing, 6)
         }
-        .padding(.horizontal, 8)
         .padding(.vertical, 7)
+        .background(Color.troskiSurfaceHigh)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .opacity(station.isDistant ? 0.6 : 1.0)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+    }
+
+    private var borderColor: Color {
+        switch station.queueStatus {
+        case .short:    return .troskiMint
+        case .moderate: return .troskiAmber
+        case .long:     return Color(hex: "#ff7351")
+        case .veryLong: return .queueVeryLong
+        }
+    }
+
+    private var statusEmoji: String {
+        switch station.queueStatus {
+        case .short:    return "🟢"
+        case .moderate: return "🟡"
+        case .long:     return "🔴"
+        case .veryLong: return "🔴"
+        }
     }
 }
 

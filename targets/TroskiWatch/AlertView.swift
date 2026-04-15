@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Alert screen — fire warning with alternative station suggestion.
-/// Shown when a very long queue is detected at the user's route station.
+/// Kinetic glow: amber blur at top, red blur at bottom (per DESIGN.md).
 struct AlertView: View {
     let alert: WatchAlert
     let onNavigate: () -> Void
@@ -11,16 +11,23 @@ struct AlertView: View {
         ZStack {
             Color.troskiBackground.ignoresSafeArea()
 
-            // Red glow behind warning icon
-            Circle()
-                .fill(Color.troskiRed.opacity(0.22))
-                .frame(width: 160)
-                .blur(radius: 48)
-                .offset(y: -40)
+            // Kinetic glow — amber top, red bottom
+            GeometryReader { geo in
+                Circle()
+                    .fill(Color.troskiAmber.opacity(0.25))
+                    .frame(width: 140)
+                    .blur(radius: 50)
+                    .position(x: geo.size.width * 0.5, y: -10)
 
-            ScrollView {
+                Circle()
+                    .fill(Color.troskiRed.opacity(0.25))
+                    .frame(width: 140)
+                    .blur(radius: 50)
+                    .position(x: geo.size.width * 0.5, y: geo.size.height + 10)
+            }
+
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 8) {
-                    // Warning icon in red circle
                     ZStack {
                         Circle()
                             .fill(Color.troskiRed.opacity(0.18))
@@ -29,23 +36,20 @@ struct AlertView: View {
                             .foregroundColor(.troskiRed)
                             .font(.system(size: 17, weight: .bold))
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 6)
 
-                    // Headline
                     Text("🔥 \(alert.station): \(alert.queueStatus.label)")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.troskiSubheadline)
                         .multilineTextAlignment(.center)
                         .foregroundColor(.white)
                         .lineLimit(2)
 
-                    // Alternative suggestion
-                    Text("Consider \(alert.alternative) — shorter queue now")
-                        .font(.system(size: 10))
+                    Text("Consider \(alert.alternative) — shorter queue right now")
+                        .font(.troskiDetail)
                         .multilineTextAlignment(.center)
                         .foregroundColor(.troskiMuted)
                         .lineLimit(3)
 
-                    // Actions
                     VStack(spacing: 6) {
                         Button("Navigate", action: onNavigate)
                             .buttonStyle(TroskiGradientButtonStyle())
@@ -53,10 +57,10 @@ struct AlertView: View {
                         Button("Dismiss", action: onDismiss)
                             .buttonStyle(TroskiOutlineButtonStyle())
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 6)
                 }
                 .padding(.horizontal, 10)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
             }
         }
     }

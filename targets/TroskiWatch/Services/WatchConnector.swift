@@ -11,7 +11,36 @@ class WatchConnector: NSObject, ObservableObject, WCSessionDelegate {
     private override init() {
         super.init()
         activateSession()
+
+        #if DEBUG
+        // Load mock data for simulator testing
+        loadMockData()
+        #endif
     }
+
+    #if DEBUG
+    private func loadMockData() {
+        self.commute = CommuteData(
+            from: "Circle",
+            to: "Madina",
+            fare: 8.50,
+            queueStatus: .long,
+            waitTime: "25 min"
+        )
+        self.stations = [
+            Station(name: "Circle", queueStatus: .long, waitTime: "25 min", fare: 8.50),
+            Station(name: "Kaneshie", queueStatus: .short, waitTime: "5 min", fare: 7.00),
+            Station(name: "Lapaz", queueStatus: .moderate, waitTime: "12 min", fare: 6.50),
+            Station(name: "Achimota", queueStatus: .veryLong, waitTime: "40 min", fare: 9.00),
+            Station(name: "Tema Station", queueStatus: .short, waitTime: "3 min", fare: 12.00, isDistant: true),
+        ]
+        self.activeAlert = WatchAlert(
+            station: "Circle",
+            queueStatus: .veryLong,
+            alternative: "Kaneshie"
+        )
+    }
+    #endif
 
     private func activateSession() {
         guard WCSession.isSupported() else { return }

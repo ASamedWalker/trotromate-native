@@ -92,23 +92,7 @@ export default {
         },
       ],
       ["voltra", { widgetName: "TroskiTripActivity", deploymentTarget: "16.2" }],
-      [
-        "@bacons/apple-targets",
-        {
-          appleTeamId: "6NVKXYM5TK",
-          targets: {
-            watch: {
-              type: ".watchApp",
-              name: "TroskiWatch",
-              bundleIdentifier: "com.troski.app.watchkitapp",
-              deploymentTarget: "10.0",
-              entitlements: {
-                "com.apple.security.application-groups": ["group.com.troski.app"],
-              },
-            },
-          },
-        },
-      ],
+      ["@bacons/apple-targets", { appleTeamId: "6NVKXYM5TK" }],
       "expo-video",
       [
         "expo-location",

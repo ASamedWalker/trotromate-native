@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Root view — tabs between Main Commute and Station List.
+/// Root view — swipeable pages: Commute Summary → Station List.
 /// Alert sheet floats on top when an active alert arrives.
 struct ContentView: View {
     @ObservedObject private var connector = WatchConnector.shared
@@ -10,7 +10,7 @@ struct ContentView: View {
         Group {
             if let commute = connector.commute {
                 TabView {
-                    MainCommuteView(commute: commute)
+                    CommuteSummaryView(commute: commute)
                     StationListView()
                 }
                 .tabViewStyle(.page)
@@ -24,7 +24,6 @@ struct ContentView: View {
                 AlertView(
                     alert: alert,
                     onNavigate: {
-                        // TODO: deep link to Maps with alternative station
                         showAlert = false
                         connector.activeAlert = nil
                     },
@@ -33,6 +32,11 @@ struct ContentView: View {
                         connector.activeAlert = nil
                     }
                 )
+            }
+        }
+        .onAppear {
+            if connector.activeAlert != nil {
+                showAlert = true
             }
         }
         .onChange(of: connector.activeAlert != nil) { hasAlert in

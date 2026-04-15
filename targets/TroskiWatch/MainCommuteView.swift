@@ -11,14 +11,12 @@ struct MainCommuteView: View {
 
             // Kinetic glow blobs
             GeometryReader { geo in
-                // Amber blob — top
                 Circle()
                     .fill(Color.troskiAmber.opacity(0.22))
                     .frame(width: 130)
                     .blur(radius: 44)
                     .position(x: geo.size.width * 0.3, y: -10)
 
-                // Red blob — bottom
                 Circle()
                     .fill(Color.troskiRed.opacity(0.18))
                     .frame(width: 130)
@@ -28,33 +26,29 @@ struct MainCommuteView: View {
 
             // Content
             VStack(alignment: .leading, spacing: 0) {
-                // Brand header
                 Text("TROSKI")
-                    .font(.system(size: 10, weight: .black))
+                    .font(.troskiBrand)
                     .tracking(2.5)
                     .foregroundColor(.troskiAmber)
                     .padding(.bottom, 10)
 
-                // Route
                 HStack(spacing: 3) {
                     Text(commute.from)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.troskiHeadline)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.troskiCaption)
                         .foregroundColor(.troskiMuted)
                     Text(commute.to)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.troskiHeadline)
                 }
                 .foregroundColor(.white)
                 .padding(.bottom, 4)
 
-                // Fare
                 Text("GH₵\(String(format: "%.2f", commute.fare))")
-                    .font(.system(size: 22, weight: .black))
+                    .font(.troskiFare)
                     .foregroundColor(.troskiAmber)
                     .padding(.bottom, 6)
 
-                // Queue status
                 HStack(spacing: 5) {
                     ZStack {
                         Circle()
@@ -65,17 +59,16 @@ struct MainCommuteView: View {
                             .frame(width: 7, height: 7)
                     }
                     Text(commute.queueStatus.label)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.troskiBody)
                         .foregroundColor(.white)
                     Text("· \(commute.waitTime)")
-                        .font(.system(size: 11))
+                        .font(.troskiBody)
                         .foregroundColor(.troskiMuted)
                 }
                 .padding(.bottom, 6)
 
-                // Freshness
                 Text("Updated \(commute.relativeTime)")
-                    .font(.system(size: 9))
+                    .font(.troskiCaption)
                     .foregroundColor(.troskiMuted)
             }
             .padding(12)

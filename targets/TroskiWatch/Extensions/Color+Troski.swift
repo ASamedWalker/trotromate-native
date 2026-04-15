@@ -8,6 +8,7 @@ extension Color {
     static let troskiMint       = Color(hex: "#9bffce")
     static let troskiMuted      = Color(hex: "#afaaa8")
     static let troskiBorder     = Color(hex: "#4b4746")
+    static let troskiSurfaceHigh = Color(hex: "#1c1918").opacity(0.7)
 
     // MARK: - Queue status
     static let queueShort     = Color(hex: "#22c55e")

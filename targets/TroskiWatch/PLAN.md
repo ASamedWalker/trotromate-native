@@ -15,18 +15,28 @@ Real-time transit alerts on your wrist. Queue status, fare updates, commute noti
 | File | Purpose |
 |---|---|
 | `TroskiWatchApp.swift` | `@main` entry point |
-| `ContentView.swift` | TabView (Commute ↔ Stations), fullScreenCover for alerts |
+| `ContentView.swift` | TabView (Commute Summary ↔ Stations), fullScreenCover for alerts |
+| `CommuteSummaryView.swift` | "Your morning commute" glance card with smart "Leave by" suggestion based on queue status |
 | `MainCommuteView.swift` | Dark bg + kinetic amber/red glow, route, fare, tinted queue dot |
-| `StationListView.swift` | Scrollable stations with tinted dots, wait times, fare, status pill |
-| `AlertView.swift` | Red glow, fire headline, alternative suggestion, gradient Navigate + outline Dismiss |
+| `StationListView.swift` | "TROSKI / NEARBY HUBS" header, colored left-border cards, NavigationLink to detail |
+| `StationDetailView.swift` | Station name, large queue status badge, wait time, fare, "Report Queue" button (deep links to phone) |
+| `AlertView.swift` | Kinetic amber+red glow, fire headline, alternative suggestion, gradient Navigate + outline Dismiss |
 | `CommuteRow.swift` | Compact row for complications / future list views |
-| `Models/CommuteData.swift` | `CommuteData`, `Station`, `WatchAlert`, `QueueStatus` (short/moderate/long/veryLong) |
-| `Services/WatchConnector.swift` | `WCSession` delegate, publishes `commute`, `stations`, `activeAlert` |
-| `Extensions/Color+Troski.swift` | Full design-token color palette + hex initializer |
+| `Models/CommuteData.swift` | `CommuteData`, `Station` (with `isDistant`), `WatchAlert`, `QueueStatus` (short/moderate/long/veryLong) |
+| `Services/WatchConnector.swift` | `WCSession` delegate, publishes `commute`, `stations`, `activeAlert`; mock data in DEBUG |
+| `Extensions/Color+Troski.swift` | Full design-token color palette + hex initializer + `troskiSurfaceHigh` |
 | `Extensions/ButtonStyles.swift` | `TroskiGradientButtonStyle` + `TroskiOutlineButtonStyle` |
+| `Extensions/Typography.swift` | Centralized font tokens: `.troskiBrand`, `.troskiHeadline`, `.troskiFare`, `.troskiBody`, etc. |
+| `expo-target.config.js` | `@bacons/apple-targets` config — type `watch`, frameworks `SwiftUI` + `WatchConnectivity` |
 | `Info.plist` | watchOS bundle configuration |
-| `Assets.xcassets/` | App icon asset catalog (images not yet added) |
+| `Assets.xcassets/` | App icon — all sizes (44–1024) generated via sips |
 | `lib/watchSync.ts` (root) | iOS bridge: `syncCommuteToWatch`, `syncStationsToWatch`, `sendAlertToWatch`, `clearWatchAlert` |
+
+### Watch screens (4 total)
+1. **Commute Summary** (page 1) — "Your morning/afternoon/evening commute", route, fare, smart "Leave by X:XX AM" suggestion based on queue wait + status buffer, queue dot + label
+2. **Station List** (page 2, swipe left) — "NEARBY HUBS", colored left-border cards per queue status, tap → Station Detail
+3. **Station Detail** (push from list) — station name, large colored queue badge, wait time row, fare row, "Report Queue" button (sends WC message to iPhone app)
+4. **Alert** (fullScreenCover) — pops when very long queue detected, fire headline, Navigate/Dismiss buttons with kinetic glow
 
 ### Remaining issues before shipping
 
