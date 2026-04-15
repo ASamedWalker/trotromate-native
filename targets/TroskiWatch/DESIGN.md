@@ -74,3 +74,45 @@
 - Curved edge safe area mask: `radial-gradient(circle, black 65%, transparent 100%)`
 - Inset amber glow shadow on the watch container
 - Scrollable content with hidden scrollbar
+
+## Watch Face Complications (Stitch Design #3)
+
+Three complication variants for the watch face — user sees Troski data without opening the app.
+
+### Variant 1: Circular — "Micro Transit Hub"
+- Position: bottom of watch face
+- Shape: small rounded pill
+- Content: green/amber/red dot + "GH₵8.50" fare
+- Style: `surface-container-highest` bg, `outline-variant/30` border
+- Font: Space Grotesk Bold, 14px, primary color for fare
+- Dot: 8px, tertiary (green) / primary (amber) / error (red)
+- Minimal footprint — status + fare in one glance
+
+### Variant 2: Modular Compact — "Technical Readout" (RECOMMENDED)
+- Position: center of watch face, below time
+- Shape: glass panel rectangle (176x64px), rounded-lg
+- Content:
+  - Top row: "CURRENT ROUTE" label (9px, stone) + green dot
+  - Bottom row: "Circle→Madina" (12px bold white) + "GH₵8.50" (12px black primary, right-aligned)
+- Style: glass-panel (`backdrop-blur(20px)`, `rgba(28,25,24,0.4)`), `outline-variant/30` border
+- This is the **hero complication** — highest data density, most useful
+- Scaled 110%, ring-2 ring-primary/20 highlight in the showcase
+
+### Variant 3: Corner — "Peripheral Insight"
+- Position: top-right corner of watch face
+- Shape: curved text along a circular arc
+- Content: "₵8.50" curved along the bezel edge
+- Style: primary color text, slight rotation (-12deg)
+- SVG path text: `<textPath>` along a curved arc
+- Subtle — stays out of the way until you glance at it
+
+### Implementation Notes (Phase 2)
+- Requires `CLKComplicationDataSource` protocol in SwiftUI
+- Complication families to support:
+  - `.circularSmall` → Variant 1
+  - `.modularSmall` / `.modularLarge` → Variant 2
+  - `.graphicCorner` → Variant 3
+- Data source updates via `CLKComplicationServer.sharedInstance().reloadComplication()`
+- Push-based updates for urgent queue spikes via APNs complication push type
+- Update budget: ~2 updates per hour (watchOS limit)
+- Fallback: show last known data if no recent sync
