@@ -44,3 +44,33 @@
 2. **Station List** — scrollable, colored dots, wait times
 3. **Alert Notification** — fire warning, alternative suggestion, Navigate/Dismiss
 4. **Complication** — circular dot, modular text, corner fare
+
+## Station List Screen (Stitch Design #2)
+
+### Layout
+- Round watch face (320x320px container)
+- "TROSKI" header in amber, centered, Space Grotesk Black, tracking widest
+- "Nearby Hubs" subtitle in stone-400, 10px, uppercase tracking
+
+### Station Rows
+- Each row: rounded-xl card, dark bg (`surface-container-high`)
+- **Colored left border (4px)** by queue status:
+  - Red (`#ff7351`) = Long queue
+  - Green/Mint (`#9bffce`) = Clear
+  - Amber (`#ffad3a`) = Moderate
+  - Stone (`#4b4746`) = No data / distant
+- Station name: Space Grotesk Bold, 14px, white
+- Status: 10px, colored emoji dot + text ("🔴 Long Queue", "🟢 Clear", "🟡 Moderate")
+- Chevron right arrow on each row
+- Distant stations: 60% opacity, stone color, "12 min away" with timer icon
+- Tap animation: scale-95 on press
+
+### Bottom Nav (3 icons)
+- Dashboard / Bus (active, amber with amber/10 bg) / Notifications
+- Fixed at bottom, stone-950/90 bg with blur
+- Active tab: amber icon with amber tinted bg circle, scale-110
+
+### Visual Effects
+- Curved edge safe area mask: `radial-gradient(circle, black 65%, transparent 100%)`
+- Inset amber glow shadow on the watch container
+- Scrollable content with hidden scrollbar
