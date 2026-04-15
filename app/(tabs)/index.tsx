@@ -505,11 +505,34 @@ export default function HomeScreen() {
       }>
   }, [stations])
 
-  // Active stations with queue data (for pulse animation)
+  // Active stations with queue data (for pulse animation + Watch sync)
   const activeQueueStations = useMemo(() =>
     stationPins.filter((p) => p.queueStatus && p.queueStatus !== ''),
     [stationPins]
   )
+
+  // Sync active stations to Apple Watch
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || activeQueueStations.length === 0) return
+    import('@/lib/watchSync').then(({ syncStationsToWatch, sendAlertToWatch }) => {
+      syncStationsToWatch(activeQueueStations.map((s) => ({
+        name: s.name,
+        queueStatus: (s.queueStatus === 'very_long' ? 'veryLong' : s.queueStatus) as any,
+        waitTime: s.waitText || '',
+        fare: 0,
+      })))
+      // Send alert for very_long stations
+      const critical = activeQueueStations.find((s) => s.queueStatus === 'very_long')
+      if (critical) {
+        const alternative = activeQueueStations.find((s) => s.queueStatus === 'short' || s.queueStatus === 'moderate')
+        sendAlertToWatch({
+          station: critical.name,
+          queueStatus: 'veryLong',
+          alternative: alternative?.name ?? 'a nearby station',
+        })
+      }
+    })
+  }, [activeQueueStations])
 
   // 3D Fire tower polygons — small hexagons at congested stations
   const fireTowersGeojson = useMemo(() => {

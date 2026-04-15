@@ -23,6 +23,7 @@ import { usePreferences } from '@/lib/hooks/usePreferences'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import { useCommuteAlerts } from '@/lib/hooks/useCommuteAlerts'
 import { useCheckin } from '@/lib/hooks/useCheckin'
+import { useWatchSync } from '@/lib/hooks/useWatchSync'
 import OnboardingFlow from '@/components/OnboardingFlow'
 import ConfettiCelebration from '@/components/ConfettiCelebration'
 import TroskiSplash from '@/components/TroskiSplash'
@@ -86,6 +87,9 @@ function AppInner() {
 
   // Record daily check-in for view-based streaks
   useCheckin(deviceId)
+
+  // Sync commute data to Apple Watch
+  useWatchSync(deviceId)
 
   // OTA update hook moved to RootLayout for earlier execution
 
