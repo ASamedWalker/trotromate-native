@@ -3,7 +3,49 @@
 ## Overview
 Real-time transit alerts on your wrist. Queue status, fare updates, commute notifications — without pulling out your phone. First transit Watch app in Africa for informal transport.
 
-## Phase 1: Apple Watch (1-2 days)
+## Phase 1: Apple Watch ✅ COMPLETE (2026-04-14)
+
+### What was done
+- Installed `@bacons/apple-targets@^4.0.6` and `react-native-watch-connectivity@^2.0.0`
+- Created all SwiftUI files under `targets/TroskiWatch/`
+- Registered `@bacons/apple-targets` plugin in `app.config.js` (bundleId: `com.troski.app.watchkitapp`, team: `6NVKXYM5TK`, app group: `group.com.troski.app`)
+- Created `lib/watchSync.ts` iOS bridge — call `syncCommuteToWatch(payload)` from any RN screen
+
+### Files created
+| File | Purpose |
+|---|---|
+| `TroskiWatchApp.swift` | `@main` entry point |
+| `ContentView.swift` | TabView (Commute ↔ Stations), fullScreenCover for alerts |
+| `MainCommuteView.swift` | Dark bg + kinetic amber/red glow, route, fare, tinted queue dot |
+| `StationListView.swift` | Scrollable stations with tinted dots, wait times, fare, status pill |
+| `AlertView.swift` | Red glow, fire headline, alternative suggestion, gradient Navigate + outline Dismiss |
+| `CommuteRow.swift` | Compact row for complications / future list views |
+| `Models/CommuteData.swift` | `CommuteData`, `Station`, `WatchAlert`, `QueueStatus` (short/moderate/long/veryLong) |
+| `Services/WatchConnector.swift` | `WCSession` delegate, publishes `commute`, `stations`, `activeAlert` |
+| `Extensions/Color+Troski.swift` | Full design-token color palette + hex initializer |
+| `Extensions/ButtonStyles.swift` | `TroskiGradientButtonStyle` + `TroskiOutlineButtonStyle` |
+| `Info.plist` | watchOS bundle configuration |
+| `Assets.xcassets/` | App icon asset catalog (images not yet added) |
+| `lib/watchSync.ts` (root) | iOS bridge: `syncCommuteToWatch`, `syncStationsToWatch`, `sendAlertToWatch`, `clearWatchAlert` |
+
+### Remaining issues before shipping
+
+#### 🔴 Blockers
+- [ ] **Wire sync calls to real data** — `lib/watchSync.ts` is ready but nothing calls it yet. Find where queue/fare data is fetched in the RN app and call `syncCommuteToWatch()` + `syncStationsToWatch()` + `sendAlertToWatch()` on updates.
+- [ ] **EAS build** — Watch target won't compile into the binary until a new build runs: `npx eas-cli build --platform ios --profile production --clear-cache`
+
+#### 🟡 Required before App Store
+- [ ] **Watch app icon** — `Assets.xcassets/AppIcon.appiconset/` has the manifest but no PNG files. Need icons at 44×44, 50×50, 86×86, 98×98, 108×108 (@2x) and 1024×1024 marketing.
+- [ ] **Phase 2: Complication** — `CLKComplicationDataSource` for circular dot, modular text ("Circle→Madina 🟢"), and corner fare. Updates ~2x/hour + APNs push for urgent spikes.
+
+#### 🟢 Nice to have
+- [ ] Navigate button in `AlertView` — deep link to Maps with the alternative station pre-filled
+- [ ] `relativeTime` auto-refresh — currently static on render; add a `Timer` to tick every 60s
+- [ ] Test on watchOS Simulator, then physical Apple Watch
+
+---
+
+## Phase 1 original spec: Apple Watch (1-2 days)
 
 ### What it shows
 - Your commute route (from → to)
