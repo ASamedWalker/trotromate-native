@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand -->
+    <color name="troski_background">#FF100E0D</color>
+    <color name="troski_amber">#FFFFAD3A</color>
+    <color name="troski_red">#FFFF716A</color>
+    <color name="troski_mint">#FF9BFFCE</color>
+    <color name="troski_muted">#FFAFAAA8</color>
+    <color name="troski_border">#FF4B4746</color>
+    <color name="troski_surface_high">#B31C1918</color>
+
+    <!-- Queue status -->
+    <color name="queue_short">#FF22C55E</color>
+    <color name="queue_moderate">#FFF59E0B</color>
+    <color name="queue_long">#FFF97316</color>
+    <color name="queue_very_long">#FFEF4444</color>
+</resources>

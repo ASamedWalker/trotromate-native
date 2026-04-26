@@ -92,7 +92,7 @@ export default {
         },
       ],
       ["voltra", { widgetName: "TroskiTripActivity", deploymentTarget: "16.2" }],
-      ["@bacons/apple-targets", { appleTeamId: "6NVKXYM5TK" }],
+      ...(process.platform === "win32" ? [] : [["@bacons/apple-targets", { appleTeamId: "6NVKXYM5TK" }]]),
       "expo-video",
       [
         "expo-location",
