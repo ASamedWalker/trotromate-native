@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays } from 'lucide-react-native'
+import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays, Bus, FileText, Zap, BookOpen, ChevronRight } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -11,25 +11,13 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
 import type { LevelSlug } from '@/lib/types'
 
-// Map badge icon names from DB to Lucide components
 const BADGE_ICONS: Record<string, any> = {
-  star: Star,
-  flame: Flame,
-  map: Map,
-  sunrise: Sunrise,
-  moon: Moon,
-  shield: Shield,
-  coins: Coins,
-  users: Users,
-  trophy: Trophy,
-  calendar: CalendarDays,
+  star: Star, flame: Flame, map: Map, sunrise: Sunrise, moon: Moon,
+  shield: Shield, coins: Coins, users: Users, trophy: Trophy, calendar: CalendarDays,
 }
 
 const BADGE_COLORS: Record<string, string> = {
-  amber: c.amber500,
-  orange: '#F97316',
-  emerald: '#10B981',
-  violet: '#8B5CF6',
+  amber: '#F59E0B', orange: '#F97316', emerald: '#10B981', violet: '#8B5CF6',
 }
 
 export default function PublicProfileScreen() {
@@ -62,11 +50,21 @@ export default function PublicProfileScreen() {
   }
 
   const { profile, badges } = data
-  const userNumber = profile.device_id.slice(-4).toUpperCase()
-  const displayName = profile.display_name || `User-${userNumber}`
+  const displayName = profile.display_name || `User-${profile.device_id.slice(-4).toUpperCase()}`
   const levelInfo = LEVELS[(profile.current_level as LevelSlug) ?? 'passenger']
   const isOwnProfile = myDeviceId === profileDeviceId
   const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null
+
+  // XP progress (points within current level)
+  const xpThresholds = [0, 50, 150, 300, 500, 1000, 2000]
+  const currentXP = profile.total_points
+  let levelIdx = xpThresholds.findIndex((t) => currentXP < t)
+  if (levelIdx === -1) levelIdx = xpThresholds.length
+  const prevThreshold = xpThresholds[Math.max(0, levelIdx - 1)] || 0
+  const nextThreshold = xpThresholds[levelIdx] || currentXP + 200
+  const xpInLevel = currentXP - prevThreshold
+  const xpNeeded = nextThreshold - prevThreshold
+  const xpPercent = Math.min((xpInLevel / xpNeeded) * 100, 100)
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
@@ -78,99 +76,108 @@ export default function PublicProfileScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Profile Card */}
-        <View style={s.profileCard}>
-          <View style={s.profileRow}>
-            <InitialsAvatar name={displayName} size={64} />
-            <View style={s.profileInfo}>
-              <Text style={s.profileName}>{displayName}</Text>
-              <Text style={s.profileLevel}>{levelInfo?.emoji} {levelInfo?.name ?? 'Commuter'}</Text>
-              {!isOwnProfile && (
-                <View style={{ marginTop: 8 }}>
-                  <FollowButton
-                    myDeviceId={myDeviceId}
-                    targetDeviceId={profileDeviceId!}
-                    initialFollowing={profile.is_following}
-                    size="md"
-                  />
-                </View>
-              )}
-            </View>
+        {/* Avatar + Name + Level */}
+        <View style={s.profileSection}>
+          <View style={s.avatarRing}>
+            <InitialsAvatar name={displayName} size={80} />
           </View>
-
-          {profile.bio && (
-            <Text style={s.bio}>{profile.bio}</Text>
+          <Text style={s.profileName}>{displayName}</Text>
+          <View style={s.levelPill}>
+            <Text style={s.levelEmoji}>{levelInfo?.emoji}</Text>
+            <Text style={s.levelText}>{levelInfo?.name ?? 'Commuter'}</Text>
+          </View>
+          {!isOwnProfile && (
+            <View style={{ marginTop: 10 }}>
+              <FollowButton
+                myDeviceId={myDeviceId}
+                targetDeviceId={profileDeviceId!}
+                initialFollowing={profile.is_following}
+                size="md"
+              />
+            </View>
           )}
-
-          {/* Meta row */}
+          {/* Meta */}
           <View style={s.metaRow}>
             {profile.home_route_label && (
               <View style={s.metaItem}>
-                <MapPin size={13} color={t.textSecondary} />
+                <MapPin size={12} color={t.textSecondary} />
                 <Text style={s.metaText}>{profile.home_route_label}</Text>
               </View>
             )}
             {joinDate && (
               <View style={s.metaItem}>
-                <Calendar size={13} color={t.textSecondary} />
+                <Calendar size={12} color={t.textSecondary} />
                 <Text style={s.metaText}>Joined {joinDate}</Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={s.statsRow}>
+        {/* XP Progress */}
+        <View style={s.xpCard}>
+          <View style={s.xpHeader}>
+            <View>
+              <Text style={s.xpLabel}>CURRENT XP</Text>
+              <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {nextThreshold}</Text></Text>
+            </View>
+            <Text style={s.xpRemaining}>{Math.max(0, nextThreshold - currentXP)} to next level</Text>
+          </View>
+          <View style={s.xpBarBg}>
+            <View style={[s.xpBarFill, { width: `${xpPercent}%` }]} />
+          </View>
+        </View>
+
+        {/* Stats Grid 2x2 */}
+        <View style={s.statsGrid}>
+          <View style={s.statCard}>
+            <Bus size={20} color={c.amber600} />
+            <Text style={s.statCardValue}>{profile.total_reports}</Text>
+            <Text style={s.statCardLabel}>Reports</Text>
+          </View>
+          <View style={s.statCard}>
+            <Zap size={20} color={c.amber600} />
+            <Text style={s.statCardValue}>{profile.current_streak}</Text>
+            <Text style={s.statCardLabel}>Streak</Text>
+          </View>
+          <View style={s.statCard}>
+            <Star size={20} color={c.amber600} />
+            <Text style={s.statCardValue}>{profile.total_points}</Text>
+            <Text style={s.statCardLabel}>XP Earned</Text>
+          </View>
+          <View style={s.statCard}>
+            <BookOpen size={20} color={c.amber600} />
+            <Text style={s.statCardValue}>{profile.tale_count ?? 0}</Text>
+            <Text style={s.statCardLabel}>Tales</Text>
+          </View>
+        </View>
+
+        {/* Social Stats */}
+        <View style={s.socialRow}>
           <TouchableOpacity
-            style={s.statBox}
+            style={s.socialItem}
             onPress={() => router.push(`/profile/followers?id=${profileDeviceId}&tab=followers` as Href)}
           >
-            <Text style={s.statValue}>{profile.follower_count}</Text>
-            <Text style={s.statLabel}>Followers</Text>
+            <Text style={s.socialValue}>{profile.follower_count}</Text>
+            <Text style={s.socialLabel}>Followers</Text>
           </TouchableOpacity>
+          <View style={s.socialDivider} />
           <TouchableOpacity
-            style={[s.statBox, s.statBorder]}
+            style={s.socialItem}
             onPress={() => router.push(`/profile/followers?id=${profileDeviceId}&tab=following` as Href)}
           >
-            <Text style={s.statValue}>{profile.following_count}</Text>
-            <Text style={s.statLabel}>Following</Text>
+            <Text style={s.socialValue}>{profile.following_count}</Text>
+            <Text style={s.socialLabel}>Following</Text>
           </TouchableOpacity>
-          <View style={[s.statBox, s.statBorder]}>
-            <Text style={s.statValue}>{profile.total_points}</Text>
-            <Text style={s.statLabel}>Points</Text>
-          </View>
-          <View style={s.statBox}>
-            <Text style={s.statValue}>{profile.tale_count ?? 0}</Text>
-            <Text style={s.statLabel}>Tales</Text>
-          </View>
         </View>
 
-        {/* Contribution Stats */}
-        <View style={s.section}>
-          <View style={s.contribRow}>
-            <View style={s.contribItem}>
-              <Text style={s.contribValue}>{profile.total_reports}</Text>
-              <Text style={s.contribLabel}>Reports</Text>
-            </View>
-            <View style={s.contribDivider} />
-            <View style={s.contribItem}>
-              <Text style={s.contribValue}>{profile.current_streak}</Text>
-              <Text style={s.contribLabel}>Streak</Text>
-            </View>
-            <View style={s.contribDivider} />
-            <View style={s.contribItem}>
-              <Text style={s.contribValue}>{badges.length}</Text>
-              <Text style={s.contribLabel}>Badges</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Badges */}
+        {/* Trophy Case */}
         {badges.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <Award size={16} color={c.amber500} />
-              <Text style={s.sectionTitle}>Badges</Text>
+          <View style={s.badgeSection}>
+            <View style={s.badgeSectionHeader}>
+              <View style={s.badgeSectionLeft}>
+                <Trophy size={16} color={c.amber500} />
+                <Text style={s.badgeSectionTitle}>Trophy Case</Text>
+              </View>
             </View>
             <View style={s.badgeGrid}>
               {badges.map((badge) => {
@@ -178,8 +185,8 @@ export default function PublicProfileScreen() {
                 const iconColor = BADGE_COLORS[badge.color || 'amber'] || c.amber500
                 return (
                   <View key={badge.id} style={s.badgeCard}>
-                    <View style={[s.badgeIconCircle, { backgroundColor: iconColor + '20' }]}>
-                      <IconComponent size={22} color={iconColor} />
+                    <View style={[s.badgeIconCircle, { backgroundColor: iconColor + '18' }]}>
+                      <IconComponent size={24} color={iconColor} />
                     </View>
                     <Text style={s.badgeName} numberOfLines={1}>{badge.name}</Text>
                     <Text style={s.badgeDesc} numberOfLines={2}>{badge.description}</Text>
@@ -202,85 +209,87 @@ const getStyles = (isDark: boolean) => {
     container: { flex: 1, backgroundColor: t.bg },
     scroll: { flex: 1 },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 8,
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
     },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    profileCard: {
-      margin: 20,
-      marginBottom: 12,
-      padding: 20,
-      borderRadius: 20,
-      backgroundColor: t.card,
-    },
-    profileRow: { flexDirection: 'row', alignItems: 'center' },
-    profileInfo: { marginLeft: 16, flex: 1 },
-    profileName: { fontSize: 18, fontFamily: font.bold, color: t.text },
-    profileLevel: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
-    bio: { fontSize: 14, color: isDark ? c.stone300 : c.stone600, marginTop: 16, lineHeight: 20 },
-    metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 12 },
-    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    metaText: { fontSize: 12, color: t.textSecondary, fontFamily: font.regular },
-    statsRow: {
-      flexDirection: 'row',
-      marginHorizontal: 20,
-      padding: 16,
-      borderRadius: 20,
-      backgroundColor: t.card,
-    },
-    statBox: { flex: 1, alignItems: 'center' },
-    statBorder: { borderLeftWidth: 1, borderColor: t.border },
-    statValue: { fontSize: 20, fontFamily: font.bold, color: t.text },
-    statLabel: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontFamily: font.bold, color: t.text },
 
-    // Sections
-    section: { marginTop: 16, paddingHorizontal: 20 },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    sectionTitle: { fontSize: 16, fontFamily: font.bold, color: t.text },
-
-    // Contributions
-    contribRow: {
-      flexDirection: 'row',
-      backgroundColor: t.card,
-      borderRadius: 16,
-      paddingVertical: 16,
+    // Profile
+    profileSection: { alignItems: 'center', paddingVertical: 20, gap: 6 },
+    avatarRing: {
+      padding: 3,
+      borderRadius: 50,
+      borderWidth: 3,
+      borderColor: c.amber500,
+      marginBottom: 8,
     },
-    contribItem: { flex: 1, alignItems: 'center' },
-    contribValue: { fontSize: 20, fontFamily: font.bold, color: c.amber500 },
-    contribLabel: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
-    contribDivider: { width: 1, height: 28, backgroundColor: t.border },
+    profileName: { fontSize: 22, fontFamily: font.bold, color: t.text },
+    levelPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: isDark ? c.stone800 : c.stone200,
+      paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
+    },
+    levelEmoji: { fontSize: 14 },
+    levelText: { fontSize: 12, fontFamily: font.semibold, color: c.amber600 },
+    metaRow: { flexDirection: 'row', gap: 16, marginTop: 8 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaText: { fontSize: 11, color: t.textSecondary, fontFamily: font.regular },
+
+    // XP Progress
+    xpCard: {
+      marginHorizontal: 20, marginBottom: 16,
+      padding: 16, borderRadius: 16,
+      backgroundColor: t.card,
+      borderWidth: 1, borderColor: isDark ? c.stone700 : c.stone200,
+    },
+    xpHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 },
+    xpLabel: { fontSize: 10, color: t.textSecondary, letterSpacing: 1, fontFamily: font.medium },
+    xpValue: { fontSize: 18, fontFamily: font.bold, color: t.text, marginTop: 2 },
+    xpTotal: { fontSize: 13, color: t.textSecondary, fontFamily: font.regular },
+    xpRemaining: { fontSize: 11, color: c.amber500, fontFamily: font.medium },
+    xpBarBg: { height: 10, backgroundColor: isDark ? c.stone700 : c.stone200, borderRadius: 99, overflow: 'hidden' },
+    xpBarFill: { height: '100%', backgroundColor: c.amber500, borderRadius: 99 },
+
+    // Stats Grid
+    statsGrid: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+      marginHorizontal: 20, marginBottom: 12,
+    },
+    statCard: {
+      width: '47%' as any,
+      backgroundColor: t.card, borderRadius: 16, padding: 16,
+      gap: 4,
+    },
+    statCardValue: { fontSize: 22, fontFamily: font.bold, color: t.text },
+    statCardLabel: { fontSize: 11, color: t.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
+
+    // Social
+    socialRow: {
+      flexDirection: 'row', marginHorizontal: 20, marginBottom: 16,
+      backgroundColor: t.card, borderRadius: 16, paddingVertical: 16,
+    },
+    socialItem: { flex: 1, alignItems: 'center' },
+    socialValue: { fontSize: 20, fontFamily: font.bold, color: t.text },
+    socialLabel: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
+    socialDivider: { width: 1, height: 28, backgroundColor: t.border, alignSelf: 'center' },
 
     // Badges
-    badgeGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 10,
-    },
+    badgeSection: { paddingHorizontal: 20, marginBottom: 12 },
+    badgeSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    badgeSectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    badgeSectionTitle: { fontSize: 17, fontFamily: font.bold, color: t.text },
+    badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     badgeCard: {
       width: '47%' as any,
-      backgroundColor: t.card,
-      borderRadius: 16,
-      padding: 16,
+      backgroundColor: t.card, borderRadius: 16, padding: 16,
       alignItems: 'center',
+      borderWidth: 1, borderColor: isDark ? c.stone700 : c.stone200,
     },
     badgeIconCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 10,
+      width: 48, height: 48, borderRadius: 24,
+      justifyContent: 'center', alignItems: 'center', marginBottom: 8,
     },
     badgeName: { fontSize: 13, fontFamily: font.semibold, color: t.text, textAlign: 'center' },
-    badgeDesc: { fontSize: 10, color: t.textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 14 },
+    badgeDesc: { fontSize: 10, color: t.textSecondary, textAlign: 'center', marginTop: 3, lineHeight: 14 },
   })
 }
