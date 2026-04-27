@@ -127,6 +127,8 @@ function AppInner() {
         <Stack.Screen name="train/index" options={{ headerShown: false }} />
         <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
+        <Stack.Screen name="profile/[deviceId]" options={{ headerShown: false }} />
+        <Stack.Screen name="profile/followers" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/edit-name" options={{ headerShown: false }} />
         <Stack.Screen name="settings/edit-profile" options={{ headerShown: false }} />
