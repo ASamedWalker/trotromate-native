@@ -239,6 +239,7 @@ export function useSubmitTale(deviceId: string | null) {
           reportType: 'tale',
           reportId: result.postId,
         })
+        console.log('[useTales] Award result:', reward ? `+${reward.points_awarded} pts` : 'null')
         // Invalidate tales feed cache so it refreshes
         queryClient.invalidateQueries({ queryKey: ['tales'] })
         queryClient.invalidateQueries({ queryKey: ['activity'] })
