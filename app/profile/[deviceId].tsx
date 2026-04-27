@@ -1,7 +1,7 @@
-import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator, Image, Dimensions } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { MapPin, Calendar, Award, ImageIcon, Heart, MessageCircle } from 'lucide-react-native'
+import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -11,8 +11,26 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
 import type { LevelSlug } from '@/lib/types'
 
-const SCREEN_WIDTH = Dimensions.get('window').width
-const TALE_SIZE = (SCREEN_WIDTH - 40 - 8) / 3 // 3 columns with 4px gaps
+// Map badge icon names from DB to Lucide components
+const BADGE_ICONS: Record<string, any> = {
+  star: Star,
+  flame: Flame,
+  map: Map,
+  sunrise: Sunrise,
+  moon: Moon,
+  shield: Shield,
+  coins: Coins,
+  users: Users,
+  trophy: Trophy,
+  calendar: CalendarDays,
+}
+
+const BADGE_COLORS: Record<string, string> = {
+  amber: c.amber500,
+  orange: '#F97316',
+  emerald: '#10B981',
+  violet: '#8B5CF6',
+}
 
 export default function PublicProfileScreen() {
   const { deviceId: profileDeviceId } = useLocalSearchParams<{ deviceId: string }>()
@@ -43,7 +61,7 @@ export default function PublicProfileScreen() {
     )
   }
 
-  const { profile, badges, tales } = data
+  const { profile, badges } = data
   const userNumber = profile.device_id.slice(-4).toUpperCase()
   const displayName = profile.display_name || `User-${userNumber}`
   const levelInfo = LEVELS[(profile.current_level as LevelSlug) ?? 'passenger']
@@ -51,7 +69,7 @@ export default function PublicProfileScreen() {
   const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null
 
   return (
-    <SafeAreaView style={s.container} edges={['bottom']}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
@@ -84,7 +102,7 @@ export default function PublicProfileScreen() {
             <Text style={s.bio}>{profile.bio}</Text>
           )}
 
-          {/* Meta row — route + join date */}
+          {/* Meta row */}
           <View style={s.metaRow}>
             {profile.home_route_label && (
               <View style={s.metaItem}>
@@ -127,24 +145,6 @@ export default function PublicProfileScreen() {
           </View>
         </View>
 
-        {/* Badges */}
-        {badges.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <Award size={16} color={c.amber500} />
-              <Text style={s.sectionTitle}>Badges</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.badgeScroll}>
-              {badges.map((badge) => (
-                <View key={badge.id} style={s.badgeCard}>
-                  <Text style={s.badgeIcon}>{badge.icon}</Text>
-                  <Text style={s.badgeName} numberOfLines={1}>{badge.name}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Contribution Stats */}
         <View style={s.section}>
           <View style={s.contribRow}>
@@ -165,37 +165,28 @@ export default function PublicProfileScreen() {
           </View>
         </View>
 
-        {/* Tales Grid */}
-        {tales.length > 0 && (
+        {/* Badges */}
+        {badges.length > 0 && (
           <View style={s.section}>
             <View style={s.sectionHeader}>
-              <ImageIcon size={16} color={c.amber500} />
-              <Text style={s.sectionTitle}>Tales</Text>
+              <Award size={16} color={c.amber500} />
+              <Text style={s.sectionTitle}>Badges</Text>
             </View>
-            <View style={s.taleGrid}>
-              {tales.map((tale) => (
-                <TouchableOpacity key={tale.id} style={s.taleItem} activeOpacity={0.8}>
-                  <Image source={{ uri: tale.image_url }} style={s.taleImage} />
-                  <View style={s.taleOverlay}>
-                    <View style={s.taleStat}>
-                      <Heart size={12} color="#FFF" fill="#FFF" />
-                      <Text style={s.taleStatText}>{tale.like_count}</Text>
+            <View style={s.badgeGrid}>
+              {badges.map((badge) => {
+                const IconComponent = BADGE_ICONS[badge.icon] || Star
+                const iconColor = BADGE_COLORS[badge.color || 'amber'] || c.amber500
+                return (
+                  <View key={badge.id} style={s.badgeCard}>
+                    <View style={[s.badgeIconCircle, { backgroundColor: iconColor + '20' }]}>
+                      <IconComponent size={22} color={iconColor} />
                     </View>
-                    <View style={s.taleStat}>
-                      <MessageCircle size={12} color="#FFF" fill="#FFF" />
-                      <Text style={s.taleStatText}>{tale.comment_count}</Text>
-                    </View>
+                    <Text style={s.badgeName} numberOfLines={1}>{badge.name}</Text>
+                    <Text style={s.badgeDesc} numberOfLines={2}>{badge.description}</Text>
                   </View>
-                </TouchableOpacity>
-              ))}
+                )
+              })}
             </View>
-          </View>
-        )}
-
-        {tales.length === 0 && (
-          <View style={s.emptyTales}>
-            <ImageIcon size={32} color={t.textSecondary} />
-            <Text style={s.emptyText}>No tales yet</Text>
           </View>
         )}
 
@@ -256,19 +247,6 @@ const getStyles = (isDark: boolean) => {
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     sectionTitle: { fontSize: 16, fontFamily: font.bold, color: t.text },
 
-    // Badges
-    badgeScroll: { gap: 10, paddingRight: 20 },
-    badgeCard: {
-      backgroundColor: t.card,
-      borderRadius: 14,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      alignItems: 'center',
-      minWidth: 80,
-    },
-    badgeIcon: { fontSize: 28, marginBottom: 6 },
-    badgeName: { fontSize: 11, fontFamily: font.semibold, color: t.text, textAlign: 'center' },
-
     // Contributions
     contribRow: {
       flexDirection: 'row',
@@ -281,43 +259,28 @@ const getStyles = (isDark: boolean) => {
     contribLabel: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
     contribDivider: { width: 1, height: 28, backgroundColor: t.border },
 
-    // Tales grid
-    taleGrid: {
+    // Badges
+    badgeGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 4,
+      gap: 10,
     },
-    taleItem: {
-      width: TALE_SIZE,
-      height: TALE_SIZE,
-      borderRadius: 8,
-      overflow: 'hidden',
-    },
-    taleImage: {
-      width: '100%',
-      height: '100%',
-    },
-    taleOverlay: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 12,
-      paddingVertical: 4,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    taleStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    taleStatText: { fontSize: 11, color: '#FFF', fontFamily: font.semibold },
-
-    // Empty
-    emptyTales: {
-      marginTop: 20,
+    badgeCard: {
+      width: '47%' as any,
+      backgroundColor: t.card,
+      borderRadius: 16,
+      padding: 16,
       alignItems: 'center',
-      gap: 8,
-      paddingVertical: 32,
     },
-    emptyText: { fontSize: 14, color: t.textSecondary },
+    badgeIconCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    badgeName: { fontSize: 13, fontFamily: font.semibold, color: t.text, textAlign: 'center' },
+    badgeDesc: { fontSize: 10, color: t.textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 14 },
   })
 }

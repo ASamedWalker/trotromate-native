@@ -7,6 +7,7 @@ export interface PublicBadge {
   name: string
   description: string
   icon: string
+  color: string
   earned_at: string
 }
 
@@ -49,7 +50,7 @@ async function fetchPublicProfile(
   // Fetch badges
   const { data: badgeData } = await supabase
     .from('contributor_badges')
-    .select('earned_at, badge:badges(id, name, description, icon)')
+    .select('earned_at, badge:badges(id, name, description, icon, color)')
     .eq('contributor_id', profile.id)
     .order('earned_at', { ascending: false })
 
@@ -60,6 +61,7 @@ async function fetchPublicProfile(
       name: b.badge.name,
       description: b.badge.description,
       icon: b.badge.icon,
+      color: b.badge.color || 'amber',
       earned_at: b.earned_at,
     }))
 
