@@ -155,6 +155,7 @@ export interface PublicProfile {
   is_public: boolean
   is_following?: boolean
   tale_count?: number
+  created_at?: string
 }
 
 export interface Badge {
