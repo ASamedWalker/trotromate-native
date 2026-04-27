@@ -150,7 +150,7 @@ export default function RewardsScreen() {
   const { entries: leaderboard, isLoading, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
 
-  const [period, setPeriod] = useState<'week' | 'all'>('week')
+  const [period, setPeriod] = useState<'week' | 'all'>('all')
   const [showEarnInfo, setShowEarnInfo] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
