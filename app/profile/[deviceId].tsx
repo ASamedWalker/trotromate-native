@@ -252,11 +252,11 @@ const getStyles = (isDark: boolean) => {
 
     // Stats Grid
     statsGrid: {
-      flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+      flexDirection: 'row', flexWrap: 'wrap', gap: 8,
       marginHorizontal: 20, marginBottom: 12,
     },
     statCard: {
-      width: '47%' as any,
+      flexBasis: '48%' as any, flexGrow: 1,
       backgroundColor: t.card, borderRadius: 16, padding: 16,
       gap: 4,
     },
@@ -278,9 +278,9 @@ const getStyles = (isDark: boolean) => {
     badgeSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     badgeSectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     badgeSectionTitle: { fontSize: 17, fontFamily: font.bold, color: t.text },
-    badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     badgeCard: {
-      width: '47%' as any,
+      flexBasis: '48%' as any, flexGrow: 1,
       backgroundColor: t.card, borderRadius: 16, padding: 16,
       alignItems: 'center',
       borderWidth: 1, borderColor: isDark ? c.stone700 : c.stone200,
