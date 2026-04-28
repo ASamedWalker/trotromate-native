@@ -194,5 +194,9 @@ export function useWatchSync(deviceId: string | null) {
     }
 
     syncAll()
+
+    // Re-sync every 5 minutes for live data
+    const interval = setInterval(syncAll, 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [commutes, primaryCommute])
 }
