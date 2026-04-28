@@ -11,6 +11,8 @@ import { useRouter, type Href } from 'expo-router'
 import { TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
 
 const REPORT_TYPES = [
   {
@@ -80,19 +82,19 @@ export default function ReportScreen() {
   return (
     <SafeAreaView style={s.container}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={s.header}>
+        <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.headerTitle, { textAlign: 'center' }]}>Contribute</Text>
           <Text style={[s.headerSub, { textAlign: 'center' }]}>Help fellow commuters and earn points</Text>
-        </View>
+        </Animated.View>
 
         <View style={s.cardsContainer}>
-          {REPORT_TYPES.map((type) => {
+          {REPORT_TYPES.map((type, index) => {
             const Icon = type.icon
             return (
+              <Animated.View key={type.id} entering={FadeInDown.delay(100 + index * 80).duration(400)}>
               <TouchableOpacity
-                key={type.id}
                 activeOpacity={0.7}
-                onPress={() => router.push(type.route as Href)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(type.route as Href) }}
                 style={s.card}
               >
                 <View style={s.cardRow}>
@@ -122,12 +124,13 @@ export default function ReportScreen() {
                   </View>
                 </View>
               </TouchableOpacity>
+              </Animated.View>
             )
           })}
         </View>
 
         {/* Stats Banner */}
-        <View style={s.statsContainer}>
+        <Animated.View entering={FadeInDown.delay(500).duration(400)} style={s.statsContainer}>
           <View style={s.statsBanner}>
             <Text style={s.statsTitle}>Your Contribution Stats</Text>
             <View style={s.statsRow}>
@@ -145,7 +148,7 @@ export default function ReportScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </Animated.View>
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>

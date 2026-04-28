@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { LEVELS } from '@/lib/constants/rewards'
@@ -36,19 +38,19 @@ export default function ProfileScreen() {
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={s.header}>
+        <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={s.headerTitle}>Profile</Text>
           <TouchableOpacity
-            onPress={() => router.push('/settings/edit-profile' as Href)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings/edit-profile' as Href) }}
             style={s.editBtn}
             activeOpacity={0.7}
           >
             <Edit3 size={18} color={isDark ? c.stone300 : c.stone600} />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Avatar Card */}
-        <View style={s.avatarCard}>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={s.avatarCard}>
           <View style={[s.avatarRing, { borderColor: levelInfo.color }]}>
             <InitialsAvatar
               name={profile?.display_name}
@@ -68,7 +70,7 @@ export default function ProfileScreen() {
               <Text style={[s.levelText, { color: levelInfo.color }]}>{levelInfo.name}</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Bio */}
         {profile?.bio ? (
@@ -91,7 +93,7 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* Stats Row */}
-        <View style={s.statsRow}>
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.statsRow}>
           <TouchableOpacity
             style={s.statBox}
             onPress={() => deviceId && router.push(`/profile/followers?id=${deviceId}&tab=followers` as Href)}
@@ -114,14 +116,16 @@ export default function ProfileScreen() {
             <Text style={s.statValue}>{profile?.current_streak ?? 0}</Text>
             <Text style={s.statLabel}>Streak</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Monthly Spending Summary */}
-        <SpendingSummary />
+        <Animated.View entering={FadeInDown.delay(280).duration(400)}>
+          <SpendingSummary />
+        </Animated.View>
         <View style={{ height: 16 }} />
 
         {/* Menu */}
-        <View style={s.menuCard}>
+        <Animated.View entering={FadeInDown.delay(360).duration(400)} style={s.menuCard}>
           {menuItems.map((item, index) => {
             const Icon = item.icon
             return (
@@ -129,7 +133,7 @@ export default function ProfileScreen() {
                 key={item.label}
                 style={[s.menuItem, index < menuItems.length - 1 && s.menuBorder]}
                 activeOpacity={0.6}
-                onPress={item.onPress}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); item.onPress() }}
               >
                 <Icon size={20} color={isDark ? '#a8a29e' : '#78716c'} />
                 <Text style={s.menuLabel}>{item.label}</Text>
@@ -142,14 +146,14 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )
           })}
-        </View>
+        </Animated.View>
 
         {/* App Info */}
-        <View style={s.footer}>
+        <Animated.View entering={FadeInDown.delay(440).duration(400)} style={s.footer}>
           <Text style={s.version}>Troski v1.0.0</Text>
           <Text style={s.footerText}>Troski Technologies</Text>
           <Text style={s.footerSub}>Accra, Ghana</Text>
-        </View>
+        </Animated.View>
         <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>

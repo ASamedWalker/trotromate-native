@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native'
 import { useRouter, type Href } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -184,7 +185,7 @@ export default function RewardsScreen() {
         }
       >
         {/* ═══ MAROON HERO ═══ */}
-        <View style={s.hero}>
+        <Animated.View entering={FadeInDown.duration(400)} style={s.hero}>
           <View style={[s.heroDecor, { top: -40, right: -30, width: 160, height: 160 }]} />
           <View style={[s.heroDecor, { bottom: 40, left: -50, width: 120, height: 120 }]} />
 
@@ -236,10 +237,10 @@ export default function RewardsScreen() {
               )}
             </>
           )}
-        </View>
+        </Animated.View>
 
         {/* ═══ Overlap content ═══ */}
-        <View style={s.overlapContent}>
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.overlapContent}>
           {/* Referral card — Stitch style */}
           <ReferralCard />
 
@@ -333,7 +334,7 @@ export default function RewardsScreen() {
               </View>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         <View style={{ height: 90 }} />
       </ScrollView>
