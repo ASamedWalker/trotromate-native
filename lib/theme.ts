@@ -76,27 +76,42 @@ export const themed = (isDark: boolean) => ({
   primary: c.amber500,
 })
 
-// Shadow presets for card sharpness (TikTok/Instagram-level depth)
+// Shadow presets — Uber/DoorDash level (subtle, barely visible)
 export const shadow = {
+  /** Default card shadow — barely there, just enough depth */
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 2,
   },
+  /** Elevated card — modal-like presence */
   cardStrong: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
+  /** Floating elements — FABs, overlays */
   float: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  /** No shadow — for dark mode */
+  none: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 }
+
+// Adaptive shadow — use in components: isDark ? shadow.none : shadow.card
+export const adaptiveShadow = (isDark: boolean, level: keyof typeof shadow = 'card') =>
+  isDark ? shadow.none : shadow[level]
