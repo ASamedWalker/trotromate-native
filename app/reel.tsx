@@ -27,6 +27,7 @@ import {
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { addReaction, removeReaction, fetchUserReactions } from '@/lib/services/tales'
+import { useFollow } from '@/lib/hooks/useFollow'
 import InitialsAvatar from '@/components/InitialsAvatar'
 
 export default function ReelScreen() {
@@ -53,6 +54,10 @@ export default function ReelScreen() {
   const [progress, setProgress] = useState(0)
   const [isLiked, setIsLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(parseInt(params.likeCount ?? '0', 10))
+
+  // Follow
+  const isOwnPost = myDeviceId === params.deviceId
+  const { isFollowing, toggle: toggleFollow, isLoading: followLoading } = useFollow(myDeviceId, params.deviceId || '')
 
   // Like animation
   const likeScale = useRef(new Animated.Value(1)).current
@@ -282,9 +287,18 @@ export default function ReelScreen() {
         {/* @username + Follow */}
         <View style={styles.userRow}>
           <Text style={styles.userName}>@{userName}</Text>
-          <TouchableOpacity style={styles.followBtn} activeOpacity={0.7}>
-            <Text style={styles.followText}>Follow</Text>
-          </TouchableOpacity>
+          {!isOwnPost && (
+            <TouchableOpacity
+              style={[styles.followBtn, isFollowing && styles.followingBtn]}
+              activeOpacity={0.7}
+              onPress={toggleFollow}
+              disabled={followLoading}
+            >
+              <Text style={[styles.followText, isFollowing && styles.followingText]}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Location pill */}
@@ -489,6 +503,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontFamily: font.semibold,
+  },
+  followingBtn: {
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  followingText: {
+    color: '#1c1917',
   },
   locationPill: {
     flexDirection: 'row',
