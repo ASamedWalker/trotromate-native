@@ -32,6 +32,7 @@ import {
   Play,
 } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useTalesFeed } from '@/lib/hooks/useTales'
@@ -462,12 +463,12 @@ export default function TalesScreen() {
   return (
     <SafeAreaView style={s.container}>
       {/* Header */}
-      <View style={s.header}>
+      <ReanimatedAnimated.View entering={FadeInDown.duration(300)} style={s.header}>
         <Text style={s.headerTitle}>Tales</Text>
-      </View>
+      </ReanimatedAnimated.View>
 
       {/* Compose bar — single entry point for text + photo/video */}
-      <View style={s.composeBar}>
+      <ReanimatedAnimated.View entering={FadeInDown.delay(100).duration(400)} style={s.composeBar}>
         <View style={s.composeAvatar}>
           <InitialsAvatar name={profile?.display_name ?? null} deviceId={deviceId ?? ''} size={36} />
         </View>
@@ -485,7 +486,7 @@ export default function TalesScreen() {
         >
           <Camera size={20} color={isDark ? c.stone400 : c.stone500} />
         </TouchableOpacity>
-      </View>
+      </ReanimatedAnimated.View>
 
       {isLoading ? (
         <View style={{ paddingTop: 12 }}>
