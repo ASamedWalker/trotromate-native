@@ -31,6 +31,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { c, themed, font, shadow } from '@/lib/theme'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -179,7 +180,7 @@ export default function RoutesScreen() {
   return (
     <SafeAreaView style={s.container}>
       {/* Editorial Header */}
-      <View style={s.header}>
+      <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
         <View style={s.headerRow}>
           <View>
             <Text style={s.headerLabel}>Urban Mobility</Text>
@@ -264,7 +265,7 @@ export default function RoutesScreen() {
             </Text>
           </View>
         )}
-      </View>
+      </Animated.View>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>

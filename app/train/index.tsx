@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
@@ -404,16 +405,16 @@ export default function TrainLinesScreen() {
         }
       >
         {/* ─── Hero Section ──────────────────────────────── */}
-        <View style={s.hero}>
+        <Animated.View entering={FadeInDown.duration(400)} style={s.hero}>
           <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
           <Text style={s.heroTitle}>Train Index</Text>
           <Text style={s.heroDesc}>
             Select a regional rail line to view live schedules and fare info.
           </Text>
-        </View>
+        </Animated.View>
 
         {/* ─── Departure Board ─────────────────────────── */}
-        <View style={s.board}>
+        <Animated.View entering={FadeInDown.delay(150).duration(400)} style={s.board}>
           <View style={s.boardGlow} />
 
           {/* Top row */}
@@ -599,10 +600,10 @@ export default function TrainLinesScreen() {
               </>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* ─── Rail Line Cards ─────────────────────────── */}
-        <View style={s.section}>
+        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.section}>
           {isLoading ? (
             <View style={s.centered}>
               <ActivityIndicator size="large" color="#0ea5e9" />
@@ -618,7 +619,7 @@ export default function TrainLinesScreen() {
           ) : (
             <View style={{ gap: 24 }}>{lines.map(renderLineCard)}</View>
           )}
-        </View>
+        </Animated.View>
 
         {/* ─── Authority Bulletins ─────────────────────── */}
         <View style={s.bulletinSection}>

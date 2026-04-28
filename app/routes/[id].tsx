@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
@@ -95,7 +96,7 @@ export default function RouteDetailScreen() {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Stitch Hero — tall with cinematic image */}
-        <View style={s.heroSection}>
+        <Animated.View entering={FadeIn.duration(500)} style={s.heroSection}>
           {hero ? (
             <>
               <Image
@@ -155,10 +156,10 @@ export default function RouteDetailScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Trust & Verification — overlaps hero */}
-        <View style={s.trustSection}>
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.trustSection}>
           {/* GPRTU Verified card */}
           {route.is_gprtu_verified && (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setShowGprtuInfo(true)} style={s.gprtuCard}>
@@ -191,7 +192,7 @@ export default function RouteDetailScreen() {
               </View>
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
 
         {/* Tab pills — Stitch style */}
         <View style={s.tabRow}>

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native'
 import { router, type Href } from 'expo-router'
 import { c, font } from '@/lib/theme'
+import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useActivity } from '@/lib/hooks/useActivity'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -289,7 +290,7 @@ export default function UpdatesScreen() {
   return (
     <SafeAreaView style={s.container}>
       {/* Header */}
-      <View style={s.header}>
+      <ReanimatedAnimated.View entering={FadeInDown.duration(300)} style={s.header}>
         <Text style={s.headerTitle}>Pulse</Text>
         {isNotifSegment && unreadCount > 0 ? (
           <TouchableOpacity activeOpacity={0.7} onPress={markAllRead}>
@@ -300,10 +301,10 @@ export default function UpdatesScreen() {
             <Text style={s.markRead}>Clear all</Text>
           </TouchableOpacity>
         ) : null}
-      </View>
+      </ReanimatedAnimated.View>
 
       {/* Segmented Control */}
-      <View style={s.segmentWrap}>
+      <ReanimatedAnimated.View entering={FadeInDown.delay(100).duration(400)} style={s.segmentWrap}>
         <View style={s.segmentRow}>
           <TouchableOpacity
             onPress={() => setSegment('notifications')}
@@ -329,7 +330,7 @@ export default function UpdatesScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ReanimatedAnimated.View>
 
       {/* ── Notifications Segment ── */}
       {isNotifSegment && (

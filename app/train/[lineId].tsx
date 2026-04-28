@@ -29,6 +29,7 @@ import {
   Zap,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
@@ -284,7 +285,7 @@ export default function LineDetailScreen() {
         }
       >
         {/* ─── Hero Section ─────────────────────────────── */}
-        <View style={s.heroCard}>
+        <Animated.View entering={FadeIn.duration(500)} style={s.heroCard}>
           <View style={s.heroContent}>
             {/* Live badge */}
             <View style={s.heroBadge}>
@@ -307,10 +308,10 @@ export default function LineDetailScreen() {
               transition={300}
             />
           </View>
-        </View>
+        </Animated.View>
 
         {/* ─── Station Timeline ─────────────────────────── */}
-        <View style={s.sectionWrap}>
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.sectionWrap}>
           <View style={s.timelineCard}>
             <View style={s.timelineHeader}>
               <TrainFront size={18} color="#0891b2" />
@@ -340,7 +341,7 @@ export default function LineDetailScreen() {
               </View>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* ─── Official Timetable ───────────────────────── */}
         {line.code && TRAIN_SCHEDULES[line.code] && (
