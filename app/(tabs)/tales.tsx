@@ -871,8 +871,8 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 8,
     },
     headerTitle: {
-      fontSize: 24,
-      fontFamily: font.bold,
+      fontSize: 28,
+      fontFamily: font.extrabold,
       color: onSurface,
       letterSpacing: -0.5,
     },

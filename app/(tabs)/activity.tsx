@@ -513,10 +513,10 @@ const getStyles = (isDark: boolean) => {
       paddingBottom: 8,
     },
     headerTitle: {
-      fontSize: 24,
-      fontFamily: font.bold,
+      fontSize: 28,
+      fontFamily: font.extrabold,
       color: isDark ? '#fafaf9' : '#78350f',
-      letterSpacing: -0.3,
+      letterSpacing: -0.5,
     },
     markRead: {
       fontSize: 13,
@@ -597,10 +597,11 @@ const getStyles = (isDark: boolean) => {
     notifCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      padding: 14,
-      borderRadius: 16,
+      padding: 16,
+      borderRadius: 14,
       marginBottom: 10,
-      backgroundColor: cardBg,
+      backgroundColor: isDark ? cardBg : '#fff',
+      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 }),
     },
     notifCardUnread: {
       borderLeftWidth: 3,

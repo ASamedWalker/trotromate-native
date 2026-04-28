@@ -496,15 +496,15 @@ const getStyles = (isDark: boolean) => {
     // Route cards — Stitch editorial style
     routeCard: {
       flexDirection: 'row',
-      borderRadius: 24,
+      borderRadius: 16,
       marginBottom: 14,
       backgroundColor: surfaceContainerLow,
       overflow: 'hidden',
     },
     cardAccent: {
       width: 4,
-      borderTopLeftRadius: 24,
-      borderBottomLeftRadius: 24,
+      borderTopLeftRadius: 16,
+      borderBottomLeftRadius: 16,
     },
     cardInner: {
       flex: 1,
