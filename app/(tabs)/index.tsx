@@ -54,6 +54,7 @@ import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 import LiveVehicleLayer from '@/components/LiveVehicleLayer'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
+import type { VehiclePosition } from '@/lib/services/vehicle-positions'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import type { RouteWithStats } from '@/lib/types'
 
@@ -62,6 +63,20 @@ import type { RouteWithStats } from '@/lib/types'
 /* ── Constants ─────────────────────────────────────── */
 
 const ACCRA_CENTER: [number, number] = [-0.187, 5.6037]
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+
+const ROUTE_DESTINATIONS: Record<string, { lat: number; lng: number; name: string }> = {
+  'Circle → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
+  'Kasoa → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
+  'Madina → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
+  'Achimota → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
+  'Tema → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
+  'Lapaz → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
+  'Nima → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
+  'Adenta → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
+  'Dansoman → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
+  'Osu → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
+}
 
 // Pre-compute train station names for map layer filtering
 const TRAIN_STATION_NAMES = new Set(
@@ -408,6 +423,11 @@ export default function HomeScreen() {
   const [mountMap, setMountMap] = useState(false)
   const [liveBadgeExpanded, setLiveBadgeExpanded] = useState(false)
   const [liveBadgeDismissed, setLiveBadgeDismissed] = useState(false)
+  const [selectedVehicle, setSelectedVehicle] = useState<VehiclePosition | null>(null)
+  const [routeLineGeoJSON, setRouteLineGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
+  const [destMarkerGeoJSON, setDestMarkerGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
+  const [vehicleETA, setVehicleETA] = useState<string>('--')
+  const [vehicleDist, setVehicleDist] = useState<string>('--')
 
   // Pulsing rings — refs only, no setState to avoid re-rendering
   const pulseSourceRef = useRef<any>(null)
@@ -1018,16 +1038,97 @@ export default function HomeScreen() {
 
         {/* Station capsule pins removed — vehicles + OSM stops are primary */}
 
+        {/* ── Route line (drawn on vehicle tap) ── */}
+        <Mapbox.ShapeSource id="vehicle-route-line" shape={routeLineGeoJSON}>
+          <Mapbox.LineLayer
+            id="vehicle-route-glow"
+            style={{
+              lineColor: '#FFAD3A',
+              lineWidth: 10,
+              lineOpacity: 0.12,
+              lineBlur: 6,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+          <Mapbox.LineLayer
+            id="vehicle-route-main"
+            style={{
+              lineColor: '#FFAD3A',
+              lineWidth: 4,
+              lineOpacity: 0.85,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
+          />
+        </Mapbox.ShapeSource>
+
+        {/* ── Destination marker ── */}
+        <Mapbox.ShapeSource id="vehicle-dest" shape={destMarkerGeoJSON}>
+          <Mapbox.CircleLayer
+            id="dest-glow"
+            style={{ circleRadius: 16, circleColor: '#22c55e', circleOpacity: 0.12 }}
+          />
+          <Mapbox.CircleLayer
+            id="dest-dot"
+            style={{ circleRadius: 7, circleColor: '#22c55e', circleStrokeWidth: 3, circleStrokeColor: '#fff' }}
+          />
+          <Mapbox.SymbolLayer
+            id="dest-label"
+            style={{
+              textField: ['get', 'name'],
+              textSize: 12,
+              textFont: ['DIN Pro Bold'],
+              textOffset: [0, 1.6],
+              textAnchor: 'top',
+              textColor: '#22c55e',
+              textHaloColor: 'rgba(0,0,0,0.85)',
+              textHaloWidth: 2,
+            }}
+          />
+        </Mapbox.ShapeSource>
+
         {/* ── Live vehicle markers — GPS positions from Fleet app ── */}
         <LiveVehicleLayer
           vehicles={liveVehicles}
-          onVehicleTap={(vehicle) => {
+          onVehicleTap={async (vehicle) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            cameraRef.current?.setCamera({
-              centerCoordinate: [vehicle.longitude, vehicle.latitude],
-              zoomLevel: 15,
-              animationDuration: 600,
-            })
+            setSelectedVehicle(vehicle)
+
+            const dest = ROUTE_DESTINATIONS[vehicle.routeLabel || '']
+            if (dest) {
+              try {
+                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${vehicle.longitude},${vehicle.latitude};${dest.lng},${dest.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
+                const res = await fetch(url)
+                const data = await res.json()
+                if (data.routes?.[0]) {
+                  const route = data.routes[0]
+                  setVehicleETA(Math.round(route.duration / 60) + ' min')
+                  setVehicleDist((route.distance / 1000).toFixed(1) + ' km')
+                  setRouteLineGeoJSON({ type: 'Feature', geometry: route.geometry })
+                  setDestMarkerGeoJSON({
+                    type: 'FeatureCollection',
+                    features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: { name: dest.name } }],
+                  })
+                  // Fit camera to show route
+                  const coords = route.geometry.coordinates
+                  const lngs = coords.map((c: number[]) => c[0])
+                  const lats = coords.map((c: number[]) => c[1])
+                  cameraRef.current?.fitBounds(
+                    [Math.max(...lngs), Math.max(...lats)],
+                    [Math.min(...lngs), Math.min(...lats)],
+                    [100, 60, 180, 60],
+                    800
+                  )
+                }
+              } catch {}
+            } else {
+              cameraRef.current?.setCamera({
+                centerCoordinate: [vehicle.longitude, vehicle.latitude],
+                zoomLevel: 15,
+                animationDuration: 600,
+              })
+            }
           }}
         />
 
@@ -1433,6 +1534,52 @@ export default function HomeScreen() {
       </BottomSheet>
 
       {/* Citizen-style incident detail sheet */}
+      {/* ── Vehicle info card (shown on vehicle tap) ── */}
+      {selectedVehicle && (
+        <View style={s.vehicleCard}>
+          <View style={s.vehicleCardHeader}>
+            <View style={s.vehicleCardAvatar}>
+              <Text style={s.vehicleCardInitials}>
+                {selectedVehicle.plateNumber.slice(0, 2)}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.vehicleCardPlate}>{selectedVehicle.plateNumber}</Text>
+              <Text style={s.vehicleCardRoute}>{selectedVehicle.routeLabel || 'En route'}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedVehicle(null)
+                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
+                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+              }}
+              style={s.vehicleCardClose}
+            >
+              <X size={16} color={isDark ? c.stone400 : c.stone500} />
+            </TouchableOpacity>
+          </View>
+          <View style={s.vehicleCardStats}>
+            <View style={s.vehicleCardStat}>
+              <Text style={s.vehicleCardStatLabel}>SPEED</Text>
+              <Text style={s.vehicleCardStatValue}>
+                {selectedVehicle.speed ? (selectedVehicle.speed * 3.6).toFixed(0) : '0'} km/h
+              </Text>
+            </View>
+            <View style={s.vehicleCardStat}>
+              <Text style={s.vehicleCardStatLabel}>ETA</Text>
+              <Text style={[s.vehicleCardStatValue, { color: c.amber500 }]}>{vehicleETA}</Text>
+            </View>
+            <View style={s.vehicleCardStat}>
+              <Text style={s.vehicleCardStatLabel}>DIST</Text>
+              <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={s.vehicleCardCTA} activeOpacity={0.8}>
+            <Text style={s.vehicleCardCTAText}>🎫 Buy Ticket · GH₵ 8.00</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {selectedIncident && (
         <IncidentDetailSheet
           incident={selectedIncident}
@@ -1848,6 +1995,95 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.regular,
       color: t.textSecondary,
       textAlign: 'center',
+    },
+
+    // Vehicle info card
+    vehicleCard: {
+      position: 'absolute',
+      bottom: '20%',
+      left: 16,
+      right: 16,
+      backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
+      borderRadius: 16,
+      padding: 16,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(0,0,0,0.06)',
+      zIndex: 20,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 20 },
+        android: { elevation: 12 },
+      }),
+    },
+    vehicleCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    vehicleCardAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.amber500,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    vehicleCardInitials: {
+      fontSize: 15,
+      fontFamily: font.extrabold,
+      color: '#1c1917',
+    },
+    vehicleCardPlate: {
+      fontSize: 17,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    vehicleCardRoute: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
+    vehicleCardClose: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    vehicleCardStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+    },
+    vehicleCardStat: {
+      alignItems: 'center',
+    },
+    vehicleCardStatLabel: {
+      fontSize: 9,
+      fontFamily: font.bold,
+      color: t.textSecondary,
+      letterSpacing: 1.5,
+    },
+    vehicleCardStatValue: {
+      fontSize: 18,
+      fontFamily: font.extrabold,
+      color: t.text,
+      marginTop: 2,
+    },
+    vehicleCardCTA: {
+      backgroundColor: c.amber500,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    vehicleCardCTAText: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: '#1c1917',
     },
 
   })
