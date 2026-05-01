@@ -2,6 +2,8 @@ import { useMemo, useEffect, useRef } from 'react'
 import Mapbox from '@rnmapbox/maps'
 import type { VehiclePosition } from '@/lib/services/vehicle-positions'
 
+const trotroIcon = require('@/assets/images/new_troski_view.png')
+
 // Route destinations for ETA estimation
 const ROUTE_DESTINATIONS: Record<string, { lat: number; lng: number; name: string }> = {
   'Circle → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
@@ -111,6 +113,9 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
         />
       </Mapbox.ShapeSource>
 
+      {/* ── Trotro bus icon ── */}
+      <Mapbox.Images images={{ 'trotro-bus': trotroIcon }} />
+
       {/* ── Main vehicle source ── */}
       <Mapbox.ShapeSource
         id="live-vehicles"
@@ -133,14 +138,31 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
           }}
         />
 
-        {/* Main dot */}
+        {/* Main dot — visible at low zoom, fades as bus icon appears */}
         <Mapbox.CircleLayer
           id="vehicle-dot"
           style={{
-            circleRadius: ['interpolate', ['linear'], ['zoom'], 10, 5, 14, 9, 17, 13],
+            circleRadius: ['interpolate', ['linear'], ['zoom'], 10, 5, 12, 8, 13, 0],
             circleColor: ['case', ['==', ['get', 'stale'], 1], '#78716c', '#FFAD3A'],
-            circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 3],
+            circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 10, 2, 12, 3, 13, 0],
             circleStrokeColor: '#ffffff',
+            circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 1, 13, 0],
+          }}
+        />
+
+        {/* 3D Bus icon — appears at zoom 12+, rotates with heading */}
+        <Mapbox.SymbolLayer
+          id="vehicle-bus-icon"
+          minZoomLevel={12}
+          style={{
+            iconImage: 'trotro-bus',
+            iconSize: ['interpolate', ['linear'], ['zoom'], 12, 0.15, 14, 0.22, 17, 0.35],
+            iconRotate: ['get', 'heading'],
+            iconRotationAlignment: 'map',
+            iconPitchAlignment: 'map',
+            iconAllowOverlap: true,
+            iconIgnorePlacement: true,
+            iconOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0, 12.5, 1],
           }}
         />
 
