@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troski — Live Map Prototype</title>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0c0a09; color: #fafaf9; }
+    #map { width: 100vw; height: 100vh; }
+
+    /* Live badge */
+    .live-badge {
+      position: fixed; top: 16px; left: 16px; z-index: 10;
+      background: rgba(12,10,9,0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,173,58,0.2); border-radius: 12px;
+      padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    .live-badge span { font-size: 13px; font-weight: 600; color: #fafaf9; }
+    .live-count { color: #FFAD3A; font-weight: 700; }
+
+    /* Vehicle popup */
+    .mapboxgl-popup-content {
+      background: #1c1917 !important; color: #fafaf9 !important;
+      border-radius: 14px !important; padding: 16px !important;
+      border: 1px solid rgba(255,173,58,0.15); box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      min-width: 200px;
+    }
+    .mapboxgl-popup-tip { border-top-color: #1c1917 !important; }
+    .popup-plate { font-size: 20px; font-weight: 800; color: #FFAD3A; letter-spacing: -0.5px; }
+    .popup-route { font-size: 13px; color: #a8a29e; margin-top: 4px; }
+    .popup-meta { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .popup-meta-item { font-size: 11px; }
+    .popup-meta-label { color: #78716c; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .popup-meta-value { color: #fafaf9; font-weight: 700; font-size: 14px; margin-top: 2px; }
+
+    /* Refresh button */
+    .refresh-btn {
+      position: fixed; bottom: 24px; right: 16px; z-index: 10;
+      background: #FFAD3A; color: #1c1917; border: none; border-radius: 12px;
+      padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,173,58,0.3);
+    }
+    .refresh-btn:hover { background: #f59e0b; }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed; bottom: 24px; left: 16px; z-index: 10;
+      background: rgba(12,10,9,0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+      padding: 10px 16px; font-size: 12px; color: #78716c;
+    }
+  </style>
+</head>
+<body>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    <span><span class="live-count" id="count">0</span> trotros live</span>
+  </div>
+
+  <div id="map"></div>
+
+  <button class="refresh-btn" onclick="fetchPositions()">↻ Refresh</button>
+  <div class="status-bar" id="status">Loading...</div>
+
+  <script>
+    // ── Config ──
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg';
+
+    const SUPABASE_URL = 'https://rqctajmbfrqtjuwkykrg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxY3Rham1iZnJxdGp1d2t5a3JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1Mzk5ODcsImV4cCI6MjA4NTExNTk4N30.jaPQiSS9ltsupXB2yMEnEkKyCxjOJUC5AP1KPl7kY68';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ── Map ──
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-0.2166, 5.5702], // Circle Trotro Station (OSM)
+      zoom: 13,
+      pitch: 45,
+      bearing: -10,
+      antialias: true,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.addControl(new mapboxgl.GeolocateControl({ trackUserLocation: true }), 'top-right');
+
+    map.on('load', () => {
+      // ── 3D Buildings ──
+      const layers = map.getStyle().layers;
+      const labelLayerId = layers.find(l => l.type === 'symbol' && l.layout['text-field'])?.id;
+
+      map.addLayer({
+        id: '3d-buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 14,
+        paint: {
+          'fill-extrusion-color': '#292524',
+          'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.05, ['get', 'height']],
+          'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.05, ['get', 'min_height']],
+          'fill-extrusion-opacity': 0.6,
+        },
+      }, labelLayerId);
+
+      // ── Vehicle source ──
+      map.addSource('vehicles', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      // Glow ring
+      map.addLayer({
+        id: 'vehicle-glow',
+        type: 'circle',
+        source: 'vehicles',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 12, 14, 20, 17, 30],
+          'circle-color': '#FFAD3A',
+          'circle-opacity': 0.15,
+        },
+      });
+
+      // Main dot
+      map.addLayer({
+        id: 'vehicle-dot',
+        type: 'circle',
+        source: 'vehicles',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 14, 10, 17, 14],
+          'circle-color': '#FFAD3A',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+
+      // Inner icon dot
+      map.addLayer({
+        id: 'vehicle-inner',
+        type: 'circle',
+        source: 'vehicles',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 4, 17, 6],
+          'circle-color': '#1c1917',
+        },
+      });
+
+      // Plate labels
+      map.addLayer({
+        id: 'vehicle-labels',
+        type: 'symbol',
+        source: 'vehicles',
+        minzoom: 13,
+        layout: {
+          'text-field': ['get', 'plateNumber'],
+          'text-size': 11,
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          'text-offset': [0, 1.8],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#FFAD3A',
+          'text-halo-color': '#1c1917',
+          'text-halo-width': 2,
+        },
+      });
+
+      // Route labels
+      map.addLayer({
+        id: 'vehicle-route-labels',
+        type: 'symbol',
+        source: 'vehicles',
+        minzoom: 14,
+        layout: {
+          'text-field': ['get', 'routeLabel'],
+          'text-size': 10,
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          'text-offset': [0, 3.0],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#a8a29e',
+          'text-halo-color': '#1c1917',
+          'text-halo-width': 1.5,
+        },
+      });
+
+      // ── Click handler ──
+      map.on('click', 'vehicle-dot', (e) => {
+        const f = e.features[0];
+        const coords = f.geometry.coordinates.slice();
+        const props = f.properties;
+
+        const speedKmh = props.speed ? (props.speed * 3.6).toFixed(0) : '--';
+        const ago = props.updatedAt ? timeAgo(props.updatedAt) : '--';
+
+        new mapboxgl.Popup({ offset: 15 })
+          .setLngLat(coords)
+          .setHTML(`
+            <div class="popup-plate">${props.plateNumber}</div>
+            <div class="popup-route">${props.routeLabel || 'No route'}</div>
+            <div class="popup-meta">
+              <div class="popup-meta-item">
+                <div class="popup-meta-label">Speed</div>
+                <div class="popup-meta-value">${speedKmh} km/h</div>
+              </div>
+              <div class="popup-meta-item">
+                <div class="popup-meta-label">Updated</div>
+                <div class="popup-meta-value">${ago}</div>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'vehicle-dot', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'vehicle-dot', () => { map.getCanvas().style.cursor = ''; });
+
+      // ── Initial fetch ──
+      fetchPositions();
+
+      // ── Auto refresh every 30s ──
+      setInterval(fetchPositions, 30000);
+    });
+
+    // ── Cinematic intro ──
+    setTimeout(() => {
+      map.flyTo({ center: [-0.187, 5.603], zoom: 14.5, pitch: 50, bearing: 20, duration: 4000 });
+    }, 1000);
+
+    // ── Fetch positions ──
+    async function fetchPositions() {
+      const { data, error } = await sb
+        .from('vehicle_positions')
+        .select('van_id, plate_number, route_id, route_label, latitude, longitude, heading, speed, updated_at')
+        .eq('is_active', true);
+
+      if (error) {
+        document.getElementById('status').textContent = 'Error: ' + error.message;
+        return;
+      }
+
+      const geojson = {
+        type: 'FeatureCollection',
+        features: (data || []).map(v => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [v.longitude, v.latitude] },
+          properties: {
+            vanId: v.van_id,
+            plateNumber: v.plate_number,
+            routeLabel: v.route_label || '',
+            heading: v.heading || 0,
+            speed: v.speed || 0,
+            updatedAt: v.updated_at,
+          },
+        })),
+      };
+
+      map.getSource('vehicles')?.setData(geojson);
+      document.getElementById('count').textContent = data.length;
+      document.getElementById('status').textContent = `Last updated: ${new Date().toLocaleTimeString()} · ${data.length} vehicle(s)`;
+    }
+
+    function timeAgo(dateStr) {
+      const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+      if (diff < 60) return Math.floor(diff) + 's ago';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      return Math.floor(diff / 3600) + 'h ago';
+    }
+  </script>
+</body>
+</html>
