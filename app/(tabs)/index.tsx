@@ -28,9 +28,7 @@ import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
-import HappeningNow from '@/components/HappeningNow'
-import { SmartCommuteCard } from '@/components/SmartCommuteCard'
-import { NearbyLines } from '@/components/NearbyLines'
+// HappeningNow, SmartCommuteCard, NearbyLines removed — replaced by live vehicle sheet
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -655,7 +653,7 @@ export default function HomeScreen() {
   ).length
 
   // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['18%', '45%'], [])
+  const snapPoints = useMemo(() => ['15%', '45%', '85%'], [])
 
   const handleRecenter = useCallback(() => {
     setFollowUser(true)
@@ -1662,23 +1660,93 @@ export default function HomeScreen() {
               }}
             />
           ) : (
-            <>
-              {/* Smart Commute — hero greeting, first thing users see */}
-              <SmartCommuteCard />
+            <View style={s.sheetContent}>
+              {/* ── Live vehicles summary ── */}
+              <View style={s.liveHeader}>
+                <View style={s.liveDotWrap}>
+                  <View style={s.liveDotInner} />
+                </View>
+                <Text style={s.liveHeaderText}>
+                  <Text style={s.liveHeaderCount}>{liveVehicleCount}</Text> trotros live
+                </Text>
+              </View>
 
-              {/* Transit-style nearby lines */}
-              <NearbyLines
-                stations={stations}
-                routes={popularRoutes}
-                userLat={location?.latitude ?? null}
-                userLng={location?.longitude ?? null}
-                locationGranted={locationGranted}
-                onRequestLocation={requestLocationPermission}
-              />
+              {/* ── Quick actions ── */}
+              <View style={s.quickActions}>
+                <TouchableOpacity
+                  style={s.quickAction}
+                  onPress={() => setSearchVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)' }]}>
+                    <Search size={20} color={c.amber500} />
+                  </View>
+                  <Text style={s.quickActionLabel}>Find Route</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.quickAction}
+                  onPress={() => router.push('/stations' as Href)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : 'rgba(96,165,250,0.08)' }]}>
+                    <MapPin size={20} color="#60a5fa" />
+                  </View>
+                  <Text style={s.quickActionLabel}>Stations</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.quickAction}
+                  onPress={() => router.push('/train' as Href)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(34,211,238,0.12)' : 'rgba(34,211,238,0.08)' }]}>
+                    <TrainFront size={20} color="#22d3ee" />
+                  </View>
+                  <Text style={s.quickActionLabel}>Train</Text>
+                </TouchableOpacity>
+              </View>
 
-              {/* Happening Now */}
-              <HappeningNow />
-            </>
+              {/* ── Nearby vehicles list ── */}
+              {liveVehicles.length > 0 && (
+                <View style={s.nearbySection}>
+                  <Text style={s.nearbySectionTitle}>Nearby Trotros</Text>
+                  {liveVehicles.slice(0, 5).map((v) => (
+                    <TouchableOpacity
+                      key={v.vanId}
+                      style={s.vehicleRow}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                        cameraRef.current?.setCamera({
+                          centerCoordinate: [v.longitude, v.latitude],
+                          zoomLevel: 15,
+                          animationDuration: 600,
+                        })
+                        bottomSheetRef.current?.snapToIndex(0)
+                      }}
+                    >
+                      <View style={s.vehicleRowDot} />
+                      <View style={s.vehicleRowInfo}>
+                        <Text style={s.vehicleRowPlate}>{v.plateNumber}</Text>
+                        <Text style={s.vehicleRowRoute}>{v.routeLabel || 'En route'}</Text>
+                      </View>
+                      <View style={s.vehicleRowEta}>
+                        <Text style={s.vehicleRowEtaText}>
+                          {v.speed && v.speed > 0 ? `${(v.speed * 3.6).toFixed(0)} km/h` : 'Stopped'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {liveVehicles.length === 0 && (
+                <View style={s.emptyState}>
+                  <BusFront size={32} color={c.stone500} />
+                  <Text style={s.emptyStateText}>No live trotros right now</Text>
+                  <Text style={s.emptyStateSub}>Vehicles appear here when drivers start their shifts</Text>
+                </View>
+              )}
+            </View>
           )}
         </BottomSheetScrollView>
       </BottomSheet>
@@ -1967,6 +2035,138 @@ const getStyles = (isDark: boolean) => {
       fontSize: 12,
       fontFamily: font.semibold,
       color: t.text,
+    },
+
+    // ── New bottom sheet content ──
+    sheetContent: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      gap: 20,
+    },
+    liveHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    liveDotWrap: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: 'rgba(34,197,94,0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    liveDotInner: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#22c55e',
+    },
+    liveHeaderText: {
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
+    liveHeaderCount: {
+      fontFamily: font.bold,
+      color: c.amber500,
+    },
+
+    // Quick actions
+    quickActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    quickAction: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+    },
+    quickActionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    quickActionLabel: {
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+
+    // Nearby vehicles
+    nearbySection: {
+      gap: 10,
+    },
+    nearbySectionTitle: {
+      fontSize: 16,
+      fontFamily: font.bold,
+      color: t.text,
+      marginBottom: 4,
+    },
+    vehicleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+    },
+    vehicleRowDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: c.amber500,
+    },
+    vehicleRowInfo: {
+      flex: 1,
+    },
+    vehicleRowPlate: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    vehicleRowRoute: {
+      fontSize: 12,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
+    vehicleRowEta: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(255,173,58,0.08)',
+    },
+    vehicleRowEtaText: {
+      fontSize: 12,
+      fontFamily: font.bold,
+      color: c.amber500,
+    },
+
+    // Empty state
+    emptyState: {
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 40,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      fontFamily: font.semibold,
+      color: t.text,
+    },
+    emptyStateSub: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      textAlign: 'center',
     },
 
   })
