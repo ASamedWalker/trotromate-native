@@ -54,6 +54,8 @@ import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRoute
 import { useTransportStops } from '@/lib/hooks/useTransportStops'
 import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
+import LiveVehicleLayer from '@/components/LiveVehicleLayer'
+import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import type { RouteWithStats } from '@/lib/types'
 
@@ -393,6 +395,7 @@ export default function HomeScreen() {
   } = useNearbyRouteStops(location?.latitude ?? null, location?.longitude ?? null)
   const { geojson: osmStopsGeoJSON } = useTransportStops()
   const { geojson: railwayLinesGeoJSON } = useRailwayLines()
+  const { vehicles: liveVehicles, activeCount: liveVehicleCount } = useVehiclePositions()
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
@@ -1335,6 +1338,19 @@ export default function HomeScreen() {
             }}
           />
         </Mapbox.ShapeSource>
+
+        {/* ── Live vehicle markers — GPS positions from Fleet app ── */}
+        <LiveVehicleLayer
+          vehicles={liveVehicles}
+          onVehicleTap={(vehicle) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            cameraRef.current?.setCamera({
+              centerCoordinate: [vehicle.longitude, vehicle.latitude],
+              zoomLevel: 15,
+              animationDuration: 600,
+            })
+          }}
+        />
 
         {/* ── Incident markers — native Mapbox layers with clustering ── */}
         <Mapbox.ShapeSource
