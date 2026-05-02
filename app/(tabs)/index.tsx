@@ -673,7 +673,7 @@ export default function HomeScreen() {
   ).length
 
   // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['1%', '45%', '85%'], [])
+  const snapPoints = useMemo(() => ['20%'], [])
 
   const handleRecenter = useCallback(() => {
     setFollowUser(true)
@@ -1397,26 +1397,46 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Bottom card — Citibike style ── */}
+      {/* ── Bottom sheet — Citibike style (single snap, no expand) ── */}
       {!selectedVehicle && (
-        <View style={s.fixedCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.fixedCardGreeting}>Hi {profile?.display_name?.split(' ')[0] || 'there'}</Text>
-            <Text style={s.fixedCardTitle}>Take a ride</Text>
-          </View>
-          <TouchableOpacity style={s.fixedCardScan} activeOpacity={0.8}>
-            <Text style={s.fixedCardScanIcon}>📷</Text>
-            <Text style={s.fixedCardScanText}>Scan</Text>
-          </TouchableOpacity>
-          {liveVehicles.length > 0 && (
-            <View style={s.fixedCardInfoRow}>
-              <Text style={s.fixedCardInfoText}>
-                {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby · {liveVehicles[0]?.routeLabel}
-              </Text>
-              <Text style={s.fixedCardInfoLink}>Find trotro →</Text>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          enablePanDownToClose={false}
+          enableDynamicSizing={false}
+          enableOverDrag={false}
+          backgroundStyle={{
+            backgroundColor: isDark ? '#1c1917' : '#ffffff',
+            borderRadius: 24,
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+              android: { elevation: 8 },
+            }),
+          }}
+          handleIndicatorStyle={{ backgroundColor: isDark ? c.stone600 : c.stone300, width: 36 }}
+        >
+          <View style={s.fixedCard}>
+            <View style={s.fixedCardRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.fixedCardGreeting}>Hi {profile?.display_name?.split(' ')[0] || 'there'}</Text>
+                <Text style={s.fixedCardTitle}>Take a ride</Text>
+              </View>
+              <TouchableOpacity style={s.fixedCardScan} activeOpacity={0.8}>
+                <Text style={s.fixedCardScanIcon}>📷</Text>
+                <Text style={s.fixedCardScanText}>Scan</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
+            {liveVehicles.length > 0 && (
+              <View style={s.fixedCardInfoRow}>
+                <Text style={s.fixedCardInfoText}>
+                  {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby · {liveVehicles[0]?.routeLabel}
+                </Text>
+                <Text style={s.fixedCardInfoLink}>Find trotro →</Text>
+              </View>
+            )}
+          </View>
+        </BottomSheet>
       )}
 
       {/* ── Vehicle info card (shown on vehicle tap) ── */}
@@ -1971,20 +1991,14 @@ const getStyles = (isDark: boolean) => {
       color: '#1c1917',
     },
 
-    // Fixed bottom card — Citibike style
+    // Fixed bottom card — Citibike style (inside BottomSheet)
     fixedCard: {
-      position: 'absolute',
-      bottom: Platform.OS === 'ios' ? 96 : 72,
-      left: 12,
-      right: 12,
-      backgroundColor: isDark ? '#1c1917' : '#ffffff',
-      borderRadius: 16,
-      padding: 16,
-      zIndex: 15,
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10 },
-        android: { elevation: 6 },
-      }),
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    fixedCardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     fixedCardGreeting: {
       fontSize: 13,
@@ -1998,9 +2012,6 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: -0.5,
     },
     fixedCardScan: {
-      position: 'absolute',
-      top: 16,
-      right: 16,
       backgroundColor: isDark ? '#292524' : '#f5f5f4',
       borderRadius: 12,
       paddingHorizontal: 14,
