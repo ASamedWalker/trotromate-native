@@ -461,12 +461,7 @@ export function TalesScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
-      {/* Header */}
-      <ReanimatedAnimated.View entering={FadeInDown.duration(300)} style={s.header}>
-        <Text style={s.headerTitle}>Tales</Text>
-      </ReanimatedAnimated.View>
-
+    <View style={s.container}>
       {/* Compose bar — single entry point for text + photo/video */}
       <ReanimatedAnimated.View entering={FadeInDown.delay(100).duration(400)} style={s.composeBar}>
         <View style={s.composeAvatar}>
@@ -532,7 +527,7 @@ export function TalesScreen() {
         visible={commentPostId !== null}
         onClose={() => setCommentPostId(null)}
       />
-    </SafeAreaView>
+    </View>
   )
 }
 
