@@ -673,7 +673,7 @@ export default function HomeScreen() {
   ).length
 
   // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['15%', '45%', '85%'], [])
+  const snapPoints = useMemo(() => ['1%', '45%', '85%'], [])
 
   const handleRecenter = useCallback(() => {
     setFollowUser(true)
@@ -1397,160 +1397,25 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Bottom Sheet ── */}
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        backgroundStyle={{
-          backgroundColor: themed(isDark).sheetBg,
-          borderRadius: 40,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 40,
-          elevation: 8,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: isDark ? c.stone500 : c.stone300,
-          width: 40,
-        }}
-        enablePanDownToClose={false}
-        enableDynamicSizing={false}
-      >
-        <BottomSheetScrollView
-          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : 'home'}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          {selectedStop ? (
-            <StopRoutesPanel
-              stop={selectedStop}
-              onClose={() => {
-                setSelectedStop(null)
-                bottomSheetRef.current?.snapToIndex(0)
-              }}
-            />
-          ) : previewRoute ? (
-            <RoutePreviewCard
-              routeId={previewRoute.id}
-              from={previewRoute.from}
-              to={previewRoute.to}
-              onClose={() => {
-                setPreviewRoute(null)
-                bottomSheetRef.current?.snapToIndex(0)
-              }}
-            />
-          ) : (
-            <View style={s.sheetContent}>
-              {/* ── Live vehicles summary ── */}
-              <View style={s.liveHeader}>
-                <View style={s.liveDotWrap}>
-                  <View style={s.liveDotInner} />
-                </View>
-                <Text style={s.liveHeaderText}>
-                  <Text style={s.liveHeaderCount}>{liveVehicleCount}</Text> trotros live
-                </Text>
-              </View>
-
-              {/* ── Quick actions ── */}
-              <View style={s.quickActions}>
-                <TouchableOpacity
-                  style={s.quickAction}
-                  onPress={() => setSearchVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)' }]}>
-                    <Search size={20} color={c.amber500} />
-                  </View>
-                  <Text style={s.quickActionLabel}>Find Route</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.quickAction}
-                  onPress={() => router.push('/stations' as Href)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : 'rgba(96,165,250,0.08)' }]}>
-                    <MapPin size={20} color="#60a5fa" />
-                  </View>
-                  <Text style={s.quickActionLabel}>Stations</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.quickAction}
-                  onPress={() => router.push('/train' as Href)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[s.quickActionIcon, { backgroundColor: isDark ? 'rgba(34,211,238,0.12)' : 'rgba(34,211,238,0.08)' }]}>
-                    <TrainFront size={20} color="#22d3ee" />
-                  </View>
-                  <Text style={s.quickActionLabel}>Train</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* ── Nearby vehicles list ── */}
-              {liveVehicles.length > 0 && (
-                <View style={s.nearbySection}>
-                  <Text style={s.nearbySectionTitle}>Nearby Trotros</Text>
-                  {liveVehicles.slice(0, 5).map((v) => (
-                    <TouchableOpacity
-                      key={v.vanId}
-                      style={s.vehicleRow}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                        cameraRef.current?.setCamera({
-                          centerCoordinate: [v.longitude, v.latitude],
-                          zoomLevel: 15,
-                          animationDuration: 600,
-                        })
-                        bottomSheetRef.current?.snapToIndex(0)
-                      }}
-                    >
-                      <View style={s.vehicleRowDot} />
-                      <View style={s.vehicleRowInfo}>
-                        <Text style={s.vehicleRowPlate}>{v.plateNumber}</Text>
-                        <Text style={s.vehicleRowRoute}>{v.routeLabel || 'En route'}</Text>
-                      </View>
-                      <View style={s.vehicleRowEta}>
-                        <Text style={s.vehicleRowEtaText}>
-                          {v.speed && v.speed > 0 ? `${(v.speed * 3.6).toFixed(0)} km/h` : 'Stopped'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {liveVehicles.length === 0 && (
-                <View style={s.emptyState}>
-                  <BusFront size={32} color={c.stone500} />
-                  <Text style={s.emptyStateText}>No live trotros right now</Text>
-                  <Text style={s.emptyStateSub}>Vehicles appear here when drivers start their shifts</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </BottomSheetScrollView>
-      </BottomSheet>
-
-      {/* ── Smart banner — Citibike-style contextual notification ── */}
-      {liveVehicles.length > 0 && !selectedVehicle && (
-        <View style={s.smartBanner}>
-          <View style={s.smartBannerContent}>
-            <View style={s.smartBannerIcon}>
-              <BusFront size={18} color="#FFAD3A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.smartBannerTitle}>
-                {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby
-              </Text>
-              <Text style={s.smartBannerSub}>
-                {liveVehicles[0]?.routeLabel || 'Tap a bus to see route'}
-              </Text>
-            </View>
+      {/* ── Fixed bottom card — Citibike style (no drag, no expand) ── */}
+      {!selectedVehicle && (
+        <View style={s.fixedCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.fixedCardTitle}>
+              {liveVehicleCount > 0
+                ? `${liveVehicleCount} trotro${liveVehicleCount !== 1 ? 's' : ''} nearby`
+                : 'Take a ride'
+              }
+            </Text>
+            <Text style={s.fixedCardSub}>
+              {liveVehicles.length > 0
+                ? liveVehicles[0].routeLabel || 'Tap a bus on the map'
+                : 'No live trotros right now'
+              }
+            </Text>
           </View>
-          <TouchableOpacity style={s.smartBannerScan} activeOpacity={0.8}>
-            <Text style={s.smartBannerScanText}>📷 Scan</Text>
+          <TouchableOpacity style={s.fixedCardScan} activeOpacity={0.8}>
+            <Text style={s.fixedCardScanText}>Scan</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -2107,59 +1972,44 @@ const getStyles = (isDark: boolean) => {
       color: '#1c1917',
     },
 
-    // Smart banner — Citibike style
-    smartBanner: {
+    // Fixed bottom card — Citibike style (one card, no drag)
+    fixedCard: {
       position: 'absolute',
-      bottom: '16%',
+      bottom: 90,
       left: 12,
       right: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
+      backgroundColor: isDark ? '#1c1917' : '#ffffff',
       borderRadius: 14,
-      padding: 12,
-      gap: 10,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(0,0,0,0.06)',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      gap: 12,
       zIndex: 15,
       ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
-        android: { elevation: 8 },
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10 },
+        android: { elevation: 6 },
       }),
     },
-    smartBannerContent: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    smartBannerIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    smartBannerTitle: {
-      fontSize: 14,
-      fontFamily: font.bold,
+    fixedCardTitle: {
+      fontSize: 16,
+      fontFamily: font.extrabold,
       color: t.text,
     },
-    smartBannerSub: {
-      fontSize: 11,
+    fixedCardSub: {
+      fontSize: 12,
       fontFamily: font.regular,
       color: t.textSecondary,
-      marginTop: 1,
+      marginTop: 2,
     },
-    smartBannerScan: {
+    fixedCardScan: {
       backgroundColor: c.amber500,
       borderRadius: 10,
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       paddingVertical: 10,
     },
-    smartBannerScanText: {
-      fontSize: 13,
+    fixedCardScanText: {
+      fontSize: 14,
       fontFamily: font.bold,
       color: '#1c1917',
     },
