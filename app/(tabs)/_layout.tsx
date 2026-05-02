@@ -1,16 +1,17 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
-import { useColorScheme, StyleSheet } from 'react-native'
+import { useColorScheme, StyleSheet, View, Text, Platform } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
-import { font, glass } from '@/lib/theme'
+import { c, font, glass } from '@/lib/theme'
 import GlassCard from '@/components/GlassCard'
 import { HapticTab } from '@/components/HapticTab'
+import { LinearGradient } from 'expo-linear-gradient'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 
-  const activeColor = isDark ? '#fbbf24' : '#78350f' // amber-400 / amber-900
+  const activeColor = isDark ? '#fbbf24' : '#78350f'
   const inactiveColor = isDark ? '#a8a29e' : '#78716c'
 
   return (
@@ -24,6 +25,7 @@ export default function TabLayout() {
           borderTopWidth: 0,
           elevation: 0,
           backgroundColor: 'transparent',
+          height: Platform.OS === 'ios' ? 88 : 64,
         },
         tabBarBackground: () => (
           <GlassCard
@@ -44,9 +46,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Map',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons name={focused ? 'home-filled' : 'home'} size={24} color={color} />
+            <MaterialIcons name={focused ? 'map' : 'map'} size={24} color={color} />
           ),
         }}
       />
@@ -54,7 +56,7 @@ export default function TabLayout() {
         name="routes"
         options={{
           title: 'Routes',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialIcons name="directions-bus" size={24} color={color} />
           ),
         }}
@@ -62,9 +64,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="tales"
         options={{
-          title: 'Tales',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons name="auto-stories" size={24} color={color} />
+          title: 'Wallet',
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.walletBtn}>
+              <LinearGradient
+                colors={['#FF716A', '#FFAD3A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.walletGradient}
+              >
+                <MaterialIcons name="account-balance-wallet" size={24} color="#1c1917" />
+              </LinearGradient>
+            </View>
+          ),
+          tabBarLabel: () => (
+            <Text style={[styles.walletLabel, { color: '#FFAD3A' }]}>Wallet</Text>
           ),
         }}
       />
@@ -72,7 +86,7 @@ export default function TabLayout() {
         name="rewards"
         options={{
           title: 'Rewards',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialIcons name="military-tech" size={24} color={color} />
           ),
         }}
@@ -86,9 +100,33 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hidden tabs — still navigable but not shown in tab bar */}
+      {/* Hidden tabs */}
       <Tabs.Screen name="report" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   )
 }
+
+const styles = StyleSheet.create({
+  walletBtn: {
+    marginTop: -16,
+    ...Platform.select({
+      ios: { shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 8 },
+    }),
+  },
+  walletGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  walletLabel: {
+    fontSize: 10,
+    fontFamily: font.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+})

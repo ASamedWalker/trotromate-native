@@ -1397,26 +1397,25 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Fixed bottom card — Citibike style (no drag, no expand) ── */}
+      {/* ── Bottom card — Citibike style ── */}
       {!selectedVehicle && (
         <View style={s.fixedCard}>
           <View style={{ flex: 1 }}>
-            <Text style={s.fixedCardTitle}>
-              {liveVehicleCount > 0
-                ? `${liveVehicleCount} trotro${liveVehicleCount !== 1 ? 's' : ''} nearby`
-                : 'Take a ride'
-              }
-            </Text>
-            <Text style={s.fixedCardSub}>
-              {liveVehicles.length > 0
-                ? liveVehicles[0].routeLabel || 'Tap a bus on the map'
-                : 'No live trotros right now'
-              }
-            </Text>
+            <Text style={s.fixedCardGreeting}>Hi {profile?.display_name?.split(' ')[0] || 'there'}</Text>
+            <Text style={s.fixedCardTitle}>Take a ride</Text>
           </View>
           <TouchableOpacity style={s.fixedCardScan} activeOpacity={0.8}>
+            <Text style={s.fixedCardScanIcon}>📷</Text>
             <Text style={s.fixedCardScanText}>Scan</Text>
           </TouchableOpacity>
+          {liveVehicles.length > 0 && (
+            <View style={s.fixedCardInfoRow}>
+              <Text style={s.fixedCardInfoText}>
+                {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby · {liveVehicles[0]?.routeLabel}
+              </Text>
+              <Text style={s.fixedCardInfoLink}>Find trotro →</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -1972,46 +1971,71 @@ const getStyles = (isDark: boolean) => {
       color: '#1c1917',
     },
 
-    // Fixed bottom card — Citibike style (one card, no drag)
+    // Fixed bottom card — Citibike style
     fixedCard: {
       position: 'absolute',
-      bottom: 90,
+      bottom: Platform.OS === 'ios' ? 96 : 72,
       left: 12,
       right: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
       backgroundColor: isDark ? '#1c1917' : '#ffffff',
-      borderRadius: 14,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      gap: 12,
+      borderRadius: 16,
+      padding: 16,
       zIndex: 15,
       ...Platform.select({
         ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10 },
         android: { elevation: 6 },
       }),
     },
+    fixedCardGreeting: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: t.textSecondary,
+    },
     fixedCardTitle: {
-      fontSize: 16,
+      fontSize: 24,
       fontFamily: font.extrabold,
       color: t.text,
+      letterSpacing: -0.5,
     },
-    fixedCardSub: {
+    fixedCardScan: {
+      position: 'absolute',
+      top: 16,
+      right: 16,
+      backgroundColor: isDark ? '#292524' : '#f5f5f4',
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    fixedCardScanIcon: {
+      fontSize: 16,
+    },
+    fixedCardScanText: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    fixedCardInfoRow: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    fixedCardInfoText: {
       fontSize: 12,
       fontFamily: font.regular,
       color: t.textSecondary,
-      marginTop: 2,
+      flex: 1,
     },
-    fixedCardScan: {
-      backgroundColor: c.amber500,
-      borderRadius: 10,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-    },
-    fixedCardScanText: {
-      fontSize: 14,
+    fixedCardInfoLink: {
+      fontSize: 12,
       fontFamily: font.bold,
-      color: '#1c1917',
+      color: c.amber500,
     },
 
   })
