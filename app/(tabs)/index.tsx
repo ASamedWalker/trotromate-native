@@ -679,7 +679,7 @@ export default function HomeScreen() {
       {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
       {mountMap && <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        styleURL={MAP_STYLE_LIGHT}
         surfaceView={Platform.OS === 'android'}
         attributionEnabled
         attributionPosition={{ bottom: 8, left: 8 }}
@@ -749,87 +749,6 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* ── Transport icons for circle-to-icon transition ── */}
-        <Mapbox.Images>
-          {/* ── Capsule pill markers — Stitch-inspired design ── */}
-          <Mapbox.Image name="pin-trotro">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#60a5fa', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(96,165,250,0.2)' }}>
-                <BusFront size={16} color="#93bbfd" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(96,165,250,0.3)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-train">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#7c3aed', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,58,237,0.12)' }}>
-                <TrainFront size={16} color="#7c3aed" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(124,58,237,0.25)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#7c3aed' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-major">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#60a5fa', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(96,165,250,0.2)' }}>
-                <MapPin size={16} color="#93bbfd" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(96,165,250,0.3)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-queue-empty">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#22c55e', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(34,197,94,0.12)' }}>
-                <BusFront size={16} color="#22c55e" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(34,197,94,0.25)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-queue-moderate">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#f59e0b', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(245,158,11,0.12)' }}>
-                <AlertTriangle size={16} color="#f59e0b" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(245,158,11,0.25)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-queue-long">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#f97316', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.15)' }}>
-                <Flame size={16} color="#f97316" strokeWidth={2.5} />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(249,115,22,0.3)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f97316' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-          <Mapbox.Image name="pin-queue-very_long">
-            <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#ef4444', elevation: 8 }}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.18)' }}>
-                <Flame size={18} color="#ef4444" strokeWidth={2.5} fill="#ef4444" />
-              </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(239,68,68,0.35)' }} />
-              <View style={{ paddingVertical: 4, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444' }} />
-              </View>
-            </View>
-          </Mapbox.Image>
-        </Mapbox.Images>
 
         {/* ── Train route lines — subtle blue dashed polylines ── */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
@@ -1184,11 +1103,7 @@ export default function HomeScreen() {
           <Search size={22} color={c.amber500} />
         </TouchableOpacity>
 
-        {/* Service mode pills — under search bar */}
-        <ServiceModePills
-          activeMode={serviceMode}
-          onModeChange={handleModeChange}
-        />
+        {/* Service pills removed — Train has its own tab now */}
       </SafeAreaView>
 
       {/* Recenter button */}

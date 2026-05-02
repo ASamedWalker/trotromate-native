@@ -2,7 +2,7 @@ import React from 'react'
 import { Tabs } from 'expo-router'
 import { useColorScheme, StyleSheet, View, Text, Platform } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
-import { c, font, glass } from '@/lib/theme'
+import { font, glass } from '@/lib/theme'
 import GlassCard from '@/components/GlassCard'
 import { HapticTab } from '@/components/HapticTab'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -35,10 +35,10 @@ export default function TabLayout() {
           />
         ),
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 9,
           fontFamily: font.semibold,
           textTransform: 'uppercase',
-          letterSpacing: 0.5,
+          letterSpacing: 0.3,
         },
         headerShown: false,
       }}
@@ -47,8 +47,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Map',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons name={focused ? 'map' : 'map'} size={24} color={color} />
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="map" size={22} color={color} />
           ),
         }}
       />
@@ -57,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Routes',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="directions-bus" size={24} color={color} />
+            <MaterialIcons name="directions-bus" size={22} color={color} />
           ),
         }}
       />
@@ -65,7 +65,7 @@ export default function TabLayout() {
         name="tales"
         options={{
           title: 'Wallet',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={styles.walletBtn}>
               <LinearGradient
                 colors={['#FF716A', '#FFAD3A']}
@@ -73,7 +73,7 @@ export default function TabLayout() {
                 end={{ x: 1, y: 1 }}
                 style={styles.walletGradient}
               >
-                <MaterialIcons name="account-balance-wallet" size={24} color="#1c1917" />
+                <MaterialIcons name="account-balance-wallet" size={22} color="#1c1917" />
               </LinearGradient>
             </View>
           ),
@@ -83,11 +83,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="train"
+        options={{
+          title: 'Train',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="train" size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="rewards"
         options={{
           title: 'Rewards',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="military-tech" size={24} color={color} />
+            <MaterialIcons name="military-tech" size={22} color={color} />
           ),
         }}
       />
@@ -95,8 +104,8 @@ export default function TabLayout() {
         name="activity"
         options={{
           title: 'Pulse',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons name={focused ? 'notifications' : 'notifications-none'} size={24} color={color} />
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="notifications-none" size={22} color={color} />
           ),
         }}
       />
@@ -109,24 +118,24 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   walletBtn: {
-    marginTop: -16,
+    marginTop: -14,
     ...Platform.select({
       ios: { shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
       android: { elevation: 8 },
     }),
   },
   walletGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   walletLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: font.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginTop: 2,
   },
 })
