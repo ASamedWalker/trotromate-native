@@ -156,7 +156,7 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
           minZoomLevel={12}
           style={{
             iconImage: 'trotro-bus',
-            iconSize: ['interpolate', ['linear'], ['zoom'], 12, 0.25, 14, 0.35, 17, 0.5],
+            iconSize: ['interpolate', ['linear'], ['zoom'], 12, 0.4, 14, 0.55, 17, 0.75],
             iconRotate: ['get', 'heading'],
             iconRotationAlignment: 'map',
             iconPitchAlignment: 'map',
