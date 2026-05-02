@@ -30,7 +30,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import HappeningNow from '@/components/HappeningNow'
 import { SmartCommuteCard } from '@/components/SmartCommuteCard'
-import { NearbyLines } from '@/components/NearbyLines'
+// NearbyLines removed — replaced by Live Trotros section
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -800,27 +800,41 @@ export default function HomeScreen() {
           />
         </Mapbox.ShapeSource>
 
-        {/* ── OSM transport stops — only shown contextually (search/route preview) ── */}
-        {(previewRoute || selectedStop) && (
-          <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
-            <Mapbox.SymbolLayer
-              id="osm-stops-labels"
-              minZoomLevel={14}
-              style={{
-                textField: ['get', 'name'],
-                textSize: ['interpolate', ['linear'], ['zoom'], 14, 9, 16, 11],
-                textColor: isDark ? '#d6d3d1' : '#57534e',
-                textHaloColor: isDark ? '#0c0a09' : '#ffffff',
-                textHaloWidth: 1.2,
-                textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-                textOffset: [0, 1.2],
-                textAnchor: 'top',
-                textMaxWidth: 7,
-                textAllowOverlap: false,
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
+        {/* ── OSM transport stops — always visible, color-coded by type ── */}
+        <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
+          <Mapbox.CircleLayer
+            id="osm-stops-dots"
+            minZoomLevel={13}
+            style={{
+              circleRadius: ['interpolate', ['linear'], ['zoom'], 13, 1.5, 15, 3, 17, 5],
+              circleColor: ['match', ['get', 'type'],
+                'trotro_stop', '#FFAD3A',
+                'lorry_park', '#f59e0b',
+                'taxi_rank', '#a78bfa',
+                'train_station', '#22d3ee',
+                '#60a5fa',
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 13, 0.2, 15, 0.45, 17, 0.65],
+            }}
+          />
+          <Mapbox.SymbolLayer
+            id="osm-stops-labels"
+            minZoomLevel={15}
+            filter={['!=', ['get', 'name'], '']}
+            style={{
+              textField: ['get', 'name'],
+              textSize: ['interpolate', ['linear'], ['zoom'], 15, 8, 17, 10],
+              textColor: isDark ? '#a8a29e' : '#78716c',
+              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+              textHaloWidth: 1.5,
+              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              textOffset: [0, 0.8],
+              textAnchor: 'top',
+              textAllowOverlap: false,
+              textOptional: true,
+            }}
+          />
+        </Mapbox.ShapeSource>
 
         {/* ── Preview route from search — green polyline + stops ── */}
         {previewRoute && (
