@@ -458,7 +458,7 @@ export default function LineDetailScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* ─── ACTIVATE GO MODE (only for lines with GO Mode support) ── */}
+      {/* ─── ACTIVATE GO MODE — DISABLED (uncomment to restore) ───
       {line?.code !== 'STK' && (
         <View style={s.goModeWrap}>
           <TouchableOpacity
@@ -474,6 +474,7 @@ export default function LineDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+      */}
     </SafeAreaView>
   )
 }
