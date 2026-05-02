@@ -156,7 +156,7 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
           minZoomLevel={12}
           style={{
             iconImage: 'trotro-bus',
-            iconSize: ['interpolate', ['linear'], ['zoom'], 12, 0.15, 14, 0.22, 17, 0.35],
+            iconSize: ['interpolate', ['linear'], ['zoom'], 12, 0.25, 14, 0.35, 17, 0.5],
             iconRotate: ['get', 'heading'],
             iconRotationAlignment: 'map',
             iconPitchAlignment: 'map',
@@ -166,57 +166,7 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
           }}
         />
 
-        {/* Plate labels at zoom 13+ */}
-        <Mapbox.SymbolLayer
-          id="vehicle-labels"
-          minZoomLevel={13}
-          style={{
-            textField: ['get', 'plateNumber'],
-            textSize: ['interpolate', ['linear'], ['zoom'], 13, 10, 17, 13],
-            textFont: ['DIN Pro Bold'],
-            textOffset: [0, 2.0],
-            textAnchor: 'top',
-            textColor: '#ffffff',
-            textHaloColor: 'rgba(0,0,0,0.85)',
-            textHaloWidth: 2.5,
-            textAllowOverlap: false,
-          }}
-        />
-
-        {/* ETA labels floating above */}
-        <Mapbox.SymbolLayer
-          id="vehicle-eta"
-          filter={['!=', ['get', 'etaLabel'], '']}
-          style={{
-            textField: ['concat', '⏱ ', ['get', 'etaLabel']],
-            textSize: ['interpolate', ['linear'], ['zoom'], 10, 8, 14, 11],
-            textFont: ['DIN Pro Bold'],
-            textOffset: [0, -2.0],
-            textAnchor: 'bottom',
-            textColor: '#FFAD3A',
-            textHaloColor: 'rgba(12,10,9,0.9)',
-            textHaloWidth: 2.5,
-            textAllowOverlap: true,
-            textIgnorePlacement: true,
-          }}
-        />
-
-        {/* Route labels at zoom 14+ */}
-        <Mapbox.SymbolLayer
-          id="vehicle-route-labels"
-          minZoomLevel={14}
-          style={{
-            textField: ['get', 'routeLabel'],
-            textSize: 10,
-            textFont: ['DIN Pro Medium'],
-            textOffset: [0, 3.2],
-            textAnchor: 'top',
-            textColor: '#d6d3d1',
-            textHaloColor: 'rgba(0,0,0,0.8)',
-            textHaloWidth: 2,
-            textAllowOverlap: false,
-          }}
-        />
+        {/* No text labels on map — info shown in smart banner instead */}
       </Mapbox.ShapeSource>
     </>
   )

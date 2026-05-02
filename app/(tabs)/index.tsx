@@ -697,7 +697,7 @@ export default function HomeScreen() {
       {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
       {mountMap && <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        styleURL={MAP_STYLE_LIGHT}
         surfaceView={Platform.OS === 'android'}
         attributionEnabled
         attributionPosition={{ bottom: 8, left: 8 }}
@@ -1533,7 +1533,28 @@ export default function HomeScreen() {
         </BottomSheetScrollView>
       </BottomSheet>
 
-      {/* Citizen-style incident detail sheet */}
+      {/* ── Smart banner — Citibike-style contextual notification ── */}
+      {liveVehicles.length > 0 && !selectedVehicle && (
+        <View style={s.smartBanner}>
+          <View style={s.smartBannerContent}>
+            <View style={s.smartBannerIcon}>
+              <BusFront size={18} color="#FFAD3A" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.smartBannerTitle}>
+                {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby
+              </Text>
+              <Text style={s.smartBannerSub}>
+                {liveVehicles[0]?.routeLabel || 'Tap a bus to see route'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity style={s.smartBannerScan} activeOpacity={0.8}>
+            <Text style={s.smartBannerScanText}>📷 Scan</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ── Vehicle info card (shown on vehicle tap) ── */}
       {selectedVehicle && (
         <View style={s.vehicleCard}>
@@ -2082,6 +2103,63 @@ const getStyles = (isDark: boolean) => {
     },
     vehicleCardCTAText: {
       fontSize: 14,
+      fontFamily: font.bold,
+      color: '#1c1917',
+    },
+
+    // Smart banner — Citibike style
+    smartBanner: {
+      position: 'absolute',
+      bottom: '16%',
+      left: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
+      borderRadius: 14,
+      padding: 12,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(0,0,0,0.06)',
+      zIndex: 15,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
+        android: { elevation: 8 },
+      }),
+    },
+    smartBannerContent: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    smartBannerIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    smartBannerTitle: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: t.text,
+    },
+    smartBannerSub: {
+      fontSize: 11,
+      fontFamily: font.regular,
+      color: t.textSecondary,
+      marginTop: 1,
+    },
+    smartBannerScan: {
+      backgroundColor: c.amber500,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    smartBannerScanText: {
+      fontSize: 13,
       fontFamily: font.bold,
       color: '#1c1917',
     },
