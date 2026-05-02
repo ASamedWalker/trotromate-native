@@ -28,7 +28,9 @@ import { c, font, themed } from '@/lib/theme'
 import { usePopularRoutes } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
-// HappeningNow, SmartCommuteCard, NearbyLines removed — replaced by live vehicle sheet
+import HappeningNow from '@/components/HappeningNow'
+import { SmartCommuteCard } from '@/components/SmartCommuteCard'
+import { NearbyLines } from '@/components/NearbyLines'
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -54,7 +56,6 @@ import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
 import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 import LiveVehicleLayer from '@/components/LiveVehicleLayer'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
-import type { VehiclePosition } from '@/lib/services/vehicle-positions'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import type { RouteWithStats } from '@/lib/types'
 
@@ -63,20 +64,6 @@ import type { RouteWithStats } from '@/lib/types'
 /* ── Constants ─────────────────────────────────────── */
 
 const ACCRA_CENTER: [number, number] = [-0.187, 5.6037]
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
-
-const ROUTE_DESTINATIONS: Record<string, { lat: number; lng: number; name: string }> = {
-  'Circle → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
-  'Kasoa → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
-  'Madina → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
-  'Achimota → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Tema → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
-  'Lapaz → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Nima → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Adenta → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
-  'Dansoman → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
-  'Osu → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-}
 
 // Pre-compute train station names for map layer filtering
 const TRAIN_STATION_NAMES = new Set(
@@ -423,11 +410,6 @@ export default function HomeScreen() {
   const [mountMap, setMountMap] = useState(false)
   const [liveBadgeExpanded, setLiveBadgeExpanded] = useState(false)
   const [liveBadgeDismissed, setLiveBadgeDismissed] = useState(false)
-  const [selectedVehicle, setSelectedVehicle] = useState<VehiclePosition | null>(null)
-  const [routeLineGeoJSON, setRouteLineGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
-  const [destMarkerGeoJSON, setDestMarkerGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
-  const [vehicleETA, setVehicleETA] = useState<string>('--')
-  const [vehicleDist, setVehicleDist] = useState<string>('--')
 
   // Pulsing rings — refs only, no setState to avoid re-rendering
   const pulseSourceRef = useRef<any>(null)
@@ -673,7 +655,7 @@ export default function HomeScreen() {
   ).length
 
   // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['20%'], [])
+  const snapPoints = useMemo(() => ['18%', '45%'], [])
 
   const handleRecenter = useCallback(() => {
     setFollowUser(true)
@@ -697,7 +679,7 @@ export default function HomeScreen() {
       {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
       {mountMap && <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
-        styleURL={MAP_STYLE_LIGHT}
+        styleURL={isNightMap ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         surfaceView={Platform.OS === 'android'}
         attributionEnabled
         attributionPosition={{ bottom: 8, left: 8 }}
@@ -767,7 +749,9 @@ export default function HomeScreen() {
           />
         )}
 
-        {/*
+        {/* ── Transport icons for circle-to-icon transition ── */}
+        <Mapbox.Images>
+          {/* ── Capsule pill markers — Stitch-inspired design ── */}
           <Mapbox.Image name="pin-trotro">
             <View style={{ width: 38, height: 62, borderRadius: 19, overflow: 'hidden', backgroundColor: '#1c1917', borderWidth: 2, borderColor: '#60a5fa', elevation: 8 }}>
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(96,165,250,0.2)' }}>
@@ -845,7 +829,7 @@ export default function HomeScreen() {
               </View>
             </View>
           </Mapbox.Image>
-        */}
+        </Mapbox.Images>
 
         {/* ── Train route lines — subtle blue dashed polylines ── */}
         <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
@@ -1030,60 +1014,327 @@ export default function HomeScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* Nearby MarkerView stops removed — replaced by OSM transport stops layer */}
+        {/* ── Nearby trotro stops — clean MarkerView pins ── */}
+        {nearbyStops.slice(0, 5).map((stop, i) => (
+          <Mapbox.MarkerView
+            key={`nearby-${stop.name}`}
+            coordinate={[stop.longitude, stop.latitude]}
+            allowOverlap={false}
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <AnimatedMapPin>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                accessibilityLabel={`${stop.name} stop${stop.distanceKm ? `, ${stop.distanceKm.toFixed(1)} km away` : ''}`}
+                accessibilityRole="button"
+                onPress={() => {
+                  const routeIds = getRoutesForStop(stop.name)
+                  setSelectedStop({
+                    name: stop.name,
+                    latitude: stop.latitude,
+                    longitude: stop.longitude,
+                    routeIds,
+                    distanceKm: stop.distanceKm,
+                  })
+                  cameraRef.current?.setCamera({
+                    centerCoordinate: [stop.longitude, stop.latitude],
+                    zoomLevel: 14,
+                    animationDuration: 600,
+                  })
+                  bottomSheetRef.current?.snapToIndex(1)
+                }}
+              >
+                <NearbyStopPin name={stop.name} isNearest={i === 0} isDark={isDark} />
+              </TouchableOpacity>
+            </AnimatedMapPin>
+          </Mapbox.MarkerView>
+        ))}
 
-        {/* Queue badges removed — vehicles are now primary */}
+        {/* ── Active queue station badges — MarkerView with rounded card wait time ── */}
+        {mapIdle && activeQueueStations.slice(0, 12).map((station) => (
+          <Mapbox.MarkerView
+            key={`queue-badge-${station.name}`}
+            coordinate={station.coordinate}
+            allowOverlap={true}
+            anchor={{ x: 0.5, y: -0.8 }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const routeIds = getRoutesForStop(station.name)
+                setSelectedStop({
+                  name: station.name,
+                  latitude: station.coordinate[1],
+                  longitude: station.coordinate[0],
+                  routeIds,
+                  distanceKm: null,
+                  queueStatus: station.queueStatus,
+                  waitText: station.waitText,
+                  lastReportAt: station.lastReportAt,
+                  reportCount: station.reportCount,
+                })
+                cameraRef.current?.setCamera({
+                  centerCoordinate: station.coordinate,
+                  zoomLevel: 14,
+                  animationDuration: 600,
+                })
+                bottomSheetRef.current?.snapToIndex(1)
+              }}
+            >
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: station.queueStatus === 'very_long' || station.queueStatus === 'long'
+                  ? 'rgba(239,68,68,0.9)'
+                  : station.queueStatus === 'moderate'
+                  ? 'rgba(245,158,11,0.9)'
+                  : 'rgba(34,197,94,0.9)',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 6,
+              }}>
+                {(station.queueStatus === 'very_long' || station.queueStatus === 'long') ? (
+                  <Flame size={12} color="#fff" strokeWidth={2.5} />
+                ) : station.queueStatus === 'moderate' ? (
+                  <AlertTriangle size={12} color="#fff" strokeWidth={2.5} />
+                ) : (
+                  <BusFront size={12} color="#fff" strokeWidth={2.5} />
+                )}
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 11,
+                  fontFamily: 'Poppins_700Bold',
+                  letterSpacing: 0.3,
+                }}>
+                  {station.waitText || (
+                    station.queueStatus === 'very_long' ? 'Very Long'
+                    : station.queueStatus === 'long' ? 'Long'
+                    : station.queueStatus === 'moderate' ? 'Moderate'
+                    : 'Short'
+                  )}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Mapbox.MarkerView>
+        ))}
 
-        {/* Fire towers + pulsing rings removed — vehicles are primary */}
+        {/* ── 3D Fire towers at congested stations ── */}
+        {mapIdle && fireTowersGeojson.features.length > 0 && (
+          <Mapbox.ShapeSource id="fire-towers" shape={fireTowersGeojson as any}>
+            <Mapbox.FillExtrusionLayer
+              id="fire-tower-layer"
+              minZoomLevel={13}
+              maxZoomLevel={22}
+              style={{
+                fillExtrusionHeight: ['get', 'height'],
+                fillExtrusionBase: 0,
+                fillExtrusionColor: ['match', ['get', 'color'],
+                  '#ef4444', '#ff6b6b',
+                  '#f97316', '#ffaa5c',
+                  '#f59e0b', '#ffc94d',
+                  '#ff6b6b',
+                ],
+                fillExtrusionOpacity: 0.85,
+                fillExtrusionVerticalGradient: true,
+                fillExtrusionEmissiveStrength: 1.5,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
-        {/* Station capsule pins removed — vehicles + OSM stops are primary */}
+        {/* ── Pulsing rings for active stations (updated via ref, no re-renders) ── */}
+        {mapIdle && activeQueueStations.length > 0 && (
+          <Mapbox.ShapeSource
+            ref={pulseSourceRef}
+            id="pulse-rings"
+            shape={{ type: 'FeatureCollection', features: [] } as any}
+          >
+            <Mapbox.CircleLayer
+              id="pulse-ring"
+              minZoomLevel={showAllPins ? 8 : 11}
+              style={{
+                circleRadius: ['get', 'radius'],
+                circleColor: ['get', 'color'],
+                circleOpacity: ['get', 'opacity'],
+                circleStrokeWidth: 0,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
 
-        {/* ── Route line (drawn on vehicle tap) ── */}
-        <Mapbox.ShapeSource id="vehicle-route-line" shape={routeLineGeoJSON}>
-          <Mapbox.LineLayer
-            id="vehicle-route-glow"
+        {/* ── Station pins — native CircleLayer + SymbolLayer for performance ── */}
+        <Mapbox.ShapeSource
+          id="station-pins"
+          shape={stationPinsGeojson as any}
+          onPress={(e) => {
+            const feature = e.features?.[0]
+            if (!feature?.properties) return
+            const { name } = feature.properties
+            const pin = stationPins.find((p) => p.name === name)
+            if (!pin) return
+            const routeIds = getRoutesForStop(name)
+            setSelectedStop({
+              name,
+              latitude: pin.coordinate[1],
+              longitude: pin.coordinate[0],
+              routeIds,
+              distanceKm: null,
+              queueStatus: pin.queueStatus,
+              waitText: pin.waitText,
+              lastReportAt: pin.lastReportAt,
+              reportCount: pin.reportCount,
+            })
+            cameraRef.current?.setCamera({
+              centerCoordinate: pin.coordinate,
+              zoomLevel: 14,
+              animationDuration: 600,
+            })
+            bottomSheetRef.current?.snapToIndex(1)
+          }}
+          hitbox={{ width: 30, height: 30 }}
+        >
+          {/* ── Ambient glow — visible aura around capsules at all zoom levels ── */}
+          <Mapbox.CircleLayer
+            id="station-ambient-outer"
+            minZoomLevel={showAllPins ? 8 : 11}
             style={{
-              lineColor: '#FFAD3A',
-              lineWidth: 10,
-              lineOpacity: 0.12,
-              lineBlur: 6,
-              lineCap: 'round',
-              lineJoin: 'round',
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 24, 12, 40, 14, 50, 16, 60],
+              circleColor: ['match', ['get', 'queueStatus'],
+                'empty', '#22c55e', 'short', '#22c55e',
+                'moderate', '#f59e0b',
+                'long', '#f97316', 'very_long', '#ef4444',
+                ['match', ['get', 'pinType'],
+                  'train', '#7c3aed',
+                  'major', '#60a5fa',
+                  '#60a5fa',
+                ],
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.08, 12, 0.15, 14, 0.25, 16, 0.3],
+              circleBlur: 0.8,
             }}
           />
-          <Mapbox.LineLayer
-            id="vehicle-route-main"
+          <Mapbox.CircleLayer
+            id="station-ambient-inner"
+            minZoomLevel={showAllPins ? 8 : 11}
             style={{
-              lineColor: '#FFAD3A',
-              lineWidth: 4,
-              lineOpacity: 0.85,
-              lineCap: 'round',
-              lineJoin: 'round',
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 12, 12, 20, 14, 28, 16, 36],
+              circleColor: ['match', ['get', 'queueStatus'],
+                'empty', '#22c55e', 'short', '#22c55e',
+                'moderate', '#f59e0b',
+                'long', '#f97316', 'very_long', '#ef4444',
+                ['match', ['get', 'pinType'],
+                  'train', '#7c3aed',
+                  'major', '#3b82f6',
+                  '#3b82f6',
+                ],
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.1, 12, 0.2, 14, 0.35, 16, 0.4],
+              circleBlur: 0.5,
             }}
           />
-        </Mapbox.ShapeSource>
 
-        {/* ── Destination marker ── */}
-        <Mapbox.ShapeSource id="vehicle-dest" shape={destMarkerGeoJSON}>
+          {/* ── Phase 1: Flat colored dots (zoom 11–12) — fade out as icons appear ── */}
           <Mapbox.CircleLayer
-            id="dest-glow"
-            style={{ circleRadius: 16, circleColor: '#22c55e', circleOpacity: 0.12 }}
+            id="station-halo"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 6, 12, 10, 13, 0],
+              circleColor: ['match', ['get', 'pinType'],
+                'train', '#7c3aed',
+                'queue', ['match', ['get', 'queueStatus'],
+                  'empty', '#22c55e', 'short', '#22c55e',
+                  'moderate', '#f59e0b',
+                  'long', '#f97316', 'very_long', '#ef4444',
+                  '#22c55e',
+                ],
+                '#2563eb',
+              ],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0.15, 13, 0],
+            }}
           />
           <Mapbox.CircleLayer
-            id="dest-dot"
-            style={{ circleRadius: 7, circleColor: '#22c55e', circleStrokeWidth: 3, circleStrokeColor: '#fff' }}
+            id="station-dot"
+            minZoomLevel={showAllPins ? 8 : 11}
+            style={{
+              circleRadius: ['interpolate', ['exponential', 1.2], ['zoom'], 10, 3, 11, 4, 12, 6, 13, 0],
+              circleColor: ['match', ['get', 'pinType'],
+                'train', '#7c3aed',
+                'queue', ['match', ['get', 'queueStatus'],
+                  'empty', '#22c55e', 'short', '#22c55e',
+                  'moderate', '#f59e0b',
+                  'long', '#f97316', 'very_long', '#ef4444',
+                  '#22c55e',
+                ],
+                '#2563eb',
+              ],
+              circleStrokeColor: isDark ? '#1c1917' : '#ffffff',
+              circleStrokeWidth: ['interpolate', ['linear'], ['zoom'], 10, 1, 12, 2, 13, 0],
+              circleOpacity: ['interpolate', ['linear'], ['zoom'], 12, 1, 13, 0],
+              circleStrokeOpacity: ['interpolate', ['linear'], ['zoom'], 12, 1, 13, 0],
+            }}
           />
+
+          {/* ── Phase 2: Icon pins (zoom 13+) — fade in as dots disappear ── */}
           <Mapbox.SymbolLayer
-            id="dest-label"
+            id="station-icon"
+            minZoomLevel={12}
+            style={{
+              iconImage: ['get', 'iconName'],
+              iconSize: ['interpolate', ['exponential', 1.2], ['zoom'], 12, 0, 13, 0.7, 14, 0.85, 16, 1.1],
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+              iconOpacity: ['interpolate', ['linear'], ['zoom'], 12, 0, 13, 1],
+              iconAnchor: 'center',
+            }}
+          />
+
+          {/* Station name labels — below the icon pin */}
+          <Mapbox.SymbolLayer
+            id="station-labels"
+            minZoomLevel={13}
             style={{
               textField: ['get', 'name'],
-              textSize: 12,
-              textFont: ['DIN Pro Bold'],
-              textOffset: [0, 1.6],
+              textSize: ['interpolate', ['linear'], ['zoom'], 13, 9, 16, 12],
+              textColor: isDark ? '#d6d3d1' : '#374151',
+              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
+              textHaloWidth: 1.5,
+              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, 1.6]], 14, ['literal', [0, 2.0]], 16, ['literal', [0, 2.4]]],
               textAnchor: 'top',
-              textColor: '#22c55e',
-              textHaloColor: 'rgba(0,0,0,0.85)',
-              textHaloWidth: 2,
+              textMaxWidth: 7,
+              textAllowOverlap: false,
+            }}
+          />
+          {/* Wait time pill badge — styled card below the capsule */}
+          <Mapbox.SymbolLayer
+            id="station-wait"
+            minZoomLevel={13}
+            filter={['!=', ['get', 'waitText'], '']}
+            style={{
+              textField: ['concat', '⏱ ', ['get', 'waitText']],
+              textSize: ['interpolate', ['linear'], ['zoom'], 13, 10, 14, 11, 16, 13],
+              textColor: '#ffffff',
+              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+              textOffset: ['interpolate', ['linear'], ['zoom'], 13, ['literal', [0, 2.2]], 14, ['literal', [0, 2.6]], 16, ['literal', [0, 3.0]]],
+              textAnchor: 'top',
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
+              textPadding: 0,
+              textHaloColor: ['match', ['get', 'queueStatus'],
+                'empty', 'rgba(34,197,94,0.9)', 'short', 'rgba(34,197,94,0.9)',
+                'moderate', 'rgba(245,158,11,0.9)',
+                'long', 'rgba(249,115,22,0.9)', 'very_long', 'rgba(239,68,68,0.9)',
+                'rgba(34,197,94,0.9)',
+              ],
+              textHaloWidth: 6,
+              textHaloBlur: 1,
+              textLetterSpacing: 0.05,
             }}
           />
         </Mapbox.ShapeSource>
@@ -1091,44 +1342,13 @@ export default function HomeScreen() {
         {/* ── Live vehicle markers — GPS positions from Fleet app ── */}
         <LiveVehicleLayer
           vehicles={liveVehicles}
-          onVehicleTap={async (vehicle) => {
+          onVehicleTap={(vehicle) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            setSelectedVehicle(vehicle)
-
-            const dest = ROUTE_DESTINATIONS[vehicle.routeLabel || '']
-            if (dest) {
-              try {
-                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${vehicle.longitude},${vehicle.latitude};${dest.lng},${dest.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
-                const res = await fetch(url)
-                const data = await res.json()
-                if (data.routes?.[0]) {
-                  const route = data.routes[0]
-                  setVehicleETA(Math.round(route.duration / 60) + ' min')
-                  setVehicleDist((route.distance / 1000).toFixed(1) + ' km')
-                  setRouteLineGeoJSON({ type: 'Feature', geometry: route.geometry })
-                  setDestMarkerGeoJSON({
-                    type: 'FeatureCollection',
-                    features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: { name: dest.name } }],
-                  })
-                  // Fit camera to show route
-                  const coords = route.geometry.coordinates
-                  const lngs = coords.map((c: number[]) => c[0])
-                  const lats = coords.map((c: number[]) => c[1])
-                  cameraRef.current?.fitBounds(
-                    [Math.max(...lngs), Math.max(...lats)],
-                    [Math.min(...lngs), Math.min(...lats)],
-                    [100, 60, 180, 60],
-                    800
-                  )
-                }
-              } catch {}
-            } else {
-              cameraRef.current?.setCamera({
-                centerCoordinate: [vehicle.longitude, vehicle.latitude],
-                zoomLevel: 15,
-                animationDuration: 600,
-              })
-            }
+            cameraRef.current?.setCamera({
+              centerCoordinate: [vehicle.longitude, vehicle.latitude],
+              zoomLevel: 15,
+              animationDuration: 600,
+            })
           }}
         />
 
@@ -1397,94 +1617,136 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Bottom sheet — Citibike style (single snap, no expand) ── */}
-      {!selectedVehicle && (
-        <BottomSheet
-          ref={bottomSheetRef}
-          index={0}
-          snapPoints={snapPoints}
-          enablePanDownToClose={false}
-          enableDynamicSizing={false}
-          enableOverDrag={false}
-          backgroundStyle={{
-            backgroundColor: isDark ? '#1c1917' : '#ffffff',
-            borderRadius: 24,
-            ...Platform.select({
-              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12 },
-              android: { elevation: 8 },
-            }),
-          }}
-          handleIndicatorStyle={{ backgroundColor: isDark ? c.stone600 : c.stone300, width: 36 }}
+      {/* ── Bottom Sheet ── */}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        backgroundStyle={{
+          backgroundColor: themed(isDark).sheetBg,
+          borderRadius: 40,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 40,
+          elevation: 8,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: isDark ? c.stone500 : c.stone300,
+          width: 40,
+        }}
+        enablePanDownToClose={false}
+        enableDynamicSizing={false}
+      >
+        <BottomSheetScrollView
+          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : 'home'}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
         >
-          <View style={s.fixedCard}>
-            <View style={s.fixedCardRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.fixedCardGreeting}>Hi {profile?.display_name?.split(' ')[0] || 'there'}</Text>
-                <Text style={s.fixedCardTitle}>Take a ride</Text>
-              </View>
-              <TouchableOpacity style={s.fixedCardScan} activeOpacity={0.8}>
-                <Text style={s.fixedCardScanIcon}>📷</Text>
-                <Text style={s.fixedCardScanText}>Scan</Text>
-              </TouchableOpacity>
-            </View>
-            {liveVehicles.length > 0 && (
-              <View style={s.fixedCardInfoRow}>
-                <Text style={s.fixedCardInfoText}>
-                  {liveVehicleCount} trotro{liveVehicleCount !== 1 ? 's' : ''} nearby · {liveVehicles[0]?.routeLabel}
-                </Text>
-                <Text style={s.fixedCardInfoLink}>Find trotro →</Text>
-              </View>
-            )}
-          </View>
-        </BottomSheet>
-      )}
-
-      {/* ── Vehicle info card (shown on vehicle tap) ── */}
-      {selectedVehicle && (
-        <View style={s.vehicleCard}>
-          <View style={s.vehicleCardHeader}>
-            <View style={s.vehicleCardAvatar}>
-              <Text style={s.vehicleCardInitials}>
-                {selectedVehicle.plateNumber.slice(0, 2)}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.vehicleCardPlate}>{selectedVehicle.plateNumber}</Text>
-              <Text style={s.vehicleCardRoute}>{selectedVehicle.routeLabel || 'En route'}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                setSelectedVehicle(null)
-                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+          {selectedStop ? (
+            <StopRoutesPanel
+              stop={selectedStop}
+              onClose={() => {
+                setSelectedStop(null)
+                bottomSheetRef.current?.snapToIndex(0)
               }}
-              style={s.vehicleCardClose}
-            >
-              <X size={16} color={isDark ? c.stone400 : c.stone500} />
-            </TouchableOpacity>
-          </View>
-          <View style={s.vehicleCardStats}>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>SPEED</Text>
-              <Text style={s.vehicleCardStatValue}>
-                {selectedVehicle.speed ? (selectedVehicle.speed * 3.6).toFixed(0) : '0'} km/h
-              </Text>
-            </View>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>ETA</Text>
-              <Text style={[s.vehicleCardStatValue, { color: c.amber500 }]}>{vehicleETA}</Text>
-            </View>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>DIST</Text>
-              <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={s.vehicleCardCTA} activeOpacity={0.8}>
-            <Text style={s.vehicleCardCTAText}>🎫 Buy Ticket · GH₵ 8.00</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            />
+          ) : previewRoute ? (
+            <RoutePreviewCard
+              routeId={previewRoute.id}
+              from={previewRoute.from}
+              to={previewRoute.to}
+              onClose={() => {
+                setPreviewRoute(null)
+                bottomSheetRef.current?.snapToIndex(0)
+              }}
+            />
+          ) : (
+            <>
+              {/* Smart Commute — hero greeting */}
+              <SmartCommuteCard />
 
+              {/* Live vehicles — GPS tracked trotros */}
+              {liveVehicles.length > 0 && (
+                <View style={{ paddingHorizontal: 20, gap: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{
+                      fontSize: 16, fontFamily: font.bold,
+                      color: isDark ? '#fafaf9' : '#1c1917',
+                    }}>
+                      Live Trotros
+                    </Text>
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 6,
+                      backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)',
+                      paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99,
+                    }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                      <Text style={{ fontSize: 12, fontFamily: font.bold, color: '#22c55e' }}>
+                        {liveVehicleCount} live
+                      </Text>
+                    </View>
+                  </View>
+                  {liveVehicles.slice(0, 4).map((v) => (
+                    <TouchableOpacity
+                      key={v.vanId}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                        cameraRef.current?.setCamera({
+                          centerCoordinate: [v.longitude, v.latitude],
+                          zoomLevel: 15,
+                          animationDuration: 600,
+                        })
+                        bottomSheetRef.current?.snapToIndex(0)
+                      }}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        padding: 14, borderRadius: 14,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      <View style={{
+                        width: 40, height: 40, borderRadius: 12,
+                        backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)',
+                        justifyContent: 'center', alignItems: 'center',
+                      }}>
+                        <BusFront size={18} color="#FFAD3A" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{
+                          fontSize: 15, fontFamily: font.bold,
+                          color: isDark ? '#fafaf9' : '#1c1917',
+                        }}>
+                          {v.plateNumber}
+                        </Text>
+                        <Text style={{
+                          fontSize: 12, fontFamily: font.regular,
+                          color: isDark ? '#a8a29e' : '#78716c', marginTop: 1,
+                        }}>
+                          {v.routeLabel || 'En route'}
+                        </Text>
+                      </View>
+                      <Text style={{
+                        fontSize: 13, fontFamily: font.bold, color: '#FFAD3A',
+                      }}>
+                        {v.speed && v.speed > 0 ? `${(v.speed * 3.6).toFixed(0)} km/h` : 'At station'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Happening Now */}
+              <HappeningNow />
+            </>
+          )}
+        </BottomSheetScrollView>
+      </BottomSheet>
+
+      {/* Citizen-style incident detail sheet */}
       {selectedIncident && (
         <IncidentDetailSheet
           incident={selectedIncident}
@@ -1768,285 +2030,6 @@ const getStyles = (isDark: boolean) => {
       fontSize: 12,
       fontFamily: font.semibold,
       color: t.text,
-    },
-
-    // ── New bottom sheet content ──
-    sheetContent: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      gap: 20,
-    },
-    liveHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    liveDotWrap: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: 'rgba(34,197,94,0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    liveDotInner: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#22c55e',
-    },
-    liveHeaderText: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      color: t.textSecondary,
-    },
-    liveHeaderCount: {
-      fontFamily: font.bold,
-      color: c.amber500,
-    },
-
-    // Quick actions
-    quickActions: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    quickAction: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 14,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-    },
-    quickActionIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    quickActionLabel: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.text,
-    },
-
-    // Nearby vehicles
-    nearbySection: {
-      gap: 10,
-    },
-    nearbySectionTitle: {
-      fontSize: 16,
-      fontFamily: font.bold,
-      color: t.text,
-      marginBottom: 4,
-    },
-    vehicleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-    },
-    vehicleRowDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: c.amber500,
-    },
-    vehicleRowInfo: {
-      flex: 1,
-    },
-    vehicleRowPlate: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    vehicleRowRoute: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginTop: 2,
-    },
-    vehicleRowEta: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      backgroundColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(255,173,58,0.08)',
-    },
-    vehicleRowEtaText: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: c.amber500,
-    },
-
-    // Empty state
-    emptyState: {
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 40,
-    },
-    emptyStateText: {
-      fontSize: 16,
-      fontFamily: font.semibold,
-      color: t.text,
-    },
-    emptyStateSub: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      textAlign: 'center',
-    },
-
-    // Vehicle info card
-    vehicleCard: {
-      position: 'absolute',
-      bottom: '20%',
-      left: 16,
-      right: 16,
-      backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
-      borderRadius: 16,
-      padding: 16,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(0,0,0,0.06)',
-      zIndex: 20,
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 20 },
-        android: { elevation: 12 },
-      }),
-    },
-    vehicleCardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    vehicleCardAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: c.amber500,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    vehicleCardInitials: {
-      fontSize: 15,
-      fontFamily: font.extrabold,
-      color: '#1c1917',
-    },
-    vehicleCardPlate: {
-      fontSize: 17,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    vehicleCardRoute: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      marginTop: 2,
-    },
-    vehicleCardClose: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    vehicleCardStats: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      paddingVertical: 8,
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-    },
-    vehicleCardStat: {
-      alignItems: 'center',
-    },
-    vehicleCardStatLabel: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      color: t.textSecondary,
-      letterSpacing: 1.5,
-    },
-    vehicleCardStatValue: {
-      fontSize: 18,
-      fontFamily: font.extrabold,
-      color: t.text,
-      marginTop: 2,
-    },
-    vehicleCardCTA: {
-      backgroundColor: c.amber500,
-      borderRadius: 12,
-      paddingVertical: 12,
-      alignItems: 'center',
-    },
-    vehicleCardCTAText: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#1c1917',
-    },
-
-    // Fixed bottom card — Citibike style (inside BottomSheet)
-    fixedCard: {
-      paddingHorizontal: 20,
-      paddingBottom: 8,
-    },
-    fixedCardRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    fixedCardGreeting: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: t.textSecondary,
-    },
-    fixedCardTitle: {
-      fontSize: 24,
-      fontFamily: font.extrabold,
-      color: t.text,
-      letterSpacing: -0.5,
-    },
-    fixedCardScan: {
-      backgroundColor: isDark ? '#292524' : '#f5f5f4',
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    fixedCardScanIcon: {
-      fontSize: 16,
-    },
-    fixedCardScanText: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    fixedCardInfoRow: {
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    fixedCardInfoText: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: t.textSecondary,
-      flex: 1,
-    },
-    fixedCardInfoLink: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: c.amber500,
     },
 
   })
