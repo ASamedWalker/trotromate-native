@@ -1668,10 +1668,10 @@ export default function HomeScreen() {
 
               {/* Live vehicles — GPS tracked trotros */}
               {liveVehicles.length > 0 && (
-                <View style={{ paddingHorizontal: 20, gap: 10 }}>
+                <View style={{ paddingHorizontal: 20, gap: 10, marginTop: 16 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{
-                      fontSize: 16, fontFamily: font.bold,
+                      fontSize: 18, fontFamily: font.extrabold, letterSpacing: -0.3,
                       color: isDark ? '#fafaf9' : '#1c1917',
                     }}>
                       Live Trotros
