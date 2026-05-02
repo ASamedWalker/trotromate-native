@@ -12,6 +12,36 @@ import {
   TRANSPORT_TYPES,
 } from '@/lib/security/validate'
 
+/** Broadcast push to all users except reporter */
+async function broadcastPush(title: string, body: string, excludeDeviceId: string, data?: Record<string, unknown>) {
+  try {
+    const { data: profiles } = await supabase
+      .from('contributor_profiles')
+      .select('push_token')
+      .not('push_token', 'is', null)
+      .neq('device_id', excludeDeviceId)
+
+    const tokens = (profiles || [])
+      .map(p => p.push_token!)
+      .filter(t => t.startsWith('ExponentPushToken['))
+
+    if (tokens.length === 0) return
+
+    // Batch in chunks of 100
+    for (let i = 0; i < tokens.length; i += 100) {
+      const chunk = tokens.slice(i, i + 100).map(token => ({
+        to: token, title, body, sound: 'default' as const,
+        channelId: 'default', data,
+      }))
+      fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk),
+      }).catch(() => {})
+    }
+  } catch {}
+}
+
 export async function submitFareReport(params: {
   fromLocation: string
   toLocation: string
@@ -47,6 +77,14 @@ export async function submitFareReport(params: {
   if (error) {
     throw new Error(`Fare report insert: ${error.message}`)
   }
+
+  // Push notification to all users
+  broadcastPush(
+    '🚐 New Fare Report',
+    `GH₵${fare.toFixed(2)} reported on ${from} → ${to}`,
+    params.deviceId,
+    { screen: 'route-detail', routeId },
+  )
 
   return { reportId: report.id, routeId }
 }
@@ -87,6 +125,14 @@ export async function submitQueueReport(params: {
     console.error('Error submitting queue report:', error)
     return null
   }
+
+  // Push notification to all users
+  broadcastPush(
+    '🚏 Queue Update',
+    `${stationName}: ${queueStatus === 'very_long' ? 'Very long' : queueStatus === 'long' ? 'Long' : queueStatus === 'moderate' ? 'Moderate' : 'Short'} queue`,
+    params.deviceId,
+    { screen: 'stations' },
+  )
 
   return { reportId: report.id }
 }
@@ -133,6 +179,14 @@ export async function submitIncidentReport(params: {
     console.error('Error submitting incident report:', error)
     return null
   }
+
+  // Push notification to all users
+  broadcastPush(
+    '⚠️ Incident Report',
+    `${incidentType === 'traffic' ? 'Traffic' : incidentType === 'accident' ? 'Accident' : incidentType === 'police_checkpoint' ? 'Police checkpoint' : incidentType === 'road_closure' ? 'Road closure' : incidentType === 'flooding' ? 'Flooding' : 'Incident'} at ${locationName}`,
+    params.deviceId,
+    { screen: 'stations' },
+  )
 
   return { reportId: report.id }
 }

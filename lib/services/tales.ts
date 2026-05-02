@@ -1,6 +1,38 @@
 import { File } from 'expo-file-system'
 import { supabase } from '@/lib/supabase/client'
 import type { TalePost, TalePostType, TaleMediaType } from '@/lib/types'
+
+/** Broadcast push for new tale */
+async function broadcastTalePush(deviceId: string, displayName: string | null, caption: string | null) {
+  try {
+    const { data: profiles } = await supabase
+      .from('contributor_profiles')
+      .select('push_token')
+      .not('push_token', 'is', null)
+      .neq('device_id', deviceId)
+
+    const tokens = (profiles || [])
+      .map(p => p.push_token!)
+      .filter(t => t.startsWith('ExponentPushToken['))
+
+    if (tokens.length === 0) return
+
+    for (let i = 0; i < tokens.length; i += 100) {
+      const chunk = tokens.slice(i, i + 100).map(token => ({
+        to: token,
+        title: '📸 New Tale',
+        body: `${displayName || 'A commuter'}: ${caption?.slice(0, 60) || 'Shared a new tale'}`,
+        sound: 'default' as const,
+        channelId: 'default',
+      }))
+      fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk),
+      }).catch(() => {})
+    }
+  } catch {}
+}
 import {
   validateDisplayName,
   validateCaption,
@@ -213,6 +245,10 @@ export async function submitTale(params: {
       }
 
       params.onProgress?.(1)
+
+      // Push notification
+      broadcastTalePush(deviceId, displayName, caption)
+
       return { postId: data.id }
     } catch (err) {
       console.error('Error submitting text tale:', err)
@@ -354,6 +390,10 @@ export async function submitTale(params: {
     }
 
     params.onProgress?.(1)
+
+    // Push notification
+    broadcastTalePush(deviceId, displayName, caption)
+
     return { postId: data.id }
   } catch (err) {
     console.error('Error submitting tale:', err)
