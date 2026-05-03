@@ -19,22 +19,18 @@ import {
   Navigation,
   Locate,
   BusFront,
-  TrainFront,
-  MapPin,
-  Flame,
-  AlertTriangle,
 } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
-import { usePopularRoutes } from '@/lib/hooks/useRoutes'
+// usePopularRoutes removed — not used in new layout
 import { useApp } from '@/lib/contexts/AppContext'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import HappeningNow from '@/components/HappeningNow'
 import { SmartCommuteCard } from '@/components/SmartCommuteCard'
-// NearbyLines removed — replaced by Live Trotros section
+// NearbyLines, ServiceModePills removed — replaced by Live Trotros + Train tab
 import ReportFAB from '@/components/ReportFAB'
 import OfflineBanner from '@/components/OfflineBanner'
 import InitialsAvatar from '@/components/InitialsAvatar'
-import { ServiceModePills, type ServiceMode } from '@/components/ServiceModePills'
+// ServiceModePills removed — Train has its own tab
 import { UnifiedSearch } from '@/components/UnifiedSearch'
 import { useTrip } from '@/lib/hooks/useTrip'
 import { useStations } from '@/lib/hooks/useStations'
@@ -390,12 +386,11 @@ const NearbyStopPin = React.memo(function NearbyStopPin({
 export default function HomeScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const mapStyle = useAutoMapStyle(isDark)
-  const isNightMap = mapStyle === Mapbox.StyleURL.Dark
+  // mapStyle + isNightMap removed — always light map
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { profile, deviceId } = useApp()
-  const { routes: popularRoutes } = usePopularRoutes()
+  // popularRoutes removed — not used in new layout
   useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
   const { tripState, activeTrip, endTrip } = useTrip()
@@ -414,7 +409,7 @@ export default function HomeScreen() {
   const greeting = getGreeting()
   const cameraRef = useRef<Mapbox.Camera>(null)
   const bottomSheetRef = useRef<BottomSheet>(null)
-  const [serviceMode, setServiceMode] = useState<ServiceMode>('trotro')
+  // serviceMode removed — Train has own tab
   const [searchVisible, setSearchVisible] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
@@ -680,17 +675,6 @@ export default function HomeScreen() {
   const handleRecenter = useCallback(() => {
     setFollowUser(true)
   }, [])
-
-  const handleModeChange = useCallback((mode: ServiceMode) => {
-    if (mode === 'train') {
-      router.push('/train')
-    } else if (mode === 'tales') {
-      router.push('/(tabs)/tales' as Href)
-    } else {
-      // Only persist mode for trotro (the home tab) — others navigate away
-      setServiceMode(mode)
-    }
-  }, [router])
 
   return (
     <View style={s.container}>
@@ -1320,7 +1304,7 @@ export default function HomeScreen() {
         enableDynamicSizing={false}
       >
         <BottomSheetScrollView
-          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : 'home'}
+          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : `home-${liveVehicleCount}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
