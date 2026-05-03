@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Platform,
   Animated,
-  AccessibilityInfo,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
@@ -123,36 +122,6 @@ function AnimatedPlaceholder({ style }: { style: any }) {
     >
       {SEARCH_HINTS[index]}
     </Animated.Text>
-  )
-}
-
-/* ── Animated Map Pin — springs up when appearing (like Transit/Citibike) ── */
-
-function AnimatedMapPin({ children }: { children: React.ReactNode }) {
-  const scale = useRef(new Animated.Value(0)).current
-  const [reduceMotion, setReduceMotion] = useState(false)
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
-  }, [])
-
-  useEffect(() => {
-    if (reduceMotion) {
-      scale.setValue(1)
-      return
-    }
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 12,
-      bounciness: 8,
-    }).start()
-  }, [reduceMotion])
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      {children}
-    </Animated.View>
   )
 }
 
@@ -309,77 +278,8 @@ function getGreeting(): string {
   return `${period} · ${h}:${mm} ${ampm}`
 }
 
-/** Auto night mode — dark map style between 6 PM and 6 AM Ghana time */
-function useAutoMapStyle(isDark: boolean): string {
-  const { hours } = getGhanaTime()
-  const isNightInGhana = hours >= 18 || hours < 6
-  if (isDark || isNightInGhana) return Mapbox.StyleURL.Dark
-  return Mapbox.StyleURL.Street
-}
-
-/** Mapbox traffic-aware style URLs */
+/** Mapbox light style URL */
 const MAP_STYLE_LIGHT = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
-const MAP_STYLE_DARK = 'mapbox://styles/sampy1/cmnhpb34g00eq01qq854gbezx'
-
-/* ── Nearby stop pin — Uber/Grab style marker ── */
-const NearbyStopPin = React.memo(function NearbyStopPin({
-  name,
-  isNearest,
-  isDark,
-}: {
-  name: string
-  isNearest: boolean
-  isDark: boolean
-}) {
-  const size = isNearest ? 32 : 26
-  return (
-    <View style={{ alignItems: 'center', width: 80 }}>
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: '#f59e0b',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 2.5,
-          borderColor: '#fff',
-          ...Platform.select({
-            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
-            android: { elevation: 5 },
-          }),
-        }}
-      >
-        <BusFront size={isNearest ? 16 : 13} color="#fff" strokeWidth={2.5} />
-      </View>
-      <View
-        style={{
-          width: 0, height: 0,
-          borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6,
-          borderLeftColor: 'transparent', borderRightColor: 'transparent',
-          borderTopColor: '#f59e0b',
-          marginTop: -1,
-        }}
-      />
-      <Text
-        numberOfLines={1}
-        style={{
-          marginTop: 2,
-          fontSize: isNearest ? 10 : 9,
-          fontFamily: font.semibold,
-          color: isDark ? '#fafaf9' : '#1c1917',
-          textAlign: 'center',
-          maxWidth: 78,
-          textShadowColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
-          textShadowOffset: { width: 0, height: 0 },
-          textShadowRadius: 4,
-        }}
-      >
-        {name}
-      </Text>
-    </View>
-  )
-})
 
 /* ── Component ─────────────────────────────────────── */
 
@@ -398,7 +298,6 @@ export default function HomeScreen() {
   const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
   const { incidents } = useActiveIncidents()
   const {
-    nearbyStops,
     getRoutesForStop,
     getRouteLineGeoJSON,
     getRouteStopsGeoJSON,
@@ -415,7 +314,7 @@ export default function HomeScreen() {
   const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
   const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
   const zoomRef = useRef(13)
-  const [showAllPins, setShowAllPins] = useState(true) // true when zoom >= 12
+  // showAllPins removed — old station pin system
   const [mapIdle, setMapIdle] = useState(false)
   const [mountMap, setMountMap] = useState(false)
   const [liveBadgeExpanded, setLiveBadgeExpanded] = useState(false)
@@ -426,9 +325,7 @@ export default function HomeScreen() {
   const [vehicleETA, setVehicleETA] = useState<string>('--')
   const [vehicleDist, setVehicleDist] = useState<string>('--')
 
-  // Pulsing rings — refs only, no setState to avoid re-rendering
-  const pulseSourceRef = useRef<any>(null)
-  const pulseTickRef = useRef(0)
+  // pulseSourceRef + pulseTickRef removed — old station pulse system
 
   // Delay MapView mount slightly so placeholder paints first — prevents green flash
   useEffect(() => {
@@ -552,95 +449,6 @@ export default function HomeScreen() {
     })
   }, [activeQueueStations])
 
-  // 3D Fire tower polygons — small hexagons at congested stations
-  const fireTowersGeojson = useMemo(() => {
-    const features = activeQueueStations
-      .filter((s) => s.queueStatus === 'moderate' || s.queueStatus === 'long' || s.queueStatus === 'very_long')
-      .map((s) => {
-        // Generate hexagon polygon (~15m radius)
-        const radius = 0.00015
-        const [lng, lat] = s.coordinate
-        const hexCoords = Array.from({ length: 7 }, (_, i) => {
-          const angle = (Math.PI / 3) * (i % 6)
-          return [lng + radius * Math.cos(angle), lat + radius * Math.sin(angle)]
-        })
-
-        // Height based on queue severity
-        const height = s.queueStatus === 'very_long' ? 250
-          : s.queueStatus === 'long' ? 150
-          : 80 // moderate
-
-        return {
-          type: 'Feature' as const,
-          geometry: { type: 'Polygon' as const, coordinates: [hexCoords] },
-          properties: {
-            height,
-            color: s.queueStatus === 'very_long' ? '#ef4444'
-              : s.queueStatus === 'long' ? '#f97316'
-              : '#f59e0b',
-          },
-        }
-      })
-    return { type: 'FeatureCollection' as const, features }
-  }, [activeQueueStations])
-
-  // Pulse animation loop — updates ShapeSource via ref, no React re-renders
-  // Scales with zoom so pulse is visible behind capsules at high zoom
-  useEffect(() => {
-    if (!mapIdle || activeQueueStations.length === 0) return
-    const id = setInterval(() => {
-      pulseTickRef.current = (pulseTickRef.current + 1) % 40
-      const phase = pulseTickRef.current * Math.PI / 20
-      const zoom = zoomRef.current
-      // Scale pulse radius based on zoom: small at low zoom, large at high zoom
-      const baseRadius = zoom >= 14 ? 30 : zoom >= 13 ? 22 : 14
-      const expandRange = zoom >= 14 ? 25 : zoom >= 13 ? 16 : 10
-      const baseOpacity = zoom >= 14 ? 0.35 : 0.25
-
-      const geojson = {
-        type: 'FeatureCollection',
-        features: activeQueueStations.map((s) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: s.coordinate },
-          properties: {
-            radius: baseRadius + Math.sin(phase) * expandRange,
-            opacity: baseOpacity - Math.sin(phase) * (baseOpacity - 0.05),
-            color: s.queueStatus === 'long' || s.queueStatus === 'very_long'
-              ? '#ef4444'
-              : s.queueStatus === 'moderate'
-              ? '#f59e0b'
-              : '#22c55e',
-          },
-        })),
-      }
-      pulseSourceRef.current?.setNativeProps({ shape: JSON.stringify(geojson) })
-    }, 100)
-    return () => clearInterval(id)
-  }, [mapIdle, activeQueueStations])
-
-  // Station pins as native GeoJSON for SymbolLayer/CircleLayer (performance: no JS MarkerViews)
-  const stationPinsGeojson = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: stationPins.map((pin) => ({
-      type: 'Feature' as const,
-      id: pin.id,
-      geometry: {
-        type: 'Point' as const,
-        coordinates: pin.coordinate,
-      },
-      properties: {
-        name: pin.name,
-        pinType: pin.pinType,
-        waitText: pin.waitText || '',
-        queueStatus: pin.queueStatus || '',
-        iconName: pin.pinType === 'train' ? 'pin-train'
-          : pin.pinType === 'major' ? 'pin-major'
-          : pin.pinType === 'queue' ? `pin-queue-${pin.queueStatus || 'empty'}`
-          : 'pin-trotro',
-      },
-    })),
-  }), [stationPins])
-
   // Train route polylines (TMA = blue, TMP = sky)
   const trainLinesGeojson = useMemo(() => {
     const features = Object.entries(TRAIN_SCHEDULES).map(([lineId, schedules]) => {
@@ -703,12 +511,7 @@ export default function HomeScreen() {
         }}
         onCameraChanged={(state: any) => {
           const zoom = state.properties?.zoom
-          if (zoom != null) {
-            const wasAbove12 = zoomRef.current >= 12
-            const isAbove12 = zoom >= 12
-            zoomRef.current = zoom
-            if (wasAbove12 !== isAbove12) setShowAllPins(isAbove12)
-          }
+          if (zoom != null) zoomRef.current = zoom
         }}
         onPress={() => {
           if (selectedIncident) setSelectedIncident(null)
