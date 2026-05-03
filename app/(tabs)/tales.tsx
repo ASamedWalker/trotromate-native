@@ -62,6 +62,11 @@ export default function WalletScreen() {
             {/* Amber blur glow */}
             <View style={s.balanceGlowOrb} />
 
+            {/* Coming Soon badge */}
+            <View style={s.comingSoonBadge}>
+              <Text style={s.comingSoonText}>COMING SOON</Text>
+            </View>
+
             <Text style={s.balanceLabelText}>CURRENT BALANCE</Text>
             <View style={s.balanceAmountRow}>
               <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
@@ -251,6 +256,16 @@ const s = StyleSheet.create({
     position: 'absolute', top: -20, right: -20,
     width: 120, height: 120, borderRadius: 60,
     backgroundColor: 'rgba(255,173,58,0.08)',
+  },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(255,173,58,0.15)',
+    paddingHorizontal: 12, paddingVertical: 4,
+    borderRadius: 99, alignSelf: 'center', marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(255,173,58,0.2)',
+  },
+  comingSoonText: {
+    fontSize: 10, fontFamily: font.bold, color: '#FFAD3A',
+    letterSpacing: 2,
   },
   balanceLabelText: {
     fontSize: 10, fontFamily: font.bold, color: '#78716c',
