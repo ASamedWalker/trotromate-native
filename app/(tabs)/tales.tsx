@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { c, font, themed } from '@/lib/theme'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -13,10 +15,21 @@ export default function WalletScreen() {
   const t = themed(isDark)
   const [balanceVisible, setBalanceVisible] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const router = useRouter()
+  const { isAuthenticated } = useAuthContext()
 
   const balance = 0.00
   const hasTransactions = false
   const hasActivePass = false
+
+  const handleAuthAction = () => {
+    if (!isAuthenticated) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      router.push('/auth/phone' as Href)
+      return
+    }
+    // TODO: proceed with wallet action when Paystack is integrated
+  }
 
   const onRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -199,7 +212,7 @@ export default function WalletScreen() {
 
             {/* CTA Buttons */}
             <View style={s.emptyCTAs}>
-              <TouchableOpacity style={s.emptyPrimaryBtn} activeOpacity={0.85}>
+              <TouchableOpacity style={s.emptyPrimaryBtn} activeOpacity={0.85} onPress={handleAuthAction}>
                 <View style={s.emptyPrimaryInner}>
                   <MaterialIcons name="add-circle" size={20} color="#000" />
                   <Text style={s.emptyPrimaryText}>Add Money Now</Text>
@@ -207,7 +220,7 @@ export default function WalletScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={[s.emptySecondaryBtn, {
                 borderColor: isDark ? 'rgba(255,173,58,0.4)' : 'rgba(255,173,58,0.3)',
-              }]} activeOpacity={0.85}>
+              }]} activeOpacity={0.85} onPress={handleAuthAction}>
                 <Text style={s.emptySecondaryText}>Connect MoMo Account</Text>
               </TouchableOpacity>
             </View>
