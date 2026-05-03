@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
+import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Wallet, Eye, EyeOff, Plus, QrCode, ArrowDownToLine, Receipt, Clock, ArrowUpFromLine, ChevronRight } from 'lucide-react-native'
+import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
+import { MaterialIcons } from '@expo/vector-icons'
 import { c, font, themed } from '@/lib/theme'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -15,7 +16,7 @@ export default function WalletScreen() {
 
   const balance = 0.00
   const hasTransactions = false
-  const hasActiveTicket = false
+  const hasActivePass = false
 
   const onRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -29,174 +30,198 @@ export default function WalletScreen() {
     setBalanceVisible(!balanceVisible)
   }
 
+  const glass = {
+    backgroundColor: isDark ? 'rgba(60,51,43,0.2)' : 'rgba(0,0,0,0.02)',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(0,0,0,0.06)',
+  }
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]} edges={['top']}>
+    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : '#fafaf9' }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: t.text }]}>Wallet</Text>
+      <View style={s.header}>
+        <Text style={[s.headerTitle, { color: t.text }]}>Wallet</Text>
         <TouchableOpacity onPress={toggleBalance} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           {balanceVisible
-            ? <Eye size={22} color={t.textSecondary} />
-            : <EyeOff size={22} color={t.textSecondary} />
+            ? <Eye size={22} color={isDark ? '#78716c' : '#a8a29e'} />
+            : <EyeOff size={22} color={isDark ? '#78716c' : '#a8a29e'} />
           }
         </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.amber500} colors={[c.amber500]} />
         }
       >
-        {/* ── Balance Card ── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.balanceWrap}>
-          <View style={[styles.balanceCard, {
-            backgroundColor: isDark ? '#1c1917' : '#ffffff',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <Text style={[styles.balanceLabel, { color: t.textSecondary }]}>Total Balance</Text>
-            <View style={styles.balanceRow}>
-              <Text style={[styles.balanceCurrency, { color: isDark ? '#FFAD3A' : '#1c1917' }]}>₵</Text>
-              <Text style={[styles.balanceAmount, { color: isDark ? '#ffffff' : '#1c1917' }]}>
-                {balanceVisible ? balance.toLocaleString('en', { minimumFractionDigits: 2 }) : '••••••'}
+        {/* ── Balance Card — Glass + Gold Glow ── */}
+        <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
+          <View style={[s.balanceCard, glass, isDark && s.goldGlow]}>
+            {/* Amber blur glow */}
+            <View style={s.balanceGlowOrb} />
+
+            <Text style={s.balanceLabelText}>CURRENT BALANCE</Text>
+            <View style={s.balanceAmountRow}>
+              <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
+                {balanceVisible
+                  ? `GHS ${balance.toLocaleString('en', { minimumFractionDigits: 2 })}`
+                  : 'GHS ••••••'
+                }
               </Text>
             </View>
 
-            {/* Action buttons */}
-            <View style={styles.balanceBtns}>
-              <TouchableOpacity style={styles.balanceBtnPrimary} activeOpacity={0.85}>
-                <LinearGradient
-                  colors={['#FFAD3A', '#f59e0b']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.balanceBtnGradient}
-                >
-                  <Plus size={16} color="#1c1917" strokeWidth={3} />
-                  <Text style={styles.balanceBtnPrimaryText}>Add Money</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.balanceBtnSecondary, {
-                backgroundColor: isDark ? '#292524' : '#f5f5f4',
-              }]} activeOpacity={0.85}>
-                <ArrowDownToLine size={16} color={isDark ? '#fafaf9' : '#1c1917'} />
-                <Text style={[styles.balanceBtnSecondaryText, { color: isDark ? '#fafaf9' : '#1c1917' }]}>Withdraw</Text>
-              </TouchableOpacity>
+            {/* Live sync badge */}
+            <View style={s.liveSyncBadge}>
+              <View style={s.liveSyncDot} />
+              <Text style={s.liveSyncText}>LIVE SYNC READY</Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── Quick Actions ── */}
-        <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.quickRow}>
-          {[
-            { Icon: Receipt, label: 'Buy Ticket', color: '#FFAD3A' },
-            { Icon: QrCode, label: 'Scan QR', color: '#22c55e' },
-            { Icon: Clock, label: 'History', color: '#60a5fa' },
-            { Icon: ArrowUpFromLine, label: 'Top Up', color: '#a78bfa' },
-          ].map((a, i) => (
-            <TouchableOpacity key={a.label} style={styles.quickItem} activeOpacity={0.7}>
-              <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
-                <View style={[styles.quickCircle, { backgroundColor: a.color + (isDark ? '18' : '10') }]}>
-                  <a.Icon size={20} color={a.color} />
-                </View>
-                <Text style={[styles.quickLabel, { color: t.text }]}>{a.label}</Text>
-              </Animated.View>
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
+        {hasActivePass ? (
+          /* ── Active Pass + Quick Actions + Transactions (funded state) ── */
+          <>
+            {/* Quick actions */}
+            <Animated.View entering={FadeInDown.delay(80).duration(400)} style={s.quickRow}>
+              {[
+                { name: 'qr-code-scanner' as const, label: 'Scan' },
+                { name: 'swap-horiz' as const, label: 'Transfer' },
+                { name: 'electric-bolt' as const, label: 'Bills' },
+                { name: 'more-horiz' as const, label: 'More' },
+              ].map((a, i) => (
+                <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7}>
+                  <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
+                    <View style={[s.quickCircle, glass]}>
+                      <MaterialIcons name={a.name} size={24} color="#FFAD3A" />
+                    </View>
+                    <Text style={s.quickLabel}>{a.label}</Text>
+                  </Animated.View>
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
 
-        {/* ── Active Ticket (when purchased) ── */}
-        {hasActiveTicket && (
-          <Animated.View entering={FadeInDown.delay(160).duration(400)} style={styles.ticketWrap}>
-            <LinearGradient
-              colors={['#FFAD3A', '#f97316']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.ticketCard}
-            >
-              <View style={styles.ticketTop}>
-                <View>
-                  <Text style={styles.ticketRouteLabel}>Circle → Madina</Text>
-                  <Text style={styles.ticketPlate}>GT 4821-14</Text>
-                </View>
-                <View style={styles.ticketQR}>
-                  <QrCode size={28} color="rgba(0,0,0,0.2)" />
-                </View>
+            {/* Active Pass */}
+            <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
+              <View style={s.passHeader}>
+                <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
+                <Text style={s.viewAll}>View All</Text>
               </View>
-              <View style={styles.ticketBottom}>
-                <View>
-                  <Text style={styles.ticketCodeLabel}>Trip Code</Text>
-                  <Text style={styles.ticketCode}>TRP-BA27</Text>
+              <LinearGradient
+                colors={['#FFAD3A', '#ff7e3a']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.passCard}
+              >
+                <View style={s.passTop}>
+                  <View>
+                    <View style={s.passLiveRow}>
+                      <View style={s.passLiveDot} />
+                      <Text style={s.passLiveText}>LIVE PASS</Text>
+                    </View>
+                    <Text style={s.passRoute}>Madina → Circle</Text>
+                  </View>
+                  <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
                 </View>
-                <View style={styles.ticketTimerWrap}>
-                  <Clock size={14} color="rgba(0,0,0,0.5)" />
-                  <Text style={styles.ticketTimer}>18 min</Text>
+                <View style={s.passBottom}>
+                  <View>
+                    <Text style={s.passFieldLabel}>EXPIRES</Text>
+                    <Text style={s.passFieldValue}>24 OCT 2026</Text>
+                  </View>
+                  <View style={s.passTripsLeft}>
+                    <Text style={s.passTripsText}>12 TRIPS LEFT</Text>
+                  </View>
                 </View>
+                {/* Decorative circle */}
+                <View style={s.passDecorCircle} />
+              </LinearGradient>
+            </Animated.View>
+
+            {/* Transactions */}
+            <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
+              <Text style={[s.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
+              {[
+                { icon: 'commute' as const, label: 'Metro Mass Transit', date: 'Today • 08:45 AM', amount: '-GHS 4.50', status: 'COMPLETED', amountColor: t.text },
+                { icon: 'account-balance' as const, label: 'Wallet Top-up', date: 'Yesterday • 06:12 PM', amount: '+GHS 200.00', status: 'MOMO PAY', amountColor: '#FFAD3A' },
+                { icon: 'local-mall' as const, label: 'Shell Station Deli', date: 'Oct 21 • 01:20 PM', amount: '-GHS 25.00', status: 'COMPLETED', amountColor: t.text },
+              ].map((tx, i) => (
+                <Animated.View key={tx.label} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
+                  <View style={[s.txRow, glass]}>
+                    <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : '#f5f5f4' }]}>
+                      <MaterialIcons name={tx.icon} size={20} color="#FFAD3A" />
+                    </View>
+                    <View style={s.txInfo}>
+                      <Text style={[s.txLabel, { color: t.text }]}>{tx.label}</Text>
+                      <Text style={s.txDate}>{tx.date}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[s.txAmount, { color: tx.amountColor }]}>{tx.amount}</Text>
+                      <Text style={s.txStatus}>{tx.status}</Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+            </Animated.View>
+          </>
+        ) : (
+          /* ── Empty State (Stitch Page 3 — "Your wallet is quiet") ── */
+          <Animated.View entering={FadeIn.delay(200).duration(500)} style={s.emptyContainer}>
+            {/* Glass wallet illustration */}
+            <View style={s.emptyIllustration}>
+              {/* Background glow */}
+              <View style={s.emptyGlow} />
+
+              {/* Central glass wallet */}
+              <View style={[s.emptyWalletBox, glass]}>
+                <MaterialIcons name="account-balance-wallet" size={56} color={isDark ? 'rgba(255,173,58,0.5)' : 'rgba(255,173,58,0.3)'} />
               </View>
-            </LinearGradient>
+
+              {/* Floating glass coins */}
+              <View style={[s.floatingCoin1, glass]}>
+                <MaterialIcons name="currency-exchange" size={18} color="rgba(255,173,58,0.4)" />
+              </View>
+              <View style={[s.floatingCoin2, glass]}>
+                <MaterialIcons name="payments" size={16} color="rgba(255,173,58,0.3)" />
+              </View>
+            </View>
+
+            {/* Text */}
+            <Text style={[s.emptyTitle, { color: t.text }]}>Your wallet is quiet.</Text>
+            <Text style={[s.emptySub, { color: isDark ? '#78716c' : '#a8a29e' }]}>
+              Start your journey by funding your{'\n'}account via MoMo. Secure transit{'\n'}payments at your fingertips.
+            </Text>
+
+            {/* CTA Buttons */}
+            <View style={s.emptyCTAs}>
+              <TouchableOpacity style={s.emptyPrimaryBtn} activeOpacity={0.85}>
+                <View style={s.emptyPrimaryInner}>
+                  <MaterialIcons name="add-circle" size={20} color="#000" />
+                  <Text style={s.emptyPrimaryText}>Add Money Now</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.emptySecondaryBtn, {
+                borderColor: isDark ? 'rgba(255,173,58,0.4)' : 'rgba(255,173,58,0.3)',
+              }]} activeOpacity={0.85}>
+                <Text style={s.emptySecondaryText}>Connect MoMo Account</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
-        {/* ── Transactions / Empty State ── */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.txSection}>
-          {hasTransactions ? (
-            <>
-              <View style={styles.txHeader}>
-                <Text style={[styles.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
-                <TouchableOpacity>
-                  <Text style={{ fontSize: 13, fontFamily: font.bold, color: c.amber500 }}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              {/* Transaction rows would go here */}
-            </>
-          ) : (
-            <View style={styles.emptyState}>
-              <View style={[styles.emptyIconWrap, {
-                backgroundColor: isDark ? 'rgba(255,173,58,0.08)' : 'rgba(255,173,58,0.05)',
-              }]}>
-                <Wallet size={36} color={isDark ? '#57534e' : '#d6d3d1'} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: t.text }]}>No transactions yet</Text>
-              <Text style={[styles.emptySub, { color: t.textSecondary }]}>
-                Start by adding money or buying{'\n'}your first ticket
-              </Text>
-              <TouchableOpacity style={styles.emptyBtn} activeOpacity={0.85}>
-                <LinearGradient
-                  colors={['#FFAD3A', '#f59e0b']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.emptyBtnGradient}
-                >
-                  <Plus size={16} color="#1c1917" strokeWidth={3} />
-                  <Text style={styles.emptyBtnText}>Add Money</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+        {/* ── Transactions (empty state) ── */}
+        {!hasTransactions && (
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} style={[s.section, { marginTop: 'auto' }]}>
+            <View style={s.txEmptyHeader}>
+              <Text style={[s.txEmptyLabel, { color: t.text }]}>RECENT TRANSACTIONS</Text>
+              <Text style={s.txEmptyViewAll}>VIEW ALL</Text>
             </View>
-          )}
-        </Animated.View>
-
-        {/* ── Promo Banner ── */}
-        <Animated.View entering={FadeInDown.delay(280).duration(400)} style={styles.promoWrap}>
-          <LinearGradient
-            colors={isDark ? ['#292524', '#1c1917'] : ['#1c1917', '#292524']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.promoCard}
-          >
-            <View style={styles.promoContent}>
-              <Text style={styles.promoTitle}>Go Cashless{'\n'}on Every Ride</Text>
-              <Text style={styles.promoSub}>Quick. Safe. Convenient.</Text>
-              <TouchableOpacity style={styles.promoBtn} activeOpacity={0.8}>
-                <Text style={styles.promoBtnText}>Learn More</Text>
-                <ChevronRight size={14} color="#1c1917" />
-              </TouchableOpacity>
+            <View style={[s.txEmptyBox, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
+              <MaterialIcons name="history" size={28} color={isDark ? '#44403c' : '#d6d3d1'} />
+              <Text style={s.txEmptyText}>NO TRANSACTIONS YET</Text>
             </View>
-            <Image
-              source={require('@/assets/images/new_troski_view.png')}
-              style={styles.promoImage}
-              resizeMode="contain"
-            />
-          </LinearGradient>
-        </Animated.View>
+          </Animated.View>
+        )}
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -204,263 +229,130 @@ export default function WalletScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1 },
+  section: { paddingHorizontal: 20, marginBottom: 20 },
 
-  // Header
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
-  headerTitle: {
-    fontSize: 26,
-    fontFamily: font.extrabold,
-    letterSpacing: -0.5,
-  },
+  headerTitle: { fontSize: 26, fontFamily: font.extrabold, letterSpacing: -0.5 },
 
-  // Balance
-  balanceWrap: { paddingHorizontal: 16 },
+  // Balance card
   balanceCard: {
-    borderRadius: 20,
-    padding: 22,
-    borderWidth: 1,
+    borderRadius: 16, padding: 24, alignItems: 'center', overflow: 'hidden',
   },
-  balanceLabel: {
-    fontSize: 13,
-    fontFamily: font.medium,
-    marginBottom: 6,
+  goldGlow: {
+    shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.05, shadowRadius: 20,
   },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 20,
+  balanceGlowOrb: {
+    position: 'absolute', top: -20, right: -20,
+    width: 120, height: 120, borderRadius: 60,
+    backgroundColor: 'rgba(255,173,58,0.08)',
   },
-  balanceCurrency: {
-    fontSize: 28,
-    fontFamily: font.extrabold,
-    marginRight: 4,
+  balanceLabelText: {
+    fontSize: 10, fontFamily: font.bold, color: '#78716c',
+    letterSpacing: 3, marginBottom: 8,
   },
-  balanceAmount: {
-    fontSize: 40,
-    fontFamily: font.extrabold,
-    letterSpacing: -1.5,
+  balanceAmountRow: { marginBottom: 16 },
+  balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -2 },
+  liveSyncBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(60,51,43,0.4)', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
   },
-  balanceBtns: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  balanceBtnPrimary: { flex: 1 },
-  balanceBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  balanceBtnPrimaryText: {
-    fontSize: 14,
-    fontFamily: font.bold,
-    color: '#1c1917',
-  },
-  balanceBtnSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  balanceBtnSecondaryText: {
-    fontSize: 14,
-    fontFamily: font.bold,
-  },
+  liveSyncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFAD3A' },
+  liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 1 },
 
   // Quick actions
-  quickRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 22,
-    paddingHorizontal: 16,
-  },
+  quickRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16 },
   quickItem: { alignItems: 'center' },
-  quickCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  quickLabel: {
-    fontSize: 11,
-    fontFamily: font.semibold,
-    textAlign: 'center',
-  },
+  quickCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
+  quickLabel: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, textAlign: 'center' },
 
-  // Ticket
-  ticketWrap: { paddingHorizontal: 16, marginBottom: 20 },
-  ticketCard: {
-    borderRadius: 16,
-    padding: 18,
-    gap: 14,
+  // Section
+  sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
+  viewAll: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 1 },
+  passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
+
+  // Active Pass
+  passCard: { borderRadius: 16, padding: 20, overflow: 'hidden', gap: 24 },
+  passTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  passLiveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  passLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  passLiveText: { fontSize: 10, fontFamily: font.bold, color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
+  passRoute: { fontSize: 22, fontFamily: font.extrabold, color: '#fff', letterSpacing: -0.5 },
+  passBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  passFieldLabel: { fontSize: 10, fontFamily: font.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginBottom: 4 },
+  passFieldValue: { fontSize: 15, fontFamily: font.bold, color: '#fff' },
+  passTripsLeft: {
+    backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  ticketTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  ticketRouteLabel: {
-    fontSize: 18,
-    fontFamily: font.extrabold,
-    color: '#1c1917',
-  },
-  ticketPlate: {
-    fontSize: 12,
-    fontFamily: font.semibold,
-    color: 'rgba(28,25,23,0.5)',
-    marginTop: 2,
-  },
-  ticketQR: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ticketBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ticketCodeLabel: {
-    fontSize: 10,
-    fontFamily: font.semibold,
-    color: 'rgba(28,25,23,0.4)',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  ticketCode: {
-    fontSize: 16,
-    fontFamily: font.extrabold,
-    color: '#1c1917',
-    letterSpacing: 1,
-  },
-  ticketTimerWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 99,
-  },
-  ticketTimer: {
-    fontSize: 13,
-    fontFamily: font.bold,
-    color: 'rgba(28,25,23,0.7)',
+  passTripsText: { fontSize: 10, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
+  passDecorCircle: {
+    position: 'absolute', left: -20, bottom: -20,
+    width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',
   },
 
   // Transactions
-  txSection: { paddingHorizontal: 16 },
-  txHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontFamily: font.bold,
-  },
+  txRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, marginBottom: 6 },
+  txIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  txInfo: { flex: 1 },
+  txLabel: { fontSize: 15, fontFamily: font.bold },
+  txDate: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
+  txAmount: { fontSize: 16, fontFamily: font.bold, letterSpacing: 0.5 },
+  txStatus: { fontSize: 9, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
 
   // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 36,
-    gap: 10,
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 20 },
+  emptyIllustration: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  emptyGlow: {
+    position: 'absolute', width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(255,173,58,0.06)',
   },
-  emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
+  emptyWalletBox: {
+    width: 100, height: 100, borderRadius: 20, justifyContent: 'center', alignItems: 'center',
   },
-  emptyTitle: {
-    fontSize: 17,
-    fontFamily: font.bold,
+  floatingCoin1: {
+    position: 'absolute', top: 10, right: 20, width: 44, height: 44,
+    borderRadius: 22, justifyContent: 'center', alignItems: 'center',
+    transform: [{ rotate: '12deg' }],
   },
-  emptySub: {
-    fontSize: 13,
-    fontFamily: font.regular,
-    textAlign: 'center',
-    lineHeight: 20,
+  floatingCoin2: {
+    position: 'absolute', bottom: 30, left: 20, width: 36, height: 36,
+    borderRadius: 18, justifyContent: 'center', alignItems: 'center',
+    transform: [{ rotate: '-12deg' }],
   },
-  emptyBtn: { marginTop: 12 },
-  emptyBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 12,
+  emptyTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 10 },
+  emptySub: { fontSize: 15, fontFamily: font.regular, textAlign: 'center', lineHeight: 22 },
+  emptyCTAs: { width: '100%', marginTop: 28, gap: 10 },
+  emptyPrimaryBtn: { width: '100%' },
+  emptyPrimaryInner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#FFAD3A', paddingVertical: 16, borderRadius: 14,
+    shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
   },
-  emptyBtnText: {
-    fontSize: 14,
-    fontFamily: font.bold,
-    color: '#1c1917',
+  emptyPrimaryText: { fontSize: 17, fontFamily: font.bold, color: '#000' },
+  emptySecondaryBtn: {
+    width: '100%', paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1, alignItems: 'center',
   },
+  emptySecondaryText: { fontSize: 12, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 2 },
 
-  // Promo
-  promoWrap: { paddingHorizontal: 16, marginTop: 20 },
-  promoCard: {
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
+  // Empty transactions
+  txEmptyHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 16,
   },
-  promoContent: { flex: 1 },
-  promoTitle: {
-    fontSize: 18,
-    fontFamily: font.extrabold,
-    color: '#ffffff',
-    lineHeight: 24,
+  txEmptyLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 2 },
+  txEmptyViewAll: { fontSize: 10, fontFamily: font.bold, color: '#57534e', letterSpacing: 1 },
+  txEmptyBox: {
+    borderWidth: 2, borderStyle: 'dashed', borderRadius: 16,
+    paddingVertical: 28, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  promoSub: {
-    fontSize: 12,
-    fontFamily: font.regular,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
-  },
-  promoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFAD3A',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginTop: 12,
-  },
-  promoBtnText: {
-    fontSize: 12,
-    fontFamily: font.bold,
-    color: '#1c1917',
-  },
-  promoImage: {
-    width: 90,
-    height: 90,
-    marginLeft: 8,
-  },
+  txEmptyText: { fontSize: 10, fontFamily: font.bold, color: '#57534e', letterSpacing: 3 },
 })
