@@ -736,6 +736,11 @@ export default function HomeScreen() {
             setPreviewRoute(null)
             bottomSheetRef.current?.snapToIndex(0)
           }
+          if (selectedVehicle) {
+            setSelectedVehicle(null)
+            setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
+            setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+          }
         }}
       >
         {/* Camera — defaultSettings for instant snap, followUserLocation only after map is idle */}
@@ -1755,7 +1760,7 @@ const getStyles = (isDark: boolean) => {
     // Vehicle info card
     vehicleCard: {
       position: 'absolute',
-      bottom: '20%',
+      bottom: 160,
       left: 16,
       right: 16,
       backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
