@@ -17,6 +17,7 @@ import { useColorScheme, Appearance } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { AppProvider, useApp } from '@/lib/contexts/AppContext'
+import { AuthProvider } from '@/lib/contexts/AuthContext'
 import { queryClient } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { usePreferences } from '@/lib/hooks/usePreferences'
@@ -138,6 +139,9 @@ function AppInner() {
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
         <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/phone" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="auth/verify" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen
           name="reel"
           options={{
@@ -185,7 +189,9 @@ export default function RootLayout() {
       <AppErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AppProvider>
-            <AppInner />
+            <AuthProvider>
+              <AppInner />
+            </AuthProvider>
           </AppProvider>
         </QueryClientProvider>
       </AppErrorBoundary>
