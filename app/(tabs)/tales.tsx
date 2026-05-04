@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
@@ -18,9 +18,24 @@ export default function WalletScreen() {
   const router = useRouter()
   const { isAuthenticated } = useAuthContext()
 
-  const balance = 0.00
-  const hasTransactions = false
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+  const { user } = useAuthContext()
+  const [balance, setBalance] = useState(0)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const hasTransactions = transactions.length > 0
   const hasActivePass = false
+
+  const fetchWallet = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      const data = await res.json()
+      if (data.balance != null) setBalance(data.balance)
+      if (data.transactions) setTransactions(data.transactions)
+    } catch {}
+  }, [user?.id])
+
+  useEffect(() => { fetchWallet() }, [fetchWallet])
 
   const handleAuthAction = () => {
     if (!isAuthenticated) {
@@ -36,7 +51,7 @@ export default function WalletScreen() {
   const onRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setRefreshing(true)
-    await new Promise(r => setTimeout(r, 1000))
+    await fetchWallet()
     setRefreshing(false)
   }
 
@@ -161,27 +176,31 @@ export default function WalletScreen() {
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
               <Text style={[s.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
-              {[
-                { icon: 'commute' as const, label: 'Metro Mass Transit', date: 'Today • 08:45 AM', amount: '-GHS 4.50', status: 'COMPLETED', amountColor: t.text },
-                { icon: 'account-balance' as const, label: 'Wallet Top-up', date: 'Yesterday • 06:12 PM', amount: '+GHS 200.00', status: 'MOMO PAY', amountColor: '#FFAD3A' },
-                { icon: 'local-mall' as const, label: 'Shell Station Deli', date: 'Oct 21 • 01:20 PM', amount: '-GHS 25.00', status: 'COMPLETED', amountColor: t.text },
-              ].map((tx, i) => (
-                <Animated.View key={tx.label} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
+              {transactions.slice(0, 5).map((tx: any, i: number) => {
+                const isTopup = tx.type === 'topup'
+                const icon = isTopup ? 'account-balance' as const : 'commute' as const
+                const amountStr = isTopup ? `+GHS ${Number(tx.amount).toFixed(2)}` : `-GHS ${Number(tx.amount).toFixed(2)}`
+                const amountColor = isTopup ? '#FFAD3A' : t.text
+                const statusLabel = tx.status === 'success' ? (isTopup ? 'MOMO PAY' : 'COMPLETED') : tx.status.toUpperCase()
+                const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                return (
+                <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
                   <View style={[s.txRow, glass]}>
                     <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : '#f5f5f4' }]}>
-                      <MaterialIcons name={tx.icon} size={20} color="#FFAD3A" />
+                      <MaterialIcons name={icon} size={20} color="#FFAD3A" />
                     </View>
                     <View style={s.txInfo}>
-                      <Text style={[s.txLabel, { color: t.text }]}>{tx.label}</Text>
-                      <Text style={s.txDate}>{tx.date}</Text>
+                      <Text style={[s.txLabel, { color: t.text }]}>{tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')}</Text>
+                      <Text style={s.txDate}>{date}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[s.txAmount, { color: tx.amountColor }]}>{tx.amount}</Text>
-                      <Text style={s.txStatus}>{tx.status}</Text>
+                      <Text style={[s.txAmount, { color: amountColor }]}>{amountStr}</Text>
+                      <Text style={s.txStatus}>{statusLabel}</Text>
                     </View>
                   </View>
                 </Animated.View>
-              ))}
+                )
+              })}
             </Animated.View>
           </>
         ) : (
