@@ -92,12 +92,14 @@ export default function WalletScreen() {
             {/* Amber blur glow */}
             <View style={s.balanceGlowOrb} />
 
-            {/* Coming Soon badge */}
-            <View style={s.comingSoonBadge}>
-              <Text style={s.comingSoonText}>COMING SOON</Text>
-            </View>
+            {/* Coming Soon badge — only when not funded */}
+            {!isAuthenticated && (
+              <View style={s.comingSoonBadge}>
+                <Text style={s.comingSoonText}>COMING SOON</Text>
+              </View>
+            )}
 
-            <Text style={s.balanceLabelText}>CURRENT BALANCE</Text>
+            <Text style={s.balanceLabelText}>TOTAL WALLET BALANCE</Text>
             <View style={s.balanceAmountRow}>
               <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
                 {balanceVisible
@@ -107,11 +109,31 @@ export default function WalletScreen() {
               </Text>
             </View>
 
-            {/* Live sync badge */}
-            <View style={s.liveSyncBadge}>
-              <View style={s.liveSyncDot} />
-              <Text style={s.liveSyncText}>LIVE SYNC READY</Text>
-            </View>
+            {/* Buttons — Add Money + Send */}
+            {isAuthenticated && (
+              <View style={s.balanceCardBtns}>
+                <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
+                  <View style={s.balanceCardBtnAmber}>
+                    <MaterialIcons name="add" size={18} color="#1c1917" />
+                    <Text style={s.balanceCardBtnPrimaryText}>Add Money</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.balanceCardBtnOutline, {
+                  borderColor: isDark ? 'rgba(255,173,58,0.3)' : 'rgba(255,173,58,0.2)',
+                }]} activeOpacity={0.85}>
+                  <MaterialIcons name="ios-share" size={18} color="#FFAD3A" />
+                  <Text style={[s.balanceCardBtnOutlineText, { color: '#FFAD3A' }]}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Live sync badge — only when not funded */}
+            {!isAuthenticated && (
+              <View style={s.liveSyncBadge}>
+                <View style={s.liveSyncDot} />
+                <Text style={s.liveSyncText}>LIVE SYNC READY</Text>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -201,6 +223,25 @@ export default function WalletScreen() {
                 </Animated.View>
                 )
               })}
+            </Animated.View>
+
+            {/* ── Promo Banner — "Go Cashless, Get 5% Back" ── */}
+            <Animated.View entering={FadeInDown.delay(320).duration(400)} style={s.section}>
+              <LinearGradient
+                colors={isDark ? ['#1c1917', '#292524'] : ['#292524', '#1c1917']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.promoCard}
+              >
+                <View style={s.promoOverlay} />
+                <View style={s.promoContent}>
+                  <View style={s.promoTagWrap}>
+                    <Text style={s.promoTag}>SPECIAL OFFER</Text>
+                  </View>
+                  <Text style={s.promoTitle}>Go Cashless, Get 5% Back</Text>
+                  <Text style={s.promoSub}>On all trotro rides this month.</Text>
+                </View>
+              </LinearGradient>
             </Animated.View>
           </>
         ) : (
@@ -305,6 +346,18 @@ const s = StyleSheet.create({
     fontSize: 10, fontFamily: font.bold, color: '#78716c',
     letterSpacing: 3, marginBottom: 8,
   },
+  balanceCardBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  balanceCardBtnPrimary: { flex: 1 },
+  balanceCardBtnAmber: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#FFAD3A', paddingVertical: 13, borderRadius: 12,
+  },
+  balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#1c1917' },
+  balanceCardBtnOutline: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 13, borderRadius: 12, borderWidth: 1,
+  },
+  balanceCardBtnOutlineText: { fontSize: 14, fontFamily: font.bold },
   balanceAmountRow: { marginBottom: 16 },
   balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -2 },
   liveSyncBadge: {
@@ -404,4 +457,16 @@ const s = StyleSheet.create({
     paddingVertical: 28, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   txEmptyText: { fontSize: 10, fontFamily: font.bold, color: '#57534e', letterSpacing: 3 },
+
+  // Promo banner
+  promoCard: { borderRadius: 16, padding: 20, minHeight: 140, justifyContent: 'center', overflow: 'hidden' },
+  promoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  promoContent: { gap: 6 },
+  promoTagWrap: {
+    backgroundColor: 'rgba(255,173,58,0.2)', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 4, alignSelf: 'flex-start', marginBottom: 4,
+  },
+  promoTag: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 2 },
+  promoTitle: { fontSize: 20, fontFamily: font.bold, color: '#ffffff', lineHeight: 26 },
+  promoSub: { fontSize: 10, fontFamily: font.bold, color: '#a8a29e', letterSpacing: 0.5 },
 })
