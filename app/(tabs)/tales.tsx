@@ -28,7 +28,9 @@ export default function WalletScreen() {
       router.push('/auth/phone' as Href)
       return
     }
-    // TODO: proceed with wallet action when Paystack is integrated
+    // Authenticated — show coming soon until Paystack is integrated
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    alert('MoMo funding coming soon! Your account is verified and ready.')
   }
 
   const onRefresh = async () => {
