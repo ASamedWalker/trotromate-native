@@ -142,6 +142,7 @@ function AppInner() {
         <Stack.Screen name="auth/phone" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="auth/verify" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="wallet/fund" options={{ headerShown: false }} />
         <Stack.Screen
           name="reel"
           options={{
