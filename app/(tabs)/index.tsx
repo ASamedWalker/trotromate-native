@@ -52,6 +52,7 @@ import { StopRoutesPanel } from '@/components/StopRoutesPanel'
 import LiveVehicleLayer from '@/components/LiveVehicleLayer'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import type { VehiclePosition } from '@/lib/services/vehicle-positions'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { fetchRoutesByIds } from '@/lib/services/routes'
 import type { RouteWithStats } from '@/lib/types'
 
@@ -290,6 +291,7 @@ export default function HomeScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { profile, deviceId } = useApp()
+  const { user: authUser, isAuthenticated: isAuthed } = useAuthContext()
   // popularRoutes removed — not used in new layout
   useRefreshOnFocus([['routes', 'popular'], ['profile']])
 
@@ -1253,7 +1255,49 @@ export default function HomeScreen() {
               <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
             </View>
           </View>
-          <TouchableOpacity style={s.vehicleCardCTA} activeOpacity={0.8}>
+          <TouchableOpacity style={s.vehicleCardCTA} activeOpacity={0.8} onPress={async () => {
+            if (!selectedVehicle) return
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+            try {
+              if (!isAuthed || !authUser?.id) {
+                router.push('/auth/phone' as any)
+                return
+              }
+              const userId = authUser.id
+              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+              const res = await fetch(`${API_URL}/api/tickets/purchase`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  auth_user_id: userId,
+                  route_label: selectedVehicle.routeLabel || 'Trotro Ride',
+                  van_plate: selectedVehicle.plateNumber,
+                  fare: 8,
+                }),
+              })
+              const data = await res.json()
+              if (data.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                setSelectedVehicle(null)
+                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
+                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+                router.push({
+                  pathname: '/ticket/paid',
+                  params: {
+                    route: data.ticket.route_label,
+                    plate: data.ticket.van_plate,
+                    fare: String(data.ticket.fare),
+                    tripCode: data.ticket.trip_code,
+                    expiresAt: data.ticket.expires_at,
+                  },
+                } as any)
+              } else {
+                alert(data.error || 'Purchase failed')
+              }
+            } catch (err) {
+              alert('Network error. Please try again.')
+            }
+          }}>
             <Text style={s.vehicleCardCTAText}>🎫 Buy Ticket · GH₵ 8.00</Text>
           </TouchableOpacity>
         </View>
