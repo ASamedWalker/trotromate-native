@@ -115,7 +115,7 @@ export default function WalletScreen() {
           </View>
         </Animated.View>
 
-        {hasActivePass ? (
+        {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
           /* ── Active Pass + Quick Actions + Transactions (funded state) ── */
           <>
             {/* Quick actions */}
