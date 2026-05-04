@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
@@ -36,6 +37,14 @@ export default function WalletScreen() {
   }, [user?.id])
 
   useEffect(() => { fetchWallet() }, [fetchWallet])
+
+  // Refetch when returning from fund screen
+  useFocusEffect(useCallback(() => { fetchWallet() }, [fetchWallet]))
+
+  const comingSoon = (feature: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    alert(`${feature} coming soon!`)
+  }
 
   const handleAuthAction = () => {
     if (!isAuthenticated) {
@@ -120,7 +129,7 @@ export default function WalletScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.balanceCardBtnOutline, {
                   borderColor: isDark ? 'rgba(255,173,58,0.3)' : 'rgba(255,173,58,0.2)',
-                }]} activeOpacity={0.85}>
+                }]} activeOpacity={0.85} onPress={() => comingSoon('Send')}>
                   <MaterialIcons name="ios-share" size={18} color="#FFAD3A" />
                   <Text style={[s.balanceCardBtnOutlineText, { color: '#FFAD3A' }]}>Send</Text>
                 </TouchableOpacity>
@@ -148,7 +157,7 @@ export default function WalletScreen() {
                 { name: 'electric-bolt' as const, label: 'Bills' },
                 { name: 'more-horiz' as const, label: 'More' },
               ].map((a, i) => (
-                <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7}>
+                <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7} onPress={() => comingSoon(a.label)}>
                   <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
                     <View style={[s.quickCircle, glass]}>
                       <MaterialIcons name={a.name} size={24} color="#FFAD3A" />
