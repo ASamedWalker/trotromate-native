@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, StatusBar } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { View, Text, StyleSheet, StatusBar, TouchableOpacity } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { X } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import QRCode from 'react-native-qrcode-svg'
 import { Wallet, Clock, Shield } from 'lucide-react-native'
@@ -83,9 +84,10 @@ export default function PaidTicketScreen() {
 
   // Confetti + haptic on mount
   const confettiRef = useRef<any>(null)
+  const router = useRouter()
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    setTimeout(() => confettiRef.current?.start(), 300)
+    setTimeout(() => confettiRef.current?.start(), 800)
   }, [])
 
   const currentColors = GRADIENT_COLORS[gradientIdx]
@@ -117,6 +119,15 @@ export default function PaidTicketScreen() {
       <View style={s.watermark}>
         <Wallet size={200} color="rgba(255,255,255,0.04)" />
       </View>
+
+      {/* ── Close button ── */}
+      <TouchableOpacity
+        style={s.closeBtn}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back() }}
+        activeOpacity={0.7}
+      >
+        <X size={22} color="rgba(255,255,255,0.7)" />
+      </TouchableOpacity>
 
       {/* ── Content ── */}
       <View style={s.content}>
@@ -183,12 +194,12 @@ export default function PaidTicketScreen() {
       {/* Confetti */}
       <ConfettiCannon
         ref={confettiRef}
-        count={80}
+        count={60}
         origin={{ x: -10, y: 0 }}
         fadeOut
         autoStart={false}
-        explosionSpeed={300}
-        fallSpeed={2500}
+        explosionSpeed={200}
+        fallSpeed={4000}
       />
     </View>
   )
@@ -197,6 +208,18 @@ export default function PaidTicketScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 56,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
   },
   watermark: {
     position: 'absolute',
