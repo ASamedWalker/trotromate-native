@@ -326,6 +326,7 @@ export default function HomeScreen() {
   const [destMarkerGeoJSON, setDestMarkerGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
   const [vehicleETA, setVehicleETA] = useState<string>('--')
   const [vehicleDist, setVehicleDist] = useState<string>('--')
+  const [buyingTicket, setBuyingTicket] = useState(false)
 
   // pulseSourceRef + pulseTickRef removed — old station pulse system
 
@@ -1255,50 +1256,48 @@ export default function HomeScreen() {
               <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
             </View>
           </View>
-          <TouchableOpacity style={s.vehicleCardCTA} activeOpacity={0.8} onPress={async () => {
-            if (!selectedVehicle) return
+          <TouchableOpacity style={[s.vehicleCardCTA, buyingTicket && { opacity: 0.6 }]} activeOpacity={0.8} disabled={buyingTicket} onPress={() => {
+            if (!selectedVehicle || buyingTicket) return
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-            try {
-              if (!isAuthed || !authUser?.id) {
-                router.push('/auth/phone' as any)
-                return
-              }
-              const userId = authUser.id
-              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-              const res = await fetch(`${API_URL}/api/tickets/purchase`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  auth_user_id: userId,
-                  route_label: selectedVehicle.routeLabel || 'Trotro Ride',
-                  van_plate: selectedVehicle.plateNumber,
-                  fare: 8,
-                }),
-              })
-              const data = await res.json()
-              if (data.success) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-                setSelectedVehicle(null)
-                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
-                router.push({
-                  pathname: '/ticket/paid',
-                  params: {
-                    route: data.ticket.route_label,
-                    plate: data.ticket.van_plate,
-                    fare: String(data.ticket.fare),
-                    tripCode: data.ticket.trip_code,
-                    expiresAt: data.ticket.expires_at,
-                  },
-                } as any)
-              } else {
-                alert(data.error || 'Purchase failed')
-              }
-            } catch (err) {
-              alert('Network error. Please try again.')
+
+            if (!isAuthed || !authUser?.id) {
+              router.push('/auth/phone' as any)
+              return
             }
+
+            // Optimistic — navigate immediately, purchase in background
+            setBuyingTicket(true)
+            const routeLabel = selectedVehicle.routeLabel || 'Trotro Ride'
+            const plate = selectedVehicle.plateNumber
+            const fare = 8
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+            const part = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+            const tripCode = `TRO-${part(4)}-${part(4)}`
+            const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+
+            // Navigate to PAID screen instantly
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+            setSelectedVehicle(null)
+            setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
+            setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+            router.push({
+              pathname: '/ticket/paid',
+              params: { route: routeLabel, plate, fare: String(fare), tripCode, expiresAt },
+            } as any)
+
+            // Purchase in background
+            const userId = authUser.id
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+            fetch(`${API_URL}/api/tickets/purchase`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ auth_user_id: userId, route_label: routeLabel, van_plate: plate, fare }),
+            }).then(r => r.json()).then(data => {
+              setBuyingTicket(false)
+              if (!data.success) console.warn('[buy-ticket] Background purchase failed:', data.error)
+            }).catch(() => { setBuyingTicket(false) })
           }}>
-            <Text style={s.vehicleCardCTAText}>🎫 Buy Ticket · GH₵ 8.00</Text>
+            <Text style={s.vehicleCardCTAText}>{buyingTicket ? '⏳ Processing...' : '🎫 Buy Ticket · GH₵ 8.00'}</Text>
           </TouchableOpacity>
         </View>
       )}
