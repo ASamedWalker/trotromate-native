@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, Search, Home, Briefcase } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
@@ -21,6 +21,14 @@ const MAP_STYLE_DARK = 'mapbox://styles/mapbox/dark-v11'
 
 export default function BookingScreen() {
   const router = useRouter()
+  const deepParams = useLocalSearchParams<{ from?: string; to?: string }>()
+
+  // If deep link has from/to, go straight to trip screen
+  useEffect(() => {
+    if (deepParams.from || deepParams.to) {
+      router.push({ pathname: '/booking/trip', params: { from: deepParams.from, to: deepParams.to } } as any)
+    }
+  }, [deepParams.from, deepParams.to])
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
   const bottomSheetRef = useRef<BottomSheet>(null)

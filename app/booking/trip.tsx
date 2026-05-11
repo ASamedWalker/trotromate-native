@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, MapPin, Plus, CircleDot, Home, Briefcase, Locate } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { useLocation } from '@/lib/hooks/useLocation'
@@ -25,6 +25,7 @@ export default function TripScreen() {
   const isDark = useColorScheme() === 'dark'
   const { user: authUser } = useAuthContext()
   const { location } = useLocation()
+  const params = useLocalSearchParams<{ from?: string; to?: string }>()
   const [locationName, setLocationName] = useState('Fetching location...')
   const stopsSheetRef = useRef<BottomSheet>(null)
 
@@ -38,9 +39,9 @@ export default function TripScreen() {
       .catch(() => setLocationName('Accra, GH'))
   }, [location?.latitude])
 
-  const [pickup, setPickup] = useState('')
-  const [dropoff, setDropoff] = useState('')
-  const [activeInput, setActiveInput] = useState<'pickup' | 'dropoff' | null>('pickup')
+  const [pickup, setPickup] = useState(params.from || '')
+  const [dropoff, setDropoff] = useState(params.to || '')
+  const [activeInput, setActiveInput] = useState<'pickup' | 'dropoff' | null>(params.from ? 'dropoff' : 'pickup')
 
   const [stop1, setStop1] = useState('')
   const [stop2, setStop2] = useState('')
@@ -52,10 +53,18 @@ export default function TripScreen() {
   const [addressInput, setAddressInput] = useState('')
   const [addressSuggestions, setAddressSuggestions] = useState<{ text: string; place_name: string }[]>([])
 
-  // Navigate to confirm — only called explicitly when dropoff is selected from suggestions
   const goToConfirm = (p: string, d: string) => {
     router.push({ pathname: '/booking/confirm', params: { pickup: p, dropoff: d } } as any)
   }
+
+  // If both params from deep link, auto-navigate
+  const navigatedRef = useRef(false)
+  React.useEffect(() => {
+    if (params.from && params.to && !navigatedRef.current) {
+      navigatedRef.current = true
+      setTimeout(() => goToConfirm(params.from!, params.to!), 500)
+    }
+  }, [params.from, params.to])
 
   // Load saved addresses on mount
   React.useEffect(() => {
