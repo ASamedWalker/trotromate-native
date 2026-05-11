@@ -141,6 +141,10 @@ function AppInner() {
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
         <Stack.Screen name="auth/phone" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="auth/verify" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="booking/index" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/choose" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/trip" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="booking/confirm" options={{ headerShown: false }} />
         <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="wallet/fund" options={{ headerShown: false }} />
         <Stack.Screen

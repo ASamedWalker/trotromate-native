@@ -35,6 +35,8 @@ const SOURCE_COLORS: Record<string, string> = {
   MMTL: '#f59e0b',
   MOT: '#6366f1',
   TROSKI: '#f59e0b',
+  TECH: '#06b6d4',
+  GLOBAL: '#ec4899',
 }
 
 export async function fetchNotifications(

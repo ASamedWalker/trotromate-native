@@ -1,1632 +1,463 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import React, { useMemo, useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  ScrollView,
   useColorScheme,
   StyleSheet,
+  Pressable,
+  Alert,
   Platform,
-  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
-import { useRouter, type Href } from 'expo-router'
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
-import Mapbox from '@rnmapbox/maps'
+import { useRouter } from 'expo-router'
 import {
-  Search,
-  Navigation,
-  Locate,
-  BusFront,
+  Bus, Bike, Utensils, Zap, Calendar, Package, ReceiptText, Plus,
+  MapPin, ChevronRight, ChevronDown, Search, Navigation, Calculator,
+  Bell,
 } from 'lucide-react-native'
-import { c, font, themed } from '@/lib/theme'
-// usePopularRoutes removed — not used in new layout
+import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
-import HappeningNow from '@/components/HappeningNow'
-import { SmartCommuteCard } from '@/components/SmartCommuteCard'
-// NearbyLines, ServiceModePills removed — replaced by Live Trotros + Train tab
-import ReportFAB from '@/components/ReportFAB'
-import OfflineBanner from '@/components/OfflineBanner'
-import InitialsAvatar from '@/components/InitialsAvatar'
-// ServiceModePills removed — Train has its own tab
-import { UnifiedSearch } from '@/components/UnifiedSearch'
-import { useTrip } from '@/lib/hooks/useTrip'
-import { useStations } from '@/lib/hooks/useStations'
 import { useLocation } from '@/lib/hooks/useLocation'
-import { getStationCoords } from '@/lib/utils/station-coords'
-import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
-import { getWaitEstimate } from '@/lib/services/stations'
-import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
-import { getGhanaTime } from '@/lib/utils/time'
-import { useActiveIncidents } from '@/lib/hooks/useActiveIncidents'
-import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
-import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
-import { type StationPinType } from '@/components/StationMapPin'
-import { useQuery } from '@tanstack/react-query'
-import { X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
-import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
-import { useTransportStops } from '@/lib/hooks/useTransportStops'
-import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
-import { StopRoutesPanel } from '@/components/StopRoutesPanel'
-import LiveVehicleLayer from '@/components/LiveVehicleLayer'
-import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
-import type { VehiclePosition } from '@/lib/services/vehicle-positions'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
-import { fetchRoutesByIds } from '@/lib/services/routes'
-import type { RouteWithStats } from '@/lib/types'
+import InitialsAvatar from '@/components/InitialsAvatar'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
+import type { LucideIcon } from 'lucide-react-native'
 
-// Mapbox token set centrally in _layout.tsx
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+const GREEN = '#08b64f'
+const DARK_GREEN = '#087d3c'
+const ORANGE = '#ff9400'
 
-const ROUTE_DESTINATIONS: Record<string, { lat: number; lng: number; name: string }> = {
-  'Circle → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
-  'Kasoa → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
-  'Madina → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
-  'Achimota → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Tema → Accra': { lat: 5.5502, lng: -0.2174, name: 'Accra Central' },
-  'Lapaz → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Nima → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
-  'Adenta → Madina': { lat: 5.6697, lng: -0.1662, name: 'Madina' },
-  'Dansoman → Kaneshie': { lat: 5.5508, lng: -0.2377, name: 'Kaneshie' },
-  'Osu → Circle': { lat: 5.5702, lng: -0.2167, name: 'Circle' },
+/* ── Services ── */
+
+interface ServiceAction { id: string; label: string; desc: string; icon: LucideIcon }
+interface Service {
+  id: string; label: string; icon: LucideIcon; iconColor: string
+  cta: string; actions: ServiceAction[]; comingSoon?: boolean; route?: string
 }
 
-/* ── Constants ─────────────────────────────────────── */
-
-const ACCRA_CENTER: [number, number] = [-0.187, 5.6037]
-
-// Pre-compute train station names for map layer filtering
-const TRAIN_STATION_NAMES = new Set(
-  Object.values(TRAIN_SCHEDULES)
-    .flatMap((scheds) => scheds.flatMap((s) => s.stops.map((st) => st.station.toLowerCase()))),
-)
-
-/* ── Animated search placeholder ───────────────────── */
-
-const SEARCH_HINTS = [
-  'Where are you going?',
-  'Try "Circle to Kasoa"',
-  'Search for a trotro route',
-  'Try "Tema to Accra"',
-  'Find a train near you',
-  'Try "Madina to Legon"',
+const SERVICES: Service[] = [
+  {
+    id: 'troski', label: 'Troski', icon: Bus, iconColor: DARK_GREEN, cta: 'Start Booking', route: '/booking',
+    actions: [
+      { id: 'find-route', label: 'Find a route', desc: 'Search trotro routes across Accra', icon: Search },
+      { id: 'book-trotro', label: 'Book trotro', desc: 'Reserve your seat before you arrive', icon: Calendar },
+      { id: 'live-vehicles', label: 'View live vehicles', desc: 'See active vehicles near your station', icon: Navigation },
+    ],
+  },
+  {
+    id: 'okada', label: 'Okada', icon: Bike, iconColor: DARK_GREEN, cta: 'Find Okada',
+    actions: [
+      { id: 'request-rider', label: 'Request nearby rider', desc: "We'll find a rider close to you", icon: Navigation },
+      { id: 'set-pickup', label: 'Set pickup', desc: 'Choose your pickup location', icon: MapPin },
+      { id: 'estimate-fare', label: 'Estimate fare', desc: 'See price estimate before you ride', icon: Calculator },
+    ],
+  },
+  {
+    id: 'food', label: 'Food', icon: Utensils, iconColor: ORANGE, cta: 'Order Food', comingSoon: true,
+    actions: [{ id: 'nearby-food', label: 'Nearby restaurants', desc: 'Find local food vendors', icon: Search }],
+  },
+  {
+    id: 'ev-charge', label: 'EV Charge', icon: Zap, iconColor: GREEN, cta: 'View Stations', comingSoon: true,
+    actions: [{ id: 'nearby-stations', label: 'Nearby stations', desc: 'Find EV stations nearby', icon: MapPin }],
+  },
+  {
+    id: 'booking', label: 'Booking', icon: Calendar, iconColor: ORANGE, cta: 'Book Trip', comingSoon: true,
+    actions: [{ id: 'find-trip', label: 'Find intercity trip', desc: 'Search buses between cities', icon: Search }],
+  },
+  {
+    id: 'courier', label: 'Courier', icon: Package, iconColor: DARK_GREEN, cta: 'Send Package', comingSoon: true,
+    actions: [{ id: 'send-package', label: 'Send package', desc: 'Request pickup for a parcel', icon: Package }],
+  },
+  {
+    id: 'bills', label: 'Bills', icon: ReceiptText, iconColor: DARK_GREEN, cta: 'Pay Bill', comingSoon: true,
+    actions: [{ id: 'pay-electricity', label: 'Pay electricity', desc: 'Buy prepaid power', icon: Zap }],
+  },
+  {
+    id: 'more', label: 'More', icon: Plus, iconColor: '#777', cta: 'Explore More',
+    actions: [{ id: 'view-all', label: 'View all services', desc: 'See everything on Troski', icon: Plus }],
+  },
 ]
 
-function AnimatedPlaceholder({ style }: { style: any }) {
-  const [index, setIndex] = useState(0)
-  const fadeAnim = useRef(new Animated.Value(1)).current
-  const slideAnim = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Fade out + slide up
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: -8, duration: 200, useNativeDriver: true }),
-      ]).start(() => {
-        setIndex((i) => (i + 1) % SEARCH_HINTS.length)
-        slideAnim.setValue(8)
-        // Fade in + slide down into place
-        Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-          Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-        ]).start()
-      })
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <Animated.Text
-      style={[style, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-    >
-      {SEARCH_HINTS[index]}
-    </Animated.Text>
-  )
-}
-
-/* ── Route Preview Card (Phase 4 — search → map preview) ── */
-
-function RoutePreviewCard({ routeId, from, to, onClose }: {
-  routeId: string
-  from: string
-  to: string
-  onClose: () => void
-}) {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
-  const router = useRouter()
-
-  const { data: routes = [], isLoading } = useQuery<RouteWithStats[]>({
-    queryKey: ['preview-route', routeId],
-    queryFn: () => fetchRoutesByIds([routeId]),
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const route = routes[0]
-  const fare = route?.fare_stats?.avg_reported_fare
-
-  return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-          <View style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            backgroundColor: '#22c55e',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <RouteIcon size={18} color="#fff" strokeWidth={2.5} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{
-              fontSize: 16,
-              fontFamily: font.bold,
-              color: t.text,
-            }} numberOfLines={1}>
-              {from} → {to}
-            </Text>
-            <Text style={{
-              fontSize: 12,
-              fontFamily: font.regular,
-              color: t.textSecondary,
-              marginTop: 1,
-            }}>
-              Route preview
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{
-          width: 32,
-          height: 32,
-          borderRadius: 16,
-          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <X size={16} color={isDark ? c.stone400 : c.stone500} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Route info card */}
-      {isLoading ? (
-        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-          <Text style={{ fontSize: 13, fontFamily: font.medium, color: t.textSecondary }}>Loading route info...</Text>
-        </View>
-      ) : route ? (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => router.push(`/routes/${routeId}` as Href)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 14,
-            borderRadius: 14,
-            backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.05)',
-            borderWidth: 1,
-            borderColor: isDark ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.1)',
-            gap: 12,
-          }}
-        >
-          {/* Accent bar */}
-          <View style={{
-            width: 3,
-            height: 40,
-            borderRadius: 2,
-            backgroundColor: '#22c55e',
-          }} />
-
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {fare != null && (
-                <Text style={{
-                  fontSize: 18,
-                  fontFamily: font.bold,
-                  color: '#22c55e',
-                }}>
-                  {'\u20B5'}{fare.toFixed(2)}
-                </Text>
-              )}
-              {route.is_gprtu_verified && (
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 3,
-                  backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : 'rgba(22,163,74,0.1)',
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 6,
-                }}>
-                  <ShieldCheck size={11} color="#16a34a" />
-                  <Text style={{ fontSize: 10, fontFamily: font.bold, color: '#16a34a' }}>GPRTU</Text>
-                </View>
-              )}
-            </View>
-            {route.via && (
-              <Text style={{
-                fontSize: 12,
-                fontFamily: font.regular,
-                color: t.textSecondary,
-                marginTop: 2,
-              }} numberOfLines={1}>
-                via {route.via}
-              </Text>
-            )}
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 13, fontFamily: font.semibold, color: '#22c55e' }}>Details</Text>
-            <ChevronRight size={16} color="#22c55e" />
-          </View>
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  )
-}
-
-/* ── Helpers ───────────────────────────────────────── */
-
-function getGreeting(): string {
-  const { hours, minutes } = getGhanaTime()
-  const h = hours % 12 || 12
-  const ampm = hours < 12 ? 'AM' : 'PM'
-  const mm = minutes.toString().padStart(2, '0')
-  const period = hours < 12 ? 'Good morning' : hours < 17 ? 'Good afternoon' : 'Good evening'
-  return `${period} · ${h}:${mm} ${ampm}`
-}
-
-/** Mapbox light style URL */
-const MAP_STYLE_LIGHT = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
-
-/* ── Component ─────────────────────────────────────── */
+/* ── Component ── */
 
 export default function HomeScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  // mapStyle + isNightMap removed — always light map
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const { profile } = useApp()
+  const { user: authUser, isAuthenticated } = useAuthContext()
 
-  const { profile, deviceId } = useApp()
-  const { user: authUser, isAuthenticated: isAuthed } = useAuthContext()
-  // popularRoutes removed — not used in new layout
-  useRefreshOnFocus([['routes', 'popular'], ['profile']])
+  // Wallet balance
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  React.useEffect(() => {
+    if (!authUser?.id) return
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+    fetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
+      .then(r => r.json())
+      .then(data => { if (data.balance != null) setWalletBalance(data.balance) })
+      .catch(() => {})
+  }, [authUser?.id])
 
-  const { tripState, activeTrip, endTrip } = useTrip()
-  const { stations } = useStations()
-  const { location, isPermissionGranted: locationGranted, requestPermission: requestLocationPermission } = useLocation()
-  const { incidents } = useActiveIncidents()
-  const {
-    getRoutesForStop,
-    getRouteLineGeoJSON,
-    getRouteStopsGeoJSON,
-  } = useNearbyRouteStops(location?.latitude ?? null, location?.longitude ?? null)
-  const { geojson: osmStopsGeoJSON } = useTransportStops()
-  const { geojson: railwayLinesGeoJSON } = useRailwayLines()
-  const { vehicles: liveVehicles, activeCount: liveVehicleCount } = useVehiclePositions()
-  const greeting = getGreeting()
-  const cameraRef = useRef<Mapbox.Camera>(null)
-  const bottomSheetRef = useRef<BottomSheet>(null)
-  // serviceMode removed — Train has own tab
-  const [searchVisible, setSearchVisible] = useState(false)
-  const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null)
-  const [selectedStop, setSelectedStop] = useState<NearbyStop | null>(null)
-  const [previewRoute, setPreviewRoute] = useState<{ id: string; from: string; to: string } | null>(null)
-  const zoomRef = useRef(13)
-  // showAllPins removed — old station pin system
-  const [mapIdle, setMapIdle] = useState(false)
-  const [mountMap, setMountMap] = useState(false)
-  const [liveBadgeExpanded, setLiveBadgeExpanded] = useState(false)
-  const [liveBadgeDismissed, setLiveBadgeDismissed] = useState(false)
-  const [selectedVehicle, setSelectedVehicle] = useState<VehiclePosition | null>(null)
-  const [routeLineGeoJSON, setRouteLineGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
-  const [destMarkerGeoJSON, setDestMarkerGeoJSON] = useState<any>({ type: 'FeatureCollection', features: [] })
-  const [vehicleETA, setVehicleETA] = useState<string>('--')
-  const [vehicleDist, setVehicleDist] = useState<string>('--')
-  const [buyingTicket, setBuyingTicket] = useState(false)
+  const { location } = useLocation()
+  const [locationName, setLocationName] = useState('Accra, GH')
 
-  // pulseSourceRef + pulseTickRef removed — old station pulse system
-
-  // Delay MapView mount slightly so placeholder paints first — prevents green flash
-  useEffect(() => {
-    if (location && !mountMap) {
-      const timer = setTimeout(() => setMountMap(true), 50)
-      return () => clearTimeout(timer)
-    }
-  }, [location, mountMap])
-
-  // Auto-request location permission on mount if not yet granted
-  useEffect(() => {
-    if (!locationGranted) {
-      requestLocationPermission()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Manual camera follow — avoids Mapbox native followUserLocation which causes globe spin.
-  // Camera moves to user location via setCamera with controlled animation.
-  const [followUser, setFollowUser] = useState(true)
-  const center: [number, number] = location
-    ? [location.longitude, location.latitude]
-    : ACCRA_CENTER
-
-  const hasSetInitialCamera = useRef(false)
-  useEffect(() => {
-    if (!location || !followUser || !cameraRef.current) return
-    const isFirst = !hasSetInitialCamera.current
-    hasSetInitialCamera.current = true
-    cameraRef.current.setCamera({
-      centerCoordinate: [location.longitude, location.latitude],
-      zoomLevel: 15,
-      animationDuration: isFirst ? 0 : 1000,
-    })
-  }, [location, followUser])
-
-  // GeoJSON for incident markers — offset slightly so they don't hide behind station MarkerViews
-  const incidentGeojson = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: incidents.map((inc) => ({
-      type: 'Feature' as const,
-      id: inc.id,
-      geometry: {
-        type: 'Point' as const,
-        // Offset ~80m north-east so incident dot sits beside the station pin, not under it
-        coordinates: [inc.longitude + 0.0005, inc.latitude + 0.0005],
-      },
-      properties: {
-        id: inc.id,
-        incident_type: inc.incident_type,
-        location_name: inc.location_name,
-        reported_at: inc.reported_at,
-      },
-    })),
-  }), [incidents])
-
-  // All stations with valid coordinates — Mapcarta-style pins
-  const stationPins = useMemo(() => {
-    return stations
-      .map((station) => {
-        const coords = getStationCoords(station)
-        if (!coords) return null
-        const stat = station.queue_stats?.[0]
-        const waitText = stat ? getWaitEstimate(stat) : ''
-        const isTrain = TRAIN_STATION_NAMES.has(station.name.toLowerCase())
-        const hasQueue = !!stat
-
-        let pinType: StationPinType = 'trotro'
-        if (isTrain) pinType = 'train'
-        else if (hasQueue) pinType = 'queue'
-        else if (station.is_major) pinType = 'major'
-
-        return {
-          id: station.id,
-          name: station.name,
-          coordinate: [coords.longitude, coords.latitude] as [number, number],
-          pinType,
-          waitText,
-          queueStatus: stat?.current_status,
-          lastReportAt: stat?.last_report_at,
-          reportCount: stat?.report_count_last_hour ?? 0,
+  // Reverse geocode user location
+  React.useEffect(() => {
+    if (!location) return
+    const fetchName = async () => {
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?types=place,locality&limit=1&access_token=pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg`
+        )
+        const data = await res.json()
+        if (data.features?.[0]) {
+          const place = data.features[0].text
+          const country = data.features[0].context?.find((c: any) => c.id?.startsWith('country'))?.short_code?.toUpperCase() || 'GH'
+          setLocationName(`${place}, ${country}`)
         }
-      })
-      .filter(Boolean) as Array<{
-        id: string
-        name: string
-        coordinate: [number, number]
-        pinType: StationPinType
-        waitText: string
-        queueStatus?: string
-        lastReportAt?: string
-        reportCount: number
-      }>
-  }, [stations])
+      } catch {}
+    }
+    fetchName()
+  }, [location?.latitude, location?.longitude])
 
-  // Active stations with queue data (for pulse animation + Watch sync)
-  const activeQueueStations = useMemo(() =>
-    stationPins.filter((p) => p.queueStatus && p.queueStatus !== ''),
-    [stationPins]
-  )
+  const sheetRef = useRef<BottomSheet>(null)
+  const [activeSvc, setActiveSvc] = useState<Service | null>(null)
 
-  // Sync active stations to Apple Watch
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || activeQueueStations.length === 0) return
-    import('@/lib/watchSync').then(({ syncStationsToWatch, sendAlertToWatch }) => {
-      syncStationsToWatch(activeQueueStations.map((s) => ({
-        name: s.name,
-        queueStatus: (s.queueStatus === 'very_long' ? 'veryLong' : s.queueStatus) as any,
-        waitTime: s.waitText || '',
-        fare: 0,
-      })))
-      // Send alert for very_long stations
-      const critical = activeQueueStations.find((s) => s.queueStatus === 'very_long')
-      if (critical) {
-        const alternative = activeQueueStations.find((s) => s.queueStatus === 'short' || s.queueStatus === 'moderate')
-        sendAlertToWatch({
-          station: critical.name,
-          queueStatus: 'veryLong',
-          alternative: alternative?.name ?? 'a nearby station',
-        })
-      }
-    })
-  }, [activeQueueStations])
-
-  // Train route polylines (TMA = blue, TMP = sky)
-  const trainLinesGeojson = useMemo(() => {
-    const features = Object.entries(TRAIN_SCHEDULES).map(([lineId, schedules]) => {
-      const sch = schedules[0]
-      if (!sch) return null
-      const coordinates = sch.stops
-        .map((stop) => {
-          const key = stop.station
-          const coords = FALLBACK_STATION_COORDS[key]
-          if (!coords) return null
-          return [coords.longitude, coords.latitude]
-        })
-        .filter(Boolean) as [number, number][]
-      if (coordinates.length < 2) return null
-      return {
-        type: 'Feature' as const,
-        geometry: { type: 'LineString' as const, coordinates },
-        properties: { lineId, color: '#0ea5e9' },
-      }
-    }).filter(Boolean)
-    return { type: 'FeatureCollection' as const, features }
+  const onTapService = useCallback((svc: Service) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`, [{ text: 'OK' }]); return }
+    setActiveSvc(svc)
+    sheetRef.current?.snapToIndex(0)
   }, [])
 
-
-  const activeQueueCount = stations.filter(
-    (st) => st.queue_stats?.[0]?.current_status,
-  ).length
-
-  // Bottom sheet snap points
-  const snapPoints = useMemo(() => ['18%', '45%'], [])
-
-  const handleRecenter = useCallback(() => {
-    setFollowUser(true)
-  }, [])
+  const onTapAction = useCallback((svc: Service, act: ServiceAction) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    sheetRef.current?.close()
+    setActiveSvc(null)
+    if (svc.route) router.push(svc.route as any)
+    else if (act.id === 'find-route') router.push('/routes/plan' as any)
+    else Alert.alert(act.label, act.desc)
+  }, [router])
 
   return (
-    <View style={s.container}>
-      <OfflineBanner />
+    <View style={s.root}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
-      {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
-      {mountMap && <Mapbox.MapView
-        style={StyleSheet.absoluteFillObject}
-        styleURL={MAP_STYLE_LIGHT}
-        surfaceView={Platform.OS === 'android'}
-        attributionEnabled
-        attributionPosition={{ bottom: 8, left: 8 }}
-        logoEnabled={false}
-        compassEnabled
-        compassViewPosition={1}
-        compassViewMargins={{ x: 16, y: Platform.OS === 'android' ? 190 : 120 }}
-        scaleBarEnabled={false}
-        pitchEnabled={true}
-        onDidFinishLoadingMap={() => {}}
-        onMapIdle={() => { if (!mapIdle) setMapIdle(true) }}
-        onTouchStart={() => {
-          if (followUser) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            setFollowUser(false)
-          }
-        }}
-        onCameraChanged={(state: any) => {
-          const zoom = state.properties?.zoom
-          if (zoom != null) zoomRef.current = zoom
-        }}
-        onPress={() => {
-          if (selectedIncident) setSelectedIncident(null)
-          if (selectedStop) {
-            setSelectedStop(null)
-            bottomSheetRef.current?.snapToIndex(0)
-          }
-          if (previewRoute) {
-            setPreviewRoute(null)
-            bottomSheetRef.current?.snapToIndex(0)
-          }
-          if (selectedVehicle) {
-            setSelectedVehicle(null)
-            setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-            setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
-          }
-        }}
-      >
-        {/* Camera — defaultSettings for instant snap, followUserLocation only after map is idle */}
-        {location && (
-          <Mapbox.Camera
-            ref={cameraRef}
-            defaultSettings={{
-              centerCoordinate: [location.longitude, location.latitude],
-              zoomLevel: 15,
-              pitch: 30,
-              padding: { paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 },
-            }}
-            followUserLocation={followUser && mapIdle}
-            followUserMode={Mapbox.UserTrackingMode.Follow}
-            followZoomLevel={15}
-            followPadding={{ paddingTop: 60, paddingBottom: 200, paddingLeft: 0, paddingRight: 0 }}
-            animationMode="moveTo"
-            animationDuration={0}
-            minZoomLevel={3}
-            maxZoomLevel={18}
-          />
-        )}
-
-        {/* Delay UserLocation until map is idle — prevents Camera/UserLocation race (#2980) */}
-        {mapIdle && (
-          <Mapbox.UserLocation
-            visible
-            animated
-            showsUserHeadingIndicator
-            androidRenderMode="compass"
-          />
-        )}
-
-
-        {/* ── Train route lines — subtle blue dashed polylines ── */}
-        <Mapbox.ShapeSource id="train-lines" shape={trainLinesGeojson as any}>
-          <Mapbox.LineLayer
-            id="train-lines-layer"
-            style={{
-              lineColor: '#0ea5e9',
-              lineWidth: ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 4],
-              lineOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.2, 13, 0.4, 16, 0.7],
-              lineCap: 'round',
-              lineJoin: 'round',
-              lineDasharray: [2, 3],
-            }}
-          />
-        </Mapbox.ShapeSource>
-
-        {/* ── OSM railway lines — Takoradi-Awaso + Dunkwa-Kumasi corridors ── */}
-        <Mapbox.ShapeSource id="railway-lines" shape={railwayLinesGeoJSON as any}>
-          <Mapbox.LineLayer
-            id="railway-lines-layer"
-            style={{
-              lineColor: '#0ea5e9',
-              lineWidth: ['interpolate', ['linear'], ['zoom'], 8, 1.5, 12, 3, 16, 5],
-              lineOpacity: ['interpolate', ['linear'], ['zoom'], 8, 0.15, 11, 0.3, 14, 0.5, 16, 0.7],
-              lineCap: 'round',
-              lineJoin: 'round',
-              lineDasharray: [2, 3],
-            }}
-          />
-        </Mapbox.ShapeSource>
-
-        {/* ── OSM transport stops — always visible, color-coded by type ── */}
-        <Mapbox.ShapeSource id="osm-stops" shape={osmStopsGeoJSON as any}>
-          <Mapbox.CircleLayer
-            id="osm-stops-dots"
-            minZoomLevel={13}
-            style={{
-              circleRadius: ['interpolate', ['linear'], ['zoom'], 13, 1.5, 15, 3, 17, 5],
-              circleColor: ['match', ['get', 'type'],
-                'trotro_stop', '#FFAD3A',
-                'lorry_park', '#f59e0b',
-                'taxi_rank', '#a78bfa',
-                'train_station', '#22d3ee',
-                '#60a5fa',
-              ],
-              circleOpacity: ['interpolate', ['linear'], ['zoom'], 13, 0.2, 15, 0.45, 17, 0.65],
-            }}
-          />
-          <Mapbox.SymbolLayer
-            id="osm-stops-labels"
-            minZoomLevel={15}
-            filter={['!=', ['get', 'name'], '']}
-            style={{
-              textField: ['get', 'name'],
-              textSize: ['interpolate', ['linear'], ['zoom'], 15, 8, 17, 10],
-              textColor: isDark ? '#a8a29e' : '#78716c',
-              textHaloColor: isDark ? '#0c0a09' : '#ffffff',
-              textHaloWidth: 1.5,
-              textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              textOffset: [0, 0.8],
-              textAnchor: 'top',
-              textAllowOverlap: false,
-              textOptional: true,
-            }}
-          />
-        </Mapbox.ShapeSource>
-
-        {/* ── Preview route from search — green polyline + stops ── */}
-        {previewRoute && (
-          <Mapbox.ShapeSource
-            id="preview-route-lines"
-            shape={getRouteLineGeoJSON([previewRoute.id]) as any}
-          >
-            <Mapbox.LineLayer
-              id="preview-route-lines-glow"
-              style={{
-                lineColor: '#22c55e',
-                lineWidth: 7,
-                lineOpacity: 0.2,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-            <Mapbox.LineLayer
-              id="preview-route-lines-main"
-              style={{
-                lineColor: '#22c55e',
-                lineWidth: 3.5,
-                lineOpacity: 0.9,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-        {previewRoute && (
-          <Mapbox.ShapeSource
-            id="preview-route-stops"
-            shape={getRouteStopsGeoJSON([previewRoute.id]) as any}
-          >
-            <Mapbox.CircleLayer
-              id="preview-route-stops-intermediate"
-              filter={['==', ['get', 'isTerminal'], false]}
-              style={{
-                circleRadius: 4,
-                circleColor: '#fff',
-                circleStrokeColor: '#22c55e',
-                circleStrokeWidth: 2,
-                circleOpacity: 0.8,
-              }}
-            />
-            <Mapbox.CircleLayer
-              id="preview-route-stops-terminal"
-              filter={['==', ['get', 'isTerminal'], true]}
-              style={{
-                circleRadius: 7,
-                circleColor: '#22c55e',
-                circleStrokeColor: '#fff',
-                circleStrokeWidth: 2.5,
-              }}
-            />
-            <Mapbox.SymbolLayer
-              id="preview-route-stops-labels"
-              style={{
-                textField: ['get', 'name'],
-                textSize: 11,
-                textColor: isDark ? '#fafaf9' : '#1c1917',
-                textHaloColor: isDark ? '#0c0a09' : '#ffffff',
-                textHaloWidth: 1.5,
-                textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-                textOffset: [0, 1.4],
-                textAnchor: 'top',
-                textMaxWidth: 8,
-                textAllowOverlap: false,
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-        {/* ── Selected stop route lines — only when a stop is tapped ── */}
-        {selectedStop && (
-          <Mapbox.ShapeSource
-            id="selected-route-lines"
-            shape={getRouteLineGeoJSON(selectedStop.routeIds) as any}
-          >
-            <Mapbox.LineLayer
-              id="selected-route-lines-glow"
-              style={{
-                lineColor: '#f8a010',
-                lineWidth: 6,
-                lineOpacity: 0.2,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-            <Mapbox.LineLayer
-              id="selected-route-lines-main"
-              style={{
-                lineColor: '#f8a010',
-                lineWidth: 3,
-                lineOpacity: 0.85,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-        {/* ── Selected stop's route stops — subtle dots along highlighted routes ── */}
-        {selectedStop && (
-          <Mapbox.ShapeSource
-            id="selected-route-stops"
-            shape={getRouteStopsGeoJSON(selectedStop.routeIds) as any}
-          >
-            <Mapbox.CircleLayer
-              id="selected-route-stops-intermediate"
-              filter={['==', ['get', 'isTerminal'], false]}
-              style={{
-                circleRadius: 3.5,
-                circleColor: '#fff',
-                circleStrokeColor: '#f8a010',
-                circleStrokeWidth: 1.5,
-                circleOpacity: 0.7,
-              }}
-            />
-            <Mapbox.CircleLayer
-              id="selected-route-stops-terminal"
-              filter={['==', ['get', 'isTerminal'], true]}
-              style={{
-                circleRadius: 6,
-                circleColor: '#f8a010',
-                circleStrokeColor: '#fff',
-                circleStrokeWidth: 2,
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-
-        {/* ── Route line (drawn on vehicle tap) ── */}
-        <Mapbox.ShapeSource id="vehicle-route-line" shape={routeLineGeoJSON}>
-          <Mapbox.LineLayer
-            id="vehicle-route-glow"
-            style={{ lineColor: '#FFAD3A', lineWidth: 10, lineOpacity: 0.12, lineBlur: 6, lineCap: 'round', lineJoin: 'round' }}
-          />
-          <Mapbox.LineLayer
-            id="vehicle-route-main"
-            style={{ lineColor: '#FFAD3A', lineWidth: 4, lineOpacity: 0.85, lineCap: 'round', lineJoin: 'round' }}
-          />
-        </Mapbox.ShapeSource>
-
-        {/* ── Destination marker ── */}
-        <Mapbox.ShapeSource id="vehicle-dest" shape={destMarkerGeoJSON}>
-          <Mapbox.CircleLayer id="dest-glow" style={{ circleRadius: 16, circleColor: '#22c55e', circleOpacity: 0.12 }} />
-          <Mapbox.CircleLayer id="dest-dot" style={{ circleRadius: 7, circleColor: '#22c55e', circleStrokeWidth: 3, circleStrokeColor: '#fff' }} />
-          <Mapbox.SymbolLayer id="dest-label" style={{
-            textField: ['get', 'name'], textSize: 12, textFont: ['DIN Pro Bold'],
-            textOffset: [0, 1.6], textAnchor: 'top', textColor: '#22c55e',
-            textHaloColor: 'rgba(255,255,255,0.9)', textHaloWidth: 2,
-          }} />
-        </Mapbox.ShapeSource>
-
-        {/* ── Live vehicle markers — GPS positions from Fleet app ── */}
-        <LiveVehicleLayer
-          vehicles={liveVehicles}
-          onVehicleTap={async (vehicle) => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            setSelectedVehicle(vehicle)
-
-            const dest = ROUTE_DESTINATIONS[vehicle.routeLabel || '']
-            if (dest) {
-              try {
-                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${vehicle.longitude},${vehicle.latitude};${dest.lng},${dest.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
-                const res = await fetch(url)
-                const data = await res.json()
-                if (data.routes?.[0]) {
-                  const route = data.routes[0]
-                  setVehicleETA(Math.round(route.duration / 60) + ' min')
-                  setVehicleDist((route.distance / 1000).toFixed(1) + ' km')
-                  setRouteLineGeoJSON({ type: 'Feature', geometry: route.geometry })
-                  setDestMarkerGeoJSON({
-                    type: 'FeatureCollection',
-                    features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }, properties: { name: dest.name } }],
-                  })
-                  const coords = route.geometry.coordinates
-                  const lngs = coords.map((c: number[]) => c[0])
-                  const lats = coords.map((c: number[]) => c[1])
-                  cameraRef.current?.fitBounds(
-                    [Math.max(...lngs), Math.max(...lats)],
-                    [Math.min(...lngs), Math.min(...lats)],
-                    [100, 60, 180, 60], 800
-                  )
-                }
-              } catch {}
-            } else {
-              cameraRef.current?.setCamera({
-                centerCoordinate: [vehicle.longitude, vehicle.latitude],
-                zoomLevel: 15, animationDuration: 600,
-              })
-            }
-          }}
-        />
-
-        {/* ── Incident markers — native Mapbox layers with clustering ── */}
-        <Mapbox.ShapeSource
-          id="incident-markers"
-          shape={incidentGeojson}
-          cluster
-          clusterRadius={50}
-          clusterMaxZoomLevel={14}
-          hitbox={{ width: 60, height: 60 }}
-          onPress={(e: any) => {
-            const feature = e.features?.[0]
-            if (!feature) return
-            if (feature.properties?.cluster === true) {
-              const coords = feature.geometry?.coordinates
-              if (coords && cameraRef.current) {
-                cameraRef.current.setCamera({
-                  centerCoordinate: coords,
-                  zoomLevel: 15,
-                  animationDuration: 600,
-                })
-              }
-              return
-            }
-            if (!feature.properties?.id) return
-            const tapped = incidents.find((i) => i.id === feature.properties.id)
-            if (tapped) setSelectedIncident(tapped)
-          }}
-        >
-          <Mapbox.CircleLayer
-            id="incident-cluster-halo"
-            filter={['has', 'point_count']}
-            style={{
-              circleRadius: ['step', ['get', 'point_count'], 28, 5, 34, 10, 40],
-              circleColor: '#ef4444',
-              circleOpacity: 0.12,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="incident-cluster-circle"
-            filter={['has', 'point_count']}
-            style={{
-              circleRadius: ['step', ['get', 'point_count'], 20, 5, 24, 10, 30],
-              circleColor: '#ef4444',
-              circleOpacity: 0.9,
-              circleStrokeColor: '#ffffff',
-              circleStrokeWidth: 2.5,
-            }}
-          />
-          <Mapbox.SymbolLayer
-            id="incident-cluster-count"
-            filter={['has', 'point_count']}
-            style={{
-              textField: ['get', 'point_count_abbreviated'],
-              textSize: 13,
-              textColor: '#ffffff',
-              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-              textAllowOverlap: true,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="incident-halo"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleRadius: 26,
-              circleColor: ['match', ['get', 'incident_type'],
-                'traffic', '#f59e0b',
-                'accident', '#dc2626',
-                'police_checkpoint', '#3b82f6',
-                'police', '#3b82f6',
-                'roadwork', '#f97316',
-                'road_closure', '#f97316',
-                'flooding', '#0d9488',
-                'breakdown', '#d97706',
-                '#ef4444',
-              ],
-              circleOpacity: 0.15,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="incident-main"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleRadius: 14,
-              circleColor: ['match', ['get', 'incident_type'],
-                'traffic', '#f59e0b',
-                'accident', '#dc2626',
-                'police_checkpoint', '#3b82f6',
-                'police', '#3b82f6',
-                'roadwork', '#f97316',
-                'road_closure', '#f97316',
-                'flooding', '#0d9488',
-                'breakdown', '#d97706',
-                '#ef4444',
-              ],
-              circleOpacity: 0.95,
-              circleStrokeColor: '#ffffff',
-              circleStrokeWidth: 2.5,
-            }}
-          />
-          <Mapbox.CircleLayer
-            id="incident-inner"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              circleRadius: 4,
-              circleColor: '#ffffff',
-              circleOpacity: 0.9,
-            }}
-          />
-          <Mapbox.SymbolLayer
-            id="incident-label"
-            filter={['!', ['has', 'point_count']]}
-            style={{
-              textField: '!',
-              textSize: 14,
-              textColor: '#ffffff',
-              textFont: ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-              textAllowOverlap: true,
-              textIgnorePlacement: true,
-              textOffset: [0, -0.1],
-            }}
-          />
-        </Mapbox.ShapeSource>
-      </Mapbox.MapView>}
-
-      {/* Placeholder — stays on top until map tiles are fully painted */}
-      {!mapIdle && (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#1c1917' : '#f5f5f4', alignItems: 'center', justifyContent: 'center' }]} pointerEvents={mapIdle ? 'none' : 'auto'}>
-          <Animated.View style={{ opacity: 0.4 }}>
-            <Navigation size={32} color={c.stone400} />
-          </Animated.View>
-        </View>
-      )}
-
-      {/* ── Floating search bar + service pills ── */}
-      <SafeAreaView edges={['top']} style={s.floatingTop} pointerEvents="box-none">
-        <TouchableOpacity
-          onPress={() => setSearchVisible(true)}
-          activeOpacity={0.85}
-          style={s.searchBar}
-        >
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile' as Href)}
-            activeOpacity={0.7}
-          >
-            <InitialsAvatar
-              name={profile?.display_name ?? null}
-              deviceId={deviceId ?? ''}
-              size={36}
-            />
-          </TouchableOpacity>
-          <View style={s.searchTextWrap}>
-            <Text style={s.searchGreeting}>{greeting}</Text>
-            <AnimatedPlaceholder style={s.searchPlaceholder} />
-          </View>
-          <Search size={22} color={c.amber500} />
-        </TouchableOpacity>
-
-        {/* Service pills removed — Train has its own tab now */}
-      </SafeAreaView>
-
-      {/* Recenter button */}
-      <TouchableOpacity
-        onPress={handleRecenter}
-        activeOpacity={0.8}
-        style={s.recenterBtn}
-      >
-        <Locate size={20} color={c.amber500} />
-      </TouchableOpacity>
-
-      {/* Live status badge — tappable, expandable, dismissible */}
-      {(activeQueueCount > 0 || incidents.length > 0) && !liveBadgeDismissed && (
-        <View style={s.liveBadgeStack}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setLiveBadgeExpanded(!liveBadgeExpanded)}
-            style={s.liveBadge}
-          >
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activeQueueCount >= 3 ? '#ef4444' : '#f59e0b' }} />
-            <Text style={s.liveBadgeText}>
-              {activeQueueCount > 0 ? `${activeQueueCount} ${activeQueueCount >= 3 ? '🔥' : '⚠️'} queue${activeQueueCount !== 1 ? 's' : ''}` : ''}
-              {activeQueueCount > 0 && incidents.length > 0 ? ' · ' : ''}
-              {incidents.length > 0 ? `${incidents.length} incident${incidents.length !== 1 ? 's' : ''}` : ''}
-            </Text>
-            <TouchableOpacity
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={(e) => { e.stopPropagation(); setLiveBadgeDismissed(true) }}
-            >
-              <X size={14} color={isDark ? '#78716c' : '#a8a29e'} />
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {/* Expanded detail panel */}
-          {liveBadgeExpanded && (
-            <View style={s.liveBadgeDetail}>
-              {activeQueueStations.slice(0, 5).map((station) => (
-                <TouchableOpacity
-                  key={station.name}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    const routeIds = getRoutesForStop(station.name)
-                    setSelectedStop({
-                      name: station.name,
-                      latitude: station.coordinate[1],
-                      longitude: station.coordinate[0],
-                      routeIds,
-                      distanceKm: null,
-                      queueStatus: station.queueStatus,
-                      waitText: station.waitText,
-                      lastReportAt: station.lastReportAt,
-                      reportCount: station.reportCount,
-                    })
-                    cameraRef.current?.setCamera({
-                      centerCoordinate: station.coordinate,
-                      zoomLevel: 14,
-                      animationDuration: 600,
-                    })
-                    bottomSheetRef.current?.snapToIndex(1)
-                    setLiveBadgeExpanded(false)
-                  }}
-                  style={s.liveBadgeDetailRow}
-                >
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: station.queueStatus === 'very_long' ? '#ef4444' : station.queueStatus === 'long' ? '#f97316' : '#f59e0b' }} />
-                  <Text style={s.liveBadgeDetailName} numberOfLines={1}>{station.name}</Text>
-                  <Text style={s.liveBadgeDetailStatus}>
-                    {station.waitText || (station.queueStatus === 'very_long' ? 'Very Long' : station.queueStatus === 'long' ? 'Long' : 'Moderate')}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── Header ── */}
+          <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+            <View style={s.headerLeft}>
+              <View style={s.locationIcon}>
+                <MapPin size={24} color={GREEN} fill={GREEN} />
+              </View>
+              <View>
+                <Text style={s.locationSub}>Current Location</Text>
+                <View style={s.locationRow}>
+                  <Text style={s.locationText}>{locationName}</Text>
+                  <ChevronDown size={16} color="#777" />
+                </View>
+              </View>
             </View>
-          )}
-        </View>
-      )}
+            <View style={s.headerRight}>
+              <Pressable onPress={() => router.push('/(tabs)/activity' as any)} hitSlop={10} style={s.bellWrap}>
+                <Bell size={26} color={isDark ? '#FAFAF9' : '#111'} />
+                <View style={s.bellDot} />
+              </Pressable>
+              <Pressable onPress={() => router.push('/profile' as any)} hitSlop={8}>
+                <InitialsAvatar name={profile?.display_name || 'U'} deviceId={profile?.device_id || ''} size={48} />
+              </Pressable>
+            </View>
+          </Animated.View>
 
-      {/* Active trip banner — floats above bottom sheet */}
-      {tripState !== 'idle' && activeTrip && (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => router.push({
-            pathname: '/trip/[routeId]',
-            params: {
-              routeId: activeTrip.routeId,
-              ...(activeTrip.transportType === 'train' ? { type: 'train', lineId: activeTrip.trainLineId ?? activeTrip.routeId } : {}),
-            },
-          } as Href)}
-          style={s.activeTripBanner}
-        >
-          <View style={s.activeTripDot} />
-          <Navigation size={16} color="#fff" />
-          <View style={{ flex: 1 }}>
-            <Text style={s.activeTripText}>Trip in progress</Text>
-            <Text style={s.activeTripSub} numberOfLines={1}>{activeTrip.routeLabel}</Text>
+          {/* ── Wallet ── */}
+          <View style={s.activeCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={{ fontFamily: font.bold, fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', textTransform: 'uppercase', letterSpacing: 1 }}>Wallet Balance</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 22, color: isDark ? '#F9FAFB' : '#111', letterSpacing: -0.5 }}>
+                  {walletBalance != null ? `₵${Number(walletBalance).toFixed(2)}` : isAuthenticated ? '₵...' : '₵0.00'}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => router.push(isAuthenticated ? '/wallet/fund' as any : '/auth/phone' as any)}
+                style={{ backgroundColor: GREEN, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 }}
+              >
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#fff' }}>Top Up</Text>
+              </Pressable>
+            </View>
           </View>
-          <TouchableOpacity
-            onPress={() => deviceId && endTrip(deviceId)}
-            activeOpacity={0.7}
-            style={s.activeTripEnd}
-          >
-            <Text style={s.activeTripEndText}>End</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      )}
+
+          {/* ── Service Grid ── */}
+          <Animated.View entering={FadeInDown.delay(140).duration(400)}>
+            {[0, 4].map((startIdx) => (
+              <View key={startIdx} style={s.gridRow}>
+                {SERVICES.slice(startIdx, startIdx + 4).map((svc) => {
+                  const Icon = svc.icon
+                  const isActive = activeSvc?.id === svc.id
+                  return (
+                    <Pressable
+                      key={svc.id}
+                      onPress={() => onTapService(svc)}
+                      style={({ pressed }) => [
+                        s.gridItem,
+                        pressed && { transform: [{ scale: 0.92 }] },
+                        svc.comingSoon && { opacity: 0.4 },
+                      ]}
+                    >
+                      <View style={[s.gridCircle, isActive && s.gridCircleActive]}>
+                        <Icon size={24} color={svc.iconColor} strokeWidth={1.8} />
+                      </View>
+                      <Text style={[s.gridLabel, isActive && { color: GREEN }]} numberOfLines={1}>{svc.label}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ))}
+          </Animated.View>
+
+          {/* ── Active Ride ── */}
+          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={s.activeCard}>
+            <Text style={s.activeTag}>Active Now</Text>
+            <View style={s.activeBody}>
+              <View style={s.activeIconBox}>
+                <Bus size={28} color="#fff" />
+              </View>
+              <View style={s.activeInfo}>
+                <Text style={s.activeRoute}>Circle → Madina</Text>
+                <Text style={s.activeMeta}>
+                  Trotro arriving in <Text style={{ fontFamily: font.bold, color: GREEN }}>6 min</Text>
+                </Text>
+                <Text style={s.activePlate}>GR-4582-50</Text>
+                <View style={s.progressTrack}>
+                  <View style={s.progressFill}>
+                    <View style={s.progressKnob} />
+                  </View>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => Alert.alert('Track', 'Trip tracking coming soon')}
+                style={s.trackBtn}
+              >
+                <Text style={s.trackText}>Track</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+
+          <View style={{ height: 120 }} />
+        </ScrollView>
+      </SafeAreaView>
 
       {/* ── Bottom Sheet ── */}
       <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        backgroundStyle={{
-          backgroundColor: themed(isDark).sheetBg,
-          borderRadius: 40,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 40,
-          elevation: 8,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: isDark ? c.stone500 : c.stone300,
-          width: 40,
-        }}
-        enablePanDownToClose={false}
-        enableDynamicSizing={false}
+        ref={sheetRef}
+        index={-1}
+        snapPoints={['50%']}
+        enablePanDownToClose
+        handleIndicatorStyle={{ backgroundColor: isDark ? '#555' : '#D1D5DB', width: 48, height: 5, borderRadius: 3 }}
+        backgroundStyle={{ backgroundColor: isDark ? '#1C1917' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28 }}
+        onClose={() => setActiveSvc(null)}
       >
-        <BottomSheetScrollView
-          key={selectedStop ? `stop-${selectedStop.name}` : previewRoute ? `preview-${previewRoute.id}` : `home-${liveVehicleCount}`}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          {selectedStop ? (
-            <StopRoutesPanel
-              stop={selectedStop}
-              onClose={() => {
-                setSelectedStop(null)
-                bottomSheetRef.current?.snapToIndex(0)
-              }}
-            />
-          ) : previewRoute ? (
-            <RoutePreviewCard
-              routeId={previewRoute.id}
-              from={previewRoute.from}
-              to={previewRoute.to}
-              onClose={() => {
-                setPreviewRoute(null)
-                bottomSheetRef.current?.snapToIndex(0)
-              }}
-            />
-          ) : (
+        <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
+          {activeSvc && (
             <>
-              {/* Smart Commute — hero greeting */}
-              <SmartCommuteCard />
+              {/* Title centered */}
+              <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: isDark ? '#F9FAFB' : '#111', textAlign: 'center', marginBottom: 4 }}>
+                {activeSvc.label}
+              </Text>
+              <Text style={{ fontFamily: font.regular, fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 20 }}>
+                {activeSvc.actions[0]?.desc}
+              </Text>
 
-              {/* Live vehicles — GPS tracked trotros */}
-              {liveVehicles.length > 0 && (
-                <View style={{ paddingHorizontal: 20, gap: 10, marginTop: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{
-                      fontSize: 18, fontFamily: font.extrabold, letterSpacing: -0.3,
-                      color: isDark ? '#fafaf9' : '#1c1917',
-                    }}>
-                      Live Trotros
-                    </Text>
-                    <View style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 6,
-                      backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)',
-                      paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99,
-                    }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-                      <Text style={{ fontSize: 12, fontFamily: font.bold, color: '#22c55e' }}>
-                        {liveVehicleCount} live
-                      </Text>
-                    </View>
-                  </View>
-                  {liveVehicles.slice(0, 4).map((v) => (
-                    <TouchableOpacity
-                      key={v.vanId}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                        cameraRef.current?.setCamera({
-                          centerCoordinate: [v.longitude, v.latitude],
-                          zoomLevel: 15,
-                          animationDuration: 600,
-                        })
-                        bottomSheetRef.current?.snapToIndex(0)
-                      }}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 12,
-                        padding: 14, borderRadius: 14,
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                        borderWidth: 1,
-                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                      }}
+              {/* Action rows */}
+              <View style={{ marginBottom: 20 }}>
+                {activeSvc.actions.map((act) => {
+                  const ActIcon = act.icon
+                  return (
+                    <Pressable
+                      key={act.id}
+                      onPress={() => onTapAction(activeSvc, act)}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
                     >
-                      <View style={{
-                        width: 40, height: 40, borderRadius: 12,
-                        backgroundColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(255,173,58,0.08)',
-                        justifyContent: 'center', alignItems: 'center',
-                      }}>
-                        <BusFront size={18} color="#FFAD3A" />
+                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? '#14532d' : '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                        <ActIcon size={18} color={DARK_GREEN} />
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{
-                          fontSize: 15, fontFamily: font.bold,
-                          color: isDark ? '#fafaf9' : '#1c1917',
-                        }}>
-                          {v.plateNumber}
-                        </Text>
-                        <Text style={{
-                          fontSize: 12, fontFamily: font.regular,
-                          color: isDark ? '#a8a29e' : '#78716c', marginTop: 1,
-                        }}>
-                          {v.routeLabel || 'En route'}
-                        </Text>
-                      </View>
-                      <Text style={{
-                        fontSize: 13, fontFamily: font.bold, color: '#FFAD3A',
-                      }}>
-                        {v.speed && v.speed > 0 ? `${(v.speed * 3.6).toFixed(0)} km/h` : 'At station'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+                      <Text style={{ fontFamily: font.bold, fontSize: 14, color: isDark ? '#F9FAFB' : '#111', flex: 1 }}>{act.label}</Text>
+                      <ChevronRight size={18} color="#9CA3AF" />
+                    </Pressable>
+                  )
+                })}
+              </View>
 
-              {/* Happening Now */}
-              <HappeningNow />
+              {/* CTA */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  sheetRef.current?.close()
+                  if (activeSvc.route) router.push(activeSvc.route as any)
+                }}
+                style={({ pressed }) => [
+                  { backgroundColor: GREEN, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{activeSvc.cta}</Text>
+              </Pressable>
             </>
           )}
-        </BottomSheetScrollView>
+        </BottomSheetView>
       </BottomSheet>
-
-      {/* Citizen-style incident detail sheet */}
-      {/* ── Vehicle info card ── */}
-      {selectedVehicle && (
-        <View style={s.vehicleCard}>
-          <View style={s.vehicleCardHeader}>
-            <View style={s.vehicleCardAvatar}>
-              <Text style={s.vehicleCardInitials}>{selectedVehicle.plateNumber.slice(0, 2)}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.vehicleCardPlate}>{selectedVehicle.plateNumber}</Text>
-              <Text style={s.vehicleCardRoute}>{selectedVehicle.routeLabel || 'En route'}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                setSelectedVehicle(null)
-                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
-              }}
-              style={s.vehicleCardClose}
-            >
-              <X size={16} color={isDark ? c.stone400 : c.stone500} />
-            </TouchableOpacity>
-          </View>
-          <View style={s.vehicleCardStats}>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>SPEED</Text>
-              <Text style={s.vehicleCardStatValue}>
-                {selectedVehicle.speed ? (selectedVehicle.speed * 3.6).toFixed(0) : '0'} km/h
-              </Text>
-            </View>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>ETA</Text>
-              <Text style={[s.vehicleCardStatValue, { color: c.amber500 }]}>{vehicleETA}</Text>
-            </View>
-            <View style={s.vehicleCardStat}>
-              <Text style={s.vehicleCardStatLabel}>DIST</Text>
-              <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={[s.vehicleCardCTA, buyingTicket && { opacity: 0.6 }]} activeOpacity={0.8} disabled={buyingTicket} onPress={() => {
-            if (!selectedVehicle || buyingTicket) return
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-
-            if (!isAuthed || !authUser?.id) {
-              router.push('/auth/phone' as any)
-              return
-            }
-
-            // Optimistic — navigate immediately, purchase in background
-            setBuyingTicket(true)
-            const routeLabel = selectedVehicle.routeLabel || 'Trotro Ride'
-            const plate = selectedVehicle.plateNumber
-            const fare = 8
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-            const part = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-            const tripCode = `TRO-${part(4)}-${part(4)}`
-            const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-
-            // Navigate to PAID screen instantly
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-            setSelectedVehicle(null)
-            setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-            setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
-            router.push({
-              pathname: '/ticket/paid',
-              params: { route: routeLabel, plate, fare: String(fare), tripCode, expiresAt },
-            } as any)
-
-            // Purchase in background
-            const userId = authUser.id
-            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-            fetch(`${API_URL}/api/tickets/purchase`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ auth_user_id: userId, route_label: routeLabel, van_plate: plate, fare }),
-            }).then(r => r.json()).then(data => {
-              setBuyingTicket(false)
-              if (!data.success) console.warn('[buy-ticket] Background purchase failed:', data.error)
-            }).catch(() => { setBuyingTicket(false) })
-          }}>
-            <Text style={s.vehicleCardCTAText}>{buyingTicket ? '⏳ Processing...' : '🎫 Buy Ticket · GH₵ 8.00'}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {selectedIncident && (
-        <IncidentDetailSheet
-          incident={selectedIncident}
-          onClose={() => setSelectedIncident(null)}
-        />
-      )}
-
-      <ReportFAB />
-      <UnifiedSearch
-        visible={searchVisible}
-        onClose={() => setSearchVisible(false)}
-        onRoutePreview={(routeId, from, to) => {
-          setPreviewRoute({ id: routeId, from, to })
-          setSelectedStop(null)
-          bottomSheetRef.current?.snapToIndex(1)
-        }}
-      />
     </View>
   )
 }
 
-/* ── Styles ────────────────────────────────────────── */
+/* ── Styles ── */
 
-const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+function getStyles(isDark: boolean) {
+  const bg = isDark ? '#0C0A09' : '#F3F4F6'
+  const cardBg = isDark ? '#1C1917' : '#FFFFFF'
+  const text = isDark ? '#F9FAFB' : '#151515'
+  const sub = isDark ? '#9CA3AF' : '#6B7280'
+  const border = isDark ? '#292524' : '#F3F4F6'
+
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.bg },
+    root: { flex: 1, backgroundColor: bg },
+    scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 24 },
 
-    // Floating top UI
-    floatingTop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 10,
-    },
-
-    // Search bar — Uber/Bolt style
-    searchBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: 16,
-      marginTop: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 28,
-      backgroundColor: isDark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.95)',
-      gap: 12,
+    /* Header */
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    locationIcon: {
+      width: 48, height: 48, borderRadius: 14,
+      backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center',
       ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 12,
-        },
-        android: { elevation: 8 },
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+        android: { elevation: 2 },
       }),
     },
-    searchTextWrap: {
-      flex: 1,
-    },
-    searchGreeting: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: t.textTertiary,
-    },
-    searchPlaceholder: {
-      fontSize: 16,
-      fontFamily: font.semibold,
-      color: t.text,
-      marginTop: 1,
+    locationSub: { fontFamily: font.medium, fontSize: 13, color: sub },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    locationText: { fontFamily: font.bold, fontSize: 16, color: text },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    bellWrap: { position: 'relative' },
+    bellDot: {
+      position: 'absolute', top: 0, right: 0,
+      width: 8, height: 8, borderRadius: 4, backgroundColor: GREEN,
     },
 
-    // Recenter button
-    recenterBtn: {
-      position: 'absolute',
-      right: 16,
-      bottom: '22%',
-      width: 46,
-      height: 46,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.97)',
-      borderWidth: 1.5,
-      borderColor: isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    /* Wallet */
+    walletCard: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      backgroundColor: isDark ? '#1C1917' : '#FFFFFF',
+      borderRadius: 20, padding: 16,
+      borderWidth: 1.5, borderColor: isDark ? '#292524' : '#D1D5DB',
+    },
+    walletLabel: { fontFamily: font.bold, fontSize: 10, color: sub, textTransform: 'uppercase', letterSpacing: 1 },
+    walletAmount: { fontFamily: font.bold, fontSize: 22, color: text, letterSpacing: -0.5 },
+    topUpBtn: {
+      backgroundColor: GREEN, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
       ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.12,
-          shadowRadius: 8,
-        },
+        ios: { shadowColor: GREEN, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 },
+        android: { elevation: 4 },
+      }),
+    },
+    topUpText: { fontFamily: font.bold, fontSize: 13, color: '#fff' },
+
+    /* Grid */
+    gridRow: {
+      flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16,
+    },
+    gridItem: {
+      flex: 1, alignItems: 'center', gap: 6,
+    },
+    gridCircle: {
+      width: 54, height: 54, borderRadius: 27,
+      backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center',
+      borderWidth: 1, borderColor: isDark ? '#292524' : '#E5E7EB',
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+        android: { elevation: 2 },
+      }),
+    },
+    gridCircleActive: {
+      borderWidth: 2, borderColor: GREEN,
+    },
+    gridLabel: { fontFamily: font.bold, fontSize: 11, color: text, textAlign: 'center' },
+
+    /* Active Ride */
+    activeCard: {
+      backgroundColor: cardBg, borderRadius: 24, padding: 16,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.10, shadowRadius: 24 },
+        android: { elevation: 4 },
+      }),
+    },
+    activeTag: { fontFamily: font.bold, fontSize: 13, color: GREEN, marginBottom: 10 },
+    activeBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    activeIconBox: {
+      width: 72, height: 72, borderRadius: 18,
+      backgroundColor: isDark ? '#14532d' : '#ECFDF5',
+      justifyContent: 'center', alignItems: 'center',
+    },
+    activeInfo: { flex: 1, gap: 2 },
+    activeRoute: { fontFamily: font.extrabold, fontSize: 19, color: text, letterSpacing: -0.5 },
+    activeMeta: { fontFamily: font.regular, fontSize: 14, color: sub },
+    activePlate: { fontFamily: font.regular, fontSize: 14, color: sub },
+    progressTrack: {
+      height: 8, borderRadius: 4, backgroundColor: isDark ? '#292524' : '#E5E7EB', marginTop: 10,
+    },
+    progressFill: {
+      width: '60%', height: 8, borderRadius: 4, backgroundColor: GREEN,
+      justifyContent: 'center', alignItems: 'flex-end',
+    },
+    progressKnob: {
+      width: 14, height: 14, borderRadius: 7,
+      backgroundColor: '#fff', borderWidth: 3, borderColor: GREEN,
+      marginRight: -7,
+    },
+    trackBtn: {
+      borderWidth: 1.5, borderColor: isDark ? '#22C55E' : '#BBF7D0',
+      paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16,
+    },
+    trackText: { fontFamily: font.bold, fontSize: 15, color: isDark ? '#4ADE80' : '#0A9D49' },
+
+    /* Sheet */
+    sheetBg: { backgroundColor: cardBg, borderTopLeftRadius: 34, borderTopRightRadius: 34 },
+    sheetHandle: { backgroundColor: isDark ? '#555' : '#999', width: 56, height: 5, borderRadius: 3 },
+    sheetBody: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20 },
+
+    sheetTop: { marginBottom: 16 },
+    sheetTitle: { fontFamily: font.extrabold, fontSize: 24, color: text, letterSpacing: -0.5 },
+    sheetDesc: { fontFamily: font.regular, fontSize: 15, color: sub, marginTop: 2 },
+
+    actionList: {
+      borderRadius: 18, borderWidth: 1, borderColor: border,
+      overflow: 'hidden', marginBottom: 16,
+    },
+    actionRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      paddingVertical: 14, paddingHorizontal: 14,
+    },
+    actionBorder: { borderBottomWidth: 1, borderBottomColor: border },
+    actionIcon: {
+      width: 44, height: 44, borderRadius: 14,
+      backgroundColor: isDark ? '#14532d' : '#ECFDF5',
+      justifyContent: 'center', alignItems: 'center',
+    },
+    actionInfo: { flex: 1, gap: 2 },
+    actionLabel: { fontFamily: font.extrabold, fontSize: 15, color: text },
+    actionSub: { fontFamily: font.regular, fontSize: 13, color: sub },
+
+    ctaBtn: {
+      backgroundColor: GREEN, height: 56, borderRadius: 16,
+      justifyContent: 'center', alignItems: 'center',
+      ...Platform.select({
+        ios: { shadowColor: GREEN, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.28, shadowRadius: 22 },
         android: { elevation: 6 },
       }),
     },
-
-    // Queue badge
-    liveBadgeStack: {
-      position: 'absolute',
-      left: 16,
-      bottom: '22%',
-      gap: 8,
-    },
-    liveBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(255,255,255,0.95)',
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 16,
-      borderLeftWidth: 3,
-      borderLeftColor: '#f59e0b',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
-      elevation: 6,
-    },
-    liveBadgeText: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: isDark ? '#fafaf9' : '#1c1917',
-      letterSpacing: 0.3,
-      flex: 1,
-    },
-    liveBadgeDetail: {
-      backgroundColor: isDark ? 'rgba(12,10,9,0.95)' : 'rgba(255,255,255,0.95)',
-      borderRadius: 16,
-      paddingVertical: 6,
-      paddingHorizontal: 4,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 8,
-      minWidth: 220,
-    },
-    liveBadgeDetailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-    },
-    liveBadgeDetailName: {
-      flex: 1,
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: isDark ? '#fafaf9' : '#1c1917',
-    },
-    liveBadgeDetailStatus: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: '#f97316',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-      backgroundColor: isDark ? 'rgba(249,115,22,0.12)' : 'rgba(249,115,22,0.08)',
-      overflow: 'hidden',
-    },
-    queueBadge: {
-      position: 'absolute',
-      left: 16,
-      bottom: '22%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: isDark ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.95)',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
-        },
-        android: { elevation: 4 },
-      }),
-    },
-    queueBadgeDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#22c55e',
-    },
-    queueBadgeText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.text,
-    },
-
-    // Active trip banner
-    activeTripBanner: {
-      position: 'absolute',
-      left: 16,
-      right: 16,
-      bottom: '20%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderRadius: 16,
-      backgroundColor: '#22c55e',
-      gap: 10,
-      zIndex: 20,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-        },
-        android: { elevation: 10 },
-      }),
-    },
-    activeTripDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#fff',
-    },
-    activeTripText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: '#fff',
-    },
-    activeTripSub: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.75)',
-      marginTop: 1,
-    },
-    activeTripEnd: {
-      backgroundColor: 'rgba(255,255,255,0.25)',
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    activeTripEndText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: '#fff',
-    },
-
-    // Incident badge
-    incidentBadge: {
-      position: 'absolute',
-      left: 16,
-      bottom: '27%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: isDark ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.95)',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
-        },
-        android: { elevation: 4 },
-      }),
-    },
-    incidentBadgeDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#ef4444',
-    },
-    incidentBadgeText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: t.text,
-    },
-
-    // Vehicle info card
-    vehicleCard: {
-      position: 'absolute',
-      bottom: 160,
-      left: 16,
-      right: 16,
-      backgroundColor: isDark ? 'rgba(28,25,23,0.96)' : 'rgba(255,255,255,0.97)',
-      borderRadius: 16,
-      padding: 16,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,173,58,0.12)' : 'rgba(0,0,0,0.06)',
-      zIndex: 20,
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 20 },
-        android: { elevation: 12 },
-      }),
-    },
-    vehicleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    vehicleCardAvatar: {
-      width: 44, height: 44, borderRadius: 22,
-      backgroundColor: c.amber500, justifyContent: 'center', alignItems: 'center',
-    },
-    vehicleCardInitials: { fontSize: 15, fontFamily: font.extrabold, color: '#1c1917' },
-    vehicleCardPlate: { fontSize: 17, fontFamily: font.bold, color: t.text },
-    vehicleCardRoute: { fontSize: 12, fontFamily: font.regular, color: t.textSecondary, marginTop: 2 },
-    vehicleCardClose: {
-      width: 32, height: 32, borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      justifyContent: 'center', alignItems: 'center',
-    },
-    vehicleCardStats: {
-      flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 8,
-      borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-    },
-    vehicleCardStat: { alignItems: 'center' },
-    vehicleCardStatLabel: { fontSize: 9, fontFamily: font.bold, color: t.textSecondary, letterSpacing: 1.5 },
-    vehicleCardStatValue: { fontSize: 18, fontFamily: font.extrabold, color: t.text, marginTop: 2 },
-    vehicleCardCTA: { backgroundColor: c.amber500, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-    vehicleCardCTAText: { fontSize: 14, fontFamily: font.bold, color: '#1c1917' },
-
+    ctaText: { fontFamily: font.extrabold, fontSize: 17, color: '#fff' },
   })
 }

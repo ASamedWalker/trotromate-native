@@ -46,9 +46,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Map',
+          title: 'Home',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="map" size={22} color={color} />
+            <MaterialIcons name="home" size={22} color={color} />
           ),
         }}
       />
@@ -100,15 +100,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="activity"
-        options={{
-          title: 'Pulse',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="notifications-none" size={22} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="activity" options={{ href: null }} />
       {/* Hidden tabs */}
       <Tabs.Screen name="report" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
