@@ -61,7 +61,15 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="tales" options={{ href: null }} />
+      <Tabs.Screen
+        name="tales"
+        options={{
+          title: 'Wallet',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="account-balance-wallet" size={22} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="train"
         options={{
