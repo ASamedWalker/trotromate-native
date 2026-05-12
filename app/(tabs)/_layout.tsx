@@ -61,27 +61,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="tales"
-        options={{
-          title: 'Wallet',
-          tabBarIcon: () => (
-            <View style={styles.walletBtn}>
-              <LinearGradient
-                colors={['#FF716A', '#FFAD3A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.walletGradient}
-              >
-                <MaterialIcons name="account-balance-wallet" size={22} color="#1c1917" />
-              </LinearGradient>
-            </View>
-          ),
-          tabBarLabel: () => (
-            <Text style={[styles.walletLabel, { color: '#FFAD3A' }]}>Wallet</Text>
-          ),
-        }}
-      />
+      <Tabs.Screen name="tales" options={{ href: null }} />
       <Tabs.Screen
         name="train"
         options={{
