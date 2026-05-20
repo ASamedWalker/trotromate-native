@@ -33,7 +33,7 @@ export default function WalletScreen() {
       const data = await res.json()
       if (data.balance != null) setBalance(data.balance)
       if (data.transactions) setTransactions(data.transactions)
-    } catch {}
+    } catch (e) { console.warn("[troski] silent error:", e) }
   }, [user?.id])
 
   useEffect(() => { fetchWallet() }, [fetchWallet])

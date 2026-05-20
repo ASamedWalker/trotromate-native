@@ -244,7 +244,7 @@ export function FareTrendChart({
       : `Track real trotro fares on Troski! https://troski.app`
     try {
       await Share.share({ message, title: 'Troski Fare Trend' })
-    } catch {}
+    } catch (e) { console.warn("[troski] silent error:", e) }
   }, [data, officialFare, routeName])
 
   const handlePeriodChange = useCallback((days: number) => {

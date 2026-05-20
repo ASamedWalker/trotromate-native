@@ -26,7 +26,7 @@ export function usePreferences() {
       if (raw) {
         try {
           setPrefs({ ...DEFAULTS, ...JSON.parse(raw) })
-        } catch {}
+        } catch (e) { console.warn("[troski] silent error:", e) }
       }
       setIsLoaded(true)
     })

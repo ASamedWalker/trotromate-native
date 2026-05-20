@@ -88,7 +88,7 @@ export default function ConfirmRideScreen() {
         })
         const data = await res.json()
         if (!data.success) console.warn('[booking] Failed:', data.error)
-      } catch {}
+      } catch (e) { console.warn("[troski] silent error:", e) }
     }
     setBooking(false)
   }

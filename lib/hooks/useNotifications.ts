@@ -17,7 +17,7 @@ export function useNotifications(deviceId: string | null) {
       if (raw) {
         try {
           setReadIds(new Set(JSON.parse(raw)))
-        } catch {}
+        } catch (e) { console.warn("[troski] silent error:", e) }
       }
     })
   }, [])

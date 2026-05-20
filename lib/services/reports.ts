@@ -39,7 +39,7 @@ async function broadcastPush(title: string, body: string, excludeDeviceId: strin
         body: JSON.stringify(chunk),
       }).catch(() => {})
     }
-  } catch {}
+  } catch (e) { console.warn("[troski] silent error:", e) }
 }
 
 export async function submitFareReport(params: {

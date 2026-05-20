@@ -84,7 +84,7 @@ export default function LiveVehicleLayer({ vehicles, onVehicleTap }: Props) {
         }))
         const shape = JSON.stringify({ type: 'FeatureCollection', features })
         ;(pulseRef.current as any)?.setNativeProps({ shape })
-      } catch {}
+      } catch (e) { console.warn("[troski] silent error:", e) }
 
       animId = requestAnimationFrame(tick)
     }

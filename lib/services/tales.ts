@@ -31,7 +31,7 @@ async function broadcastTalePush(deviceId: string, displayName: string | null, c
         body: JSON.stringify(chunk),
       }).catch(() => {})
     }
-  } catch {}
+  } catch (e) { console.warn("[troski] silent error:", e) }
 }
 import {
   validateDisplayName,

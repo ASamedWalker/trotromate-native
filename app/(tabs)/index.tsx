@@ -118,7 +118,7 @@ export default function HomeScreen() {
           const country = data.features[0].context?.find((c: any) => c.id?.startsWith('country'))?.short_code?.toUpperCase() || 'GH'
           setLocationName(`${place}, ${country}`)
         }
-      } catch {}
+      } catch (e) { console.warn("[troski] silent error:", e) }
     }
     fetchName()
   }, [location?.latitude, location?.longitude])

@@ -817,7 +817,7 @@ export default function HomeScreen() {
                     [100, 60, 180, 60], 800
                   )
                 }
-              } catch {}
+              } catch (e) { console.warn("[troski] silent error:", e) }
             } else {
               cameraRef.current?.setCamera({
                 centerCoordinate: [vehicle.longitude, vehicle.latitude],

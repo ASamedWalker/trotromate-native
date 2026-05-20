@@ -24,7 +24,7 @@ export function useActivity() {
         try {
           const ids: string[] = JSON.parse(raw)
           dismissedRef.current = new Set(ids)
-        } catch {}
+        } catch (e) { console.warn("[troski] silent error:", e) }
       }
       dismissedLoaded.current = true
     })
