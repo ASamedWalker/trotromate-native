@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function EditNameScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { profile, deviceId } = useApp()
   const [name, setName] = useState(profile?.display_name ?? '')

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ export default function EditProfileScreen() {
   const queryClient = useQueryClient()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { profile, deviceId } = useApp()
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')

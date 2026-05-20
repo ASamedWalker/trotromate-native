@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   View,
   Text,
@@ -14,7 +15,7 @@ const LAST_UPDATED = 'February 6, 2026'
 export default function TermsScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   return (
     <SafeAreaView style={s.container}>

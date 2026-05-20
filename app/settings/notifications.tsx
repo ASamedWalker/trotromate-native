@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -75,7 +75,7 @@ export default function NotificationSettingsScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId } = useApp()
   const [prefs, setPrefs] = useState<SocialPreferences>(DEFAULT_PREFS)

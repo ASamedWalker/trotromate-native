@@ -98,7 +98,7 @@ export function FareTrendChart({
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [chartError, setChartError] = useState(false)
 

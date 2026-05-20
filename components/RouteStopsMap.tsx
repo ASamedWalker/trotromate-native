@@ -16,7 +16,7 @@ interface Props {
 export function RouteStopsMap({ stops, routeName }: Props) {
   const isDark = useColorScheme() === 'dark'
   const cameraRef = useRef<Mapbox.Camera>(null)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   // Build polyline GeoJSON from ordered stops
   const lineGeoJSON = useMemo(() => ({

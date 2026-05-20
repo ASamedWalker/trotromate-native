@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ const POPULAR_STATIONS = [
 export default function DriverDashboardScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
   const { deviceId } = useApp()
 

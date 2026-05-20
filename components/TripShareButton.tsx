@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { TouchableOpacity, Text, Share, useColorScheme, StyleSheet } from 'react-native'
 import { Share2, Check, Loader2 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
@@ -14,7 +14,7 @@ interface TripShareButtonProps {
 
 export function TripShareButton({ routeId, from, to, estimatedMins }: TripShareButtonProps) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId } = useApp()
   const [isSharing, setIsSharing] = useState(false)
   const [shared, setShared] = useState(false)

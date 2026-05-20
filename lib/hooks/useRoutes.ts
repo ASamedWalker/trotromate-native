@@ -21,6 +21,9 @@ export function useRoutes(from?: string, to?: string, transportType?: TransportT
       return result
     },
     placeholderData: cachedData,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
+    staleTime: 60_000,
   })
 
   return { routes, isLoading, error: null, refetch }
@@ -43,6 +46,9 @@ export function usePopularRoutes() {
       return result
     },
     placeholderData: cachedData,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
+    staleTime: 120_000,
   })
 
   return { routes, isLoading, error: null, refetch: refetch }

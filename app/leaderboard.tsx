@@ -7,7 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Medal } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
@@ -24,7 +24,7 @@ export default function LeaderboardScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId } = useApp()
   const { entries, userRank, isLoading, refetch } = useLeaderboard(deviceId)

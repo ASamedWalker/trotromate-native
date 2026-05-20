@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ interface CommentSheetProps {
 
 export default function CommentSheet({ postId, visible, onClose }: CommentSheetProps) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId, profile } = useApp()
   const {

@@ -381,15 +381,16 @@ async function checkAndAwardBadges(
   const earnedBadges: Badge[] = []
 
   try {
-    const { data: allBadges } = await supabase.from('badges').select('*')
+    // Parallel fetch: all badges + already earned — both needed
+    const [allBadgesRes, existingBadgesRes] = await Promise.all([
+      supabase.from('badges').select('*').limit(50),
+      supabase.from('contributor_badges').select('badge_id').eq('contributor_id', contributorId).limit(100),
+    ])
+
+    const allBadges = allBadgesRes.data
     if (!allBadges) return earnedBadges
 
-    const { data: existingBadges } = await supabase
-      .from('contributor_badges')
-      .select('badge_id')
-      .eq('contributor_id', contributorId)
-
-    const earnedBadgeIds = new Set((existingBadges || []).map((b) => b.badge_id))
+    const earnedBadgeIds = new Set((existingBadgesRes.data || []).map((b) => b.badge_id))
 
     for (const badge of allBadges) {
       if (earnedBadgeIds.has(badge.id)) continue

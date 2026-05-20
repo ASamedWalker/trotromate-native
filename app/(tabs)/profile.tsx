@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   View,
   Text,
@@ -22,7 +23,7 @@ export default function ProfileScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { profile, deviceId } = useApp()
   const { unreadCount } = useNotifications(deviceId)
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']

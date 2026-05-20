@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -40,7 +40,7 @@ export default function FareReportScreen() {
   const { transport_type: urlTransportType, from: urlFrom, to: urlTo } = useLocalSearchParams<{ transport_type?: string; from?: string; to?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()

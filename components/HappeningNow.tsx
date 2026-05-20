@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -38,7 +38,7 @@ export default function HappeningNow() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const [events, setEvents] = useState<LiveEvent[]>([])
   const [refreshKey, setRefreshKey] = useState(0)

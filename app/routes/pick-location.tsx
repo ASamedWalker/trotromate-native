@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -63,7 +63,7 @@ export default function PickLocationScreen() {
   const target: PickTarget = params.target === 'to' ? 'to' : 'from'
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const cameraRef = useRef<Mapbox.Camera>(null)
   const requestIdRef = useRef(0)

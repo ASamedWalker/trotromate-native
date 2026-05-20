@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { View, Text, useColorScheme, StyleSheet } from 'react-native'
 import { WifiOff, CloudUpload } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
@@ -10,7 +11,7 @@ export default function OfflineBanner() {
 
   if (isOnline && pendingReports === 0) return null
 
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   if (!isOnline) {
     return (

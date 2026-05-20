@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
   View,
@@ -43,7 +43,7 @@ export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const router = useRouter()
   const haptics = useHaptics()

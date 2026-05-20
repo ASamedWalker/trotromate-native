@@ -42,6 +42,7 @@ export function useStations() {
       .subscribe()
 
     return () => {
+      channel.unsubscribe()
       supabase.removeChannel(channel)
     }
   }, [queryClient])

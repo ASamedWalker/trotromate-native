@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ const appIcon = require('@/assets/images/logo.png')
 export default function OtaUpdateBanner() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const insets = useSafeAreaInsets()
   const [visible, setVisible] = useState(false)
   const translateY = useRef(new Animated.Value(220)).current

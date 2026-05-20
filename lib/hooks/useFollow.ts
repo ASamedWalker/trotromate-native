@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 export function useFollow(
@@ -8,44 +8,51 @@ export function useFollow(
 ) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing)
   const [isLoading, setIsLoading] = useState(false)
+  const pendingRef = useRef(false)
 
   const toggle = useCallback(async () => {
-    if (!myDeviceId || isLoading) return
+    if (!myDeviceId || pendingRef.current) return
 
-    const wasFollowing = isFollowing
-    setIsFollowing(!wasFollowing)
+    pendingRef.current = true
     setIsLoading(true)
 
-    try {
-      if (wasFollowing) {
-        const { error } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_device_id', myDeviceId)
-          .eq('following_device_id', targetDeviceId)
+    // Read current state via callback to avoid stale closure
+    setIsFollowing(prev => {
+      const wasFollowing = prev
 
-        if (error) setIsFollowing(wasFollowing)
-      } else {
-        const { error } = await supabase
-          .from('follows')
-          .insert({
-            follower_device_id: myDeviceId,
-            following_device_id: targetDeviceId,
-          })
+      ;(async () => {
+        try {
+          if (wasFollowing) {
+            const { error } = await supabase
+              .from('follows')
+              .delete()
+              .eq('follower_device_id', myDeviceId)
+              .eq('following_device_id', targetDeviceId)
 
-        if (error) {
-          // 23505 = already following (unique constraint)
-          if (error.code !== '23505') {
-            setIsFollowing(wasFollowing)
+            if (error) setIsFollowing(wasFollowing)
+          } else {
+            const { error } = await supabase
+              .from('follows')
+              .insert({
+                follower_device_id: myDeviceId,
+                following_device_id: targetDeviceId,
+              })
+
+            if (error && error.code !== '23505') {
+              setIsFollowing(wasFollowing)
+            }
           }
+        } catch {
+          setIsFollowing(wasFollowing)
+        } finally {
+          pendingRef.current = false
+          setIsLoading(false)
         }
-      }
-    } catch {
-      setIsFollowing(wasFollowing)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [myDeviceId, targetDeviceId, isFollowing, isLoading])
+      })()
+
+      return !prev // optimistic toggle
+    })
+  }, [myDeviceId, targetDeviceId]) // stable deps — no isFollowing/isLoading
 
   return { isFollowing, toggle, isLoading }
 }

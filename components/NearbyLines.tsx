@@ -100,7 +100,7 @@ export function NearbyLines({
 }: NearbyLinesProps) {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
 
   const lines = useMemo(() => {

@@ -47,50 +47,50 @@ export async function fetchNotifications(
   const now = new Date()
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
 
-  // 1. Fare drops on favorited routes (recent fares significantly lower than avg)
+  // 1+2. Fare drops + Queue alerts — fetch in parallel
   if (favoriteRouteIds.length > 0) {
-    const { data: fareStats } = await supabase
-      .from('route_fare_stats')
-      .select('route_id, avg_reported_fare, last_report_at')
-      .in('route_id', favoriteRouteIds)
-
-    if (fareStats) {
-      const { data: recentFares } = await supabase
+    const [fareStatsRes, recentFaresRes, queueAlertsRes] = await Promise.all([
+      supabase
+        .from('route_fare_stats')
+        .select('route_id, avg_reported_fare, last_report_at')
+        .in('route_id', favoriteRouteIds)
+        .limit(50),
+      supabase
         .from('fare_reports')
         .select('id, route_id, reported_fare, reported_at, routes!inner(from_location, to_location)')
         .in('route_id', favoriteRouteIds)
         .gt('reported_at', threeDaysAgo)
         .order('reported_at', { ascending: false })
-        .limit(20)
+        .limit(20),
+      supabase
+        .from('queue_reports')
+        .select('id, station_name, queue_status, reported_at')
+        .in('queue_status', ['long', 'very_long'])
+        .gt('reported_at', threeDaysAgo)
+        .order('reported_at', { ascending: false })
+        .limit(10),
+    ])
 
-      if (recentFares) {
-        for (const fare of recentFares) {
-          const stat = fareStats.find((s) => s.route_id === fare.route_id)
-          if (stat && fare.reported_fare < stat.avg_reported_fare * 0.85) {
-            const route = (fare as unknown as FareReportWithRoute).routes
-            notifications.push({
-              id: `fare-drop-${fare.id}`,
-              type: 'fare_drop',
-              title: 'Fare Drop Alert',
-              body: `${route?.from_location} → ${route?.to_location}: ₵${fare.reported_fare.toFixed(2)} (was ₵${stat.avg_reported_fare.toFixed(2)} avg)`,
-              timestamp: fare.reported_at as string,
-              color: '#22c55e',
-            })
-          }
+    const fareStats = fareStatsRes.data
+    const recentFares = recentFaresRes.data
+    const queueAlerts = queueAlertsRes.data
+
+    if (fareStats && recentFares) {
+      for (const fare of recentFares) {
+        const stat = fareStats.find((s) => s.route_id === fare.route_id)
+        if (stat && fare.reported_fare < stat.avg_reported_fare * 0.85) {
+          const route = (fare as unknown as FareReportWithRoute).routes
+          notifications.push({
+            id: `fare-drop-${fare.id}`,
+            type: 'fare_drop',
+            title: 'Fare Drop Alert',
+            body: `${route?.from_location} → ${route?.to_location}: ₵${fare.reported_fare.toFixed(2)} (was ₵${stat.avg_reported_fare.toFixed(2)} avg)`,
+            timestamp: fare.reported_at as string,
+            color: '#22c55e',
+          })
         }
       }
     }
-  }
-
-  // 2. Queue alerts on favorited routes (long/very_long queues)
-  if (favoriteRouteIds.length > 0) {
-    const { data: queueAlerts } = await supabase
-      .from('queue_reports')
-      .select('id, station_name, queue_status, reported_at')
-      .in('queue_status', ['long', 'very_long'])
-      .gt('reported_at', threeDaysAgo)
-      .order('reported_at', { ascending: false })
-      .limit(10)
 
     if (queueAlerts) {
       for (const q of queueAlerts) {

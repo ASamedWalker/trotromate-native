@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { View, Text, TouchableOpacity, Share, useColorScheme, StyleSheet } from 'react-native'
 import { Gift, Copy, Check, Share2, Users } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 export function ReferralCard() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId } = useDeviceId()
   const [referralCode, setReferralCode] = useState<string | null>(null)
   const [referralCount, setReferralCount] = useState(0)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { getEmergencyContact, saveEmergencyContact } from '@/lib/services/safety
 
 export function SOSButton({ from, to }: { from?: string; to?: string }) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
   const { deviceId } = useApp()
 

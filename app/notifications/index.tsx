@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ export default function NotificationsScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId } = useApp()
   const { notifications, unreadCount, isLoading, markAsRead, markAllRead, refetch } =

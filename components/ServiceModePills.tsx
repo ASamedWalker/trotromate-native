@@ -31,7 +31,7 @@ interface ServiceModePillsProps {
 
 export const ServiceModePills = React.memo(function ServiceModePills({ activeMode, onModeChange }: ServiceModePillsProps) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   return (
     <View style={s.container}>

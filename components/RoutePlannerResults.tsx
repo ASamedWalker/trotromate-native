@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native'
 import { Bus, Bike, ArrowRight, Clock, RefreshCw, Footprints } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
@@ -109,7 +110,7 @@ export function RoutePlannerResults({
   onSelectPlan?: (index: number) => void
 }) {
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
 
   if (isLoading) {

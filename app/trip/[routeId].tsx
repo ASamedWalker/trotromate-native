@@ -93,7 +93,7 @@ export default function TripScreen() {
     lineId?: string
   }>()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const isTrain = type === 'train'
   const { route, isLoading: routeLoading } = useRouteDetail(isTrain ? '' : (routeId ?? ''))

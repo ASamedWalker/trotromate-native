@@ -87,7 +87,7 @@ export default function ReportFAB() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { width } = useWindowDimensions()
   const cardSize = (width - 32 - 24 - 24) / 3
 

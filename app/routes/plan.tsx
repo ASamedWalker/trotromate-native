@@ -87,7 +87,7 @@ export default function RoutePlannerScreen() {
     picked_lng?: string
   }>()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
 
   const [from, setFrom] = useState(params.from || '')

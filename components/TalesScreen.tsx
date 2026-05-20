@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -102,7 +102,7 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
 
 // ─── TaleCard ───────────────────────────────────────────
 
-function TaleCard({
+const TaleCard = React.memo(function TaleCard({
   post,
   isDark,
   reactionSummary,
@@ -381,7 +381,7 @@ function TaleCard({
       <View style={s.separator} />
     </View>
   )
-}
+})
 
 // ─── Main Screen ────────────────────────────────────────
 
@@ -389,7 +389,7 @@ export function TalesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { deviceId, profile } = useApp()
   const {

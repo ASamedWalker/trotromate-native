@@ -25,7 +25,7 @@ interface Props {
 export function StopRoutesPanel({ stop, onClose }: Props) {
   const isDark = useColorScheme() === 'dark'
   const router = useRouter()
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { data: routes = [], isLoading } = useQuery<RouteWithStats[]>({
     queryKey: ['routes-for-stop', stop.routeIds],

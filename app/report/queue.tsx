@@ -46,7 +46,7 @@ export default function QueueReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { width } = useWindowDimensions()
   const levelWidth = (width - 48 - 36) / 4 // px-6 + 3 gaps of 12
 

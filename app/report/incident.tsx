@@ -58,7 +58,7 @@ export default function IncidentReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { width } = useWindowDimensions()
   const gridSize = (width - 48 - 32) / 3 // px-6 + 2 gaps of 16
 

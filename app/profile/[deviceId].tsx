@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -25,7 +26,7 @@ export default function PublicProfileScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId: myDeviceId } = useApp()
 
   const { data, isLoading } = usePublicProfile(profileDeviceId ?? null, myDeviceId)

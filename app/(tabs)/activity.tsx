@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -185,7 +185,7 @@ function SwipeableRow({
 export default function UpdatesScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const [segment, setSegment] = useState<Segment>('notifications')
 

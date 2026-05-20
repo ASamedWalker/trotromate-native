@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
 import Svg, { Path, Rect, Circle, G } from 'react-native-svg'
@@ -136,7 +136,7 @@ function BigTrainSvg() {
 export function SmartCommuteCard() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { profile } = useApp()
 
   const context = getTimeContext()

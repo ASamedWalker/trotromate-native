@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, FlatList, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams } from 'expo-router'
@@ -12,7 +12,7 @@ import type { PublicProfile } from '@/lib/types'
 export default function FollowersScreen() {
   const { id: profileDeviceId, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>()
   const isDark = useColorScheme() === 'dark'
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId: myDeviceId } = useApp()
 
   const [tab, setTab] = useState<'followers' | 'following'>(

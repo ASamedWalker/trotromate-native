@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ const appIcon = require('@/assets/images/logo.png')
 export default function StoreUpdateModal() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { isUpdateAvailable, storeVersion, currentVersion, dismiss, openStore } = useStoreUpdate()
   const scale = useRef(new Animated.Value(0.85)).current
 

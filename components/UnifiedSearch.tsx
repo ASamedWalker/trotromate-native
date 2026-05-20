@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ export function UnifiedSearch({ visible, onClose, onRoutePreview }: UnifiedSearc
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const [query, setQuery] = useState('')
   const insets = useSafeAreaInsets()

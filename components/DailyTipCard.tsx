@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ interface Props {
 export function DailyTipCard({ category, tip: overrideTip }: Props) {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
   const { dailyTip } = useCommuterTips(category)
   const { profile, deviceId, setLastReward } = useApp()
 

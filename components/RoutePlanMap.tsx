@@ -35,7 +35,7 @@ interface RoutePlanMapProps {
 function RoutePlanMapInner({ plans, selectedPlanIndex, from, to, stationCoords }: RoutePlanMapProps) {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
-  const s = getStyles(isDark)
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   const [expanded, setExpanded] = useState(false)
   const heightAnim = useRef(new Animated.Value(0)).current
