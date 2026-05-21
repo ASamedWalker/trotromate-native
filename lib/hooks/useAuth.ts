@@ -53,11 +53,23 @@ export function useAuth(): UseAuthReturn {
   const linkToDevice = useCallback(async (deviceId: string) => {
     if (!session?.user) return
     const phone = session.user.phone || ''
+
+    // Link device to auth account
     await supabase.rpc('link_auth_to_device', {
       p_device_id: deviceId,
       p_auth_user_id: session.user.id,
       p_phone: phone,
     })
+
+    // Auto-link any WhatsApp bookings made with same phone
+    if (phone) {
+      const phones = [phone, phone.replace('+', ''), `+${phone.replace('+', '')}`]
+      for (const p of phones) {
+        try {
+          await supabase.rpc('link_tickets_to_user', { p_phone: p, p_user_id: session.user.id })
+        } catch {} // non-critical, don't block login
+      }
+    }
   }, [session])
 
   const signOut = useCallback(async () => {
