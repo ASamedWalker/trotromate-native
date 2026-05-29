@@ -141,17 +141,23 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 <Text style={s.primaryBtnText}>Create an Account</Text>
               </Pressable>
 
+              <View style={s.dividerRow}>
+                <View style={s.dividerLine} />
+                <Text style={s.dividerText}>or</Text>
+                <View style={s.dividerLine} />
+              </View>
+
               <Pressable
                 onPress={() => handleAuth('google')}
-                style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
-                <Image source={{ uri: 'https://www.google.com/favicon.ico' }} style={s.socialIcon} />
+                <Text style={s.googleIcon}>G</Text>
                 <Text style={s.socialBtnText}>Continue with Google</Text>
               </Pressable>
 
               <Pressable
                 onPress={() => handleAuth('apple')}
-                style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
                 <Text style={s.appleIcon}></Text>
                 <Text style={[s.socialBtnText, { color: '#fff' }]}>Continue with Apple</Text>
@@ -217,9 +223,12 @@ const s = StyleSheet.create({
 
   // Auth section — full width
   authSection: { gap: 12, width: '100%' },
-  socialBtn: { height: 54, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%' },
-  socialBtnDark: { backgroundColor: '#000' },
-  socialIcon: { width: 20, height: 20 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e5e5' },
+  dividerText: { fontSize: 13, fontWeight: '500', color: '#bbb' },
+  socialBtn: { height: 54, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', borderWidth: 1, borderColor: '#ebebeb' },
+  socialBtnDark: { backgroundColor: '#000', borderColor: '#000' },
+  googleIcon: { fontSize: 18, fontWeight: '700', color: '#4285F4' },
   socialBtnText: { fontSize: 15, fontWeight: '600', color: '#000' },
   appleIcon: { fontSize: 20, color: '#fff' },
   loginLink: { textAlign: 'center', marginTop: 12, fontSize: 13, color: '#aaa' },
