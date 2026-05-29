@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 
-const { width } = Dimensions.get('window')
+const { width, height: screenHeight } = Dimensions.get('window')
 const BRAND = '#FF4D1C'
 
 interface Slide {
@@ -99,35 +99,35 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const renderSlide = useCallback(({ item, index }: { item: Slide; index: number }) => {
     const isWelcome = index <= 1
 
+    const slideHeight = screenHeight
+
     return (
-      <View style={[styles.slide, { width }]}>
-        {/* ── TOP: Illustration ── */}
-        <View style={[styles.illustrationArea, { paddingTop: insets.top + 16 }]}>
-          <Image source={item.image} style={styles.illustration} resizeMode="contain" />
+      <View style={{ width, height: slideHeight, backgroundColor: '#fff' }}>
+        {/* Illustration — centered in top half */}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: insets.top }}>
+          <Image source={item.image} style={{ width: 240, height: 240 }} resizeMode="contain" />
         </View>
 
-        {/* ── MIDDLE: Copy ── */}
-        <View style={styles.copyArea}>
+        {/* Copy */}
+        <View style={{ alignItems: 'center', paddingHorizontal: 30 }}>
           <Text style={styles.headline}>{item.title}</Text>
           <Text style={styles.body}>{item.subtitle}</Text>
         </View>
 
-        {/* ── DOTS ── */}
-        <View style={styles.dots}>
+        {/* Dots */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 20 }}>
           {SLIDES.map((_, i) => (
             <View key={i} style={[styles.dot, i === currentIndex && styles.dotActive]} />
           ))}
         </View>
 
-        {/* ── BOTTOM: Action Buttons ── */}
-        <View style={[styles.actionsArea, { paddingBottom: insets.bottom + 12 }]}>
+        {/* Buttons */}
+        <View style={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: insets.bottom + 16, gap: 12 }}>
           {isWelcome ? (
-            /* Welcome slides: single CTA */
             <Pressable onPress={goToAuth} style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPressed]}>
               <Text style={styles.btnPrimaryLabel}>Get Started</Text>
             </Pressable>
           ) : (
-            /* Auth slides: full button stack */
             <>
               <Pressable onPress={createAccount} style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPressed]}>
                 <Text style={styles.btnPrimaryLabel}>Create an Account</Text>
