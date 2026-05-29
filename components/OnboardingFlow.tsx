@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const { width, height: screenHeight } = Dimensions.get('window')
@@ -124,13 +125,17 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {/* Buttons */}
         <View style={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: insets.bottom + 16, gap: 12 }}>
           {isWelcome ? (
-            <Pressable onPress={goToAuth} style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPressed]}>
-              <Text style={styles.btnPrimaryLabel}>Get Started</Text>
+            <Pressable onPress={goToAuth} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+              <LinearGradient colors={[BRAND, BRAND]} style={styles.btnPrimary}>
+                <Text style={styles.btnPrimaryLabel}>Get Started</Text>
+              </LinearGradient>
             </Pressable>
           ) : (
             <>
-              <Pressable onPress={createAccount} style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPressed]}>
-                <Text style={styles.btnPrimaryLabel}>Create an Account</Text>
+              <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+                <LinearGradient colors={[BRAND, BRAND]} style={styles.btnPrimary}>
+                  <Text style={styles.btnPrimaryLabel}>Create an Account</Text>
+                </LinearGradient>
               </Pressable>
 
               <View style={styles.orRow}>
@@ -139,14 +144,18 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 <View style={styles.orLine} />
               </View>
 
-              <Pressable onPress={createAccount} style={({ pressed }) => [styles.btnSocial, pressed && styles.btnPressed]}>
-                <Text style={styles.gIcon}>G</Text>
-                <Text style={styles.btnSocialLabel}>Continue with Google</Text>
+              <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+                <View style={styles.btnSocial}>
+                  <Text style={styles.gIcon}>G</Text>
+                  <Text style={styles.btnSocialLabel}>Continue with Google</Text>
+                </View>
               </Pressable>
 
-              <Pressable onPress={createAccount} style={({ pressed }) => [styles.btnSocial, styles.btnDark, pressed && styles.btnPressed]}>
-                <Text style={styles.aIcon}>{'\uF8FF'}</Text>
-                <Text style={[styles.btnSocialLabel, styles.btnDarkLabel]}>Continue with Apple</Text>
+              <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+                <View style={[styles.btnSocial, styles.btnDark]}>
+                  <Text style={styles.aIcon}>{'\uF8FF'}</Text>
+                  <Text style={[styles.btnSocialLabel, styles.btnDarkLabel]}>Continue with Apple</Text>
+                </View>
               </Pressable>
 
               <Text style={styles.footerText}>
