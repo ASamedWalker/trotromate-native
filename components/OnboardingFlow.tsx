@@ -151,10 +151,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 onPress={() => handleAuth('google')}
                 style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
-                <View style={s.googleLogoWrap}>
-                  <Text style={[s.googleLetter, { color: '#4285F4' }]}>G</Text>
-                  <Text style={[s.googleLetter, { color: '#EA4335', position: 'absolute', left: 0.5, top: 0.5 }]}>G</Text>
-                </View>
+                <Text style={s.googleG}>G</Text>
                 <Text style={s.socialBtnText}>Continue with Google</Text>
               </Pressable>
 
@@ -162,7 +159,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 onPress={() => handleAuth('apple')}
                 style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
-                <Text style={s.appleIcon}>&#xF8FF;</Text>
+                <Text style={s.appleIcon}>{'\uF8FF'}</Text>
                 <Text style={[s.socialBtnText, { color: '#fff' }]}>Continue with Apple</Text>
               </Pressable>
 
@@ -209,37 +206,36 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
-  slide: { flex: 1, justifyContent: 'space-between' },
+  slide: { flex: 1 },
 
-  // Image — large, centered, with breathing room
-  imageWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, backgroundColor: '#fff' },
-  image: { width: width * 0.85, height: width * 0.85, maxHeight: 380 },
+  // Image — centered, takes proportional space
+  imageWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 8, height: width * 0.7 },
+  image: { width: width * 0.65, height: width * 0.65 },
 
-  // Content — centered text block
-  content: { paddingHorizontal: 32, paddingBottom: 90, alignItems: 'center' },
-  title: { fontSize: 26, fontWeight: '800', color: '#000', letterSpacing: -0.8, lineHeight: 32, marginBottom: 12, textAlign: 'center' },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#888', lineHeight: 22, marginBottom: 28, textAlign: 'center', maxWidth: 300 },
+  // Content — centered below image, fills remaining space
+  content: { flex: 1, paddingHorizontal: 26, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 50 },
+  title: { fontSize: 26, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 32, marginBottom: 14, textAlign: 'center' },
+  subtitle: { fontSize: 14, fontWeight: '400', color: '#555', lineHeight: 21, marginBottom: 20, textAlign: 'center', maxWidth: 280 },
 
-  // Primary button — full width, rounded rect (not pill)
-  primaryBtn: { height: 56, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: 'rgba(255,90,31,0.28)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 1, shadowRadius: 20, elevation: 4 },
+  // Primary button
+  primaryBtn: { height: 56, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 20, elevation: 4 },
   primaryBtnText: { fontSize: 16, fontWeight: '600', color: '#fff', letterSpacing: -0.2 },
 
-  // Auth section — full width
+  // Auth section
   authSection: { gap: 12, width: '100%' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 2 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#E8E8E8' },
   dividerText: { fontSize: 13, fontWeight: '500', color: '#B8B8B8' },
   socialBtn: { height: 56, borderRadius: 14, backgroundColor: '#F2F2F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%' },
   socialBtnDark: { backgroundColor: '#0A0A0A' },
-  googleLogoWrap: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  googleLetter: { fontSize: 18, fontWeight: '700' },
+  googleG: { fontSize: 20, fontWeight: '700', color: '#4285F4' },
   socialBtnText: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', letterSpacing: -0.2 },
   appleIcon: { fontSize: 20, color: '#fff' },
-  loginLink: { textAlign: 'center', marginTop: 16, fontSize: 14, color: '#555' },
-  loginLinkBold: { color: BRAND, fontWeight: '700' },
+  loginLink: { textAlign: 'center', marginTop: 16, fontSize: 14, fontWeight: '400', color: '#555' },
+  loginLinkBold: { color: BRAND, fontWeight: '600' },
 
-  // Dots — more space from bottom
-  dotsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#e0e0e0' },
-  dotActive: { width: 28, borderRadius: 4, backgroundColor: BRAND },
+  // Dots
+  dotsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#E8E8E8' },
+  dotActive: { width: 22, borderRadius: 4, backgroundColor: BRAND },
 })
