@@ -191,13 +191,13 @@ const styles = StyleSheet.create({
 
   /* ── Illustration ── */
   illustrationArea: {
-    flex: 1,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
   },
   illustration: {
-    width: width * 0.62,
-    height: width * 0.62,
+    width: 240,
+    height: 240,
   },
 
   /* ── Copy ── */
