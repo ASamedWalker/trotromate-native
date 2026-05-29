@@ -1,658 +1,232 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   FlatList,
   StyleSheet,
-  Animated,
   Image,
-  ActivityIndicator,
   type ViewToken,
 } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import {
-  Bell,
-  BellRing,
-  ChevronRight,
-  Check,
-  X,
-  Zap,
-  Coins,
-  Camera,
-  Trophy,
-  MapPin,
-} from 'lucide-react-native'
-import * as Notifications from 'expo-notifications'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { c } from '@/lib/theme'
-import SetCommuteStep from '@/components/SetCommuteStep'
-import { upsertUserCommute, matchRoute } from '@/lib/services/user-commutes'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
+import * as Haptics from 'expo-haptics'
 
 const { width } = Dimensions.get('window')
+const BRAND = '#FF4D1C'
 
-interface OnboardingSlide {
+// ─── Onboarding Slides ────────────────────────────────────
+
+interface Slide {
   id: string
+  image: any
   title: string
   subtitle: string
-  description: string
-  gradientColors: [string, string, string]
-  accentColor: string
-  isNotificationSlide?: boolean
-  isCommuteSlide?: boolean
+  showAuth?: boolean
 }
 
-// Animated bell that rocks back and forth
-function AnimatedBellIcon({ granted, denied }: { granted: boolean; denied: boolean }) {
-  const rotation = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    if (granted || denied) return
-    const ring = Animated.sequence([
-      Animated.timing(rotation, { toValue: -8, duration: 75, useNativeDriver: true }),
-      Animated.timing(rotation, { toValue: 8, duration: 75, useNativeDriver: true }),
-      Animated.timing(rotation, { toValue: -8, duration: 75, useNativeDriver: true }),
-      Animated.timing(rotation, { toValue: 8, duration: 75, useNativeDriver: true }),
-      Animated.timing(rotation, { toValue: 0, duration: 75, useNativeDriver: true }),
-    ])
-    const animation = Animated.loop(
-      Animated.sequence([ring, Animated.delay(2500)])
-    )
-    animation.start()
-    return () => animation.stop()
-  }, [rotation, granted, denied])
-
-  const spin = rotation.interpolate({
-    inputRange: [-10, 10],
-    outputRange: ['-10deg', '10deg'],
-  })
-
-  if (granted) return <Check size={48} color={c.white} strokeWidth={2} />
-  if (denied) return <X size={48} color={c.white} strokeWidth={2} />
-
-  return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <BellRing size={48} color={c.white} strokeWidth={1.5} />
-    </Animated.View>
-  )
-}
-
-const SLIDES: OnboardingSlide[] = [
+const SLIDES: Slide[] = [
   {
-    id: 'welcome',
+    id: 'welcome1',
+    image: require('@/assets/images/onboarding/ob_busstop_redskies_image.png'),
     title: 'Welcome to Troski',
-    subtitle: 'Your trotro companion',
-    description:
-      'Fares, queues, train times, and community reports — all in one place. Let\u2019s go!',
-    gradientColors: ['#f59e0b', '#f97316', '#ef4444'],
-    accentColor: '#fbbf24',
+    subtitle: 'Ghana\'s transport companion. Ride, connect, and move with confidence.',
   },
   {
-    id: 'notifications',
-    title: 'Stay in the Loop',
-    subtitle: 'One last thing',
-    description:
-      'Get alerts when fares change or traffic builds up on your routes.',
-    gradientColors: ['#3b82f6', '#6366f1', '#8b5cf6'],
-    accentColor: '#60a5fa',
-    isNotificationSlide: true,
+    id: 'welcome2',
+    image: require('@/assets/images/onboarding/ob_phone_image.png'),
+    title: 'Welcome to Troski',
+    subtitle: 'Ghana\'s transport companion. Ride, connect, and move with confidence.',
   },
   {
-    id: 'commute',
-    title: 'Set Your Commute',
-    subtitle: 'Personalize your experience',
-    description:
-      'Tell us your daily route and we\u2019ll show you fares, queues, and alerts every morning.',
-    gradientColors: ['#10b981', '#22c55e', '#059669'],
-    accentColor: '#34d399',
-    isCommuteSlide: true,
+    id: 'queue',
+    image: require('@/assets/images/onboarding/ob_illustrator_image.png'),
+    title: 'Know Your Queue\nBefore You Leave',
+    subtitle: 'Live queue lengths, bus status and smart routing so you never waste time at the station.',
+    showAuth: true,
+  },
+  {
+    id: 'wallet',
+    image: require('@/assets/images/onboarding/ob_wallet_image.png'),
+    title: 'Pay Your Fare\nFrom Your Wallet',
+    subtitle: 'Top up your Troski wallet, scan your QR code and ride. No cash, no stress.',
+    showAuth: true,
+  },
+  {
+    id: 'traffic',
+    image: require('@/assets/images/onboarding/ob_busstop_blueskies_image.png'),
+    title: 'Beat Traffic\nArrive Calm',
+    subtitle: 'Live congestion alerts on every corridor, smart departure windows and alternative routes when things get heavy.',
+    showAuth: true,
   },
 ]
 
-const FEATURES = [
-  { label: 'Fares', icon: Coins, color: '#fbbf24' },
-  { label: 'Tales', icon: Camera, color: '#f472b6' },
-  { label: 'Rewards', icon: Trophy, color: '#a78bfa' },
-  { label: 'Live updates', icon: Zap, color: '#38bdf8' },
-]
-
-const ALERT_EXAMPLES = [
-  {
-    title: 'Fare changes',
-    subtitle: 'Know when prices change',
-    icon: Zap,
-    gradientColors: ['#f59e0b', '#f97316'] as [string, string],
-  },
-  {
-    title: 'Traffic alerts',
-    subtitle: 'Avoid delays on your route',
-    icon: MapPin,
-    gradientColors: ['#ef4444', '#f43f5e'] as [string, string],
-  },
-]
+// ─── Main Component ───────────────────────────────────────
 
 interface OnboardingFlowProps {
   onComplete: () => void
   deviceId: string | null
 }
 
-export default function OnboardingFlow({ onComplete, deviceId }: OnboardingFlowProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [notifStatus, setNotifStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle')
-  const [isSavingCommute, setIsSavingCommute] = useState(false)
+export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
+  const insets = useSafeAreaInsets()
+  const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
+  const [currentIndex, setCurrentIndex] = useState(0)
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setCurrentIndex(viewableItems[0].index)
-      }
-    }
-  ).current
-
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current
-
-  const goNext = useCallback(() => {
-    if (currentIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true })
-    } else {
-      onComplete()
-    }
-  }, [currentIndex, onComplete])
-
-  const handleCommuteSet = useCallback(async (from: string, to: string) => {
-    if (!deviceId) {
-      onComplete()
-      return
-    }
-    setIsSavingCommute(true)
-    try {
-      const routeId = await matchRoute(from, to)
-      await upsertUserCommute({
-        device_id: deviceId,
-        from_location: from,
-        to_location: to,
-        route_id: routeId,
-      })
-
-      // Also save locally so SmartCommuteCard reads it immediately on first home render
-      const localCommute = {
-        id: Math.random().toString(36).slice(2),
-        label: 'Morning commute',
-        routeId: routeId ?? '',
-        from,
-        to,
-        icon: 'sunrise',
-        createdAt: Date.now(),
-      }
-      await AsyncStorage.setItem('troski-my-commutes', JSON.stringify([localCommute]))
-    } catch (err) {
-      console.warn('Failed to save commute:', err)
-    } finally {
-      setIsSavingCommute(false)
-      onComplete()
-    }
-  }, [deviceId, onComplete])
-
-  const handleEnableNotifications = useCallback(async () => {
-    setNotifStatus('loading')
-    try {
-      const { status } = await Notifications.requestPermissionsAsync()
-      setNotifStatus(status === 'granted' ? 'granted' : 'denied')
-    } catch {
-      setNotifStatus('denied')
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0 && viewableItems[0].index != null) {
+      setCurrentIndex(viewableItems[0].index)
     }
   }, [])
 
-  const currentSlide = SLIDES[currentIndex]
-  const isNotifSlide = currentSlide.isNotificationSlide
-  const isCommuteSlide = currentSlide.isCommuteSlide
+  const viewabilityConfig = useMemo(() => ({ viewAreaCoveragePercentThreshold: 50 }), [])
 
-  const renderSlide = ({ item }: { item: OnboardingSlide }) => {
+  const handleGetStarted = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    flatListRef.current?.scrollToIndex({ index: 2, animated: true })
+  }, [])
+
+  const handleAuth = useCallback((_method: 'google' | 'apple') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    onComplete()
+    // Navigate to registration after completing onboarding
+    setTimeout(() => router.push('/register/phone' as any), 100)
+  }, [onComplete, router])
+
+  const handleLogin = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    onComplete()
+    setTimeout(() => router.push('/auth/phone' as any), 100)
+  }, [onComplete, router])
+
+  const renderSlide = useCallback(({ item, index }: { item: Slide; index: number }) => {
+    const isWelcome = index <= 1
+    const showAuth = item.showAuth
+
     return (
-      <LinearGradient
-        colors={['#0c0a09', '#0c0a09']}
-        style={[
-          styles.slide,
-          { width },
-          item.isCommuteSlide && styles.slideCommute,
-        ]}
-      >
-        {/* Background gradient overlay */}
-        <LinearGradient
-          colors={[
-            `${item.gradientColors[0]}30`,
-            `${item.gradientColors[1]}20`,
-            `${item.gradientColors[2]}30`,
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* Floating orbs */}
-        <View style={[styles.orb, styles.orbTopRight, { backgroundColor: `${item.accentColor}40` }]} />
-        <View style={[styles.orb, styles.orbBottomLeft, { backgroundColor: `${item.accentColor}20` }]} />
-
-        {/* Icon with glow — hidden on commute slide */}
-        {!item.isCommuteSlide && (
-          <View style={styles.iconContainer}>
-            <View style={[styles.iconGlow, { shadowColor: item.gradientColors[0] }]}>
-              <LinearGradient
-                colors={item.gradientColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconBox}
-              >
-                {/* Inner shine */}
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.25)', 'transparent', 'transparent']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                {item.id === 'welcome' ? (
-                  <Image
-                    source={require('@/assets/images/logo.png')}
-                    style={styles.logoImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <AnimatedBellIcon
-                    granted={notifStatus === 'granted'}
-                    denied={notifStatus === 'denied'}
-                  />
-                )}
-              </LinearGradient>
-            </View>
-          </View>
-        )}
-
-        {/* Subtitle (above title, small uppercase) */}
-        <Text style={[styles.subtitleLabel, { color: item.accentColor }]}>
-          {item.subtitle}
-        </Text>
-
-        {/* Title */}
-        <Text style={styles.title}>{item.title}</Text>
-
-        {/* Description */}
-        <Text style={styles.description}>{item.description}</Text>
-
-        {/* Welcome slide: colored feature pills */}
-        {item.id === 'welcome' && (
-          <View style={styles.featureRow}>
-            {FEATURES.map((f) => {
-              const Icon = f.icon
-              return (
-                <View key={f.label} style={styles.featureBadge}>
-                  <Icon size={16} color={f.color} strokeWidth={2} />
-                  <Text style={styles.featureText}>{f.label}</Text>
-                </View>
-              )
-            })}
-          </View>
-        )}
-
-        {/* Notification slide: example alert cards */}
-        {item.id === 'notifications' && (
-          <View style={styles.alertCardsContainer}>
-            {ALERT_EXAMPLES.map((alert) => {
-              const Icon = alert.icon
-              return (
-                <View key={alert.title} style={styles.alertCard}>
-                  <LinearGradient
-                    colors={alert.gradientColors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.alertIconBox}
-                  >
-                    <Icon size={20} color={c.white} strokeWidth={2} />
-                  </LinearGradient>
-                  <View style={styles.alertTextContainer}>
-                    <Text style={styles.alertTitle}>{alert.title}</Text>
-                    <Text style={styles.alertSubtitle}>{alert.subtitle}</Text>
-                  </View>
-                </View>
-              )
-            })}
-          </View>
-        )}
-
-        {/* Commute slide: station picker */}
-        {item.isCommuteSlide && (
-          <SetCommuteStep
-            onCommuteSet={handleCommuteSet}
-            isSaving={isSavingCommute}
+      <View style={[s.slide, { width }]}>
+        {/* Illustration */}
+        <View style={[s.imageWrap, { paddingTop: insets.top + (isWelcome ? 40 : 20) }]}>
+          <Image
+            source={item.image}
+            style={s.image}
+            resizeMode="contain"
           />
-        )}
-      </LinearGradient>
+        </View>
+
+        {/* Content */}
+        <View style={s.content}>
+          <Text style={s.title}>{item.title}</Text>
+          <Text style={s.subtitle}>{item.subtitle}</Text>
+
+          {/* Welcome CTA */}
+          {isWelcome && (
+            <Pressable
+              onPress={handleGetStarted}
+              style={({ pressed }) => [s.primaryBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+            >
+              <Text style={s.primaryBtnText}>Get Started</Text>
+            </Pressable>
+          )}
+
+          {/* Auth buttons */}
+          {showAuth && (
+            <View style={s.authSection}>
+              <Pressable
+                onPress={() => handleAuth('google')}
+                style={({ pressed }) => [s.primaryBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+              >
+                <Text style={s.primaryBtnText}>Create an Account</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => handleAuth('google')}
+                style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Image source={{ uri: 'https://www.google.com/favicon.ico' }} style={s.socialIcon} />
+                <Text style={s.socialBtnText}>Continue with Google</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => handleAuth('apple')}
+                style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={s.appleIcon}></Text>
+                <Text style={[s.socialBtnText, { color: '#fff' }]}>Continue with Apple</Text>
+              </Pressable>
+
+              <Pressable onPress={handleLogin}>
+                <Text style={s.loginLink}>Already have an account? <Text style={s.loginLinkBold}>Login</Text></Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </View>
     )
-  }
+  }, [currentIndex, insets.top, handleGetStarted, handleAuth, handleLogin])
 
   return (
-    <View style={styles.container}>
-      {/* Skip button */}
-      <TouchableOpacity onPress={onComplete} style={styles.skipBtn} activeOpacity={0.7}>
-        <Text style={styles.skipText}>Skip</Text>
-      </TouchableOpacity>
-
-      {/* Slides */}
+    <View style={s.container}>
       <FlatList
         ref={flatListRef}
         data={SLIDES}
         renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        bounces={false}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
       />
 
-      {/* Bottom controls */}
-      <View style={styles.bottom}>
-        {/* Dots */}
-        <View style={styles.dotsRow}>
-          {SLIDES.map((slide, i) => (
-            <View
-              key={slide.id}
-              style={[
-                styles.dot,
-                i === currentIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {/* Buttons — commute slide handles its own confirm button, dots only here */}
-        {isCommuteSlide ? null : isNotifSlide ? (
-          <View style={styles.notifButtonsContainer}>
-            {notifStatus === 'idle' || notifStatus === 'loading' ? (
-              <>
-                <TouchableOpacity
-                  onPress={handleEnableNotifications}
-                  disabled={notifStatus === 'loading'}
-                  activeOpacity={0.85}
-                  style={styles.gradientBtnWrap}
-                >
-                  <LinearGradient
-                    colors={currentSlide.gradientColors}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={styles.gradientBtn}
-                  >
-                    {notifStatus === 'loading' ? (
-                      <ActivityIndicator color={c.white} size="small" />
-                    ) : (
-                      <>
-                        <Bell size={20} color={c.white} strokeWidth={2} />
-                        <Text style={styles.gradientBtnText}>Enable Notifications</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={goNext}
-                  activeOpacity={0.7}
-                  style={styles.maybeLaterBtn}
-                >
-                  <Text style={styles.maybeLaterText}>Maybe Later</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                onPress={goNext}
-                activeOpacity={0.85}
-                style={styles.gradientBtnWrap}
-              >
-                <LinearGradient
-                  colors={
-                    notifStatus === 'granted'
-                      ? ['#10b981', '#22c55e']
-                      : currentSlide.gradientColors
-                  }
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.gradientBtn}
-                >
-                  {notifStatus === 'granted' && (
-                    <Check size={20} color={c.white} strokeWidth={2.5} />
-                  )}
-                  <Text style={styles.gradientBtnText}>Continue</Text>
-                  <ChevronRight size={20} color={c.white} strokeWidth={2} />
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={goNext}
-            activeOpacity={0.85}
-            style={styles.gradientBtnWrap}
-          >
-            <LinearGradient
-              colors={currentSlide.gradientColors}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.gradientBtn}
-            >
-              <Text style={styles.gradientBtnText}>Continue</Text>
-              <ChevronRight size={20} color={c.white} strokeWidth={2} />
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+      {/* Dots indicator */}
+      <View style={[s.dotsRow, { bottom: insets.bottom + 16 }]}>
+        {SLIDES.map((_, i) => (
+          <View
+            key={i}
+            style={[s.dot, i === currentIndex && s.dotActive]}
+          />
+        ))}
       </View>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0c0a09',
-  },
-  skipBtn: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  skipText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    fontFamily: 'Poppins_700Bold',
-    letterSpacing: 0.5,
-  },
-  slide: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  slideCommute: {
-    justifyContent: 'flex-start',
-    paddingTop: 120,
-  },
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  orbTopRight: {
-    width: 200,
-    height: 200,
-    top: -40,
-    right: -60,
-  },
-  orbBottomLeft: {
-    width: 300,
-    height: 300,
-    bottom: -80,
-    left: -100,
-  },
-  iconContainer: {
-    marginBottom: 32,
-    alignItems: 'center',
-  },
-  iconGlow: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    elevation: 15,
-  },
-  iconBox: {
-    width: 112,
-    height: 112,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 72,
-    height: 72,
-  },
-  subtitleLabel: {
-    fontSize: 11,
-    fontFamily: 'Poppins_700Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 34,
-    fontFamily: 'Poppins_800ExtraBold',
-    color: c.white,
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 42,
-    letterSpacing: -0.5,
-  },
-  description: {
-    fontSize: 15,
-    lineHeight: 24,
-    fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    marginBottom: 28,
-    maxWidth: 320,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  featureBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  featureText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-    color: 'rgba(255,255,255,0.9)',
-  },
-  alertCardsContainer: {
-    width: '100%',
-    gap: 8,
-  },
-  alertCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  alertIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertTextContainer: {
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: c.white,
-  },
-  alertSubtitle: {
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 1,
-  },
-  bottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingBottom: 50,
-    alignItems: 'center',
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: c.white,
-  },
-  dotInactive: {
-    width: 8,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  gradientBtnWrap: {
-    width: '100%',
-  },
-  gradientBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingVertical: 18,
-    borderRadius: 20,
-    gap: 8,
-  },
-  gradientBtnText: {
-    fontSize: 17,
-    fontFamily: 'Poppins_700Bold',
-    color: c.white,
-    letterSpacing: 0.3,
-  },
-  notifButtonsContainer: {
-    width: '100%',
-    gap: 8,
-  },
-  maybeLaterBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  maybeLaterText: {
-    fontSize: 15,
-    fontFamily: 'Poppins_500Medium',
-    color: 'rgba(255,255,255,0.4)',
-  },
+// ─── Styles ───────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+
+  slide: { flex: 1 },
+
+  // Image
+  imageWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  image: { width: width * 0.75, height: width * 0.75, maxHeight: 320 },
+
+  // Content
+  content: { paddingHorizontal: 28, paddingBottom: 80 },
+  title: { fontSize: 24, fontWeight: '700', color: '#000', letterSpacing: -0.5, lineHeight: 30, marginBottom: 10 },
+  subtitle: { fontSize: 14, fontWeight: '400', color: '#666', lineHeight: 21, marginBottom: 24 },
+
+  // Primary button
+  primaryBtn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+
+  // Auth section
+  authSection: { gap: 12 },
+  socialBtn: { height: 52, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  socialBtnDark: { backgroundColor: '#000' },
+  socialIcon: { width: 18, height: 18 },
+  socialBtnText: { fontSize: 15, fontWeight: '600', color: '#000' },
+  appleIcon: { fontSize: 18, color: '#fff' },
+  loginLink: { textAlign: 'center', marginTop: 8, fontSize: 13, color: '#999' },
+  loginLinkBold: { color: BRAND, fontWeight: '700' },
+
+  // Dots
+  dotsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ddd' },
+  dotActive: { width: 24, backgroundColor: BRAND },
 })

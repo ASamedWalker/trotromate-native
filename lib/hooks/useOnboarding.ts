@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const ONBOARDING_KEY = 'troski_onboarding_complete'
-const ONBOARDING_VERSION = '3' // v3: added "Set Your Commute" step
+const ONBOARDING_VERSION = '4' // v4: Kelly's redesign — illustrations, 5 slides, auth buttons
 
 export function useOnboarding() {
   const [isComplete, setIsComplete] = useState(true) // Default to true so it doesn't flash
