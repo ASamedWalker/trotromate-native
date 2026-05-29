@@ -151,7 +151,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 onPress={() => handleAuth('google')}
                 style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
-                <Text style={s.googleIcon}>G</Text>
+                <View style={s.googleLogoWrap}>
+                  <Text style={[s.googleLetter, { color: '#4285F4' }]}>G</Text>
+                  <Text style={[s.googleLetter, { color: '#EA4335', position: 'absolute', left: 0.5, top: 0.5 }]}>G</Text>
+                </View>
                 <Text style={s.socialBtnText}>Continue with Google</Text>
               </Pressable>
 
@@ -159,7 +162,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 onPress={() => handleAuth('apple')}
                 style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               >
-                <Text style={s.appleIcon}></Text>
+                <Text style={s.appleIcon}>&#xF8FF;</Text>
                 <Text style={[s.socialBtnText, { color: '#fff' }]}>Continue with Apple</Text>
               </Pressable>
 
@@ -217,21 +220,22 @@ const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: '#000', letterSpacing: -0.8, lineHeight: 32, marginBottom: 12, textAlign: 'center' },
   subtitle: { fontSize: 14, fontWeight: '400', color: '#888', lineHeight: 22, marginBottom: 28, textAlign: 'center', maxWidth: 300 },
 
-  // Primary button — full width
-  primaryBtn: { height: 54, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
+  // Primary button — full width, rounded rect (not pill)
+  primaryBtn: { height: 56, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: 'rgba(255,90,31,0.28)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 1, shadowRadius: 20, elevation: 4 },
+  primaryBtnText: { fontSize: 16, fontWeight: '600', color: '#fff', letterSpacing: -0.2 },
 
   // Auth section — full width
   authSection: { gap: 12, width: '100%' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e5e5' },
-  dividerText: { fontSize: 13, fontWeight: '500', color: '#bbb' },
-  socialBtn: { height: 54, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', borderWidth: 1, borderColor: '#ebebeb' },
-  socialBtnDark: { backgroundColor: '#000', borderColor: '#000' },
-  googleIcon: { fontSize: 18, fontWeight: '700', color: '#4285F4' },
-  socialBtnText: { fontSize: 15, fontWeight: '600', color: '#000' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 2 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E8E8E8' },
+  dividerText: { fontSize: 13, fontWeight: '500', color: '#B8B8B8' },
+  socialBtn: { height: 56, borderRadius: 14, backgroundColor: '#F2F2F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%' },
+  socialBtnDark: { backgroundColor: '#0A0A0A' },
+  googleLogoWrap: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  googleLetter: { fontSize: 18, fontWeight: '700' },
+  socialBtnText: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', letterSpacing: -0.2 },
   appleIcon: { fontSize: 20, color: '#fff' },
-  loginLink: { textAlign: 'center', marginTop: 12, fontSize: 13, color: '#aaa' },
+  loginLink: { textAlign: 'center', marginTop: 16, fontSize: 14, color: '#555' },
   loginLinkBold: { color: BRAND, fontWeight: '700' },
 
   // Dots — more space from bottom
