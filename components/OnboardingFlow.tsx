@@ -108,10 +108,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     return (
       <View style={[s.slide, { width }]}>
         {/* Illustration */}
-        <View style={[s.imageWrap, { paddingTop: insets.top + (isWelcome ? 40 : 20) }]}>
+        <View style={[s.imageWrap, { paddingTop: insets.top + (isWelcome ? 48 : 24) }]}>
           <Image
             source={item.image}
-            style={s.image}
+            style={[s.image, { backgroundColor: 'transparent' }]}
             resizeMode="contain"
           />
         </View>
@@ -200,33 +200,33 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
-  slide: { flex: 1 },
+  slide: { flex: 1, justifyContent: 'space-between' },
 
-  // Image
-  imageWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  image: { width: width * 0.75, height: width * 0.75, maxHeight: 320 },
+  // Image — large, centered, with breathing room
+  imageWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, backgroundColor: '#fff' },
+  image: { width: width * 0.85, height: width * 0.85, maxHeight: 380 },
 
-  // Content
-  content: { paddingHorizontal: 28, paddingBottom: 80 },
-  title: { fontSize: 24, fontWeight: '700', color: '#000', letterSpacing: -0.5, lineHeight: 30, marginBottom: 10 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#666', lineHeight: 21, marginBottom: 24 },
+  // Content — centered text block
+  content: { paddingHorizontal: 32, paddingBottom: 90, alignItems: 'center' },
+  title: { fontSize: 26, fontWeight: '800', color: '#000', letterSpacing: -0.8, lineHeight: 32, marginBottom: 12, textAlign: 'center' },
+  subtitle: { fontSize: 14, fontWeight: '400', color: '#888', lineHeight: 22, marginBottom: 28, textAlign: 'center', maxWidth: 300 },
 
-  // Primary button
-  primaryBtn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  // Primary button — full width
+  primaryBtn: { height: 54, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
 
-  // Auth section
-  authSection: { gap: 12 },
-  socialBtn: { height: 52, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  // Auth section — full width
+  authSection: { gap: 12, width: '100%' },
+  socialBtn: { height: 54, borderRadius: 100, backgroundColor: '#f5f5f5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%' },
   socialBtnDark: { backgroundColor: '#000' },
-  socialIcon: { width: 18, height: 18 },
+  socialIcon: { width: 20, height: 20 },
   socialBtnText: { fontSize: 15, fontWeight: '600', color: '#000' },
-  appleIcon: { fontSize: 18, color: '#fff' },
-  loginLink: { textAlign: 'center', marginTop: 8, fontSize: 13, color: '#999' },
+  appleIcon: { fontSize: 20, color: '#fff' },
+  loginLink: { textAlign: 'center', marginTop: 12, fontSize: 13, color: '#aaa' },
   loginLinkBold: { color: BRAND, fontWeight: '700' },
 
-  // Dots
+  // Dots — more space from bottom
   dotsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ddd' },
-  dotActive: { width: 24, backgroundColor: BRAND },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#e0e0e0' },
+  dotActive: { width: 28, borderRadius: 4, backgroundColor: BRAND },
 })
