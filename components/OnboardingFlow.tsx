@@ -106,68 +106,81 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     const showAuth = item.showAuth
 
     return (
-      <View style={[s.slide, { width }]}>
-        {/* Illustration */}
-        <View style={[s.imageWrap, { paddingTop: insets.top + (isWelcome ? 48 : 24) }]}>
+      <View style={[s.slide, { width, paddingTop: insets.top }]}>
+        {/* Illustration — centered in available space */}
+        <View style={s.imageWrap}>
           <Image
             source={item.image}
-            style={[s.image, { backgroundColor: 'transparent' }]}
+            style={s.image}
             resizeMode="contain"
           />
         </View>
 
-        {/* Content */}
-        <View style={s.content}>
+        {/* Copy — title + subtitle */}
+        <View style={s.copy}>
           <Text style={s.title}>{item.title}</Text>
           <Text style={s.subtitle}>{item.subtitle}</Text>
+        </View>
 
-          {/* Welcome CTA */}
-          {isWelcome && (
+        {/* Dots */}
+        <View style={s.dotsInline}>
+          {SLIDES.map((_, i) => (
+            <View key={i} style={[s.dot, i === currentIndex && s.dotActive]} />
+          ))}
+        </View>
+
+        {/* Action Buttons */}
+        <View style={[s.actions, { paddingBottom: insets.bottom + 16 }]}>
+          {isWelcome ? (
             <Pressable
               onPress={handleGetStarted}
-              style={({ pressed }) => [s.primaryBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+              style={({ pressed }) => [s.btnPrimary, pressed && { transform: [{ scale: 0.985 }] }]}
             >
-              <Text style={s.primaryBtnText}>Get Started</Text>
+              <Text style={s.btnPrimaryText}>Get Started</Text>
             </Pressable>
-          )}
-
-          {/* Auth buttons */}
-          {showAuth && (
-            <View style={s.authSection}>
+          ) : showAuth ? (
+            <>
               <Pressable
                 onPress={() => handleAuth('google')}
-                style={({ pressed }) => [s.primaryBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [s.btnPrimary, pressed && { transform: [{ scale: 0.985 }] }]}
               >
-                <Text style={s.primaryBtnText}>Create an Account</Text>
+                <Text style={s.btnPrimaryText}>Create an Account</Text>
               </Pressable>
 
-              <View style={s.dividerRow}>
+              {/* Divider */}
+              <View style={s.divider}>
                 <View style={s.dividerLine} />
                 <Text style={s.dividerText}>or</Text>
                 <View style={s.dividerLine} />
               </View>
 
+              {/* Google */}
               <Pressable
                 onPress={() => handleAuth('google')}
-                style={({ pressed }) => [s.socialBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [s.btnSecondary, pressed && { transform: [{ scale: 0.985 }] }]}
               >
                 <Text style={s.googleG}>G</Text>
-                <Text style={s.socialBtnText}>Continue with Google</Text>
+                <Text style={s.btnSecondaryText}>Continue with Google</Text>
               </Pressable>
 
+              {/* Apple */}
               <Pressable
                 onPress={() => handleAuth('apple')}
-                style={({ pressed }) => [s.socialBtn, s.socialBtnDark, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                style={({ pressed }) => [s.btnSecondary, s.btnApple, pressed && { transform: [{ scale: 0.985 }] }]}
               >
                 <Text style={s.appleIcon}>{'\uF8FF'}</Text>
-                <Text style={[s.socialBtnText, { color: '#fff' }]}>Continue with Apple</Text>
+                <Text style={[s.btnSecondaryText, { color: '#fff' }]}>Continue with Apple</Text>
               </Pressable>
 
-              <Pressable onPress={handleLogin}>
-                <Text style={s.loginLink}>Already have an account? <Text style={s.loginLinkBold}>Login</Text></Text>
-              </Pressable>
-            </View>
-          )}
+              {/* Login link */}
+              <View style={s.loginRow}>
+                <Text style={s.loginText}>Already have an account?</Text>
+                <Pressable onPress={handleLogin}>
+                  <Text style={s.loginLink}> Login</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
         </View>
       </View>
     )
@@ -188,15 +201,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
       />
 
-      {/* Dots indicator */}
-      <View style={[s.dotsRow, { bottom: insets.bottom + 16 }]}>
-        {SLIDES.map((_, i) => (
-          <View
-            key={i}
-            style={[s.dot, i === currentIndex && s.dotActive]}
-          />
-        ))}
-      </View>
+      {/* Dots now inline per slide — removed absolute overlay */}
     </View>
   )
 }
@@ -206,36 +211,43 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
-  slide: { flex: 1 },
+  slide: { flex: 1, justifyContent: 'space-between' },
 
-  // Image — centered, takes proportional space
-  imageWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 8, height: width * 0.7 },
-  image: { width: width * 0.65, height: width * 0.65 },
+  // Image — centered in middle of screen
+  imageWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  image: { width: width * 0.6, height: width * 0.6 },
 
-  // Content — centered below image, fills remaining space
-  content: { flex: 1, paddingHorizontal: 26, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 50 },
-  title: { fontSize: 26, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 32, marginBottom: 14, textAlign: 'center' },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#555', lineHeight: 21, marginBottom: 20, textAlign: 'center', maxWidth: 280 },
+  // Copy — title + subtitle centered
+  copy: { alignItems: 'center', paddingHorizontal: 24 },
+  title: { fontSize: 26, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 30, textAlign: 'center' },
+  subtitle: { fontSize: 14, fontWeight: '400', color: '#555', lineHeight: 21, textAlign: 'center', maxWidth: 280, marginTop: 14 },
 
-  // Primary button
-  primaryBtn: { height: 56, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', width: '100%', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 20, elevation: 4 },
-  primaryBtnText: { fontSize: 16, fontWeight: '600', color: '#fff', letterSpacing: -0.2 },
-
-  // Auth section
-  authSection: { gap: 12, width: '100%' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E8E8E8' },
-  dividerText: { fontSize: 13, fontWeight: '500', color: '#B8B8B8' },
-  socialBtn: { height: 56, borderRadius: 14, backgroundColor: '#F2F2F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%' },
-  socialBtnDark: { backgroundColor: '#0A0A0A' },
-  googleG: { fontSize: 20, fontWeight: '700', color: '#4285F4' },
-  socialBtnText: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', letterSpacing: -0.2 },
-  appleIcon: { fontSize: 20, color: '#fff' },
-  loginLink: { textAlign: 'center', marginTop: 16, fontSize: 14, fontWeight: '400', color: '#555' },
-  loginLinkBold: { color: BRAND, fontWeight: '600' },
-
-  // Dots
-  dotsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  // Dots inline (not absolute)
+  dotsInline: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 20 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#E8E8E8' },
-  dotActive: { width: 22, borderRadius: 4, backgroundColor: BRAND },
+  dotActive: { width: 22, backgroundColor: BRAND, borderRadius: 4 },
+
+  // Action Buttons — Stitch pattern
+  actions: { paddingHorizontal: 26, gap: 12, paddingTop: 22 },
+
+  btnPrimary: { height: 56, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 20, elevation: 4 },
+  btnPrimaryText: { fontSize: 16, fontWeight: '600', color: '#fff', letterSpacing: -0.2 },
+
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E8E8E8' },
+  dividerText: { fontSize: 10, fontWeight: '500', color: '#B8B8B8', textTransform: 'uppercase' },
+
+  btnSecondary: { height: 52, borderRadius: 14, backgroundColor: '#F2F2F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  btnSecondaryText: { fontSize: 14, fontWeight: '600', color: '#0A0A0A', letterSpacing: -0.1 },
+  btnApple: { backgroundColor: '#0A0A0A' },
+
+  googleG: { fontSize: 18, fontWeight: '700', color: '#4285F4' },
+  appleIcon: { fontSize: 18, color: '#fff' },
+
+  loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 4 },
+  loginText: { fontSize: 14, fontWeight: '400', color: '#555' },
+  loginLink: { fontSize: 14, fontWeight: '600', color: BRAND },
+
+  // Remove old absolute dots (now inline)
+  dotsRow: { display: 'none' } as any,
 })
