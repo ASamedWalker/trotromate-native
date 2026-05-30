@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { AntDesign } from '@expo/vector-icons'
+import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 
 const { width, height: screenHeight } = Dimensions.get('window')
@@ -147,14 +147,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
               <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
                 <View style={styles.btnSocial}>
-                  <AntDesign name="google" size={18} color="#4285F4" />
+                  <Ionicons name="logo-google" size={18} color="#4285F4" />
                   <Text style={styles.btnSocialLabel}>Continue with Google</Text>
                 </View>
               </Pressable>
 
               <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
                 <View style={[styles.btnSocial, styles.btnDark]}>
-                  <AntDesign name="apple1" size={18} color="#fff" />
+                  <Ionicons name="logo-apple" size={18} color="#fff" />
                   <Text style={[styles.btnSocialLabel, styles.btnDarkLabel]}>Continue with Apple</Text>
                 </View>
               </Pressable>
