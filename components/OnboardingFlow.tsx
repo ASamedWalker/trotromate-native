@@ -63,7 +63,7 @@ const SLIDES: Slide[] = [
 ]
 
 interface OnboardingFlowProps {
-  onComplete: () => void
+  onComplete: (action?: string) => void
   deviceId: string | null
 }
 
@@ -87,12 +87,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const createAccount = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    onComplete()
+    onComplete('register')
   }, [onComplete])
 
   const login = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    onComplete()
+    onComplete('login')
   }, [onComplete])
 
   const renderSlide = useCallback(({ item, index }: { item: Slide; index: number }) => {

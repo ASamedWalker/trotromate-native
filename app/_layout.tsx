@@ -73,10 +73,25 @@ const TrotroDarkTheme = {
   },
 }
 
+function OnboardingRedirect({ action, onDone }: { action: 'register' | 'login' | null; onDone: () => void }) {
+  const router = useRouter()
+  useEffect(() => {
+    if (!action) return
+    const route = action === 'register' ? '/register/phone' : '/auth/phone'
+    const t = setTimeout(() => {
+      router.push(route as any)
+      onDone()
+    }, 200)
+    return () => clearTimeout(t)
+  }, [action])
+  return null
+}
+
 function AppInner() {
   const colorScheme = useColorScheme()
   const { deviceId, lastReward, clearLastReward } = useApp()
   const { showOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding()
+  const [onboardingAction, setOnboardingAction] = useState<'register' | 'login' | null>(null)
   const { prefs, isLoaded: prefsLoaded } = usePreferences()
   const [showSplash, setShowSplash] = useState(true)
 
@@ -103,10 +118,22 @@ function AppInner() {
   if (onboardingLoading) return null
 
   if (showOnboarding) {
-    return <OnboardingFlow onComplete={completeOnboarding} deviceId={deviceId} />
+    return (
+      <OnboardingFlow
+        onComplete={(action?: string) => {
+          if (action === 'register' || action === 'login') {
+            setOnboardingAction(action)
+            setShowSplash(false) // skip splash — go straight to registration
+          }
+          completeOnboarding()
+        }}
+        deviceId={deviceId}
+      />
+    )
   }
 
-  if (showSplash) {
+  // Skip splash if coming from onboarding with an action
+  if (showSplash && !onboardingAction) {
     return <TroskiSplash onFinish={() => setShowSplash(false)} />
   }
 
@@ -114,6 +141,7 @@ function AppInner() {
 
   return (
     <ThemeProvider value={isDark ? TrotroDarkTheme : TrotroLightTheme}>
+      <OnboardingRedirect action={onboardingAction} onDone={() => setOnboardingAction(null)} />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
