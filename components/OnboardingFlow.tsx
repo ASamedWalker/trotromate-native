@@ -90,14 +90,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const createAccount = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     router.push('/register/phone' as any)
-    setTimeout(() => onComplete(), 500)
-  }, [onComplete, router])
+  }, [router])
 
   const login = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     router.push('/auth/phone' as any)
-    setTimeout(() => onComplete(), 500)
-  }, [onComplete, router])
+  }, [router])
 
   const renderSlide = useCallback(({ item, index }: { item: Slide; index: number }) => {
     const isWelcome = index <= 1

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase/client'
+import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -22,6 +23,7 @@ const OPTIONS = [
 export default function HowDidYouHear() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { completeOnboarding } = useOnboarding()
   const [selected, setSelected] = useState<string | null>(null)
 
   const handleDone = async () => {
@@ -31,15 +33,16 @@ export default function HowDidYouHear() {
     if (selected) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        supabase.from('contributor_profiles')
-          .update({ referral_source: selected })
-          .eq('auth_user_id', user.id)
-          .then(() => {})
-          .catch(e => console.warn('[survey]', e))
+        try {
+          await supabase.from('contributor_profiles')
+            .update({ referral_source: selected })
+            .eq('auth_user_id', user.id)
+        } catch (e) { console.warn('[survey]', e) }
       }
     }
 
-    // Navigate to home — onboarding complete
+    // Mark onboarding done + navigate to home
+    await completeOnboarding()
     router.replace('/(tabs)' as any)
   }
 
