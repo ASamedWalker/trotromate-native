@@ -9,10 +9,10 @@ import {
   Poppins_800ExtraBold,
   Poppins_900Black,
 } from '@expo-google-fonts/poppins'
-import { Stack } from 'expo-router'
+import { Stack, useRouter, router as expoRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useColorScheme, Appearance } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
@@ -102,8 +102,16 @@ function AppInner() {
 
   if (onboardingLoading) return null
 
+  const handleOnboardingComplete = useCallback((action?: 'register' | 'login') => {
+    const route = action === 'register' ? '/register/phone' : action === 'login' ? '/auth/phone' : null
+    setShowSplash(false)
+    completeOnboarding().then(() => {
+      if (route) setTimeout(() => expoRouter.push(route as any), 300)
+    })
+  }, [completeOnboarding])
+
   if (showOnboarding) {
-    return <OnboardingFlow onComplete={completeOnboarding} deviceId={deviceId} />
+    return <OnboardingFlow onComplete={handleOnboardingComplete} deviceId={deviceId} />
   }
 
   if (showSplash) {
@@ -116,6 +124,7 @@ function AppInner() {
     <ThemeProvider value={isDark ? TrotroDarkTheme : TrotroLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
