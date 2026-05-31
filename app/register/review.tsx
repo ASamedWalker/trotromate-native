@@ -31,12 +31,11 @@ export default function ReviewDetails() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setSaving(true)
 
-    // Save profile to Supabase — update existing row by device_id
+    // Save profile to Supabase
     try {
       const user = (await supabase.auth.getUser()).data.user
 
       const profileData: Record<string, any> = {
-        phone: fullPhone,
         email: params.email || null,
         first_name: params.firstName,
         last_name: params.lastName,
@@ -46,7 +45,17 @@ export default function ReviewDetails() {
       }
       if (user) profileData.auth_user_id = user.id
 
-      // Update by device_id (row created on app launch by AppContext)
+      // If phone already exists on another row, delete that old row first
+      if (fullPhone) {
+        await supabase
+          .from('contributor_profiles')
+          .delete()
+          .eq('phone', fullPhone)
+          .neq('device_id', deviceId || '')
+      }
+
+      // Update current device's row
+      profileData.phone = fullPhone
       if (deviceId) {
         const { error } = await supabase
           .from('contributor_profiles')
