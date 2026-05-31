@@ -105,7 +105,7 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 14, fontWeight: '600', color: '#000' },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  btnOutline: { height: 52, borderRadius: 100, backgroundColor: '#fff', borderWidth: 1.5, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btnOutline: { height: 56, borderRadius: 14, backgroundColor: '#FFF0EB', borderWidth: 1.5, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   btnOutlineText: { fontSize: 16, fontWeight: '700', color: BRAND },
   terms: { fontSize: 11, color: '#aaa', textAlign: 'center', lineHeight: 16, marginTop: 4 },
   termsLink: { color: BRAND, fontWeight: '600' },
