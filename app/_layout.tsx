@@ -100,14 +100,14 @@ function AppInner() {
     Appearance.setColorScheme(prefs.theme === 'system' ? null : prefs.theme)
   }, [prefsLoaded, prefs.theme])
 
-  if (showSplash) {
-    return <TroskiSplash onFinish={() => setShowSplash(false)} />
-  }
-
   if (onboardingLoading) return null
 
   if (showOnboarding) {
     return <OnboardingFlow onComplete={completeOnboarding} deviceId={deviceId} />
+  }
+
+  if (showSplash) {
+    return <TroskiSplash onFinish={() => setShowSplash(false)} />
   }
 
   const isDark = colorScheme === 'dark'
