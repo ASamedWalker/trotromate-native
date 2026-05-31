@@ -29,21 +29,28 @@ export default function ReviewDetails() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setSaving(true)
 
-    // Save profile to Supabase
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('contributor_profiles').upsert({
-        auth_user_id: user.id,
-        phone: fullPhone,
-        email: params.email || null,
-        first_name: params.firstName,
-        last_name: params.lastName,
-        gender: params.gender || null,
-        city: params.city || null,
-        referral_code: params.referral || null,
-      }, { onConflict: 'auth_user_id' }).catch(e => console.warn('[review] Profile save:', e))
+    // Save profile to Supabase (fire and forget — don't block navigation)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        supabase.from('contributor_profiles').upsert({
+          auth_user_id: user.id,
+          phone: fullPhone,
+          email: params.email || null,
+          first_name: params.firstName,
+          last_name: params.lastName,
+          gender: params.gender || null,
+          city: params.city || null,
+          referral_code: params.referral || null,
+        }, { onConflict: 'auth_user_id' }).then(({ error }) => {
+          if (error) console.warn('[review] Profile save error:', error.message)
+        })
+      }
+    } catch (e) {
+      console.warn('[review] Auth error:', e)
     }
 
+    // Navigate immediately — don't wait for DB
     setSaving(false)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     router.push('/register/pin' as any)
