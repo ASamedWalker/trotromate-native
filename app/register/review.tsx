@@ -87,8 +87,10 @@ export default function ReviewDetails() {
           </LinearGradient>
         </Pressable>
 
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [s.btnOutline, pressed && { opacity: 0.7 }]}>
-          <Text style={s.btnOutlineText}>Edit Details</Text>
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+          <View style={s.btnOutline}>
+            <Text style={s.btnOutlineText}>Edit Details</Text>
+          </View>
         </Pressable>
 
         <Text style={s.terms}>
