@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase/client'
+import { useApp } from '@/lib/contexts/AppContext'
 import { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
@@ -15,6 +16,7 @@ export default function ReviewDetails() {
   const params = useLocalSearchParams<{
     phone: string; email?: string; firstName: string; lastName: string; gender?: string; city?: string; referral?: string
   }>()
+  const { deviceId } = useApp()
   const [saving, setSaving] = useState(false)
 
   const fullPhone = params.phone?.startsWith('+') ? params.phone : `+233${(params.phone || '').replace(/^0/, '')}`
@@ -29,37 +31,29 @@ export default function ReviewDetails() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setSaving(true)
 
-    // Save profile to Supabase
+    // Save profile to Supabase — update existing row by device_id
     try {
-      // Try getting auth user — retry once if session not ready
-      let user = (await supabase.auth.getUser()).data.user
-      if (!user) {
-        await new Promise(r => setTimeout(r, 500))
-        user = (await supabase.auth.getUser()).data.user
+      const user = (await supabase.auth.getUser()).data.user
+
+      const profileData: Record<string, any> = {
+        phone: fullPhone,
+        email: params.email || null,
+        first_name: params.firstName,
+        last_name: params.lastName,
+        gender: params.gender || null,
+        city: params.city || null,
+        referral_code: params.referral || null,
       }
+      if (user) profileData.auth_user_id = user.id
 
-      if (user) {
-        // Update existing profile by auth_user_id
-        const { error: updateErr } = await supabase
+      // Update by device_id (row created on app launch by AppContext)
+      if (deviceId) {
+        const { error } = await supabase
           .from('contributor_profiles')
-          .update({
-            auth_user_id: user.id,
-            phone: fullPhone,
-            email: params.email || null,
-            first_name: params.firstName,
-            last_name: params.lastName,
-            gender: params.gender || null,
-            city: params.city || null,
-            referral_code: params.referral || null,
-          })
-          .eq('auth_user_id', user.id)
+          .update(profileData)
+          .eq('device_id', deviceId)
 
-        // If no row matched (new user), try updating by device_id or insert
-        if (updateErr) {
-          console.warn('[review] Update by auth_user_id failed:', updateErr.message)
-        }
-      } else {
-        console.warn('[review] No auth user found — profile not saved')
+        if (error) console.warn('[review] Profile update error:', error.message)
       }
     } catch (e) {
       console.warn('[review] Profile save error:', e)

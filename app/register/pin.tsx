@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
-const PIN_LENGTH = 6
+const PIN_LENGTH = 4
 const PIN_STORAGE_KEY = 'troski_user_pin'
 
 export default function CreatePIN() {
@@ -82,7 +82,7 @@ export default function CreatePIN() {
         {/* Title */}
         <View style={s.titleWrap}>
           <Text style={s.title}>
-            {step === 'create' ? 'Create your\n6-digit PIN' : 'Confirm your\n6-digit PIN'}
+            {step === 'create' ? 'Create your\n4-digit PIN' : 'Confirm your\n4-digit PIN'}
           </Text>
           <Text style={s.subtitle}>You'll use this to sign in and approve transactions.</Text>
           {error ? <Text style={s.error}>{error}</Text> : null}
