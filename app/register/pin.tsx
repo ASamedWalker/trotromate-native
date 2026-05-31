@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -74,9 +75,7 @@ export default function CreatePIN() {
           >
             <ArrowLeft size={20} color="#0A0A0A" />
           </Pressable>
-          <View style={s.stepBadge}>
-            <Text style={s.stepText}>4/4</Text>
-          </View>
+          <StepIndicator current={4} total={4} />
         </View>
 
         {/* Title */}

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -42,9 +43,7 @@ export default function RegisterProfile() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <ArrowLeft size={22} color="#000" />
           </Pressable>
-          <View style={s.stepBadge}>
-            <Text style={s.stepText}>3/4</Text>
-          </View>
+          <StepIndicator current={3} total={4} />
         </View>
 
         <Text style={s.title}>Create your{'\n'}personal profile</Text>

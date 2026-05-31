@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { LinearGradient } from 'expo-linear-gradient'
+import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -74,9 +75,7 @@ export default function VerifyOTP() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <ArrowLeft size={22} color="#000" />
         </Pressable>
-        <View style={s.stepBadge}>
-          <Text style={s.stepText}>2/4</Text>
-        </View>
+        <StepIndicator current={2} total={4} />
       </View>
 
       {/* Title */}

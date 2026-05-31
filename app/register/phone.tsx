@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -49,9 +50,7 @@ export default function RegisterPhone() {
             <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
               <ArrowLeft size={20} color="#0A0A0A" />
             </Pressable>
-            <View style={s.stepBadge}>
-              <Text style={s.stepText}>1/4</Text>
-            </View>
+            <StepIndicator current={1} total={4} />
           </Animated.View>
 
           {/* Title */}
