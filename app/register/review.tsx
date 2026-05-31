@@ -29,25 +29,40 @@ export default function ReviewDetails() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setSaving(true)
 
-    // Save profile to Supabase (fire and forget — don't block navigation)
+    // Save profile to Supabase
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Try getting auth user — retry once if session not ready
+      let user = (await supabase.auth.getUser()).data.user
+      if (!user) {
+        await new Promise(r => setTimeout(r, 500))
+        user = (await supabase.auth.getUser()).data.user
+      }
+
       if (user) {
-        supabase.from('contributor_profiles').upsert({
-          auth_user_id: user.id,
-          phone: fullPhone,
-          email: params.email || null,
-          first_name: params.firstName,
-          last_name: params.lastName,
-          gender: params.gender || null,
-          city: params.city || null,
-          referral_code: params.referral || null,
-        }, { onConflict: 'auth_user_id' }).then(({ error }) => {
-          if (error) console.warn('[review] Profile save error:', error.message)
-        })
+        // Update existing profile by auth_user_id
+        const { error: updateErr } = await supabase
+          .from('contributor_profiles')
+          .update({
+            auth_user_id: user.id,
+            phone: fullPhone,
+            email: params.email || null,
+            first_name: params.firstName,
+            last_name: params.lastName,
+            gender: params.gender || null,
+            city: params.city || null,
+            referral_code: params.referral || null,
+          })
+          .eq('auth_user_id', user.id)
+
+        // If no row matched (new user), try updating by device_id or insert
+        if (updateErr) {
+          console.warn('[review] Update by auth_user_id failed:', updateErr.message)
+        }
+      } else {
+        console.warn('[review] No auth user found — profile not saved')
       }
     } catch (e) {
-      console.warn('[review] Auth error:', e)
+      console.warn('[review] Profile save error:', e)
     }
 
     // Navigate immediately — don't wait for DB
