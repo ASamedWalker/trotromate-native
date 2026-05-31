@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -28,88 +30,120 @@ export default function RegisterPhone() {
     setLoading(false)
 
     if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.push({ pathname: '/register/verify', params: { phone, email } } as any)
     } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Error', error || 'Failed to send OTP')
     }
   }
 
+  const canContinue = phone.length >= 9
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.container}>
-      <View style={{ paddingTop: insets.top + 8 }}>
-        {/* Header */}
-        <View style={s.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={22} color="#000" />
+    <View style={[s.container, { paddingTop: insets.top }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+            <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+              <ArrowLeft size={20} color="#0A0A0A" />
+            </Pressable>
+            <View style={s.stepBadge}>
+              <Text style={s.stepText}>1/4</Text>
+            </View>
+          </Animated.View>
+
+          {/* Title */}
+          <Animated.View entering={FadeInDown.delay(80).duration(350)} style={s.titleWrap}>
+            <Text style={s.title}>Create your{'\n'}Troski account</Text>
+            <Text style={s.subtitle}>Provide the details below to get started.</Text>
+          </Animated.View>
+
+          {/* Fields */}
+          <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.fields}>
+            <View style={s.fieldGroup}>
+              <Text style={s.label}>Phone Number</Text>
+              <View style={[s.inputWrap, phone.length > 0 && s.inputWrapActive]}>
+                <Text style={s.prefix}>+233</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="XX XXX XXXX"
+                  placeholderTextColor="#C4C4C4"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  autoFocus
+                />
+              </View>
+            </View>
+
+            <View style={s.fieldGroup}>
+              <Text style={s.label}>Email Address</Text>
+              <View style={[s.inputWrap, email.length > 0 && s.inputWrapActive]}>
+                <TextInput
+                  style={[s.input, { paddingLeft: 0 }]}
+                  placeholder="you@example.com"
+                  placeholderTextColor="#C4C4C4"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+          </Animated.View>
+
+          <View style={{ flex: 1 }} />
+        </ScrollView>
+
+        {/* CTA — sticky bottom */}
+        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
+          <Pressable
+            onPress={handleContinue}
+            disabled={loading || !canContinue}
+            style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
+          >
+            <LinearGradient
+              colors={canContinue ? [BRAND, BRAND] : ['#E0E0E0', '#D0D0D0']}
+              style={s.btn}
+            >
+              <Text style={[s.btnText, !canContinue && { color: '#999' }]}>
+                {loading ? 'Sending code...' : 'Continue'}
+              </Text>
+            </LinearGradient>
           </Pressable>
-          <View style={s.stepBadge}>
-            <Text style={s.stepText}>1/4</Text>
-          </View>
-        </View>
-
-        {/* Title */}
-        <Text style={s.title}>Create your{'\n'}Troski account</Text>
-        <Text style={s.subtitle}>Provide the details below to get started.</Text>
-
-        {/* Fields */}
-        <View style={s.fields}>
-          <View style={s.fieldGroup}>
-            <Text style={s.label}>Phone Number</Text>
-            <TextInput
-              style={s.input}
-              placeholder="+233 XX XXX XXXX"
-              placeholderTextColor="#bbb"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              autoFocus
-            />
-          </View>
-
-          <View style={s.fieldGroup}>
-            <Text style={s.label}>Email Address</Text>
-            <TextInput
-              style={s.input}
-              placeholder="you@example.com"
-              placeholderTextColor="#bbb"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* CTA */}
-      <View style={{ paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }}>
-        <Pressable
-          onPress={handleContinue}
-          disabled={loading || phone.length < 9}
-          style={({ pressed }) => [
-            s.btn,
-            (loading || phone.length < 9) && { opacity: 0.5 },
-            pressed && { transform: [{ scale: 0.98 }] },
-          ]}
-        >
-          <Text style={s.btnText}>{loading ? 'Sending...' : 'Continue'}</Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', justifyContent: 'space-between' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 },
-  stepBadge: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', borderWidth: 2, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: '#fff' },
+
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+  stepBadge: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 12, fontWeight: '700', color: BRAND },
-  title: { fontSize: 26, fontWeight: '700', color: '#000', paddingHorizontal: 24, lineHeight: 32 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#888', paddingHorizontal: 24, marginTop: 8 },
-  fields: { paddingHorizontal: 24, marginTop: 32, gap: 20 },
-  fieldGroup: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '500', color: '#333' },
-  input: { height: 52, borderRadius: 12, borderWidth: 1, borderColor: '#e5e5e5', paddingHorizontal: 16, fontSize: 16, fontWeight: '500', color: '#000', backgroundColor: '#fafafa' },
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+
+  // Title
+  titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
+  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
+
+  // Fields
+  fields: { paddingHorizontal: 24, marginTop: 32, gap: 24 },
+  fieldGroup: { gap: 10 },
+  label: { fontSize: 14, fontWeight: '600', color: '#333' },
+  inputWrap: { height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  inputWrapActive: { borderColor: BRAND, backgroundColor: '#fff' },
+  prefix: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', marginRight: 8 },
+  input: { flex: 1, fontSize: 16, fontWeight: '500', color: '#0A0A0A', paddingVertical: 0 },
+
+  // CTA
+  ctaWrap: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: '#fff' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
+  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 })
