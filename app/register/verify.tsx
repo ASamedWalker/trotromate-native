@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -120,13 +121,11 @@ export default function VerifyOTP() {
         <Pressable
           onPress={() => handleChange('', OTP_LENGTH - 1)}
           disabled={loading || otp.some(d => !d)}
-          style={({ pressed }) => [
-            s.btn,
-            (loading || otp.some(d => !d)) && { opacity: 0.5 },
-            pressed && { transform: [{ scale: 0.98 }] },
-          ]}
+          style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >
-          <Text style={s.btnText}>{loading ? 'Verifying...' : 'Verify'}</Text>
+          <LinearGradient colors={(loading || otp.some(d => !d)) ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]} style={s.btn}>
+            <Text style={s.btnText}>{loading ? 'Verifying...' : 'Verify'}</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </View>
@@ -148,6 +147,6 @@ const s = StyleSheet.create({
   resendText: { fontSize: 13, color: '#888' },
   resendTimer: { fontSize: 13, color: '#888' },
   resendLink: { fontSize: 13, fontWeight: '700', color: BRAND },
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })

@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, KeyboardAvoid
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -63,9 +64,14 @@ export default function RegisterProfile() {
         <Pressable
           onPress={handleContinue}
           disabled={!canContinue}
-          style={({ pressed }) => [s.btn, !canContinue && { opacity: 0.5 }, pressed && { transform: [{ scale: 0.98 }] }]}
+          style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >
-          <Text style={s.btnText}>Continue</Text>
+          <LinearGradient
+            colors={canContinue ? [BRAND, BRAND] : ['#E0E0E0', '#D0D0D0']}
+            style={s.btn}
+          >
+            <Text style={[s.btnText, !canContinue && { color: '#999' }]}>Continue</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -104,6 +110,6 @@ const s = StyleSheet.create({
   labelSuffix: { fontSize: 12, fontWeight: '400', color: '#aaa' },
   input: { height: 52, borderRadius: 12, borderWidth: 1, borderColor: '#e5e5e5', paddingHorizontal: 16, fontSize: 16, fontWeight: '500', color: '#000', backgroundColor: '#fafafa' },
   ctaWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingTop: 12, backgroundColor: '#fff' },
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })

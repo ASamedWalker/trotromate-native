@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase/client'
 import { useState } from 'react'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -73,12 +74,10 @@ export default function ReviewDetails() {
       {/* CTAs */}
       <View style={{ flex: 1 }} />
       <View style={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 24, gap: 12 }}>
-        <Pressable
-          onPress={handleConfirm}
-          disabled={saving}
-          style={({ pressed }) => [s.btn, saving && { opacity: 0.5 }, pressed && { transform: [{ scale: 0.98 }] }]}
-        >
-          <Text style={s.btnText}>{saving ? 'Saving...' : 'Confirm & Continue'}</Text>
+        <Pressable onPress={handleConfirm} disabled={saving} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+          <LinearGradient colors={saving ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]} style={s.btn}>
+            <Text style={s.btnText}>{saving ? 'Saving...' : 'Confirm & Continue'}</Text>
+          </LinearGradient>
         </Pressable>
 
         <Pressable onPress={() => router.back()} style={({ pressed }) => [s.btnOutline, pressed && { opacity: 0.7 }]}>
@@ -104,7 +103,7 @@ const s = StyleSheet.create({
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   rowLabel: { fontSize: 14, fontWeight: '500', color: '#888' },
   rowValue: { fontSize: 14, fontWeight: '600', color: '#000' },
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   btnOutline: { height: 52, borderRadius: 100, backgroundColor: '#fff', borderWidth: 1.5, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   btnOutlineText: { fontSize: 16, fontWeight: '700', color: BRAND },

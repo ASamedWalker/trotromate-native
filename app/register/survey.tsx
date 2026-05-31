@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase/client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -80,11 +81,10 @@ export default function HowDidYouHear() {
       {/* CTA */}
       <View style={{ flex: 1 }} />
       <View style={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
-        <Pressable
-          onPress={handleDone}
-          style={({ pressed }) => [s.btn, pressed && { transform: [{ scale: 0.98 }] }]}
-        >
-          <Text style={s.btnText}>Go to Home Screen</Text>
+        <Pressable onPress={handleDone} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+          <LinearGradient colors={[BRAND, BRAND]} style={s.btn}>
+            <Text style={s.btnText}>Go to Home Screen</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </View>
@@ -103,6 +103,6 @@ const s = StyleSheet.create({
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: BRAND },
   optionText: { fontSize: 15, fontWeight: '500', color: '#333' },
   optionTextActive: { fontWeight: '700', color: '#000' },
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })

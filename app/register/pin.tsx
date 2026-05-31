@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ArrowLeft, Delete } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -109,13 +110,11 @@ export default function CreatePIN() {
         <Pressable
           onPress={() => currentPin.length === PIN_LENGTH && handlePress('')}
           disabled={currentPin.length < PIN_LENGTH}
-          style={({ pressed }) => [
-            s.btn,
-            currentPin.length < PIN_LENGTH && { opacity: 0.5 },
-            pressed && { transform: [{ scale: 0.98 }] },
-          ]}
+          style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >
-          <Text style={s.btnText}>{step === 'create' ? 'Set PIN' : 'Confirm PIN'}</Text>
+          <LinearGradient colors={currentPin.length < PIN_LENGTH ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]} style={s.btn}>
+            <Text style={[s.btnText, currentPin.length < PIN_LENGTH && { color: '#999' }]}>{step === 'create' ? 'Set PIN' : 'Confirm PIN'}</Text>
+          </LinearGradient>
         </Pressable>
       </View>
     </View>
@@ -139,6 +138,6 @@ const s = StyleSheet.create({
   key: { width: '33.33%', height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
   keyText: { fontSize: 28, fontWeight: '500', color: '#000' },
 
-  btn: { height: 52, borderRadius: 100, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })
