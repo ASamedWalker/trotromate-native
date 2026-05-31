@@ -3,9 +3,10 @@ import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
-import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import StepIndicator from '@/components/StepIndicator'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 const BRAND = '#FF4D1C'
@@ -40,7 +41,6 @@ export default function VerifyOTP() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     }
 
-    // Auto-verify when all digits entered
     if (newOtp.every(d => d !== '')) {
       setLoading(true)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -69,24 +69,29 @@ export default function VerifyOTP() {
   }
 
   return (
-    <View style={[s.container, { paddingTop: insets.top + 8 }]}>
+    <View style={[s.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <ArrowLeft size={22} color="#000" />
+      <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+          <ArrowLeft size={20} color="#0A0A0A" />
         </Pressable>
         <StepIndicator current={2} total={4} />
-      </View>
+      </Animated.View>
 
       {/* Title */}
-      <Text style={s.title}>Confirm your{'\n'}phone number</Text>
-      <Text style={s.subtitle}>Enter the 6-digit code sent to <Text style={{ fontWeight: '700', color: '#000' }}>{fullPhone}</Text></Text>
-      <Pressable onPress={() => router.back()}>
-        <Text style={s.changeLink}>Change number?</Text>
-      </Pressable>
+      <Animated.View entering={FadeInDown.delay(80).duration(350)} style={s.titleWrap}>
+        <Text style={s.title}>Confirm your{'\n'}phone number</Text>
+        <Text style={s.subtitle}>
+          Enter the 6-digit code sent to{' '}
+          <Text style={{ fontWeight: '700', color: '#0A0A0A' }}>{fullPhone}</Text>
+        </Text>
+        <Pressable onPress={() => router.back()}>
+          <Text style={s.changeLink}>Change number?</Text>
+        </Pressable>
+      </Animated.View>
 
       {/* OTP Grid */}
-      <View style={s.otpRow}>
+      <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.otpRow}>
         {otp.map((digit, i) => (
           <TextInput
             key={i}
@@ -98,54 +103,69 @@ export default function VerifyOTP() {
             keyboardType="number-pad"
             maxLength={1}
             selectTextOnFocus
+            autoFocus={i === 0}
           />
         ))}
-      </View>
+      </Animated.View>
 
       {/* Resend */}
-      <View style={s.resendRow}>
+      <Animated.View entering={FadeInDown.delay(240).duration(350)} style={s.resendRow}>
         <Text style={s.resendText}>Didn't receive code? </Text>
         {timer > 0 ? (
-          <Text style={s.resendTimer}>Resend code in <Text style={{ color: BRAND }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text></Text>
+          <Text style={s.resendTimer}>
+            Resend code in <Text style={{ color: BRAND, fontWeight: '600' }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
+          </Text>
         ) : (
-          <Pressable onPress={() => { setTimer(60); /* resend OTP */ }}>
+          <Pressable onPress={() => setTimer(60)}>
             <Text style={s.resendLink}>Resend</Text>
           </Pressable>
         )}
-      </View>
+      </Animated.View>
 
-      {/* Verify button */}
       <View style={{ flex: 1 }} />
-      <View style={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
+
+      {/* CTA */}
+      <Animated.View entering={FadeInDown.delay(320).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
         <Pressable
-          onPress={() => handleChange('', OTP_LENGTH - 1)}
+          onPress={() => {}}
           disabled={loading || otp.some(d => !d)}
           style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >
-          <LinearGradient colors={(loading || otp.some(d => !d)) ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]} style={s.btn}>
-            <Text style={s.btnText}>{loading ? 'Verifying...' : 'Verify'}</Text>
+          <LinearGradient
+            colors={(loading || otp.some(d => !d)) ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]}
+            style={s.btn}
+          >
+            <Text style={[s.btnText, (loading || otp.some(d => !d)) && { color: '#999' }]}>
+              {loading ? 'Verifying...' : 'Verify'}
+            </Text>
           </LinearGradient>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   )
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 },
-  stepBadge: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  stepText: { fontSize: 12, fontWeight: '700', color: BRAND },
-  title: { fontSize: 26, fontWeight: '700', color: '#000', paddingHorizontal: 24, lineHeight: 32 },
-  subtitle: { fontSize: 14, color: '#888', paddingHorizontal: 24, marginTop: 8, lineHeight: 20 },
-  changeLink: { fontSize: 14, fontWeight: '600', color: BRAND, paddingHorizontal: 24, marginTop: 6 },
+
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+
+  titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
+  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
+  changeLink: { fontSize: 14, fontWeight: '600', color: BRAND, marginTop: 8 },
+
   otpRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 32 },
-  otpCell: { flex: 1, height: 56, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e5e5', backgroundColor: '#fafafa', textAlign: 'center', fontSize: 22, fontWeight: '700', color: '#000' },
-  otpCellFilled: { borderColor: BRAND, backgroundColor: '#fff' },
+  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontWeight: '700', color: '#0A0A0A' },
+  otpCellFilled: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
+
   resendRow: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 13, color: '#888' },
   resendTimer: { fontSize: 13, color: '#888' },
   resendLink: { fontSize: 13, fontWeight: '700', color: BRAND },
-  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+
+  ctaWrap: { paddingHorizontal: 24, paddingTop: 12 },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
+  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 })
