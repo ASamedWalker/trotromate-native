@@ -9,7 +9,7 @@ import {
   Poppins_800ExtraBold,
   Poppins_900Black,
 } from '@expo-google-fonts/poppins'
-import { Stack, useRouter, router as expoRouter } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useState, useEffect, useCallback } from 'react'
@@ -102,16 +102,8 @@ function AppInner() {
 
   if (onboardingLoading) return null
 
-  const handleOnboardingComplete = useCallback((action?: 'register' | 'login') => {
-    const route = action === 'register' ? '/register/phone' : action === 'login' ? '/auth/phone' : null
-    setShowSplash(false)
-    completeOnboarding().then(() => {
-      if (route) setTimeout(() => expoRouter.push(route as any), 300)
-    })
-  }, [completeOnboarding])
-
   if (showOnboarding) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} deviceId={deviceId} />
+    return <OnboardingFlow onComplete={completeOnboarding} deviceId={deviceId} />
   }
 
   if (showSplash) {

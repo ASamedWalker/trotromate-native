@@ -10,7 +10,6 @@ import {
   type ViewToken,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import Svg, { Path } from 'react-native-svg'
@@ -64,13 +63,12 @@ const SLIDES: Slide[] = [
 ]
 
 interface OnboardingFlowProps {
-  onComplete: (action?: 'register' | 'login') => void
+  onComplete: () => void
   deviceId: string | null
 }
 
 export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const insets = useSafeAreaInsets()
-  const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
 
@@ -89,12 +87,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const createAccount = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    onComplete('register')
+    onComplete()
   }, [onComplete])
 
   const login = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    onComplete('login')
+    onComplete()
   }, [onComplete])
 
   const renderSlide = useCallback(({ item, index }: { item: Slide; index: number }) => {
