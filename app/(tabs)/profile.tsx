@@ -149,9 +149,44 @@ export default function ProfileScreen() {
           })}
         </Animated.View>
 
+        {/* Sign Out */}
+        <Animated.View entering={FadeInDown.delay(440).duration(400)} style={{ paddingHorizontal: 20, marginTop: 8 }}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              const { Alert } = require('react-native')
+              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const { supabase } = require('@/lib/supabase/client')
+                    const AsyncStorage = require('@react-native-async-storage/async-storage').default
+                    await supabase.auth.signOut()
+                    await AsyncStorage.removeItem('troski_onboarding_complete')
+                    router.replace('/' as any)
+                  },
+                },
+              ])
+            }}
+            style={{
+              height: 52,
+              borderRadius: 14,
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#EF4444' }}>Sign Out</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
         {/* App Info */}
-        <Animated.View entering={FadeInDown.delay(440).duration(400)} style={s.footer}>
-          <Text style={s.version}>Troski v1.0.0</Text>
+        <Animated.View entering={FadeInDown.delay(480).duration(400)} style={s.footer}>
+          <Text style={s.version}>Troski v1.1.2</Text>
           <Text style={s.footerText}>Troski Technologies</Text>
           <Text style={s.footerSub}>Accra, Ghana</Text>
         </Animated.View>
