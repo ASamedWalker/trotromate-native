@@ -51,9 +51,8 @@ export default function VerifyOtpScreen() {
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         if (deviceId) await linkToDevice(deviceId)
-        // Navigate to home — pop auth screens
-        router.back()
-        router.back()
+        // Go to home — replace stack so back button doesn't return to auth
+        router.replace('/(tabs)' as any)
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         Alert.alert('Invalid Code', error || 'Please try again')
