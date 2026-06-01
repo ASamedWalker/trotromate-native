@@ -162,7 +162,9 @@ export default function ProfileScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     const { supabase } = require('@/lib/supabase/client')
+                    const AsyncStorage = require('@react-native-async-storage/async-storage').default
                     await supabase.auth.signOut()
+                    await AsyncStorage.setItem('troski_signed_out', 'true')
                     router.replace('/auth/phone' as any)
                   },
                 },

@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { useApp } from '@/lib/contexts/AppContext'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -51,6 +52,8 @@ export default function VerifyOtpScreen() {
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         if (deviceId) await linkToDevice(deviceId)
+        // Clear signed-out flag
+        await AsyncStorage.removeItem('troski_signed_out')
         // Go to home — replace stack so back button doesn't return to auth
         router.replace('/(tabs)' as any)
       } else {

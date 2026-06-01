@@ -20,6 +20,7 @@ import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { AuthProvider } from '@/lib/contexts/AuthContext'
 import { queryClient } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
 import { useCommuteAlerts } from '@/lib/hooks/useCommuteAlerts'
@@ -94,6 +95,18 @@ function AppInner() {
   const [onboardingAction, setOnboardingAction] = useState<'register' | 'login' | null>(null)
   const { prefs, isLoaded: prefsLoaded } = usePreferences()
   const [showSplash, setShowSplash] = useState(true)
+  const [signedOut, setSignedOut] = useState(false)
+
+  // Check if user explicitly signed out — redirect to login
+  useEffect(() => {
+    AsyncStorage.getItem('troski_signed_out').then(val => {
+      if (val === 'true') {
+        setSignedOut(true)
+        setOnboardingAction('login')
+        setShowSplash(false)
+      }
+    })
+  }, [])
 
   // Register for push notifications
   usePushNotifications(deviceId, prefs.pushNotifications)
@@ -133,7 +146,7 @@ function AppInner() {
   }
 
   // Skip splash if coming from onboarding with an action
-  if (showSplash && !onboardingAction) {
+  if (showSplash && !onboardingAction && !signedOut) {
     return <TroskiSplash onFinish={() => setShowSplash(false)} />
   }
 
