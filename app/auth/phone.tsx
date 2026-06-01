@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, useColorScheme, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Phone, ArrowLeft } from 'lucide-react-native'
-import { c, font, themed } from '@/lib/theme'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
-import * as Haptics from 'expo-haptics'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
+
+const BRAND = '#FF4D1C'
 
 export default function PhoneAuthScreen() {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { signInWithPhone } = useAuthContext()
   const [phone, setPhone] = useState('')
@@ -19,7 +19,7 @@ export default function PhoneAuthScreen() {
 
   const handleSend = async () => {
     if (phone.length < 9) {
-      Alert.alert('Invalid Number', 'Please enter a valid Ghana phone number')
+      Alert.alert('Invalid Number', 'Enter a valid Ghana phone number')
       return
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -29,118 +29,96 @@ export default function PhoneAuthScreen() {
     setLoading(false)
 
     if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.push({ pathname: '/auth/verify', params: { phone } } as any)
     } else {
-      Alert.alert('Error', error || 'Failed to send OTP. Try again.')
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Error', error || 'Failed to send OTP')
     }
   }
 
-  return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        {/* Back button */}
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={24} color={t.text} />
-        </TouchableOpacity>
+  const canContinue = phone.length >= 9
 
-        <View style={s.content}>
-          {/* Icon */}
-          <Animated.View entering={FadeInDown.duration(400)} style={[s.iconWrap, {
-            backgroundColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(255,173,58,0.06)',
-          }]}>
-            <Phone size={28} color="#FFAD3A" />
+  return (
+    <View style={[s.container, { paddingTop: insets.top }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+            <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+              <ArrowLeft size={20} color="#0A0A0A" />
+            </Pressable>
           </Animated.View>
 
           {/* Title */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <Text style={[s.title, { color: t.text }]}>Verify your number</Text>
-            <Text style={[s.subtitle, { color: t.textSecondary }]}>
-              We'll send a 6-digit code to verify your phone number
-            </Text>
+          <Animated.View entering={FadeInDown.delay(80).duration(350)} style={s.titleWrap}>
+            <Text style={s.title}>Welcome back</Text>
+            <Text style={s.subtitle}>Enter your phone number to log in</Text>
           </Animated.View>
 
           {/* Phone input */}
-          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.inputRow}>
-            <View style={[s.prefixBox, {
-              backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-            }]}>
-              <Text style={s.flag}>🇬🇭</Text>
-              <Text style={[s.prefix, { color: t.text }]}>+233</Text>
+          <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.fields}>
+            <View style={s.fieldGroup}>
+              <Text style={s.label}>Phone Number</Text>
+              <View style={[s.inputWrap, phone.length > 0 && s.inputWrapActive]}>
+                <Text style={s.prefix}>+233</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="XX XXX XXXX"
+                  placeholderTextColor="#C4C4C4"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  autoFocus
+                />
+              </View>
             </View>
-            <TextInput
-              style={[s.phoneInput, {
-                backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                color: t.text,
-              }]}
-              placeholder="XX XXX XXXX"
-              placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={setPhone}
-              autoFocus
-            />
           </Animated.View>
 
-          {/* CTA */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.ctaWrap}>
-            <TouchableOpacity
-              onPress={handleSend}
-              disabled={phone.length < 9 || loading}
-              activeOpacity={0.85}
-              style={{ opacity: phone.length < 9 ? 0.5 : 1 }}
+          <View style={{ flex: 1 }} />
+        </ScrollView>
+
+        {/* CTA */}
+        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
+          <Pressable
+            onPress={handleSend}
+            disabled={loading || !canContinue}
+            style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
+          >
+            <LinearGradient
+              colors={canContinue ? [BRAND, BRAND] : ['#E0E0E0', '#D0D0D0']}
+              style={s.btn}
             >
-              <LinearGradient
-                colors={['#FF716A', '#FFAD3A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={s.ctaBtn}
-              >
-                <Text style={s.ctaText}>{loading ? 'Sending...' : 'Continue'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
+              <Text style={[s.btnText, !canContinue && { color: '#999' }]}>
+                {loading ? 'Sending code...' : 'Continue'}
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        </Animated.View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
-  backBtn: { paddingHorizontal: 20, paddingTop: 8 },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 40, gap: 24 },
+  container: { flex: 1, backgroundColor: '#fff' },
 
-  iconWrap: {
-    width: 64, height: 64, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center', alignSelf: 'center',
-  },
-  title: {
-    fontSize: 26, fontFamily: font.extrabold, textAlign: 'center', letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14, fontFamily: font.regular, textAlign: 'center', marginTop: 8, lineHeight: 20,
-  },
+  header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
 
-  inputRow: { flexDirection: 'row', gap: 10 },
-  prefixBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, borderRadius: 14, borderWidth: 1,
-  },
-  flag: { fontSize: 20 },
-  prefix: { fontSize: 16, fontFamily: font.bold },
-  phoneInput: {
-    flex: 1, fontSize: 18, fontFamily: font.bold,
-    paddingHorizontal: 16, paddingVertical: 16,
-    borderRadius: 14, borderWidth: 1, letterSpacing: 1,
-  },
+  titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
+  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
 
-  ctaWrap: { marginTop: 8 },
-  ctaBtn: {
-    paddingVertical: 16, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  ctaText: { fontSize: 16, fontFamily: font.bold, color: '#1c1917' },
+  fields: { paddingHorizontal: 24, marginTop: 32, gap: 24 },
+  fieldGroup: { gap: 10 },
+  label: { fontSize: 14, fontWeight: '600', color: '#333' },
+  inputWrap: { height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  inputWrapActive: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
+  prefix: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', marginRight: 8 },
+  input: { flex: 1, fontSize: 16, fontWeight: '500', color: '#0A0A0A', paddingVertical: 0 },
+
+  ctaWrap: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: '#fff' },
+  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
+  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 })

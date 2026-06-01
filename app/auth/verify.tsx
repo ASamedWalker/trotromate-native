@@ -1,20 +1,19 @@
 import { useState, useRef, useEffect } from 'react'
-import { View, Text, TextInput, TouchableOpacity, useColorScheme, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { ShieldCheck, ArrowLeft } from 'lucide-react-native'
-import { c, font, themed } from '@/lib/theme'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { useApp } from '@/lib/contexts/AppContext'
-import * as Haptics from 'expo-haptics'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
 
+const BRAND = '#FF4D1C'
 const OTP_LENGTH = 6
 
 export default function VerifyOtpScreen() {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { phone } = useLocalSearchParams<{ phone: string }>()
   const { verifyOtp, linkToDevice } = useAuthContext()
@@ -22,164 +21,142 @@ export default function VerifyOtpScreen() {
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
-  const [resendTimer, setResendTimer] = useState(45)
-  const inputRefs = useRef<(TextInput | null)[]>([])
+  const [timer, setTimer] = useState(60)
+  const refs = useRef<(TextInput | null)[]>([])
 
-  // Resend countdown
   useEffect(() => {
-    if (resendTimer <= 0) return
-    const id = setInterval(() => setResendTimer(t => t - 1), 1000)
-    return () => clearInterval(id)
-  }, [resendTimer])
+    if (timer <= 0) return
+    const t = setInterval(() => setTimer(s => s - 1), 1000)
+    return () => clearInterval(t)
+  }, [timer])
 
-  const handleChange = async (text: string, index: number) => {
+  const fullPhone = phone?.startsWith('+') ? phone : `+233${(phone || '').replace(/^0/, '')}`
+
+  const handleChange = async (val: string, idx: number) => {
     const newOtp = [...otp]
-    newOtp[index] = text
+    newOtp[idx] = val
     setOtp(newOtp)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
 
-    // Auto-advance
-    if (text && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus()
+    if (val && idx < OTP_LENGTH - 1) {
+      refs.current[idx + 1]?.focus()
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     }
 
-    // Auto-verify when all digits entered
-    const fullCode = newOtp.join('')
-    if (fullCode.length === OTP_LENGTH) {
+    if (newOtp.every(d => d !== '')) {
       setLoading(true)
-      const { success, error } = await verifyOtp(phone || '', fullCode)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const { success, error } = await verifyOtp(phone || '', newOtp.join(''))
       setLoading(false)
 
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        // Link auth to existing device profile
         if (deviceId) await linkToDevice(deviceId)
-        // Go back to wherever they came from
+        // Navigate to home — pop auth screens
         router.back()
-        router.back() // pop both auth screens
+        router.back()
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-        Alert.alert('Invalid Code', error || 'Please check the code and try again')
+        Alert.alert('Invalid Code', error || 'Please try again')
         setOtp(Array(OTP_LENGTH).fill(''))
-        inputRefs.current[0]?.focus()
+        refs.current[0]?.focus()
       }
     }
   }
 
-  const handleKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus()
+  const handleKeyPress = (key: string, idx: number) => {
+    if (key === 'Backspace' && !otp[idx] && idx > 0) {
+      refs.current[idx - 1]?.focus()
+      const newOtp = [...otp]
+      newOtp[idx - 1] = ''
+      setOtp(newOtp)
     }
   }
 
-  const handleResend = async () => {
-    if (resendTimer > 0) return
-    const { signInWithPhone } = require('@/lib/hooks/useAuth')
-    // Re-trigger via context
-    setResendTimer(45)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-  }
-
-  const displayPhone = phone ? `+233 ${phone.replace(/^0/, '')}` : '+233 XXX XXX XXXX'
-
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        {/* Back */}
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={24} color={t.text} />
-        </TouchableOpacity>
+    <View style={[s.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+          <ArrowLeft size={20} color="#0A0A0A" />
+        </Pressable>
+      </Animated.View>
 
-        <View style={s.content}>
-          {/* Icon */}
-          <Animated.View entering={FadeInDown.duration(400)} style={[s.iconWrap, {
-            backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.06)',
-          }]}>
-            <ShieldCheck size={28} color="#22c55e" />
-          </Animated.View>
+      {/* Title */}
+      <Animated.View entering={FadeInDown.delay(80).duration(350)} style={s.titleWrap}>
+        <Text style={s.title}>Enter verification{'\n'}code</Text>
+        <Text style={s.subtitle}>
+          We sent a 6-digit code to{' '}
+          <Text style={{ fontWeight: '700', color: '#0A0A0A' }}>{fullPhone}</Text>
+        </Text>
+        <Pressable onPress={() => router.back()}>
+          <Text style={s.changeLink}>Change number?</Text>
+        </Pressable>
+      </Animated.View>
 
-          {/* Title */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <Text style={[s.title, { color: t.text }]}>Enter verification code</Text>
-            <Text style={[s.subtitle, { color: t.textSecondary }]}>
-              We sent a 6-digit code to{'\n'}
-              <Text style={{ fontFamily: font.bold, color: t.text }}>{displayPhone}</Text>
-            </Text>
-          </Animated.View>
+      {/* OTP Grid */}
+      <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.otpRow}>
+        {otp.map((digit, i) => (
+          <TextInput
+            key={i}
+            ref={r => { refs.current[i] = r }}
+            style={[s.otpCell, digit && s.otpCellFilled]}
+            value={digit}
+            onChangeText={v => handleChange(v.slice(-1), i)}
+            onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
+            keyboardType="number-pad"
+            maxLength={1}
+            selectTextOnFocus
+            autoFocus={i === 0}
+          />
+        ))}
+      </Animated.View>
 
-          {/* OTP boxes */}
-          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.otpRow}>
-            {otp.map((digit, i) => (
-              <TextInput
-                key={i}
-                ref={ref => { inputRefs.current[i] = ref }}
-                style={[s.otpBox, {
-                  backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-                  borderColor: digit
-                    ? '#FFAD3A'
-                    : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                  color: t.text,
-                }]}
-                value={digit}
-                onChangeText={text => handleChange(text, i)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-                autoFocus={i === 0}
-              />
-            ))}
-          </Animated.View>
+      {/* Resend */}
+      <Animated.View entering={FadeInDown.delay(240).duration(350)} style={s.resendRow}>
+        <Text style={s.resendText}>Didn't receive code? </Text>
+        {timer > 0 ? (
+          <Text style={s.resendTimer}>
+            Resend code in <Text style={{ color: BRAND, fontWeight: '600' }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
+          </Text>
+        ) : (
+          <Pressable onPress={() => setTimer(60)}>
+            <Text style={s.resendLink}>Resend</Text>
+          </Pressable>
+        )}
+      </Animated.View>
 
-          {/* Loading */}
-          {loading && (
-            <Animated.View entering={FadeInDown.duration(300)}>
-              <Text style={[s.loadingText, { color: c.amber500 }]}>Verifying...</Text>
-            </Animated.View>
-          )}
+      <View style={{ flex: 1 }} />
 
-          {/* Resend */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.resendRow}>
-            <Text style={[s.resendLabel, { color: t.textSecondary }]}>Didn't receive code?</Text>
-            <TouchableOpacity onPress={handleResend} disabled={resendTimer > 0}>
-              <Text style={[s.resendBtn, {
-                color: resendTimer > 0 ? t.textSecondary : c.amber500,
-              }]}>
-                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      {/* Loading indicator */}
+      {loading && (
+        <Animated.View entering={FadeInDown.duration(200)} style={s.loadingWrap}>
+          <Text style={s.loadingText}>Verifying...</Text>
+        </Animated.View>
+      )}
+    </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
-  backBtn: { paddingHorizontal: 20, paddingTop: 8 },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 40, gap: 24, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#fff' },
 
-  iconWrap: {
-    width: 64, height: 64, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  title: {
-    fontSize: 26, fontFamily: font.extrabold, textAlign: 'center', letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14, fontFamily: font.regular, textAlign: 'center', marginTop: 8, lineHeight: 22,
-  },
+  header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
 
-  otpRow: { flexDirection: 'row', gap: 8 },
-  otpBox: {
-    width: 48, height: 56, borderRadius: 14, borderWidth: 2,
-    textAlign: 'center', fontSize: 22, fontFamily: font.extrabold,
-  },
+  titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
+  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
+  changeLink: { fontSize: 14, fontWeight: '600', color: BRAND, marginTop: 8 },
 
-  loadingText: { fontSize: 14, fontFamily: font.bold, textAlign: 'center' },
+  otpRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 32 },
+  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontWeight: '700', color: '#0A0A0A' },
+  otpCellFilled: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
 
-  resendRow: { alignItems: 'center', gap: 4 },
-  resendLabel: { fontSize: 13, fontFamily: font.regular },
-  resendBtn: { fontSize: 14, fontFamily: font.bold },
+  resendRow: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 20, alignItems: 'center' },
+  resendText: { fontSize: 13, color: '#888' },
+  resendTimer: { fontSize: 13, color: '#888' },
+  resendLink: { fontSize: 13, fontWeight: '700', color: BRAND },
+
+  loadingWrap: { alignItems: 'center', paddingBottom: 40 },
+  loadingText: { fontSize: 15, fontWeight: '600', color: BRAND },
 })
