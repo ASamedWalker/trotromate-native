@@ -1,97 +1,73 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   View,
   Text,
   ScrollView,
-  useColorScheme,
-  StyleSheet,
   Pressable,
   Alert,
-  Platform,
+  Image,
+  TouchableOpacity,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import {
-  Bus, Bike, Utensils, Zap, Calendar, Package, ReceiptText, Plus,
-  MapPin, ChevronRight, ChevronDown, Search, Navigation, Calculator,
-  Bell,
+  MapPin, ChevronRight, ChevronDown,
+  Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
+  WalletCards, ScanLine,
+  House, Briefcase,
 } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
-import Animated, { FadeInDown } from 'react-native-reanimated'
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
-import type { LucideIcon } from 'lucide-react-native'
 
-const GREEN = '#08b64f'
-const DARK_GREEN = '#087d3c'
-const ORANGE = '#ff9400'
+const BRAND = '#FF4D1C'
 
-/* ── Services ── */
+// Uber Base tokens adapted for Troski
+const BASE = {
+  radius: { sm: 8, md: 12, lg: 16, xl: 20, full: 9999 },
+  shadow: {
+    card: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4 },
+    subtle: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
+}
 
-interface ServiceAction { id: string; label: string; desc: string; icon: LucideIcon }
+/* ── Service data ── */
+
 interface Service {
-  id: string; label: string; icon: LucideIcon; iconColor: string
-  cta: string; actions: ServiceAction[]; comingSoon?: boolean; route?: string
+  id: string; label: string; image: any; route?: string; comingSoon?: boolean
 }
 
 const SERVICES: Service[] = [
-  {
-    id: 'troski', label: 'Troski', icon: Bus, iconColor: DARK_GREEN, cta: 'Start Booking', route: '/booking',
-    actions: [
-      { id: 'find-route', label: 'Find a route', desc: 'Search trotro routes across Accra', icon: Search },
-      { id: 'book-trotro', label: 'Book trotro', desc: 'Reserve your seat before you arrive', icon: Calendar },
-      { id: 'live-vehicles', label: 'View live vehicles', desc: 'See active vehicles near your station', icon: Navigation },
-    ],
-  },
-  {
-    id: 'okada', label: 'Okada', icon: Bike, iconColor: DARK_GREEN, cta: 'Find Okada',
-    actions: [
-      { id: 'request-rider', label: 'Request nearby rider', desc: "We'll find a rider close to you", icon: Navigation },
-      { id: 'set-pickup', label: 'Set pickup', desc: 'Choose your pickup location', icon: MapPin },
-      { id: 'estimate-fare', label: 'Estimate fare', desc: 'See price estimate before you ride', icon: Calculator },
-    ],
-  },
-  {
-    id: 'food', label: 'Food', icon: Utensils, iconColor: ORANGE, cta: 'Order Food', comingSoon: true,
-    actions: [{ id: 'nearby-food', label: 'Nearby restaurants', desc: 'Find local food vendors', icon: Search }],
-  },
-  {
-    id: 'ev-charge', label: 'EV Charge', icon: Zap, iconColor: GREEN, cta: 'View Stations', comingSoon: true,
-    actions: [{ id: 'nearby-stations', label: 'Nearby stations', desc: 'Find EV stations nearby', icon: MapPin }],
-  },
-  {
-    id: 'booking', label: 'Booking', icon: Calendar, iconColor: ORANGE, cta: 'Book Trip', comingSoon: true,
-    actions: [{ id: 'find-trip', label: 'Find intercity trip', desc: 'Search buses between cities', icon: Search }],
-  },
-  {
-    id: 'courier', label: 'Courier', icon: Package, iconColor: DARK_GREEN, cta: 'Send Package', comingSoon: true,
-    actions: [{ id: 'send-package', label: 'Send package', desc: 'Request pickup for a parcel', icon: Package }],
-  },
-  {
-    id: 'bills', label: 'Bills', icon: ReceiptText, iconColor: DARK_GREEN, cta: 'Pay Bill', comingSoon: true,
-    actions: [{ id: 'pay-electricity', label: 'Pay electricity', desc: 'Buy prepaid power', icon: Zap }],
-  },
-  {
-    id: 'more', label: 'More', icon: Plus, iconColor: '#777', cta: 'Explore More',
-    actions: [{ id: 'view-all', label: 'View all services', desc: 'See everything on Troski', icon: Plus }],
-  },
+  { id: 'bus', label: 'Bus', image: require('@/assets/images/home/bus_icon_bg_removed.png'), route: '/booking' },
+  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), comingSoon: true },
+  { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png') },
+  { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), comingSoon: true },
+  { id: 'courier', label: 'Courier', image: require('@/assets/images/home/van_bg_removed.png'), comingSoon: true },
 ]
+
+/* ── Quick Actions ── */
+
+const QUICK_ACTIONS = [
+  { id: 'directions', label: 'Where to?', sub: 'Directions', icon: Compass, color: '#1C1917' },
+  { id: 'nearby', label: 'Buses', sub: 'Nearby', icon: BusIcon, color: '#10B981' },
+  { id: 'queue', label: 'Queue', sub: 'Status', icon: Users, color: '#EF4444' },
+]
+
 
 /* ── Component ── */
 
 export default function HomeScreen() {
   const router = useRouter()
-  const isDark = useColorScheme() === 'dark'
-  const s = useMemo(() => getStyles(isDark), [isDark])
-  const { profile } = useApp()
+  const { profile, deviceId } = useApp()
   const { user: authUser, isAuthenticated } = useAuthContext()
 
-  // Wallet balance
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [balanceVisible, setBalanceVisible] = useState(true)
   React.useEffect(() => {
     if (!authUser?.id) return
     const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -104,7 +80,6 @@ export default function HomeScreen() {
   const { location } = useLocation()
   const [locationName, setLocationName] = useState('Accra, GH')
 
-  // Reverse geocode user location
   React.useEffect(() => {
     if (!location) return
     const fetchName = async () => {
@@ -115,7 +90,7 @@ export default function HomeScreen() {
         const data = await res.json()
         if (data.features?.[0]) {
           const place = data.features[0].text
-          const country = data.features[0].context?.find((c: any) => c.id?.startsWith('country'))?.short_code?.toUpperCase() || 'GH'
+          const country = data.features[0].context?.find((ctx: any) => ctx.id?.startsWith('country'))?.short_code?.toUpperCase() || 'GH'
           setLocationName(`${place}, ${country}`)
         }
       } catch (e) { console.warn("[troski] silent error:", e) }
@@ -123,341 +98,242 @@ export default function HomeScreen() {
     fetchName()
   }, [location?.latitude, location?.longitude])
 
-  const sheetRef = useRef<BottomSheet>(null)
-  const [activeSvc, setActiveSvc] = useState<Service | null>(null)
+  const displayName = profile?.display_name || 'Commuter'
+  const firstName = displayName.split(' ')[0]
+  const balance = walletBalance ?? 0
+  const formattedBalance = balanceVisible
+    ? `$${balance.toLocaleString('en', { minimumFractionDigits: 2 })}`
+    : '******'
 
-  const onTapService = useCallback((svc: Service) => {
+  const handleServiceTap = useCallback((svc: Service) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`, [{ text: 'OK' }]); return }
-    setActiveSvc(svc)
-    sheetRef.current?.snapToIndex(0)
-  }, [])
-
-  const onTapAction = useCallback((svc: Service, act: ServiceAction) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    sheetRef.current?.close()
-    setActiveSvc(null)
+    if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`); return }
+    if (svc.id === 'train') { router.push('/(tabs)/lines' as any); return }
     if (svc.route) router.push(svc.route as any)
-    else if (act.id === 'find-route') router.push('/routes/plan' as any)
-    else Alert.alert(act.label, act.desc)
+  }, [router])
+
+  const handleQuickAction = useCallback((id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    if (id === 'directions') router.push('/routes/search' as any)
+    else if (id === 'nearby') router.push('/(tabs)/lines' as any)
+    else if (id === 'queue') router.push('/report/queue' as any)
   }, [router])
 
   return (
-    <View style={s.root}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+      <ScrollView showsVerticalScrollIndicator={false}>
 
-          {/* ── Header ── */}
-          <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
-            <View style={s.headerLeft}>
-              <View style={s.locationIcon}>
-                <MapPin size={24} color={GREEN} fill={GREEN} />
-              </View>
+        {/* ── Header ── */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <Pressable onPress={() => router.push('/settings' as Href)} hitSlop={8}>
+                <InitialsAvatar name={displayName} deviceId={deviceId || ''} size={48} />
+              </Pressable>
               <View>
-                <Text style={s.locationSub}>Current Location</Text>
-                <View style={s.locationRow}>
-                  <Text style={s.locationText}>{locationName}</Text>
-                  <ChevronDown size={16} color="#777" />
-                </View>
+                <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>
+                  Hello, {firstName}
+                </Text>
+                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }} hitSlop={6}>
+                  <MapPin size={14} color={BRAND} />
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }} numberOfLines={1}>
+                    {locationName}
+                  </Text>
+                  <ChevronDown size={14} color="#6B7280" />
+                </Pressable>
               </View>
             </View>
-            <View style={s.headerRight}>
-              <Pressable onPress={() => router.push('/(tabs)/activity' as any)} hitSlop={10} style={s.bellWrap}>
-                <Bell size={26} color={isDark ? '#FAFAF9' : '#111'} />
-                <View style={s.bellDot} />
-              </Pressable>
-              <Pressable onPress={() => router.push('/profile' as any)} hitSlop={8}>
-                <InitialsAvatar name={profile?.display_name || 'U'} deviceId={profile?.device_id || ''} size={48} />
-              </Pressable>
-            </View>
-          </Animated.View>
+            <Pressable
+              onPress={() => router.push('/(tabs)/activity' as any)}
+              hitSlop={10}
+              style={{
+                width: 44, height: 44, borderRadius: 22,
+                backgroundColor: '#F3F4F6',
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Bell size={22} color="#374151" />
+              <View style={{
+                position: 'absolute', top: 10, right: 10,
+                width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND,
+              }} />
+            </Pressable>
+          </View>
+        </View>
 
-          {/* ── Wallet ── */}
-          <View style={s.activeCard}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* ── Wallet Card ── */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <LinearGradient
+            colors={[BRAND, '#D63A12']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden',
+              ...BASE.shadow.card,
+              shadowColor: BRAND, shadowOpacity: 0.3,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
               <View>
-                <Text style={{ fontFamily: font.bold, fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', textTransform: 'uppercase', letterSpacing: 1 }}>Wallet Balance</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 22, color: isDark ? '#F9FAFB' : '#111', letterSpacing: -0.5 }}>
-                  {walletBalance != null ? `₵${Number(walletBalance).toFixed(2)}` : isAuthenticated ? '₵...' : '₵0.00'}
+                <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>
+                  Wallet Balance
+                </Text>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5 }}>
+                  {formattedBalance}
                 </Text>
               </View>
               <Pressable
-                onPress={() => router.push(isAuthenticated ? '/wallet/fund' as any : '/auth/phone' as any)}
-                style={{ backgroundColor: GREEN, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
+                hitSlop={12}
+                style={{
+                  width: 40, height: 40, borderRadius: 20,
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  justifyContent: 'center', alignItems: 'center',
+                }}
               >
-                <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#fff' }}>Top Up</Text>
+                {balanceVisible ? <Eye size={20} color="#fff" /> : <EyeOff size={20} color="#fff" />}
               </Pressable>
             </View>
-          </View>
 
-          {/* ── Service Grid ── */}
-          <Animated.View entering={FadeInDown.delay(140).duration(400)}>
-            {[0, 4].map((startIdx) => (
-              <View key={startIdx} style={s.gridRow}>
-                {SERVICES.slice(startIdx, startIdx + 4).map((svc) => {
-                  const Icon = svc.icon
-                  const isActive = activeSvc?.id === svc.id
-                  return (
-                    <Pressable
-                      key={svc.id}
-                      onPress={() => onTapService(svc)}
-                      style={({ pressed }) => [
-                        s.gridItem,
-                        pressed && { transform: [{ scale: 0.92 }] },
-                        svc.comingSoon && { opacity: 0.4 },
-                      ]}
-                    >
-                      <View style={[s.gridCircle, isActive && s.gridCircleActive]}>
-                        <Icon size={24} color={svc.iconColor} strokeWidth={1.8} />
-                      </View>
-                      <Text style={[s.gridLabel, isActive && { color: GREEN }]} numberOfLines={1}>{svc.label}</Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            ))}
-          </Animated.View>
-
-          {/* ── Active Ride ── */}
-          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={s.activeCard}>
-            <Text style={s.activeTag}>Active Now</Text>
-            <View style={s.activeBody}>
-              <View style={s.activeIconBox}>
-                <Bus size={28} color="#fff" />
-              </View>
-              <View style={s.activeInfo}>
-                <Text style={s.activeRoute}>Circle → Madina</Text>
-                <Text style={s.activeMeta}>
-                  Trotro arriving in <Text style={{ fontFamily: font.bold, color: GREEN }}>6 min</Text>
-                </Text>
-                <Text style={s.activePlate}>GR-4582-50</Text>
-                <View style={s.progressTrack}>
-                  <View style={s.progressFill}>
-                    <View style={s.progressKnob} />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
+                activeOpacity={0.85}
+                style={{ flex: 1 }}
+              >
+                <View style={{ height: 48, borderRadius: BASE.radius.md, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <WalletCards size={18} color="#000" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#000' }}>Topup Wallet</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'QR payment coming soon!') }}
+                activeOpacity={0.85}
+                style={{ flex: 1 }}
+              >
+                <View style={{
+                  height: 48, borderRadius: BASE.radius.md,
+                  backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ScanLine size={18} color="#fff" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
                   </View>
                 </View>
-              </View>
-              <Pressable
-                onPress={() => Alert.alert('Track', 'Trip tracking coming soon')}
-                style={s.trackBtn}
-              >
-                <Text style={s.trackText}>Track</Text>
-              </Pressable>
+              </TouchableOpacity>
             </View>
-          </Animated.View>
+          </LinearGradient>
+        </View>
 
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </SafeAreaView>
+        {/* ── Quick Actions ── */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 28 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {QUICK_ACTIONS.map((action) => {
+              const Icon = action.icon
+              return (
+                <TouchableOpacity
+                  key={action.id}
+                  onPress={() => handleQuickAction(action.id)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: BASE.radius.lg,
+                    padding: 16,
+                    ...BASE.shadow.card,
+                  }}
+                >
+                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{action.label}</Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginBottom: 14 }}>{action.sub}</Text>
+                  <View style={{
+                    width: 40, height: 40, borderRadius: 20,
+                    backgroundColor: action.color,
+                    justifyContent: 'center', alignItems: 'center',
+                    alignSelf: 'flex-end',
+                  }}>
+                    <Icon size={20} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </View>
 
-      {/* ── Bottom Sheet ── */}
-      <BottomSheet
-        ref={sheetRef}
-        index={-1}
-        snapPoints={['50%']}
-        enablePanDownToClose
-        handleIndicatorStyle={{ backgroundColor: isDark ? '#555' : '#D1D5DB', width: 48, height: 5, borderRadius: 3 }}
-        backgroundStyle={{ backgroundColor: isDark ? '#1C1917' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28 }}
-        onClose={() => setActiveSvc(null)}
-      >
-        <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
-          {activeSvc && (
-            <>
-              {/* Title centered */}
-              <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: isDark ? '#F9FAFB' : '#111', textAlign: 'center', marginBottom: 4 }}>
-                {activeSvc.label}
-              </Text>
-              <Text style={{ fontFamily: font.regular, fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 20 }}>
-                {activeSvc.actions[0]?.desc}
-              </Text>
-
-              {/* Action rows */}
-              <View style={{ marginBottom: 20 }}>
-                {activeSvc.actions.map((act) => {
-                  const ActIcon = act.icon
-                  return (
-                    <Pressable
-                      key={act.id}
-                      onPress={() => onTapAction(activeSvc, act)}
-                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
-                    >
-                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? '#14532d' : '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                        <ActIcon size={18} color={DARK_GREEN} />
-                      </View>
-                      <Text style={{ fontFamily: font.bold, fontSize: 14, color: isDark ? '#F9FAFB' : '#111', flex: 1 }}>{act.label}</Text>
-                      <ChevronRight size={18} color="#9CA3AF" />
-                    </Pressable>
-                  )
-                })}
-              </View>
-
-              {/* CTA */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  sheetRef.current?.close()
-                  if (activeSvc.route) router.push(activeSvc.route as any)
+        {/* ── Services ── */}
+        <View style={{ marginBottom: 28 }}>
+          <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5, marginBottom: 16, paddingHorizontal: 24 }}>
+            Services
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
+          >
+            {SERVICES.map((svc) => (
+              <TouchableOpacity
+                key={svc.id}
+                onPress={() => handleServiceTap(svc)}
+                activeOpacity={0.7}
+                style={{
+                  width: 100,
+                  backgroundColor: '#F3F4F6',
+                  borderRadius: BASE.radius.lg,
+                  paddingTop: 16,
+                  paddingBottom: 12,
+                  alignItems: 'center',
                 }}
-                style={({ pressed }) => [
-                  { backgroundColor: GREEN, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-                  pressed && { opacity: 0.9 },
-                ]}
               >
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{activeSvc.cta}</Text>
-              </Pressable>
-            </>
-          )}
-        </BottomSheetView>
-      </BottomSheet>
-    </View>
+                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8 }} resizeMode="contain" />
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000', textAlign: 'center' }}>{svc.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ── My Routes ── */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 28 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>My Routes</Text>
+            <Pressable onPress={() => router.push('/routes/search' as any)}>
+              <Text style={{ fontFamily: font.bold, fontSize: 16, color: BRAND }}>Add</Text>
+            </Pressable>
+          </View>
+
+          <View style={{
+            backgroundColor: '#FFFFFF', borderRadius: BASE.radius.lg, overflow: 'hidden',
+            ...BASE.shadow.card,
+          }}>
+            <Pressable
+              style={{ flexDirection: 'row', alignItems: 'center', padding: 18, gap: 16 }}
+              onPress={() => router.push('/routes/search' as any)}
+            >
+              <House size={26} color="#000" strokeWidth={2.5} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>Home</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 2 }}>Tap to set</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
+            </Pressable>
+
+            <View style={{ height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 18 }} />
+
+            <Pressable
+              style={{ flexDirection: 'row', alignItems: 'center', padding: 18, gap: 16 }}
+              onPress={() => router.push('/routes/search' as any)}
+            >
+              <Briefcase size={26} color="#000" strokeWidth={2.5} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>Work</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 2 }}>Tap to set</Text>
+              </View>
+              <ChevronRight size={20} color="#9CA3AF" />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+    </SafeAreaView>
   )
-}
-
-/* ── Styles ── */
-
-function getStyles(isDark: boolean) {
-  const bg = isDark ? '#0C0A09' : '#F3F4F6'
-  const cardBg = isDark ? '#1C1917' : '#FFFFFF'
-  const text = isDark ? '#F9FAFB' : '#151515'
-  const sub = isDark ? '#9CA3AF' : '#6B7280'
-  const border = isDark ? '#292524' : '#F3F4F6'
-
-  return StyleSheet.create({
-    root: { flex: 1, backgroundColor: bg },
-    scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 24 },
-
-    /* Header */
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    locationIcon: {
-      width: 48, height: 48, borderRadius: 14,
-      backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center',
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
-        android: { elevation: 2 },
-      }),
-    },
-    locationSub: { fontFamily: font.medium, fontSize: 13, color: sub },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    locationText: { fontFamily: font.bold, fontSize: 16, color: text },
-    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    bellWrap: { position: 'relative' },
-    bellDot: {
-      position: 'absolute', top: 0, right: 0,
-      width: 8, height: 8, borderRadius: 4, backgroundColor: GREEN,
-    },
-
-    /* Wallet */
-    walletCard: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      backgroundColor: isDark ? '#1C1917' : '#FFFFFF',
-      borderRadius: 20, padding: 16,
-      borderWidth: 1.5, borderColor: isDark ? '#292524' : '#D1D5DB',
-    },
-    walletLabel: { fontFamily: font.bold, fontSize: 10, color: sub, textTransform: 'uppercase', letterSpacing: 1 },
-    walletAmount: { fontFamily: font.bold, fontSize: 22, color: text, letterSpacing: -0.5 },
-    topUpBtn: {
-      backgroundColor: GREEN, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
-      ...Platform.select({
-        ios: { shadowColor: GREEN, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 },
-        android: { elevation: 4 },
-      }),
-    },
-    topUpText: { fontFamily: font.bold, fontSize: 13, color: '#fff' },
-
-    /* Grid */
-    gridRow: {
-      flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16,
-    },
-    gridItem: {
-      flex: 1, alignItems: 'center', gap: 6,
-    },
-    gridCircle: {
-      width: 54, height: 54, borderRadius: 27,
-      backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center',
-      borderWidth: 1, borderColor: isDark ? '#292524' : '#E5E7EB',
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
-        android: { elevation: 2 },
-      }),
-    },
-    gridCircleActive: {
-      borderWidth: 2, borderColor: GREEN,
-    },
-    gridLabel: { fontFamily: font.bold, fontSize: 11, color: text, textAlign: 'center' },
-
-    /* Active Ride */
-    activeCard: {
-      backgroundColor: cardBg, borderRadius: 24, padding: 16,
-      ...Platform.select({
-        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.10, shadowRadius: 24 },
-        android: { elevation: 4 },
-      }),
-    },
-    activeTag: { fontFamily: font.bold, fontSize: 13, color: GREEN, marginBottom: 10 },
-    activeBody: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-    activeIconBox: {
-      width: 72, height: 72, borderRadius: 18,
-      backgroundColor: isDark ? '#14532d' : '#ECFDF5',
-      justifyContent: 'center', alignItems: 'center',
-    },
-    activeInfo: { flex: 1, gap: 2 },
-    activeRoute: { fontFamily: font.extrabold, fontSize: 19, color: text, letterSpacing: -0.5 },
-    activeMeta: { fontFamily: font.regular, fontSize: 14, color: sub },
-    activePlate: { fontFamily: font.regular, fontSize: 14, color: sub },
-    progressTrack: {
-      height: 8, borderRadius: 4, backgroundColor: isDark ? '#292524' : '#E5E7EB', marginTop: 10,
-    },
-    progressFill: {
-      width: '60%', height: 8, borderRadius: 4, backgroundColor: GREEN,
-      justifyContent: 'center', alignItems: 'flex-end',
-    },
-    progressKnob: {
-      width: 14, height: 14, borderRadius: 7,
-      backgroundColor: '#fff', borderWidth: 3, borderColor: GREEN,
-      marginRight: -7,
-    },
-    trackBtn: {
-      borderWidth: 1.5, borderColor: isDark ? '#22C55E' : '#BBF7D0',
-      paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16,
-    },
-    trackText: { fontFamily: font.bold, fontSize: 15, color: isDark ? '#4ADE80' : '#0A9D49' },
-
-    /* Sheet */
-    sheetBg: { backgroundColor: cardBg, borderTopLeftRadius: 34, borderTopRightRadius: 34 },
-    sheetHandle: { backgroundColor: isDark ? '#555' : '#999', width: 56, height: 5, borderRadius: 3 },
-    sheetBody: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20 },
-
-    sheetTop: { marginBottom: 16 },
-    sheetTitle: { fontFamily: font.extrabold, fontSize: 24, color: text, letterSpacing: -0.5 },
-    sheetDesc: { fontFamily: font.regular, fontSize: 15, color: sub, marginTop: 2 },
-
-    actionList: {
-      borderRadius: 18, borderWidth: 1, borderColor: border,
-      overflow: 'hidden', marginBottom: 16,
-    },
-    actionRow: {
-      flexDirection: 'row', alignItems: 'center', gap: 14,
-      paddingVertical: 14, paddingHorizontal: 14,
-    },
-    actionBorder: { borderBottomWidth: 1, borderBottomColor: border },
-    actionIcon: {
-      width: 44, height: 44, borderRadius: 14,
-      backgroundColor: isDark ? '#14532d' : '#ECFDF5',
-      justifyContent: 'center', alignItems: 'center',
-    },
-    actionInfo: { flex: 1, gap: 2 },
-    actionLabel: { fontFamily: font.extrabold, fontSize: 15, color: text },
-    actionSub: { fontFamily: font.regular, fontSize: 13, color: sub },
-
-    ctaBtn: {
-      backgroundColor: GREEN, height: 56, borderRadius: 16,
-      justifyContent: 'center', alignItems: 'center',
-      ...Platform.select({
-        ios: { shadowColor: GREEN, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.28, shadowRadius: 22 },
-        android: { elevation: 6 },
-      }),
-    },
-    ctaText: { fontFamily: font.extrabold, fontSize: 17, color: '#fff' },
-  })
 }

@@ -54,9 +54,9 @@ export default function SettingsScreen() {
     { key: 'dark', label: 'Dark', icon: Moon },
   ]
 
-  const handleThemeChange = (mode: ThemeMode) => {
-    updatePref('theme', mode)
-    Appearance.setColorScheme(mode === 'system' ? null : mode)
+  const handleThemeChange = (_mode: ThemeMode) => {
+    // Dark mode disabled — always light until properly tested
+    Appearance.setColorScheme('light')
   }
 
   const handleClearData = () => {

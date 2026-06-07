@@ -32,14 +32,14 @@ export const c = {
   black: '#000000',
 }
 
-// Poppins font family map (weights baked into font names for RN)
+// Plus Jakarta Sans font family map (weights baked into font names for RN)
 export const font = {
-  regular: 'Poppins_400Regular',
-  medium: 'Poppins_500Medium',
-  semibold: 'Poppins_600SemiBold',
-  bold: 'Poppins_700Bold',
-  extrabold: 'Poppins_800ExtraBold',
-  black: 'Poppins_900Black',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extrabold: 'PlusJakartaSans_800ExtraBold',
+  black: 'PlusJakartaSans_800ExtraBold', // No 900 weight — use 800
 }
 
 // Glass surface constants

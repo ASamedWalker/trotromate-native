@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const PREFS_KEY = '@troski_preferences'
+const PREFS_KEY = '@troski_preferences_v2'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -14,7 +14,7 @@ export interface Preferences {
 const DEFAULTS: Preferences = {
   pushNotifications: true,
   profileVisibility: true,
-  theme: 'system',
+  theme: 'light',
 }
 
 export function usePreferences() {

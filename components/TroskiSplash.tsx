@@ -119,14 +119,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 38,
-    fontFamily: 'Poppins_900Black',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: c.white,
     letterSpacing: 6,
     marginBottom: 4,
   },
   tagline: {
     fontSize: 16,
-    fontFamily: 'Poppins_500Medium',
+    fontFamily: 'PlusJakartaSans_500Medium',
     color: 'rgba(255,255,255,0.85)',
     marginBottom: 40,
   },

@@ -2,13 +2,12 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import {
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-  Poppins_800ExtraBold,
-  Poppins_900Black,
-} from '@expo-google-fonts/poppins'
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans'
 import { Stack, useRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
@@ -122,11 +121,10 @@ function AppInner() {
 
   // OTA update hook moved to RootLayout for earlier execution
 
-  // Apply stored theme preference
+  // Force light mode — dark mode disabled until properly tested
   useEffect(() => {
-    if (!prefsLoaded) return
-    Appearance.setColorScheme(prefs.theme === 'system' ? null : prefs.theme)
-  }, [prefsLoaded, prefs.theme])
+    Appearance.setColorScheme('light')
+  }, [])
 
   if (onboardingLoading) return null
 
@@ -158,6 +156,8 @@ function AppInner() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="routes/search" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="routes/detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
@@ -213,12 +213,11 @@ export default function RootLayout() {
 
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-    Poppins_800ExtraBold,
-    Poppins_900Black,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   })
 
   useEffect(() => {

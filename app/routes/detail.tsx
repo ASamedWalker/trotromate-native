@@ -1,0 +1,856 @@
+import { useState, useEffect, useRef, useMemo } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Animated as RNAnimated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing } from 'lucide-react-native'
+import { font } from '@/lib/theme'
+import * as Haptics from 'expo-haptics'
+import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
+import { fetchRouteTraffic } from '@/lib/services/traffic-api'
+import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
+import Mapbox from '@rnmapbox/maps'
+import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
+
+const BRAND = '#FF4D1C'
+
+// Case-insensitive coord lookup
+const COORDS_LOWER: Record<string, { lat: number; lon: number }> = {}
+for (const [name, c] of Object.entries(FALLBACK_STATION_COORDS)) {
+  COORDS_LOWER[name.toLowerCase()] = { lat: c.latitude, lon: c.longitude }
+}
+
+function getCoord(name: string) {
+  return COORDS_LOWER[name.toLowerCase()] || null
+}
+
+/* ── Transport options ── */
+
+const TRANSPORT_OPTIONS = [
+  { id: 'trotro', label: 'Trotro', image: require('@/assets/images/home/bus_icon_bg_removed.png'), fareMultiplier: 1 },
+  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), fareMultiplier: 1.3 },
+  { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), fareMultiplier: 1.5 },
+]
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
+
+export default function RouteDetailScreen() {
+  const router = useRouter()
+  const insets = useSafeAreaInsets()
+  const sheetRef = useRef<BottomSheet>(null)
+  const cameraRef = useRef<Mapbox.Camera>(null)
+
+  const params = useLocalSearchParams<{
+    from: string; to: string; fare: string; duration: string
+    transport_type: string; route_id: string; type: string
+  }>()
+
+  const from = params.from || ''
+  const to = params.to || ''
+  const baseFare = params.fare ? parseFloat(params.fare) : 0
+  const duration = params.duration ? parseInt(params.duration) : 0
+  const routeId = params.route_id || ''
+  const routeType = params.type || 'direct'
+
+  const [selectedTransport, setSelectedTransport] = useState(params.transport_type || 'trotro')
+  const [trafficCondition, setTrafficCondition] = useState<string | null>(null)
+  const [trafficDelay, setTrafficDelay] = useState(0)
+  const [loadingTraffic, setLoadingTraffic] = useState(true)
+  const [showVehicles, setShowVehicles] = useState(false)
+  const [vehicleSearch, setVehicleSearch] = useState('')
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
+  const [notifyEnabled, setNotifyEnabled] = useState(false)
+
+  // Live vehicles on this route — fallback to mock if none
+  const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
+
+  const MOCK_VEHICLES: Record<string, Array<{ vanId: string; plateNumber: string; routeLabel: string; speed: number; driver: string }>> = {
+    trotro: [
+      { vanId: 'm1', plateNumber: 'GR-4582-24', routeLabel: `${from} → ${to}`, speed: 32, driver: 'Kwame Asante' },
+      { vanId: 'm2', plateNumber: 'GN-1190-23', routeLabel: `${from} → ${to}`, speed: 0, driver: 'Yaw Mensah' },
+      { vanId: 'm3', plateNumber: 'GT-7823-24', routeLabel: `${from} → ${to}`, speed: 45, driver: 'Kofi Boateng' },
+    ],
+    okada: [
+      { vanId: 'm4', plateNumber: 'M-2891-24', routeLabel: `${from} → ${to}`, speed: 28, driver: 'Abass Ibrahim' },
+      { vanId: 'm5', plateNumber: 'M-0456-23', routeLabel: `${from} → ${to}`, speed: 35, driver: 'Issah Mohammed' },
+    ],
+    pragya: [
+      { vanId: 'm6', plateNumber: 'P-1122-24', routeLabel: `${from} → ${to}`, speed: 18, driver: 'Emmanuel Tetteh' },
+      { vanId: 'm7', plateNumber: 'P-3344-23', routeLabel: `${from} → ${to}`, speed: 22, driver: 'Samuel Adjei' },
+    ],
+  }
+
+  const vehicles = liveVehicles.length > 0
+    ? liveVehicles
+    : (MOCK_VEHICLES[selectedTransport] || []).map(m => ({
+        ...m, routeId: routeId, latitude: 0, longitude: 0, heading: null,
+        updatedAt: new Date().toISOString(), isStale: false,
+      }))
+
+  // Fetch traffic
+  useEffect(() => {
+    if (!routeId) { setLoadingTraffic(false); return }
+    fetchRouteTraffic(routeId).then(data => {
+      if (data) {
+        setTrafficCondition(data.traffic_condition)
+        setTrafficDelay(data.delay_mins)
+      }
+      setLoadingTraffic(false)
+    }).catch(() => setLoadingTraffic(false))
+  }, [routeId])
+
+  const fromCoord = getCoord(from)
+  const toCoord = getCoord(to)
+  const hasCoords = !!fromCoord && !!toCoord
+
+  // Default center (Accra) if no coords
+  const defaultCenter = { lon: -0.1870, lat: 5.6037 }
+  const centerLon = hasCoords ? (fromCoord!.lon + toCoord!.lon) / 2 : defaultCenter.lon
+  const centerLat = hasCoords ? (fromCoord!.lat + toCoord!.lat) / 2 : defaultCenter.lat
+
+  // Animated route draw — progressive trim
+  const [lineTrim, setLineTrim] = useState(0)
+  const trimAnim = useRef(new RNAnimated.Value(0)).current
+
+  // Pulsing origin marker
+  const pulseAnim = useRef(new RNAnimated.Value(0)).current
+  const [pulseRadius, setPulseRadius] = useState(14)
+  const [pulseOpacity, setPulseOpacity] = useState(0.4)
+
+  // Smooth camera fly-in
+  useEffect(() => {
+    if (!hasCoords || !cameraRef.current) return
+    // Start zoomed on origin, then fly to fit bounds
+    const timer = setTimeout(() => {
+      cameraRef.current?.setCamera({
+        centerCoordinate: [fromCoord!.lon, fromCoord!.lat],
+        zoomLevel: 14,
+        animationDuration: 800,
+      })
+      // Then fit bounds after zoom-in
+      setTimeout(() => {
+        cameraRef.current?.fitBounds(
+          [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
+          [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
+          [80, 80, 350, 80],
+          1200,
+        )
+      }, 1000)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [hasCoords])
+
+  // Animate route draw
+  useEffect(() => {
+    if (!routeLine) return
+    setLineTrim(0)
+    trimAnim.setValue(0)
+    RNAnimated.timing(trimAnim, {
+      toValue: 1,
+      duration: 1500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start()
+
+    const listener = trimAnim.addListener(({ value }) => setLineTrim(value))
+    return () => trimAnim.removeListener(listener)
+  }, [routeLine])
+
+  // Pulse animation loop
+  useEffect(() => {
+    const loop = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+        RNAnimated.timing(pulseAnim, { toValue: 0, duration: 1200, easing: Easing.in(Easing.ease), useNativeDriver: false }),
+      ])
+    )
+    loop.start()
+
+    const listener = pulseAnim.addListener(({ value }) => {
+      setPulseRadius(14 + value * 10)
+      setPulseOpacity(0.4 - value * 0.35)
+    })
+    return () => { loop.stop(); pulseAnim.removeListener(listener) }
+  }, [])
+
+  // Route line — fetch road-following geometry from Mapbox Directions API
+  const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
+
+  useEffect(() => {
+    if (!fromCoord || !toCoord) return
+    const token = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoord.lon},${fromCoord.lat};${toCoord.lon},${toCoord.lat}?geometries=geojson&overview=full&access_token=${token}`
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        if (data.routes?.[0]?.geometry) {
+          setRouteLine({
+            type: 'Feature',
+            properties: {},
+            geometry: data.routes[0].geometry,
+          })
+        } else {
+          // Fallback: straight line
+          setRouteLine({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [[fromCoord.lon, fromCoord.lat], [toCoord.lon, toCoord.lat]],
+            },
+          })
+        }
+      })
+      .catch(() => {
+        setRouteLine({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [[fromCoord.lon, fromCoord.lat], [toCoord.lon, toCoord.lat]],
+          },
+        })
+      })
+  }, [fromCoord, toCoord])
+
+  // Markers
+  const markers = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: [
+      fromCoord && { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [fromCoord.lon, fromCoord.lat] }, properties: { label: from, color: '#22c55e' } },
+      toCoord && { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [toCoord.lon, toCoord.lat] }, properties: { label: to, color: '#ef4444' } },
+    ].filter(Boolean) as GeoJSON.Feature[],
+  }), [fromCoord, toCoord, from, to])
+
+  const snapPoints = useMemo(() => ['18%', '55%', '80%'], [])
+
+  const selectTransport = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setSelectedTransport(id)
+  }
+
+  // Mock stops for timeline — will be replaced by route_stops from DB
+  const mockStops = useMemo(() => {
+    const stops = [
+      { name: from, letter: from.charAt(0).toUpperCase(), minsAgo: 30, passed: true },
+      { name: 'Nkrumah Ave', letter: 'N', minsAgo: 20, passed: true },
+      { name: 'Kwame Rd', letter: 'K', minsAgo: 15, passed: true },
+      { name: 'Station Junction', letter: 'S', minsAgo: 10, passed: true },
+      { name: 'Market Square', letter: 'M', minsAgo: 5, passed: false, isCurrent: true },
+      { name: 'Ring Road', letter: 'R', minsAgo: null, passed: false },
+      { name: to, letter: to.charAt(0).toUpperCase(), minsAgo: null, passed: false, isFinal: true },
+    ]
+    return stops
+  }, [from, to])
+
+  const durationText = duration >= 60
+    ? `${Math.floor(duration / 60)}hr, ${duration % 60}mins`
+    : `${duration} mins`
+
+  return (
+    <View style={{ flex: 1 }}>
+
+      {/* ── Full screen map ── */}
+      <Mapbox.MapView
+        style={{ flex: 1 }}
+        styleURL="mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31"
+        logoEnabled={false}
+        attributionEnabled={false}
+        compassEnabled={false}
+        scaleBarEnabled={false}
+      >
+        <Mapbox.Camera
+          ref={cameraRef}
+          defaultSettings={{
+            centerCoordinate: [centerLon, centerLat],
+            zoomLevel: hasCoords ? 11 : 12,
+          }}
+        />
+
+        {/* 3D Buildings */}
+        <Mapbox.FillExtrusionLayer
+          id="3d-buildings"
+          sourceID="composite"
+          sourceLayerID="building"
+          minZoomLevel={14}
+          style={{
+            fillExtrusionColor: '#d4d0cc',
+            fillExtrusionHeight: ['get', 'height'],
+            fillExtrusionBase: ['get', 'min_height'],
+            fillExtrusionOpacity: 0.5,
+          }}
+        />
+
+        {/* Traffic layer overlay */}
+        <Mapbox.RasterSource
+          id="traffic-source"
+          tileUrlTemplates={['https://api.mapbox.com/v4/mapbox.mapbox-traffic-v1/{z}/{x}/{y}.png?access_token=pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg']}
+          tileSize={256}
+        >
+          <Mapbox.RasterLayer
+            id="traffic-layer"
+            style={{ rasterOpacity: 0.6 }}
+          />
+        </Mapbox.RasterSource>
+
+        {/* Route line — animated draw with black stroke */}
+        {routeLine && (
+          <Mapbox.ShapeSource id="route-line" shape={routeLine}>
+            <Mapbox.LineLayer
+              id="route-line-shadow"
+              style={{
+                lineColor: '#000000',
+                lineWidth: 8,
+                lineCap: 'round',
+                lineJoin: 'round',
+                lineOpacity: 0.08,
+                lineBlur: 4,
+                lineTrimOffset: [0, lineTrim],
+              }}
+            />
+            <Mapbox.LineLayer
+              id="route-line-outline"
+              style={{
+                lineColor: '#000000',
+                lineWidth: 6,
+                lineCap: 'round',
+                lineJoin: 'round',
+                lineOpacity: 1,
+                lineTrimOffset: [0, lineTrim],
+              }}
+            />
+            <Mapbox.LineLayer
+              id="route-line-core"
+              style={{
+                lineColor: '#444444',
+                lineWidth: 3.5,
+                lineCap: 'round',
+                lineJoin: 'round',
+                lineOpacity: 1,
+                lineTrimOffset: [0, lineTrim],
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* Pulsing origin marker */}
+        {fromCoord && (
+          <Mapbox.ShapeSource
+            id="origin-pulse"
+            shape={{ type: 'Feature', geometry: { type: 'Point', coordinates: [fromCoord.lon, fromCoord.lat] }, properties: {} }}
+          >
+            <Mapbox.CircleLayer
+              id="origin-pulse-ring"
+              style={{
+                circleRadius: pulseRadius,
+                circleColor: '#22c55e',
+                circleOpacity: pulseOpacity,
+                circlePitchAlignment: 'map',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* Origin + Destination markers */}
+        {hasCoords && (
+          <Mapbox.ShapeSource id="route-markers" shape={markers}>
+            <Mapbox.CircleLayer
+              id="marker-outer"
+              style={{
+                circleRadius: 12,
+                circleColor: '#ffffff',
+                circleStrokeWidth: 3,
+                circleStrokeColor: ['get', 'color'],
+                circlePitchAlignment: 'map',
+              }}
+            />
+            <Mapbox.CircleLayer
+              id="marker-inner"
+              style={{
+                circleRadius: 6,
+                circleColor: ['get', 'color'],
+                circlePitchAlignment: 'map',
+              }}
+            />
+            <Mapbox.SymbolLayer
+              id="marker-labels"
+              style={{
+                textField: ['get', 'label'],
+                textSize: 13,
+                textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                textOffset: [0, 2.2],
+                textAnchor: 'top',
+                textColor: '#000000',
+                textHaloColor: '#ffffff',
+                textHaloWidth: 2,
+                textAllowOverlap: true,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+      </Mapbox.MapView>
+
+      {/* ── Close button ── */}
+      <View style={{ position: 'absolute', top: insets.top + 8, left: 20, zIndex: 10 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          style={{
+            width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+            justifyContent: 'center', alignItems: 'center',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+          }}
+        >
+          <X size={22} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Draggable Bottom Sheet ── */}
+      <BottomSheet
+        ref={sheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4, borderRadius: 2 }}
+        backgroundStyle={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+        style={{
+          shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
+        }}
+      >
+        <BottomSheetScrollView style={{ flex: 1 }}>
+
+          {/* ── Sheet 1: Route info + transport picker ── */}
+          {!showVehicles && (
+          <>
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 14 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 22, color: '#000', letterSpacing: -0.3 }}>
+                  {to}
+                </Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginTop: 3 }}>
+                  {durationText} ride from {from}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                  setShowVehicles(true)
+                  sheetRef.current?.snapToIndex(2)
+                }}
+                activeOpacity={0.85}
+              >
+                <View style={{
+                  height: 44, paddingHorizontal: 24, borderRadius: 22,
+                  backgroundColor: '#000',
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                  <Navigation size={16} color="#fff" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={{ height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 24, marginBottom: 12 }} />
+
+          {/* Arrival estimate */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', lineHeight: 19 }}>
+              Arrive at your destination by approximately{' '}
+              <Text style={{ fontFamily: font.bold, color: '#000' }}>
+                {new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </Text>
+              {' '}via the fastest route.
+            </Text>
+          </View>
+
+          {/* ── REAL-TIME PULSE card ── */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <View style={{
+              backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18,
+              borderLeftWidth: 4, borderLeftColor: '#815100',
+              gap: 16,
+            }}>
+              {/* Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#815100', letterSpacing: 3, textTransform: 'uppercase' }}>Real-Time Pulse</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#22c55e' }}>Live</Text>
+                </View>
+              </View>
+
+              {/* Station Busyness — Users icon + label + bar graph */}
+              <View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Station Busyness</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Users size={16} color="#059669" />
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#059669' }}>Not busy</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
+                      {[1, 2, 3, 4].map((bar) => (
+                        <View key={bar} style={{
+                          width: 6, height: 8 + bar * 3, borderRadius: 3,
+                          backgroundColor: bar <= 1 ? '#10b981' : '#E5E7EB',
+                        }} />
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Busyness bar */}
+                <View style={{ height: 10, borderRadius: 5, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
+                  <View style={{ height: 10, borderRadius: 5, width: '20%', backgroundColor: '#22c55e' }} />
+                </View>
+              </View>
+
+              {/* Traffic Condition — badge pill */}
+              <View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Traffic Condition</Text>
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
+                    backgroundColor: loadingTraffic ? '#F3F4F6'
+                      : !trafficCondition || trafficCondition === 'light' ? 'rgba(16,185,129,0.1)'
+                      : trafficCondition === 'moderate' ? 'rgba(245,158,11,0.1)'
+                      : trafficCondition === 'heavy' ? 'rgba(249,115,22,0.1)'
+                      : 'rgba(239,68,68,0.1)',
+                  }}>
+                    {!loadingTraffic && (!trafficCondition || trafficCondition === 'light') && <Zap size={14} color="#059669" />}
+                    {!loadingTraffic && trafficCondition === 'moderate' && <Clock size={14} color="#d97706" />}
+                    {!loadingTraffic && (trafficCondition === 'heavy' || trafficCondition === 'severe') && <AlertTriangle size={14} color={trafficCondition === 'severe' ? '#dc2626' : '#ea580c'} />}
+                    <Text style={{
+                      fontFamily: font.bold, fontSize: 13,
+                      color: loadingTraffic ? '#9CA3AF'
+                        : !trafficCondition || trafficCondition === 'light' ? '#059669'
+                        : trafficCondition === 'moderate' ? '#d97706'
+                        : trafficCondition === 'heavy' ? '#ea580c' : '#dc2626',
+                    }}>
+                      {loadingTraffic ? 'Checking...'
+                        : !trafficCondition || trafficCondition === 'light' ? 'Light'
+                        : trafficCondition === 'moderate' ? 'Moderate'
+                        : trafficCondition === 'heavy' ? 'Heavy' : 'Severe'}
+                      {trafficDelay > 0 ? ` +${trafficDelay}m` : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Traffic bar */}
+                <View style={{ height: 10, borderRadius: 5, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
+                  <View style={{
+                    height: 10, borderRadius: 5,
+                    width: loadingTraffic ? '30%'
+                      : !trafficCondition || trafficCondition === 'light' ? '25%'
+                      : trafficCondition === 'moderate' ? '55%'
+                      : trafficCondition === 'heavy' ? '80%' : '95%',
+                    backgroundColor: loadingTraffic ? '#D1D5DB'
+                      : !trafficCondition || trafficCondition === 'light' ? '#22c55e'
+                      : trafficCondition === 'moderate' ? '#F59E0B'
+                      : trafficCondition === 'heavy' ? '#EF4444' : '#DC2626',
+                  }} />
+                </View>
+              </View>
+
+              {/* Timestamp */}
+              <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' }}>
+                {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </Text>
+            </View>
+          </View>
+
+          {/* Transport options */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            {TRANSPORT_OPTIONS.map((option, i) => {
+              const isSelected = selectedTransport === option.id
+              const optionFare = baseFare * option.fareMultiplier
+              const etaMins = Math.max(3, Math.round(duration * 0.15) + i * 2)
+
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  onPress={() => selectTransport(option.id)}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center',
+                    paddingVertical: 14, paddingHorizontal: 12,
+                    marginHorizontal: -12, borderRadius: 14,
+                    backgroundColor: isSelected ? '#FFF8F5' : 'transparent',
+                    borderWidth: isSelected ? 1.5 : 0,
+                    borderColor: isSelected ? BRAND : 'transparent',
+                    marginBottom: 6,
+                  }}
+                >
+                  <Image source={option.image} style={{ width: 56, height: 56 }} resizeMode="contain" />
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{option.label}</Text>
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+                      {etaMins} min away
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>
+                    ₵{optionFare.toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+          </>
+          )}
+
+          {/* ── Sheet 2: Available Buses (shows after Go Now) ── */}
+          {showVehicles && !selectedVehicle && (
+            <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+              {/* Header + back */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 20, color: '#000' }}>
+                  Available {selectedTransport === 'trotro' ? 'Buses' : selectedTransport === 'okada' ? 'Okada' : 'Pragya'}
+                </Text>
+                <TouchableOpacity onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setShowVehicles(false); setVehicleSearch(''); sheetRef.current?.snapToIndex(0) }} hitSlop={8}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>Back</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Search bar */}
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: '#F3F4F6', borderRadius: 12,
+                paddingHorizontal: 14, height: 44, marginBottom: 16,
+              }}>
+                <Search size={18} color="#9CA3AF" />
+                <TextInput
+                  value={vehicleSearch}
+                  onChangeText={setVehicleSearch}
+                  placeholder="Search by bus code..."
+                  placeholderTextColor="#9CA3AF"
+                  style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
+                />
+              </View>
+
+              {/* Vehicle list */}
+              {loadingVehicles ? (
+                <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                  <ActivityIndicator size="small" color={BRAND} />
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>Finding buses on route...</Text>
+                </View>
+              ) : (() => {
+                const filtered = vehicles.filter(v =>
+                  vehicleSearch.length === 0 || v.plateNumber.toLowerCase().includes(vehicleSearch.toLowerCase())
+                )
+                return filtered.length > 0 ? (
+                  filtered.map((v) => {
+                    const etaMins = v.speed && v.speed > 0 ? Math.max(2, Math.round(15 - v.speed * 0.2)) : null
+                    return (
+                      <TouchableOpacity key={v.vanId} activeOpacity={0.7} onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                        setSelectedVehicle(v)
+                      }} style={{
+                        padding: 16, borderRadius: 16,
+                        backgroundColor: '#FFFFFF', marginBottom: 10,
+                        borderWidth: 1, borderColor: '#F3F4F6',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
+                      }}>
+                        {/* Bus code + Live badge */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Image
+                              source={TRANSPORT_OPTIONS.find(o => o.id === selectedTransport)?.image || TRANSPORT_OPTIONS[0].image}
+                              style={{ width: 48, height: 48, opacity: v.isStale ? 0.4 : 1 }}
+                              resizeMode="contain"
+                            />
+                            <View>
+                              <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{v.plateNumber}</Text>
+                              {'driver' in v && (v as any).driver && (
+                                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#374151', marginTop: 1 }}>
+                                  {(v as any).driver}
+                                </Text>
+                              )}
+                              <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>
+                                {v.routeLabel || `${from} → ${to}`}
+                              </Text>
+                            </View>
+                          </View>
+                          {!v.isStale && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                              <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#22c55e' }}>Live</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Speed + ETA */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
+                            {v.isStale ? 'Last seen 2+ min ago' : v.speed ? `Moving at ${Math.round(v.speed)} km/h` : 'Stationary'}
+                          </Text>
+                          {etaMins && !v.isStale && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Bus size={14} color={BRAND} />
+                              <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>{etaMins} min</Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    )
+                  })
+                ) : (
+                  <View style={{ padding: 24, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
+                    <Bus size={32} color="#D1D5DB" />
+                    <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#9CA3AF', marginTop: 10 }}>
+                      {vehicleSearch ? `No buses matching "${vehicleSearch}"` : 'No buses currently on this route'}
+                    </Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>Check back shortly</Text>
+                  </View>
+                )
+              })()}
+            </View>
+          )}
+
+          {/* ── Sheet 3: Bus Stop Timeline ── */}
+          {showVehicles && selectedVehicle && (
+            <View style={{ flex: 1 }}>
+              {/* Orange header */}
+              <View style={{
+                backgroundColor: BRAND, borderRadius: 16, marginHorizontal: 24,
+                paddingHorizontal: 18, paddingVertical: 14, marginBottom: 20,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#fff' }}>
+                    Towards {to}
+                  </Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                    {selectedVehicle.plateNumber} · {'driver' in selectedVehicle ? selectedVehicle.driver : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                    setNotifyEnabled(!notifyEnabled)
+                  }}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 40, height: 40, borderRadius: 20,
+                    backgroundColor: notifyEnabled ? '#fff' : 'rgba(255,255,255,0.2)',
+                    justifyContent: 'center', alignItems: 'center',
+                  }}
+                >
+                  <BellRing size={20} color={notifyEnabled ? BRAND : '#fff'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Back button */}
+              <TouchableOpacity
+                onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSelectedVehicle(null) }}
+                style={{ paddingHorizontal: 24, marginBottom: 16 }}
+              >
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>← Back to list</Text>
+              </TouchableOpacity>
+
+              {/* Timeline */}
+              <View style={{ paddingHorizontal: 24 }}>
+                {mockStops.map((stop, i) => {
+                  const isLast = i === mockStops.length - 1
+                  const isCurrent = 'isCurrent' in stop && stop.isCurrent
+                  const isFinal = 'isFinal' in stop && stop.isFinal
+
+                  return (
+                    <View key={i} style={{ flexDirection: 'row', minHeight: isLast ? 40 : 52 }}>
+                      {/* Timeline column — dot + line */}
+                      <View style={{ width: 32, alignItems: 'center' }}>
+                        {/* Dot or bus icon */}
+                        {isCurrent ? (
+                          <View style={{
+                            width: 28, height: 28, borderRadius: 14,
+                            backgroundColor: BRAND,
+                            justifyContent: 'center', alignItems: 'center',
+                            shadowColor: BRAND, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4,
+                          }}>
+                            <Bus size={14} color="#fff" />
+                          </View>
+                        ) : (
+                          <View style={{
+                            width: 28, height: 28, borderRadius: 14,
+                            backgroundColor: stop.passed ? BRAND : '#E5E7EB',
+                            justifyContent: 'center', alignItems: 'center',
+                          }}>
+                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed ? '#fff' : '#9CA3AF' }}>
+                              {stop.letter}
+                            </Text>
+                          </View>
+                        )}
+                        {/* Vertical line */}
+                        {!isLast && (
+                          <View style={{
+                            width: 3, flex: 1,
+                            backgroundColor: stop.passed ? BRAND : '#E5E7EB',
+                            marginVertical: 2,
+                            borderRadius: 1.5,
+                          }} />
+                        )}
+                      </View>
+
+                      {/* Stop info */}
+                      <View style={{
+                        flex: 1, marginLeft: 14,
+                        paddingBottom: isLast ? 0 : 16,
+                        justifyContent: 'center',
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{
+                            fontFamily: isCurrent ? font.extrabold : font.bold,
+                            fontSize: isCurrent ? 16 : 15,
+                            color: stop.passed || isCurrent ? '#000' : '#9CA3AF',
+                          }}>
+                            {stop.name}
+                          </Text>
+                          <Text style={{
+                            fontFamily: font.medium,
+                            fontSize: 13,
+                            color: isFinal ? '#22c55e' : stop.passed ? '#9CA3AF' : '#D1D5DB',
+                          }}>
+                            {isFinal ? 'Arrived' : isCurrent ? 'Now' : stop.minsAgo != null ? `${stop.minsAgo} mins ago` : '—'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* Notify banner */}
+              {notifyEnabled && (
+                <View style={{
+                  marginHorizontal: 24, marginTop: 20, padding: 14, borderRadius: 14,
+                  backgroundColor: '#FFF0EB', flexDirection: 'row', alignItems: 'center', gap: 10,
+                }}>
+                  <BellRing size={18} color={BRAND} />
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: BRAND, flex: 1 }}>
+                    We'll notify you when this bus is approaching your stop
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+        </BottomSheetScrollView>
+      </BottomSheet>
+    </View>
+  )
+}

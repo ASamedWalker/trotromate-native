@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native'
-import { Bus, Bike, ArrowRight, Clock, RefreshCw, Footprints } from 'lucide-react-native'
-import { c, themed, font } from '@/lib/theme'
-import Skeleton from '@/components/Skeleton'
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native'
+import { Clock, Footprints, ChevronRight } from 'lucide-react-native'
+import { font } from '@/lib/theme'
 import type { TransferPlan } from '@/lib/services/route-planner'
+
+const BRAND = '#FF4D1C'
 
 export interface WalkingEstimate {
   distance_km: number
@@ -13,88 +13,21 @@ export interface WalkingEstimate {
 }
 
 const TRANSPORT_CONFIG: Record<string, {
-  icon: typeof Bus
-  label: string
-  color: string
-  bgLight: string
-  bgDark: string
-  borderColor: string
-  dotColor: string
-  lineLight: string
-  lineDark: string
+  label: string; image: any
 }> = {
   trotro: {
-    icon: Bus,
     label: 'Trotro',
-    color: c.amber600,
-    bgLight: 'rgba(245,158,11,0.12)',
-    bgDark: 'rgba(245,158,11,0.15)',
-    borderColor: c.amber500,
-    dotColor: c.amber500,
-    lineLight: 'rgba(245,158,11,0.4)',
-    lineDark: 'rgba(245,158,11,0.3)',
+    image: require('@/assets/images/home/bus_icon_bg_removed.png'),
   },
   okada: {
-    icon: Bike,
     label: 'Okada',
-    color: c.orange500,
-    bgLight: 'rgba(249,115,22,0.12)',
-    bgDark: 'rgba(249,115,22,0.15)',
-    borderColor: c.orange500,
-    dotColor: c.orange500,
-    lineLight: 'rgba(249,115,22,0.4)',
-    lineDark: 'rgba(249,115,22,0.3)',
+    image: require('@/assets/images/home/okada_icon_bg_removed.png'),
   },
 }
 
 function getConfig(type: string) {
   return TRANSPORT_CONFIG[type] || TRANSPORT_CONFIG.trotro
 }
-
-/* ── Skeleton ─────────────────────────────────────────── */
-
-function ResultCardSkeleton({ isDark }: { isDark: boolean }) {
-  const t = themed(isDark)
-  return (
-    <View style={[skeletonStyles.card, { backgroundColor: t.card, borderColor: t.border }]}>
-      <View style={skeletonStyles.header}>
-        <View style={skeletonStyles.headerLeft}>
-          <Skeleton width={28} height={28} borderRadius={8} />
-          <Skeleton width={50} height={14} />
-          <Skeleton width={56} height={16} borderRadius={6} />
-        </View>
-        <View style={skeletonStyles.headerRight}>
-          <Skeleton width={44} height={12} />
-          <Skeleton width={50} height={16} />
-        </View>
-      </View>
-      <View style={skeletonStyles.timeline}>
-        <View style={skeletonStyles.timelineCol}>
-          <Skeleton width={10} height={10} borderRadius={5} />
-          <Skeleton width={2} height={28} borderRadius={1} />
-          <Skeleton width={10} height={10} borderRadius={5} />
-        </View>
-        <View style={{ flex: 1, gap: 8 }}>
-          <Skeleton width="75%" height={14} />
-          <Skeleton width="50%" height={12} />
-        </View>
-      </View>
-    </View>
-  )
-}
-
-export function RoutePlanSkeleton() {
-  const isDark = useColorScheme() === 'dark'
-  return (
-    <View style={{ paddingHorizontal: 20, gap: 12, marginTop: 16 }}>
-      <ResultCardSkeleton isDark={isDark} />
-      <ResultCardSkeleton isDark={isDark} />
-      <ResultCardSkeleton isDark={isDark} />
-    </View>
-  )
-}
-
-/* ── Results ──────────────────────────────────────────── */
 
 export function RoutePlannerResults({
   plans,
@@ -109,288 +42,123 @@ export function RoutePlannerResults({
   selectedPlanIndex?: number | null
   onSelectPlan?: (index: number) => void
 }) {
-  const isDark = useColorScheme() === 'dark'
-  const s = useMemo(() => getStyles(isDark), [isDark])
-  const t = themed(isDark)
-
   if (isLoading) {
-    return <RoutePlanSkeleton />
+    return (
+      <View style={{ alignItems: 'center', paddingVertical: 32, gap: 10 }}>
+        <ActivityIndicator size="small" color={BRAND} />
+        <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#9CA3AF' }}>Finding routes...</Text>
+      </View>
+    )
   }
 
   if (plans.length === 0 && !walkingEstimate) {
     return (
-      <View style={s.emptyState}>
-        <View style={s.emptyIcon}>
-          <RefreshCw size={24} color={t.textSecondary} />
-        </View>
-        <Text style={s.emptyTitle}>No routes found</Text>
-        <Text style={s.emptyText}>Try different locations or check your spelling</Text>
+      <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
+        <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 4 }}>No routes found</Text>
+        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>
+          Try different locations or check your spelling
+        </Text>
       </View>
     )
   }
 
   return (
-    <View style={s.container}>
+    <View style={{ paddingHorizontal: 24, marginTop: 16, gap: 10 }}>
+      <Text style={{ fontFamily: font.bold, fontSize: 20, color: '#000', marginBottom: 4 }}>
+        Available Routes
+      </Text>
+
       {plans.map((plan, i) => {
         const primaryType = plan.legs[0]?.transport_type || 'trotro'
         const config = getConfig(primaryType)
-        const PrimaryIcon = config.icon
-
         const isSelected = selectedPlanIndex === i
+        const etaMins = Math.max(3, Math.round(plan.total_duration_mins * 0.15))
 
         return (
           <TouchableOpacity
             key={i}
             onPress={() => onSelectPlan?.(i)}
-            activeOpacity={0.85}
-            style={[
-              s.card,
-              { borderLeftColor: config.borderColor, borderLeftWidth: 4 },
-              isSelected && {
-                borderWidth: 2,
-                borderColor: c.amber500,
-                ...Platform.select({
-                  ios: { shadowColor: c.amber500, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 8 },
-                  android: { elevation: 4 },
-                }),
-              },
-            ]}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 14,
+              padding: 14, borderRadius: 16,
+              backgroundColor: isSelected ? '#FFF0EB' : '#FFFFFF',
+              borderWidth: isSelected ? 1.5 : 1,
+              borderColor: isSelected ? BRAND : '#F3F4F6',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.04,
+              shadowRadius: 8,
+              elevation: 1,
+            }}
           >
-            {/* Header — transport mode + badge + stats */}
-            <View style={s.cardHeader}>
-              <View style={s.headerLeft}>
-                <View style={[s.modeIcon, { backgroundColor: isDark ? config.bgDark : config.bgLight }]}>
-                  <PrimaryIcon size={16} color={config.color} />
-                </View>
-                <Text style={[s.modeLabel, { color: config.color }]}>{config.label}</Text>
+            {/* Vehicle image */}
+            <Image source={config.image} style={{ width: 52, height: 52 }} resizeMode="contain" />
+
+            {/* Route info */}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>{config.label}</Text>
                 {plan.type === 'direct' ? (
-                  <View style={s.directBadge}>
-                    <Text style={s.directBadgeText}>Direct</Text>
+                  <View style={{ backgroundColor: '#FFF0EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: BRAND }}>Direct</Text>
                   </View>
                 ) : (
-                  <View style={s.transferBadge}>
-                    <Text style={s.transferBadgeText}>1 Transfer</Text>
+                  <View style={{ backgroundColor: '#F0F9FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#0EA5E9' }}>Transfer</Text>
                   </View>
                 )}
               </View>
-              <View style={s.cardMeta}>
-                <Clock size={12} color={t.textSecondary} />
-                <Text style={s.metaText}>{plan.total_duration_mins} min</Text>
-                <Text style={s.fareText}>₵{plan.total_fare.toFixed(2)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Clock size={12} color="#9CA3AF" />
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' }}>
+                  {etaMins} min away · {plan.total_duration_mins} min ride
+                </Text>
               </View>
             </View>
 
-            {/* Legs */}
-            {plan.legs.map((leg, j) => {
-              const legConfig = getConfig(leg.transport_type)
-              const LegIcon = legConfig.icon
+            {/* Fare */}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>₵{plan.total_fare.toFixed(2)}</Text>
+            </View>
 
-              return (
-                <View key={j}>
-                  <View style={s.legRow}>
-                    {/* Timeline */}
-                    <View style={s.timeline}>
-                      <View style={[s.timelineDot, { backgroundColor: legConfig.dotColor }]} />
-                      <View style={[s.timelineLine, { backgroundColor: isDark ? legConfig.lineDark : legConfig.lineLight }]} />
-                      <View style={[
-                        s.timelineDot,
-                        { backgroundColor: j === plan.legs.length - 1 ? '#22c55e' : legConfig.dotColor },
-                      ]} />
-                    </View>
-
-                    {/* Leg details */}
-                    <View style={s.legDetails}>
-                      <View style={s.legRoute}>
-                        <Text style={s.legLocation} numberOfLines={1}>{leg.from}</Text>
-                        <ArrowRight size={12} color={t.textSecondary} />
-                        <Text style={s.legLocation} numberOfLines={1}>{leg.to}</Text>
-                      </View>
-                      <View style={s.legMeta}>
-                        <LegIcon size={14} color={legConfig.color} />
-                        <Text style={[s.legMetaLabel, { color: legConfig.color }]}>{legConfig.label}</Text>
-                        <Text style={s.legMetaText}>
-                          · {leg.duration_mins} min · ₵{leg.fare.toFixed(2)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Transfer indicator */}
-                  {j < plan.legs.length - 1 && plan.transfer_hub && (
-                    <View style={s.transferIndicator}>
-                      <RefreshCw size={12} color="#0ea5e9" />
-                      <Text style={s.transferText}>
-                        Transfer at {plan.transfer_hub} · ~{plan.transfer_wait_mins} min wait
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )
-            })}
+            <ChevronRight size={18} color="#D1D5DB" />
           </TouchableOpacity>
         )
       })}
 
-      {/* Walking estimate card */}
+      {/* Walking option */}
       {walkingEstimate && (
-        <View style={[s.card, { borderLeftColor: '#22c55e', borderLeftWidth: 4 }]}>
-          <View style={s.cardHeader}>
-            <View style={s.headerLeft}>
-              <View style={[s.modeIcon, { backgroundColor: isDark ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.12)' }]}>
-                <Footprints size={16} color="#16a34a" />
-              </View>
-              <Text style={[s.modeLabel, { color: '#16a34a' }]}>Walk</Text>
-            </View>
-            <View style={s.cardMeta}>
-              <Clock size={12} color={t.textSecondary} />
-              <Text style={s.metaText}>~{walkingEstimate.duration_mins} min</Text>
-              <Text style={[s.fareText, { color: '#16a34a' }]}>Free</Text>
-            </View>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 14,
+            padding: 14, borderRadius: 16,
+            backgroundColor: '#FFFFFF',
+            borderWidth: 1, borderColor: '#F3F4F6',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
+          }}
+        >
+          <View style={{
+            width: 52, height: 52, borderRadius: 26,
+            backgroundColor: '#ECFDF5',
+            justifyContent: 'center', alignItems: 'center',
+          }}>
+            <Footprints size={24} color="#16a34a" />
           </View>
-          <View style={s.legRow}>
-            <View style={s.timeline}>
-              <View style={[s.timelineDot, { backgroundColor: '#22c55e' }]} />
-              <View style={[s.timelineLine, { backgroundColor: isDark ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.4)' }]} />
-              <View style={[s.timelineDot, { backgroundColor: '#22c55e' }]} />
-            </View>
-            <View style={s.legDetails}>
-              <Text style={s.legLocation}>
-                {walkingEstimate.from} → {walkingEstimate.to}
-              </Text>
-              <Text style={s.legMetaText}>
-                Estimated {walkingEstimate.distance_km.toFixed(1)} km walk
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 3 }}>Walk</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Clock size={12} color="#9CA3AF" />
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' }}>
+                ~{walkingEstimate.duration_mins} min · {walkingEstimate.distance_km.toFixed(1)} km
               </Text>
             </View>
           </View>
-        </View>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#16a34a' }}>Free</Text>
+          <ChevronRight size={18} color="#D1D5DB" />
+        </TouchableOpacity>
       )}
     </View>
   )
-}
-
-const skeletonStyles = StyleSheet.create({
-  card: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderLeftColor: '#d6d3d1',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeline: { flexDirection: 'row', gap: 12 },
-  timelineCol: { alignItems: 'center' },
-})
-
-const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
-  return StyleSheet.create({
-    container: { paddingHorizontal: 20, gap: 12, marginTop: 16 },
-
-    emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 8 },
-    emptyIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 4,
-    },
-    emptyTitle: { fontSize: 14, fontFamily: font.semibold, color: t.text },
-    emptyText: { fontSize: 12, fontFamily: font.regular, color: t.textSecondary, textAlign: 'center' },
-
-    card: {
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: t.border,
-      backgroundColor: t.card,
-    },
-
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    modeIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modeLabel: {
-      fontSize: 12,
-      fontFamily: font.bold,
-    },
-    directBadge: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    directBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: c.amber600,
-      letterSpacing: 0.5,
-    },
-    transferBadge: {
-      backgroundColor: isDark ? 'rgba(14,165,233,0.2)' : 'rgba(14,165,233,0.12)',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    transferBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#0ea5e9',
-      letterSpacing: 0.5,
-    },
-    cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    metaText: { fontSize: 12, fontFamily: font.regular, color: t.textSecondary },
-    fareText: { fontSize: 14, fontFamily: font.bold, color: c.amber500, marginLeft: 8 },
-
-    legRow: { flexDirection: 'row', gap: 12 },
-    timeline: { alignItems: 'center', width: 12 },
-    timelineDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-    },
-    timelineLine: { width: 2, height: 28 },
-
-    legDetails: { flex: 1, paddingBottom: 4 },
-    legRoute: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    legLocation: { fontSize: 14, fontFamily: font.semibold, color: t.text, flexShrink: 1 },
-    legMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-    legMetaLabel: { fontSize: 11, fontFamily: font.medium },
-    legMetaText: { fontSize: 12, fontFamily: font.regular, color: t.textSecondary },
-
-    transferIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginLeft: 24,
-      marginVertical: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      backgroundColor: isDark ? 'rgba(14,165,233,0.1)' : 'rgba(14,165,233,0.06)',
-    },
-    transferText: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: '#0ea5e9',
-    },
-  })
 }

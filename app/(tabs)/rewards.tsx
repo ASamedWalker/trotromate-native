@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import { TalesScreen } from '@/components/TalesScreen'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   ChevronRight,
@@ -142,8 +141,6 @@ function formatPts(n: number): string {
 
 /* ── Main Screen ─────────────────────────────────────── */
 
-type RewardsTab = 'rewards' | 'tales'
-
 export default function RewardsScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
@@ -154,7 +151,6 @@ export default function RewardsScreen() {
   const { entries: leaderboard, isLoading, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
   useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
 
-  const [activeTab, setActiveTab] = useState<RewardsTab>('rewards')
   const [period, setPeriod] = useState<'week' | 'all'>('all')
   const [showEarnInfo, setShowEarnInfo] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -174,52 +170,8 @@ export default function RewardsScreen() {
 
   const pointsKey = period === 'all' ? 'total_points' : 'weekly_points'
 
-  // Show Tales tab
-  if (activeTab === 'tales') {
-    return (
-      <SafeAreaView style={s.container} edges={['top']}>
-        {/* Segment control */}
-        <View style={s.segmentWrap}>
-          <TouchableOpacity
-            style={[s.segmentBtn, activeTab === 'rewards' && s.segmentBtnActive]}
-            onPress={() => setActiveTab('rewards')}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.segmentText, activeTab === 'rewards' && s.segmentTextActive]}>Rewards</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.segmentBtn, activeTab === 'tales' && s.segmentBtnActive]}
-            onPress={() => setActiveTab('tales')}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.segmentText, activeTab === 'tales' && s.segmentTextActive]}>Tales</Text>
-          </TouchableOpacity>
-        </View>
-        <TalesScreen />
-      </SafeAreaView>
-    )
-  }
-
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {/* Segment control */}
-      <View style={s.segmentWrap}>
-        <TouchableOpacity
-          style={[s.segmentBtn, activeTab === 'rewards' && s.segmentBtnActive]}
-          onPress={() => setActiveTab('rewards')}
-          activeOpacity={0.7}
-        >
-          <Text style={[s.segmentText, activeTab === 'rewards' && s.segmentTextActive]}>Rewards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.segmentBtn, activeTab === 'tales' && s.segmentBtnActive]}
-          onPress={() => setActiveTab('tales')}
-          activeOpacity={0.7}
-        >
-          <Text style={[s.segmentText, activeTab === 'tales' && s.segmentTextActive]}>Tales</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -635,40 +587,5 @@ const getStyles = (isDark: boolean) => {
       color: '#815100',
     },
 
-    // Segment control
-    segmentWrap: {
-      flexDirection: 'row',
-      marginHorizontal: 16,
-      marginTop: 8,
-      marginBottom: 4,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-      borderRadius: 12,
-      padding: 3,
-    },
-    segmentBtn: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 10,
-      alignItems: 'center',
-    },
-    segmentBtnActive: {
-      backgroundColor: isDark ? '#292524' : '#ffffff',
-      ...(!isDark ? {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
-      } : {}),
-    },
-    segmentText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: isDark ? '#78716c' : '#a8a29e',
-    },
-    segmentTextActive: {
-      color: isDark ? '#fafaf9' : '#1c1917',
-      fontFamily: font.bold,
-    },
   })
 }
