@@ -7,20 +7,22 @@ import {
   FlatList,
   StyleSheet,
   Image,
+  Linking,
   type ViewToken,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Ionicons } from '@expo/vector-icons'
-import Svg, { Path } from 'react-native-svg'
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 const { width, height: SCREEN_H } = Dimensions.get('window')
 const BRAND = '#FF4D1C'
 const BRAND_DEEP = '#E94817'
+const TERMS_URL = 'https://troski.app/terms'
+const PRIVACY_URL = 'https://troski.app/privacy'
 
-// ─── Slides (4 total — merged welcome) ─────────────────────
+// ─── Slides (3 benefit slides — Material "Top User Benefits", one per card.
+//     Brand intro lives on the splash; carousel leads straight with value.) ──
 
 interface Slide {
   id: string
@@ -30,12 +32,6 @@ interface Slide {
 }
 
 const SLIDES: Slide[] = [
-  {
-    id: 'welcome',
-    image: require('@/assets/images/onboarding/ob_busstop_redskies_image.png'),
-    title: 'Welcome to Troski',
-    subtitle: 'Ghana\'s transport companion.\nRide, connect, and move with confidence.',
-  },
   {
     id: 'queue',
     image: require('@/assets/images/onboarding/ob_illustrator_image.png'),
@@ -58,26 +54,19 @@ const SLIDES: Slide[] = [
 
 // ─── Google 4-color SVG ─────────────────────────────────────
 
-const GoogleLogo = React.memo(() => (
-  <Svg width={20} height={20} viewBox="0 0 24 24">
-    <Path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-    <Path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-    <Path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-    <Path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-  </Svg>
-))
-
 // ─── Slide content (illustration + text only — no buttons) ──
 
-const SlideContent = React.memo(({ item }: { item: Slide }) => {
+const SlideContent = React.memo(function SlideContent({ item }: { item: Slide }) {
   const insets = useSafeAreaInsets()
-  // Illustration takes ~55% of available space above buttons
-  const illustrationHeight = SCREEN_H * 0.38
+  // Illustration sized so a two-line title + full body still clears the
+  // fixed bottom button block (slides overflow visibly otherwise — the body
+  // text was rendering under the pagination dots / auth buttons).
+  const illustrationHeight = SCREEN_H * 0.30
 
   return (
     <View style={[s.slideContent, { width }]}>
       {/* Illustration */}
-      <View style={[s.illustrationWrap, { height: illustrationHeight, marginTop: insets.top + 16 }]}>
+      <View style={[s.illustrationWrap, { height: illustrationHeight, marginTop: insets.top + 8 }]}>
         <Image source={item.image} style={s.illustration} resizeMode="contain" />
       </View>
 
@@ -101,6 +90,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const insets = useSafeAreaInsets()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [agreed, setAgreed] = useState(false)
 
   const isLastSlide = currentIndex === SLIDES.length - 1
   const isFirstSlide = currentIndex === 0
@@ -139,8 +129,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     <SlideContent item={item} />
   ), [])
 
-  // Show auth buttons on last 3 slides, "Get Started" on first
-  const showAuth = currentIndex > 0
+  // International pattern: let users see every value prop, then sign up.
+  // Auth appears ONLY on the final slide; all earlier slides advance with a
+  // single primary button. "Skip" (top-right) jumps straight here for users
+  // who just want to sign up immediately.
+  const showAuth = isLastSlide
 
   return (
     <View style={s.root}>
@@ -170,10 +163,15 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         />
       </View>
 
-      {/* Fixed bottom — dots + buttons (never scrolls) */}
-      <Animated.View entering={FadeInUp.delay(300).duration(400)} style={[s.bottomArea, { paddingBottom: insets.bottom + 20 }]}>
+      {/* Floating bottom — dots + buttons. Overlays the full-screen pager;
+          box-none lets swipes pass through everywhere except the buttons. */}
+      <Animated.View
+        pointerEvents="box-none"
+        entering={FadeInUp.delay(300).duration(400)}
+        style={[s.bottomArea, { paddingBottom: insets.bottom + 20 }]}
+      >
         {/* Dots */}
-        <View style={s.dotsRow}>
+        <View pointerEvents="none" style={s.dotsRow}>
           {SLIDES.map((_, i) => (
             <View key={i} style={[s.dot, i === currentIndex && s.dotActive]} />
           ))}
@@ -182,34 +180,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {/* Action buttons */}
         {showAuth ? (
           <View style={s.authActions}>
-            {/* Primary CTA */}
-            <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
-              <LinearGradient colors={[BRAND, BRAND_DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
-                <Text style={s.btnPrimaryLabel}>Create an Account</Text>
+            {/* Primary CTA — phone-first sign-up, gated on consent.
+                Greyed out until the consent box is checked. */}
+            <Pressable onPress={createAccount} disabled={!agreed} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+              <LinearGradient colors={agreed ? [BRAND, BRAND_DEEP] : ['#D9D9D9', '#CFCFCF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
+                <Text style={[s.btnPrimaryLabel, !agreed && { color: '#8A8A8A' }]}>Create an Account</Text>
               </LinearGradient>
-            </Pressable>
-
-            {/* Divider */}
-            <View style={s.divider}>
-              <View style={s.dividerLine} />
-              <Text style={s.dividerText}>or</Text>
-              <View style={s.dividerLine} />
-            </View>
-
-            {/* Google */}
-            <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
-              <View style={s.btnSocial}>
-                <GoogleLogo />
-                <Text style={s.btnSocialLabel}>Continue with Google</Text>
-              </View>
-            </Pressable>
-
-            {/* Apple */}
-            <Pressable onPress={createAccount} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
-              <View style={[s.btnSocial, s.btnApple]}>
-                <Ionicons name="logo-apple" size={20} color="#fff" />
-                <Text style={[s.btnSocialLabel, s.btnAppleLabel]}>Continue with Apple</Text>
-              </View>
             </Pressable>
 
             {/* Login link */}
@@ -217,12 +193,25 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               Already have an account?{' '}
               <Text style={s.loginLink} onPress={login}>Login</Text>
             </Text>
+
+            {/* Consent — active clickwrap checkbox (enforceable; gates the CTA) */}
+            <Pressable onPress={() => setAgreed(v => !v)} style={s.consentRow} hitSlop={6}>
+              <View style={[s.checkbox, agreed && s.checkboxOn]}>
+                {agreed && <Text style={s.checkboxTick}>✓</Text>}
+              </View>
+              <Text style={s.consentText}>
+                I agree to the{' '}
+                <Text style={s.consentLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms</Text>
+                {' '}and{' '}
+                <Text style={s.consentLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy Policy</Text>
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View style={s.welcomeActions}>
             <Pressable onPress={goNext} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
               <LinearGradient colors={[BRAND, BRAND_DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
-                <Text style={s.btnPrimaryLabel}>Get Started</Text>
+                <Text style={s.btnPrimaryLabel}>{isFirstSlide ? 'Get Started' : 'Continue'}</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -253,9 +242,9 @@ const s = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  /* ── Slides area (content only, no buttons) ── */
+  /* ── Slides area — fills the whole screen so swipes work anywhere ── */
   slidesArea: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   slideContent: {
     flex: 1,
@@ -277,7 +266,7 @@ const s = StyleSheet.create({
   copyWrap: {
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingTop: 24,
+    paddingTop: 16,
   },
   headline: {
     fontSize: 30,
@@ -298,8 +287,12 @@ const s = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  /* ── Fixed bottom area ── */
+  /* ── Floating bottom area (overlays the pager) ── */
   bottomArea: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: 24,
   },
 
@@ -351,49 +344,6 @@ const s = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  /* ── Divider ── */
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#EBEBEB',
-  },
-  dividerText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#BFBFBF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  /* ── Social buttons ── */
-  btnSocial: {
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: '#F5F5F5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  btnSocialLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    letterSpacing: -0.1,
-  },
-  btnApple: {
-    backgroundColor: '#0A0A0A',
-  },
-  btnAppleLabel: {
-    color: '#FFFFFF',
-  },
-
   /* ── Login link ── */
   loginText: {
     textAlign: 'center',
@@ -404,6 +354,44 @@ const s = StyleSheet.create({
   },
   loginLink: {
     color: BRAND,
+    fontWeight: '600',
+  },
+
+  /* ── Consent (clickwrap) ── */
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 4,
+    marginTop: 6,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#C8C8C8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: {
+    backgroundColor: BRAND,
+    borderColor: BRAND,
+  },
+  checkboxTick: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  consentText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#9A9A9A',
+  },
+  consentLink: {
+    color: '#5A5A5A',
     fontWeight: '600',
   },
 })
