@@ -124,10 +124,6 @@ export default function RouteDetailScreen() {
   const centerLon = hasCoords ? (fromCoord!.lon + toCoord!.lon) / 2 : defaultCenter.lon
   const centerLat = hasCoords ? (fromCoord!.lat + toCoord!.lat) / 2 : defaultCenter.lat
 
-  // Animated route draw — progressive trim
-  const [lineTrim, setLineTrim] = useState(0)
-  const trimAnim = useRef(new RNAnimated.Value(0)).current
-
   // Pulsing origin marker
   const pulseAnim = useRef(new RNAnimated.Value(0)).current
   const [pulseRadius, setPulseRadius] = useState(14)
@@ -158,22 +154,6 @@ export default function RouteDetailScreen() {
 
   // Route line — fetch road-following geometry from Mapbox Directions API
   const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
-
-  // Animate route draw
-  useEffect(() => {
-    if (!routeLine) return
-    setLineTrim(0)
-    trimAnim.setValue(0)
-    RNAnimated.timing(trimAnim, {
-      toValue: 1,
-      duration: 1500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start()
-
-    const listener = trimAnim.addListener(({ value }) => setLineTrim(value))
-    return () => trimAnim.removeListener(listener)
-  }, [routeLine])
 
   // Pulse animation loop
   useEffect(() => {
@@ -261,7 +241,6 @@ export default function RouteDetailScreen() {
     : `${duration} min`
   const arrivalTime = new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
   const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
-  const modeNoun = selectedTransport === 'okada' ? 'Okada' : selectedTransport === 'pragya' ? 'Pragya' : 'Buses'
 
   return (
     <View style={{ flex: 1 }}>
@@ -299,42 +278,39 @@ export default function RouteDetailScreen() {
           />
         </Mapbox.RasterSource>
 
-        {/* Route line — animated draw with black stroke */}
+        {/* Route line — Waze-style: bright blue core, white casing, soft glow */}
         {routeLine && (
           <Mapbox.ShapeSource id="route-line" shape={routeLine}>
+            {/* Outer glow */}
             <Mapbox.LineLayer
               id="route-line-shadow"
               style={{
-                lineColor: '#000000',
-                lineWidth: 8,
+                lineColor: '#1FA2FF',
+                lineWidth: 14,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 0.08,
-                lineBlur: 4,
-                lineTrimOffset: [0, lineTrim],
-              }}
+                lineOpacity: 0.18,
+                lineBlur: 6,              }}
             />
+            {/* White casing */}
             <Mapbox.LineLayer
               id="route-line-outline"
               style={{
-                lineColor: '#000000',
-                lineWidth: 6,
+                lineColor: '#FFFFFF',
+                lineWidth: 10,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 1,
-                lineTrimOffset: [0, lineTrim],
-              }}
+                lineOpacity: 1,              }}
             />
+            {/* Bright blue core */}
             <Mapbox.LineLayer
               id="route-line-core"
               style={{
-                lineColor: '#444444',
-                lineWidth: 3.5,
+                lineColor: '#1A8CFF',
+                lineWidth: 6,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 1,
-                lineTrimOffset: [0, lineTrim],
-              }}
+                lineOpacity: 1,              }}
             />
           </Mapbox.ShapeSource>
         )}
