@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
@@ -239,7 +239,7 @@ export default function RouteDetailScreen() {
     ].filter(Boolean) as GeoJSON.Feature[],
   }), [fromCoord, toCoord, from, to])
 
-  const snapPoints = useMemo(() => ['18%', '55%', '80%'], [])
+  const snapPoints = useMemo(() => ['38%', '64%', '88%'], [])
 
 
   // Mock stops for timeline — will be replaced by route_stops from DB
@@ -257,8 +257,11 @@ export default function RouteDetailScreen() {
   }, [from, to])
 
   const durationText = duration >= 60
-    ? `${Math.floor(duration / 60)}hr, ${duration % 60}mins`
-    : `${duration} mins`
+    ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
+    : `${duration} min`
+  const arrivalTime = new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
+  const modeNoun = selectedTransport === 'okada' ? 'Okada' : selectedTransport === 'pragya' ? 'Pragya' : 'Buses'
 
   return (
     <View style={{ flex: 1 }}>
@@ -280,20 +283,9 @@ export default function RouteDetailScreen() {
           }}
         />
 
-        {/* 3D Buildings */}
-        <Mapbox.FillExtrusionLayer
-          id="3d-buildings"
-          sourceID="composite"
-          sourceLayerID="building"
-          minZoomLevel={14}
-          maxZoomLevel={24}
-          style={{
-            fillExtrusionColor: '#d4d0cc',
-            fillExtrusionHeight: ['get', 'height'],
-            fillExtrusionBase: ['get', 'min_height'],
-            fillExtrusionOpacity: 0.5,
-          }}
-        />
+        {/* 3D buildings come baked into the custom Mapbox style — adding a
+            FillExtrusionLayer here referenced a "composite" source that the
+            custom style doesn't have, which errored on every load. */}
 
         {/* Traffic layer overlay */}
         <Mapbox.RasterSource
@@ -435,61 +427,71 @@ export default function RouteDetailScreen() {
           {/* ── Sheet 1: Route info + transport picker ── */}
           {!showVehicles && (
           <>
-          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flex: 1, marginRight: 14 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 22, color: '#000', letterSpacing: -0.3 }}>
-                  {to}
-                </Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginTop: 3 }}>
-                  {durationText} ride from {from}
-                </Text>
+          {/* Route timeline: origin → destination */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ width: 11, height: 11, borderRadius: 6, borderWidth: 2.5, borderColor: '#10B981', backgroundColor: '#fff' }} />
+                <View style={{ width: 2, height: 18, backgroundColor: '#E5E7EB', marginVertical: 3 }} />
+                <View style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: BRAND }} />
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                  setShowVehicles(true)
-                  sheetRef.current?.snapToIndex(2)
-                }}
-                activeOpacity={0.85}
-              >
-                <View style={{
-                  height: 44, paddingHorizontal: 24, borderRadius: 22,
-                  backgroundColor: '#000',
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}>
-                  <Navigation size={16} color="#fff" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
-                </View>
-              </TouchableOpacity>
+              <View style={{ flex: 1, height: 50, justifyContent: 'space-between' }}>
+                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 15, color: '#6B7280' }}>{from}</Text>
+                <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 19, color: '#000', letterSpacing: -0.4 }}>{to}</Text>
+              </View>
             </View>
           </View>
 
-          {/* Divider */}
-          <View style={{ height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 24, marginBottom: 12 }} />
+          {/* Headline metrics: duration/arrival + fare/mode */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', alignItems: 'flex-end' }}>
+            <View>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: '#000', letterSpacing: -1 }}>{durationText}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>arrives {arrivalTime}</Text>
+            </View>
+            <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{selectedFare}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{selectedOption.label} fare</Text>
+            </View>
+          </View>
 
-          {/* Arrival estimate */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
-            <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', lineHeight: 19 }}>
-              Arrive at your destination by approximately{' '}
-              <Text style={{ fontFamily: font.bold, color: '#000' }}>
-                {new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-              </Text>
-              {' '}via the fastest route.
-            </Text>
+          {/* Two actions: Information + Go Now */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); sheetRef.current?.snapToIndex(1) }}
+            >
+              <View style={{ height: 52, borderRadius: 16, backgroundColor: '#F3F4F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Info size={18} color="#374151" />
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151' }}>Information</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={0.85}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                setShowVehicles(true)
+                sheetRef.current?.snapToIndex(2)
+              }}
+            >
+              <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Navigation size={18} color="#fff" />
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* ── REAL-TIME PULSE card ── */}
           <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
             <View style={{
               backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18,
-              borderLeftWidth: 4, borderLeftColor: '#815100',
               gap: 16,
             }}>
               {/* Header */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#815100', letterSpacing: 3, textTransform: 'uppercase' }}>Real-Time Pulse</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#6B7280', letterSpacing: 3, textTransform: 'uppercase' }}>Real-Time Pulse</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
                   <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#22c55e' }}>Live</Text>
@@ -575,25 +577,6 @@ export default function RouteDetailScreen() {
             </View>
           </View>
 
-          {/* Selected mode summary — fare for the mode chosen on Plan a Trip */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
-            <View style={{
-              flexDirection: 'row', alignItems: 'center',
-              paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 14, backgroundColor: '#F9FAFB',
-            }}>
-              <Image source={selectedOption.image} style={{ width: 56, height: 56 }} resizeMode="contain" />
-              <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{selectedOption.label}</Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
-                  {Math.max(3, Math.round(duration * 0.15))} min away
-                </Text>
-              </View>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>
-                ₵{(baseFare * selectedOption.fareMultiplier).toFixed(2)}
-              </Text>
-            </View>
-          </View>
           </>
           )}
 
