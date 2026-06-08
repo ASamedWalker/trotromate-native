@@ -251,6 +251,7 @@ export default function HomeScreen() {
                     backgroundColor: action.color,
                     justifyContent: 'center', alignItems: 'center',
                     alignSelf: 'flex-end',
+                    marginTop: 'auto',
                   }}>
                     <Icon size={20} color="#fff" />
                   </View>
