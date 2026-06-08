@@ -78,10 +78,15 @@ function OnboardingRedirect({ action, onDone }: { action: 'register' | 'login' |
   useEffect(() => {
     if (!action) return
     const route = action === 'register' ? '/register/phone' : '/auth/phone'
-    // replace (not push) so home is never left mounted underneath, and do it
-    // synchronously on mount — the old 200ms delay let home flash first.
-    router.replace(route as any)
-    onDone()
+    // Defer one tick so the root navigator is mounted before navigating
+    // (replacing too early leaves a blank screen). replace, not push, so home
+    // isn't left underneath. The full-screen (non-modal) auth screen covers
+    // home, so this no longer flashes the way the old modal did.
+    const t = setTimeout(() => {
+      router.replace(route as any)
+      onDone()
+    }, 0)
+    return () => clearTimeout(t)
   }, [action])
   return null
 }
