@@ -209,7 +209,11 @@ export default function PlanTripScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setSelectedService(id)
     setTransportMode(mode === 'all' ? 'all' : mode)
-    setHasSearched(false)
+    // Don't reset hasSearched — useRoutePlanner re-queries on the new mode
+    // (it's in the query key), so results update in place. Clearing hasSearched
+    // hid the results with nothing to bring them back (pill change doesn't
+    // re-trigger the from/to auto-search effect).
+    setSelectedPlanIndex(null)
   }
 
   const showingResults = hasSearched && canSearch
