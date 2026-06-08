@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -78,6 +79,21 @@ export default function SettingsScreen() {
         },
       ]
     )
+  }
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.auth.signOut()
+          await AsyncStorage.setItem('troski_signed_out', 'true')
+          router.replace('/auth/phone' as Href)
+        },
+      },
+    ])
   }
 
   return (
@@ -274,6 +290,13 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Sign Out */}
+        <View style={s.section}>
+          <TouchableOpacity onPress={handleSignOut} activeOpacity={0.8} style={s.signOutBtn}>
+            <Text style={s.signOutLabel}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Footer */}
         <View style={s.footer}>
           <Text style={s.version}>Troski v{Updates.runtimeVersion ?? '?'}</Text>
@@ -370,6 +393,16 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? c.stone800 : c.stone100,
       marginHorizontal: 16,
     },
+    signOutBtn: {
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FECACA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    signOutLabel: { fontSize: 15, fontFamily: font.semibold, color: '#EF4444' },
     footer: { alignItems: 'center', paddingVertical: 32 },
     version: { fontSize: 13, fontFamily: font.semibold, color: c.amber500 },
     footerText: { fontSize: 12, color: t.textTertiary, marginTop: 4 },

@@ -78,11 +78,10 @@ function OnboardingRedirect({ action, onDone }: { action: 'register' | 'login' |
   useEffect(() => {
     if (!action) return
     const route = action === 'register' ? '/register/phone' : '/auth/phone'
-    const t = setTimeout(() => {
-      router.push(route as any)
-      onDone()
-    }, 200)
-    return () => clearTimeout(t)
+    // replace (not push) so home is never left mounted underneath, and do it
+    // synchronously on mount — the old 200ms delay let home flash first.
+    router.replace(route as any)
+    onDone()
   }, [action])
   return null
 }
@@ -189,8 +188,11 @@ function AppInner() {
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
         <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/phone" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="auth/verify" options={{ headerShown: false, presentation: 'modal' }} />
+        {/* Full-screen card (NOT modal) so it fully covers home — a modal
+            slides up and reveals home behind it (the "home flashes before
+            login" bug). slide_from_bottom keeps the upward feel. */}
+        <Stack.Screen name="auth/phone" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth/verify" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="booking/index" options={{ headerShown: false }} />
         <Stack.Screen name="booking/choose" options={{ headerShown: false }} />
         <Stack.Screen name="booking/trip" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
