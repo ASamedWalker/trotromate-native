@@ -28,8 +28,7 @@ import {
   X,
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
-import { useTrainLines } from '@/lib/hooks/useTrain'
-import { useSubmitTrainReport } from '@/lib/hooks/useTrain'
+import { useTrainLines , useSubmitTrainReport } from '@/lib/hooks/useTrain'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'

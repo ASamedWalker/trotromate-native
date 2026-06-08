@@ -77,7 +77,7 @@ export default function RouteDetailScreen() {
   // Live vehicles on this route — fallback to mock if none
   const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
 
-  const MOCK_VEHICLES: Record<string, Array<{ vanId: string; plateNumber: string; routeLabel: string; speed: number; driver: string }>> = {
+  const MOCK_VEHICLES: Record<string, { vanId: string; plateNumber: string; routeLabel: string; speed: number; driver: string }[]> = {
     trotro: [
       { vanId: 'm1', plateNumber: 'GR-4582-24', routeLabel: `${from} → ${to}`, speed: 32, driver: 'Kwame Asante' },
       { vanId: 'm2', plateNumber: 'GN-1190-23', routeLabel: `${from} → ${to}`, speed: 0, driver: 'Yaw Mensah' },
@@ -153,6 +153,9 @@ export default function RouteDetailScreen() {
     return () => clearTimeout(timer)
   }, [hasCoords])
 
+  // Route line — fetch road-following geometry from Mapbox Directions API
+  const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
+
   // Animate route draw
   useEffect(() => {
     if (!routeLine) return
@@ -185,9 +188,6 @@ export default function RouteDetailScreen() {
     })
     return () => { loop.stop(); pulseAnim.removeListener(listener) }
   }, [])
-
-  // Route line — fetch road-following geometry from Mapbox Directions API
-  const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
 
   useEffect(() => {
     if (!fromCoord || !toCoord) return
@@ -287,6 +287,7 @@ export default function RouteDetailScreen() {
           sourceID="composite"
           sourceLayerID="building"
           minZoomLevel={14}
+          maxZoomLevel={24}
           style={{
             fillExtrusionColor: '#d4d0cc',
             fillExtrusionHeight: ['get', 'height'],

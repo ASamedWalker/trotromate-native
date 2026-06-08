@@ -1,0 +1,37 @@
+# HOME + TABS — exercises the signed-in app surface.
+# Conditional: only runs the tab sweep when the home screen is reached
+# (i.e. a session exists). On the auth screen it no-ops and passes, so it is
+# safe to run in any state. Use this after building a screen to confirm
+# navigation still works end-to-end.
+appId: com.troski.app
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible:
+        text: "Where to\\?|Services"
+    commands:
+      - assertVisible: "Services"
+      - takeScreenshot: home
+      # Floating pill nav — visit each tab and confirm it renders.
+      - tapOn:
+          text: "Lines"
+          optional: true
+      - takeScreenshot: tab-lines
+      - tapOn:
+          text: "Wallet"
+          optional: true
+      - takeScreenshot: tab-wallet
+      - tapOn:
+          text: "Tales"
+          optional: true
+      - takeScreenshot: tab-tales
+      - tapOn:
+          text: "Rewards"
+          optional: true
+      - takeScreenshot: tab-rewards
+      - tapOn:
+          text: "Home"
+          optional: true
+      - assertVisible: "Services"

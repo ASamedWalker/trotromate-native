@@ -8,7 +8,7 @@ import {
   Alert,
   useColorScheme,
   StyleSheet,
-} from 'react-native'
+ Linking , Appearance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import {
@@ -26,9 +26,7 @@ import {
   Globe,
   Megaphone,
 } from 'lucide-react-native'
-import { Linking } from 'react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { Appearance } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'

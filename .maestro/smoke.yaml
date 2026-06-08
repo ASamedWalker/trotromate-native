@@ -1,0 +1,25 @@
+# SMOKE — the always-on gate for every workflow agent.
+# Proves: the app launches and renders a real, interactive screen without
+# crashing (no white screen, no red box, no native crash).
+#
+# Auth is phone-OTP gated, so we deliberately accept EITHER the auth/onboarding
+# screen OR the signed-in home. This flow must pass regardless of login state.
+appId: com.troski.app
+---
+- launchApp:
+    clearState: false
+# Dismiss the dev-client developer menu if it pops up (dev builds only).
+- tapOn:
+    text: "Continue"
+    optional: true
+# Wait for a REAL app screen. Anchors are app-specific copy only — none of them
+# appear on the dev-client splash or the developer menu, so a still-loading or
+# crashed (red-box) screen CANNOT produce a false pass.
+#   Onboarding  : "Welcome to Troski", "Get Started"  (fresh install)
+#   Auth screen : "Phone Number", "Ghana's Mobility Companion", "Sign Up"
+#   Home screen : "My Routes", "Scan To Pay", "Topup Wallet", "Where to?"
+- extendedWaitUntil:
+    visible:
+      text: "Welcome to Troski|Get Started|Phone Number|Ghana's Mobility Companion|Sign Up|My Routes|Scan To Pay|Topup Wallet|Where to\\?"
+    timeout: 90000
+- takeScreenshot: smoke-launch

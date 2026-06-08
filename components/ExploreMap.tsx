@@ -18,7 +18,7 @@ import {
   Navigation,
   Locate,
   BusFront,
-} from 'lucide-react-native'
+ X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
 import { c, font, themed } from '@/lib/theme'
 // usePopularRoutes removed — not used in new layout
 import { useApp } from '@/lib/contexts/AppContext'
@@ -34,8 +34,7 @@ import { UnifiedSearch } from '@/components/UnifiedSearch'
 import { useTrip } from '@/lib/hooks/useTrip'
 import { useStations } from '@/lib/hooks/useStations'
 import { useLocation } from '@/lib/hooks/useLocation'
-import { getStationCoords } from '@/lib/utils/station-coords'
-import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
+import { getStationCoords , FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { getWaitEstimate } from '@/lib/services/stations'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { getGhanaTime } from '@/lib/utils/time'
@@ -44,7 +43,6 @@ import { type ActiveIncident } from '@/lib/hooks/useActiveIncidents'
 import { IncidentDetailSheet } from '@/components/IncidentDetailSheet'
 import { type StationPinType } from '@/components/StationMapPin'
 import { useQuery } from '@tanstack/react-query'
-import { X, ShieldCheck, ChevronRight, Route as RouteIcon } from 'lucide-react-native'
 import { useNearbyRouteStops, type NearbyStop } from '@/lib/hooks/useNearbyRouteStops'
 import { useTransportStops } from '@/lib/hooks/useTransportStops'
 import { useRailwayLines } from '@/lib/hooks/useRailwayLines'
@@ -411,7 +409,7 @@ export default function HomeScreen() {
           reportCount: stat?.report_count_last_hour ?? 0,
         }
       })
-      .filter(Boolean) as Array<{
+      .filter(Boolean) as {
         id: string
         name: string
         coordinate: [number, number]
@@ -420,7 +418,7 @@ export default function HomeScreen() {
         queueStatus?: string
         lastReportAt?: string
         reportCount: number
-      }>
+      }[]
   }, [stations])
 
   // Active stations with queue data (for pulse animation + Watch sync)

@@ -1,0 +1,5 @@
+# Maestro config — Troski E2E
+# Run all flows:  npm run e2e   (== maestro test .maestro/)
+# Run one flow:   maestro test .maestro/smoke.yaml
+flows:
+  - "*.yaml"

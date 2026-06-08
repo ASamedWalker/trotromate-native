@@ -126,6 +126,14 @@ function AppInner() {
     Appearance.setColorScheme('light')
   }, [])
 
+  // Safety net: hide the native splash once the app shell is mounted.
+  // TroskiSplash also calls this, but the onboarding and signed-out paths
+  // skip TroskiSplash — without this the native splash would never hide and
+  // would cover the UI forever on a fresh install / after sign-out.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {})
+  }, [])
+
   if (onboardingLoading) return null
 
   if (showOnboarding) {

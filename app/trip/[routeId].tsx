@@ -132,7 +132,7 @@ export default function TripScreen() {
     const hardcoded = getLineStations(lineCode)
     const dbSorted = (trainStations ?? []).slice().sort((a, b) => a.order_index - b.order_index)
     const dbNameSet = new Set(dbSorted.map(s => s.name.toLowerCase()))
-    const merged: Array<{ id: string; name: string; latitude: number; longitude: number }> = []
+    const merged: { id: string; name: string; latitude: number; longitude: number }[] = []
 
     for (const s of dbSorted) {
       const coords = (s.latitude != null && s.longitude != null)
@@ -209,7 +209,7 @@ export default function TripScreen() {
         if (!coords) return null
         return { id: st.id, name: st.name, latitude: coords.latitude, longitude: coords.longitude }
       })
-      .filter(Boolean) as Array<{ id: string; name: string; latitude: number; longitude: number }>
+      .filter(Boolean) as { id: string; name: string; latitude: number; longitude: number }[]
 
     return buildTripStations(
       { id: fromStation?.id ?? 'origin', name: route.from_location, ...fromCoords },
