@@ -65,7 +65,10 @@ export default function RouteDetailScreen() {
   const routeId = params.route_id || ''
   const routeType = params.type || 'direct'
 
-  const [selectedTransport, setSelectedTransport] = useState(params.transport_type || 'trotro')
+  // Transport mode is chosen on the Plan a Trip screen and passed in via params —
+  // no longer selectable here.
+  const selectedTransport = params.transport_type || 'trotro'
+  const selectedOption = TRANSPORT_OPTIONS.find(o => o.id === selectedTransport) || TRANSPORT_OPTIONS[0]
   const [trafficCondition, setTrafficCondition] = useState<string | null>(null)
   const [trafficDelay, setTrafficDelay] = useState(0)
   const [loadingTraffic, setLoadingTraffic] = useState(true)
@@ -238,10 +241,6 @@ export default function RouteDetailScreen() {
 
   const snapPoints = useMemo(() => ['18%', '55%', '80%'], [])
 
-  const selectTransport = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    setSelectedTransport(id)
-  }
 
   // Mock stops for timeline — will be replaced by route_stops from DB
   const mockStops = useMemo(() => {
@@ -576,41 +575,24 @@ export default function RouteDetailScreen() {
             </View>
           </View>
 
-          {/* Transport options */}
+          {/* Selected mode summary — fare for the mode chosen on Plan a Trip */}
           <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
-            {TRANSPORT_OPTIONS.map((option, i) => {
-              const isSelected = selectedTransport === option.id
-              const optionFare = baseFare * option.fareMultiplier
-              const etaMins = Math.max(3, Math.round(duration * 0.15) + i * 2)
-
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  onPress={() => selectTransport(option.id)}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center',
-                    paddingVertical: 14, paddingHorizontal: 12,
-                    marginHorizontal: -12, borderRadius: 14,
-                    backgroundColor: isSelected ? '#FFF8F5' : 'transparent',
-                    borderWidth: isSelected ? 1.5 : 0,
-                    borderColor: isSelected ? BRAND : 'transparent',
-                    marginBottom: 6,
-                  }}
-                >
-                  <Image source={option.image} style={{ width: 56, height: 56 }} resizeMode="contain" />
-                  <View style={{ flex: 1, marginLeft: 14 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{option.label}</Text>
-                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
-                      {etaMins} min away
-                    </Text>
-                  </View>
-                  <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>
-                    ₵{optionFare.toFixed(2)}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 14, backgroundColor: '#F9FAFB',
+            }}>
+              <Image source={selectedOption.image} style={{ width: 56, height: 56 }} resizeMode="contain" />
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{selectedOption.label}</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+                  {Math.max(3, Math.round(duration * 0.15))} min away
+                </Text>
+              </View>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>
+                ₵{(baseFare * selectedOption.fareMultiplier).toFixed(2)}
+              </Text>
+            </View>
           </View>
           </>
           )}
