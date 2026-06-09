@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
@@ -229,7 +229,13 @@ export default function MomoTopUpScreen() {
         visible={anim !== null}
         state={anim?.state ?? 'loading'}
         message={anim?.message ?? ''}
-        onDone={() => { setAnim(null); router.back() }}
+        onDone={() => {
+          setAnim(null)
+          // Exit the top-up stack and land on the Wallet tab, where the new
+          // balance + transaction appear once the MoMo prompt is approved.
+          if (router.canDismiss()) router.dismissAll()
+          router.navigate('/wallet' as Href)
+        }}
       />
     </SafeAreaView>
   )

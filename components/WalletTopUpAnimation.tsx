@@ -35,10 +35,10 @@ export default function WalletTopUpAnimation({
     const loops = drops.map((v, i) =>
       Animated.loop(
         Animated.sequence([
-          Animated.delay(i * 240),
-          Animated.timing(v, { toValue: 1, duration: 850, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+          Animated.delay(i * 380),
+          Animated.timing(v, { toValue: 1, duration: 1150, easing: Easing.in(Easing.quad), useNativeDriver: true }),
           Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
-          Animated.delay((COIN_X.length - i) * 240),
+          Animated.delay((COIN_X.length - i) * 380 + 400),
         ]),
       ),
     )
@@ -80,7 +80,7 @@ export default function WalletTopUpAnimation({
               return (
                 <Animated.View
                   key={i}
-                  style={[s.coin, { left: 90 + COIN_X[i], transform: [{ translateY }, { scale }], opacity }]}
+                  style={[s.coin, { left: 90 + COIN_X[i] - 23, transform: [{ translateY }, { scale }], opacity }]}
                 >
                   <Text style={s.coinText}>₵</Text>
                 </Animated.View>
@@ -105,7 +105,7 @@ export default function WalletTopUpAnimation({
 
           {state === 'success' ? (
             <TouchableOpacity activeOpacity={0.9} onPress={onDone} style={s.doneBtn}>
-              <Text style={s.doneText}>Done</Text>
+              <Text style={s.doneText}>View Wallet</Text>
             </TouchableOpacity>
           ) : (
             <ActivityIndicator color={BRAND} style={{ marginTop: 18 }} />
@@ -120,8 +120,8 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   card: { width: '100%', backgroundColor: '#fff', borderRadius: 24, paddingTop: 12, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   stage: { width: 180, height: 180, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 },
-  coin: { position: 'absolute', top: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: '#FBBF24', borderWidth: 1.5, borderColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
-  coinText: { fontFamily: font.extrabold, fontSize: 15, color: '#7C4A00' },
+  coin: { position: 'absolute', top: 0, width: 46, height: 46, borderRadius: 23, backgroundColor: '#FBBF24', borderWidth: 2, borderColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
+  coinText: { fontFamily: font.extrabold, fontSize: 24, color: '#7C4A00' },
   wallet: { width: 96, height: 96, borderRadius: 28, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 6 },
   checkBadge: { position: 'absolute', top: 56, right: 28, width: 30, height: 30, borderRadius: 15, backgroundColor: '#16a34a', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   title: { fontFamily: font.bold, fontSize: 18, color: '#1c1917', marginTop: 8, textAlign: 'center' },
