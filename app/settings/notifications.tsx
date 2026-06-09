@@ -49,10 +49,10 @@ const PREF_SECTIONS = [
     title: 'Social',
     items: [
       { key: 'new_followers' as const, label: 'New Followers', desc: 'When someone follows you' },
-      { key: 'follower_tales' as const, label: 'Follower Tales', desc: 'When someone you follow posts a tale' },
-      { key: 'tale_likes' as const, label: 'Tale Likes', desc: 'When someone likes your tale' },
-      { key: 'tale_comments' as const, label: 'Tale Comments', desc: 'When someone comments on your tale' },
-      { key: 'like_milestones' as const, label: 'Like Milestones', desc: 'When your tale hits 5, 10, 25, 50, 100 likes' },
+      { key: 'follower_tales' as const, label: 'Follower Posts', desc: 'When someone you follow posts to Pulse' },
+      { key: 'tale_likes' as const, label: 'Pulse Likes', desc: 'When someone likes your post' },
+      { key: 'tale_comments' as const, label: 'Pulse Comments', desc: 'When someone comments on your post' },
+      { key: 'like_milestones' as const, label: 'Like Milestones', desc: 'When your post hits 5, 10, 25, 50, 100 likes' },
     ],
   },
   {

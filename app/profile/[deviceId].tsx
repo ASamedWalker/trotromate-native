@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays, Bus, FileText, Zap, BookOpen, ChevronRight } from 'lucide-react-native'
+import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays, Bus, FileText, Zap, Radio, ChevronRight } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -146,9 +146,9 @@ export default function PublicProfileScreen() {
             <Text style={s.statCardLabel}>XP Earned</Text>
           </View>
           <View style={s.statCard}>
-            <BookOpen size={20} color={c.amber600} />
+            <Radio size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.tale_count ?? 0}</Text>
-            <Text style={s.statCardLabel}>Tales</Text>
+            <Text style={s.statCardLabel}>Pulse</Text>
           </View>
         </View>
 

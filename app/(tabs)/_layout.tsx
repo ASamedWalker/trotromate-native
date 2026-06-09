@@ -2,7 +2,7 @@ import React from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native'
 import {
-  Home, Route, Wallet, BookOpen, Trophy,
+  Home, Route, Wallet, Radio, Trophy,
 } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
@@ -15,7 +15,7 @@ const TAB_ICONS: Record<string, typeof Home> = {
   index: Home,
   lines: Route,
   wallet: Wallet,
-  tales: BookOpen,
+  tales: Radio,
   rewards: Trophy,
 }
 
@@ -23,7 +23,7 @@ const TAB_LABELS: Record<string, string> = {
   index: 'Home',
   lines: 'Lines',
   wallet: 'Wallet',
-  tales: 'Tales',
+  tales: 'Pulse',
   rewards: 'Rewards',
 }
 

@@ -195,8 +195,8 @@ export default function TrotroTalesPostScreen() {
       refreshProfile()
       await maybePromptReview()
       Alert.alert(
-        'Tale Posted! +' + reward.points_awarded + ' pts',
-        'Your Trotro Tale has been shared with the community.',
+        'Posted to Pulse! +' + reward.points_awarded + ' pts',
+        'Your post has been shared with the community.',
         [{ text: 'OK', onPress: () => router.back() }]
       )
     } else {
@@ -448,7 +448,7 @@ export default function TrotroTalesPostScreen() {
                   ? mediaType === 'video'
                     ? `Uploading video${uploadProgress ? ` ${Math.round(uploadProgress * 100)}%` : ''}...`
                     : `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
-                  : 'Share Tale'}
+                  : 'Post to Pulse'}
               </Text>
             </TouchableOpacity>
           </View>

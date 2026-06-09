@@ -1106,7 +1106,7 @@ export default function TripScreen() {
                 style={s.tripActionBtn}
               >
                 <Camera size={18} color="#815100" />
-                <Text style={s.tripActionText}>Post Tale</Text>
+                <Text style={s.tripActionText}>Post to Pulse</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/report/fare')}

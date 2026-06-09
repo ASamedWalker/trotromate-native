@@ -209,7 +209,7 @@ export default function ReelScreen() {
 
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>Live Tale</Text>
+          <Text style={styles.liveText}>Live Pulse</Text>
         </View>
       </View>
 

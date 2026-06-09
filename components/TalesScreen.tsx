@@ -155,7 +155,7 @@ const TaleCard = React.memo(function TaleCard({
 
   const handleDelete = useCallback(() => {
     setShowMenu(false)
-    Alert.alert('Delete Tale', 'Are you sure you want to delete this tale?', [
+    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: onDelete },
     ])
@@ -417,7 +417,7 @@ export function TalesScreen() {
   }
 
   const handleReport = (postId: string) => {
-    Alert.alert('Report Tale', 'Are you sure you want to report this tale as inappropriate?', [
+    Alert.alert('Report Post', 'Are you sure you want to report this post as inappropriate?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Report', style: 'destructive', onPress: async () => {
         try {
@@ -427,9 +427,9 @@ export function TalesScreen() {
             content_id: postId,
             reason: 'inappropriate',
           }, { onConflict: 'reporter_device_id,content_type,content_id' })
-          Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+          Alert.alert('Reported', 'Thanks for helping keep Troski Pulse safe.')
         } catch {
-          Alert.alert('Reported', 'Thanks for helping keep Troski Tales safe.')
+          Alert.alert('Reported', 'Thanks for helping keep Troski Pulse safe.')
         }
       }},
     ])
@@ -492,14 +492,14 @@ export function TalesScreen() {
       ) : posts.length === 0 ? (
         <View style={s.centered}>
           <Camera size={48} color={isDark ? '#57534e' : '#a8a29e'} />
-          <Text style={s.emptyTitle}>No tales yet</Text>
+          <Text style={s.emptyTitle}>No posts yet</Text>
           <Text style={s.emptySub}>Share a fare, a queue update, or a trotro moment!</Text>
           <TouchableOpacity
             onPress={() => router.push('/report/photo?mode=text' as Href)}
             style={s.emptyBtn}
             activeOpacity={0.8}
           >
-            <Text style={s.emptyBtnText}>Post a Tale</Text>
+            <Text style={s.emptyBtnText}>Post to Pulse</Text>
           </TouchableOpacity>
         </View>
       ) : (
