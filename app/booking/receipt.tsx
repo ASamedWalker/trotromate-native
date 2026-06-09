@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Easing,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -25,16 +25,41 @@ export default function ReceiptScreen() {
   const router = useRouter()
   const [showSafety, setShowSafety] = useState(false)
 
+  // Payment-success animation — spring the check in + an expanding ripple + haptic
+  const checkScale = useRef(new Animated.Value(0)).current
+  const ringScale = useRef(new Animated.Value(0.7)).current
+  const ringOpacity = useRef(new Animated.Value(0)).current
+  const textOpacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    Animated.parallel([
+      Animated.spring(checkScale, { toValue: 1, friction: 4.5, tension: 95, delay: 120, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.delay(120),
+        Animated.timing(ringOpacity, { toValue: 0.4, duration: 150, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1.7, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        ]),
+      ]),
+      Animated.timing(textOpacity, { toValue: 1, duration: 400, delay: 320, useNativeDriver: true }),
+    ]).start()
+  }, [checkScale, ringScale, ringOpacity, textOpacity])
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 }}>
         {/* Success */}
         <View style={{ alignItems: 'center' }}>
-          <View style={s.checkRing}>
-            <View style={s.checkCircle}><Check size={34} color="#fff" strokeWidth={3.5} /></View>
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View pointerEvents="none" style={[s.pulseRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+            <Animated.View style={[s.checkRing, { transform: [{ scale: checkScale }] }]}>
+              <View style={s.checkCircle}><Check size={34} color="#fff" strokeWidth={3.5} /></View>
+            </Animated.View>
           </View>
-          <Text style={s.title}>Booking Successful</Text>
-          <Text style={s.subtitle}>Payment confirmed show QR to conductor</Text>
+          <Animated.Text style={[s.title, { opacity: textOpacity }]}>Booking Successful</Animated.Text>
+          <Animated.Text style={[s.subtitle, { opacity: textOpacity }]}>Payment confirmed show QR to conductor</Animated.Text>
         </View>
 
         {/* Ticket */}
@@ -143,6 +168,7 @@ export default function ReceiptScreen() {
 
 const s = StyleSheet.create({
   checkRing: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(34,197,94,0.15)', justifyContent: 'center', alignItems: 'center' },
+  pulseRing: { position: 'absolute', width: 96, height: 96, borderRadius: 48, backgroundColor: GREEN },
   checkCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: GREEN, justifyContent: 'center', alignItems: 'center' },
   title: { fontFamily: font.bold, fontSize: 20, color: '#111', marginTop: 18 },
   subtitle: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 4 },
