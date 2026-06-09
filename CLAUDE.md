@@ -105,15 +105,18 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 - No custom back buttons — rely on system gestures
 
 ## Next Up (as of June 2026)
-- **Scan to Pay** (entry: Home "Scan To Pay" button) — 5-screen flow from Figma:
-  1. Pay with QR — camera scan frame + "OR Manually" -> Input Bus Code
-  2. Input Bus Code — scan frame + Bus Code text field -> Continue
-  3. Bus Details card (route, duration, STC Coach, Seat, Bus Code, Amount) -> Continue
-  4. Payment method (Troski Wallet / MTN MoMo) -> Continue
-  5. Wallet PIN — "Enter your Troski PIN", 6-box PIN + custom numeric keypad
-  Notes: camera scan needs expo-camera/barcode-scanner (native module -> rebuild);
-  reuse the Bus Details + payment-method blocks from booking/checkout.tsx; PIN keypad
-  is a custom grid (not system keyboard). Brand orange #FF4D1C.
+- **Scan to Pay — live camera (FOLLOW-UP)**. UI flow is DONE (`app/scan/`):
+  Home "Scan To Pay" -> scan/index (Pay with QR) -> scan/confirm (Bus Details +
+  payment) -> scan/pin (6-box PIN + keypad) -> reuses booking/processing -> receipt.
+  The QR scan frame is a PLACEHOLDER; the manual "Input Bus Code" path works.
+  To finish the camera:
+  1. `npx expo install expo-camera`
+  2. Add camera permission (NSCameraUsageDescription) in app.config.js
+  3. In scan/index.tsx, replace the ScanFrame placeholder with `CameraView` +
+     `onBarcodeScanned` (qr) -> router.push('/scan/confirm', { code })
+  4. Native rebuild required: `CI=1 npx expo run:ios` (~10-15 min)
+  Minor polish: scan-pay success reuses booking receipt "Booking Successful" —
+  could parametrize to "Payment Successful" for this flow.
 - Buses Nearby quick action screen
 - Queue Status quick action screen
 - Booking system
