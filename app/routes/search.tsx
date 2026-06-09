@@ -8,11 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
-  X, MapPin, CircleDot, ArrowUpDown, Home, Briefcase, Locate,
+  X, MapPin, CircleDot, ArrowUpDown, Home, Briefcase, Locate, ArrowLeft,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
@@ -111,6 +112,30 @@ export default function PlanTripScreen() {
   const [locationName, setLocationName] = useState('')
   const [homeAddress, setHomeAddress] = useState('')
   const [workAddress, setWorkAddress] = useState('')
+  const [addressModal, setAddressModal] = useState<'home' | 'work' | null>(null)
+  const [addressInput, setAddressInput] = useState('')
+  const [addressSuggestions, setAddressSuggestions] = useState<{ text: string; place_name: string }[]>([])
+
+  const searchAddress = (query: string) => {
+    setAddressInput(query)
+    if (query.length < 3) { setAddressSuggestions([]); return }
+    const proximity = location ? `&proximity=${location.longitude},${location.latitude}` : ''
+    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?country=gh&limit=5&types=address,poi,locality,place,neighborhood${proximity}&access_token=${MAPBOX_TOKEN}`)
+      .then(r => r.json())
+      .then(data => { if (data.features) setAddressSuggestions(data.features.map((f: { text: string; place_name: string }) => ({ text: f.text, place_name: f.place_name }))) })
+      .catch(() => {})
+  }
+
+  const saveAddress = (label: 'Home' | 'Work', addr: string) => {
+    if (label === 'Home') setHomeAddress(addr); else setWorkAddress(addr)
+    setAddressSuggestions([]); setAddressInput(''); setAddressModal(null)
+    if (authUser?.id) {
+      fetch(`${API_URL}/api/addresses`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_user_id: authUser.id, label, address: addr }),
+      }).catch(() => {})
+    }
+  }
 
   // Reverse-geocode the user's current location for the "Current location" row
   useEffect(() => {
@@ -392,7 +417,14 @@ export default function PlanTripScreen() {
                 <TouchableOpacity
                   key={sc.key}
                   activeOpacity={0.7}
-                  onPress={() => fillShortcut(sc.value)}
+                  onPress={() => {
+                    if (!sc.value && (sc.key === 'home' || sc.key === 'work')) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                      setAddressInput(''); setAddressSuggestions([]); setAddressModal(sc.key)
+                    } else {
+                      fillShortcut(sc.value)
+                    }
+                  }}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
                 >
                   <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
@@ -404,6 +436,18 @@ export default function PlanTripScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
+
+              {/* Thick divider */}
+              <View style={{ height: 6, backgroundColor: '#F3F4F6', marginHorizontal: -24, marginTop: 12, marginBottom: 14 }} />
+
+              {/* Saved places */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#000' }}>Saved places</Text>
+                <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAddressInput(''); setAddressSuggestions([]); setAddressModal('home') }} hitSlop={8}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>+ New Place</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 16 }}>No saved places</Text>
             </View>
           )}
         </View>
@@ -485,6 +529,67 @@ export default function PlanTripScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Add place modal (Home / Work) */}
+      <Modal
+        visible={addressModal !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAddressModal(null)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#fff' }}>
+          <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+              <TouchableOpacity onPress={() => setAddressModal(null)} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+                <ArrowLeft size={22} color="#111" />
+              </TouchableOpacity>
+              <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>
+                {addressModal === 'home' ? 'Add home' : 'Add work'}
+              </Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', height: 50, paddingHorizontal: 14, borderRadius: 14, marginBottom: 12 }}>
+                <MapPin size={18} color="#10B981" style={{ marginRight: 10 }} />
+                <TextInput
+                  style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#111', padding: 0 }}
+                  placeholder="Search address"
+                  placeholderTextColor="#9CA3AF"
+                  value={addressInput}
+                  onChangeText={searchAddress}
+                  autoFocus
+                />
+              </View>
+
+              {addressSuggestions.map((s, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); saveAddress(addressModal === 'home' ? 'Home' : 'Work', s.place_name) }}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                    <MapPin size={14} color="#9CA3AF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#111' }}>{s.text}</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }} numberOfLines={1}>{s.place_name}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              {addressInput.trim().length > 0 && addressSuggestions.length === 0 && (
+                <TouchableOpacity
+                  onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); saveAddress(addressModal === 'home' ? 'Home' : 'Work', addressInput.trim()) }}
+                  style={{ backgroundColor: BRAND, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 20 }}
+                >
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Save place</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   )
 }
