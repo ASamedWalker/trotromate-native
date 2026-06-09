@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Easing,
+  View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Easing, Share,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -46,6 +46,19 @@ export default function ReceiptScreen() {
       Animated.timing(textOpacity, { toValue: 1, duration: 400, delay: 320, useNativeDriver: true }),
     ]).start()
   }, [checkScale, ringScale, ringOpacity, textOpacity])
+
+  // Native share sheet — surfaces WhatsApp, Messages, Mail, and any installed app
+  const shareTrip = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    try {
+      await Share.share({
+        title: 'My Troski Trip',
+        message: `🚌 My Troski trip\n${TICKET.fromName} → ${TICKET.toName}\nTicket: ${TICKET.ref}\nFare ${TICKET.fare} · Departs in ${TICKET.departure}\n\nBook yours on Troski.`,
+      })
+    } catch {
+      // dismissed / unavailable — no-op
+    }
+  }
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
@@ -134,7 +147,7 @@ export default function ReceiptScreen() {
 
       {/* Bottom actions */}
       <View style={s.actions}>
-        <TouchableOpacity activeOpacity={0.9} style={s.shareBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
+        <TouchableOpacity activeOpacity={0.9} style={s.shareBtn} onPress={shareTrip}>
           <Share2 size={18} color="#fff" />
           <Text style={s.shareText}>Share Trip</Text>
         </TouchableOpacity>
