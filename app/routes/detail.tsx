@@ -435,7 +435,12 @@ export default function RouteDetailScreen() {
             <TouchableOpacity
               style={{ flex: 1 }}
               activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); sheetRef.current?.snapToIndex(1) }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                setShowVehicles(true)
+                sheetRef.current?.snapToIndex(2)
+              }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#F3F4F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <Info size={18} color="#374151" />
@@ -447,9 +452,9 @@ export default function RouteDetailScreen() {
               activeOpacity={0.85}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                setShowVehicles(true)
-                sheetRef.current?.snapToIndex(2)
+                // Straight to the trip booking screen (skip /booking index, which
+                // re-redirects here on back and causes a loop).
+                router.push({ pathname: '/booking/trip', params: { from, to } } as any)
               }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
