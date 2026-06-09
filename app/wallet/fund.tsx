@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics'
 const BRAND = '#FF4D1C'
 const BRAND_TINT = '#FFF0EB'
 
-type MethodId = 'bank' | 'mtn' | 'card'
+type MethodId = 'bank' | 'mtn' | 'atl' | 'tgo' | 'card'
 
 const METHODS: {
   id: MethodId
@@ -20,7 +20,9 @@ const METHODS: {
   soon?: boolean
 }[] = [
   { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: '/wallet/bank-transfer' as Href },
-  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, route: '/wallet/momo' as Href },
+  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, route: '/wallet/momo?provider=mtn' as Href },
+  { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, route: '/wallet/momo?provider=atl' as Href },
+  { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, route: '/wallet/momo?provider=tgo' as Href },
   { id: 'card', label: 'Add Debit Card', Icon: CreditCard, route: null, soon: true },
 ]
 

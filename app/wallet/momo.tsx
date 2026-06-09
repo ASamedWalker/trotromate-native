@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
@@ -24,11 +24,13 @@ export default function MomoTopUpScreen() {
   const t = themed(isDark)
   const router = useRouter()
   const { user } = useAuthContext()
+  const { provider: providerParam } = useLocalSearchParams<{ provider?: string }>()
+  const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
 
   const [amount, setAmount] = useState<number | null>(null)
   const [customAmount, setCustomAmount] = useState('')
   const [phone, setPhone] = useState(user?.phone?.replace('+233', '') || '')
-  const [provider, setProvider] = useState<string>('mtn')
+  const [provider, setProvider] = useState<string>(initialProvider)
   const [loading, setLoading] = useState(false)
 
   const effectiveAmount = amount || (customAmount ? parseFloat(customAmount) : 0)
@@ -88,7 +90,7 @@ export default function MomoTopUpScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>MTN MoMo</Text>
+        <Text style={[s.headerTitle, { color: t.text }]}>{PROVIDERS.find((p) => p.id === provider)?.label ?? 'Mobile Money'}</Text>
         <View style={{ width: 24 }} />
       </View>
 

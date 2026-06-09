@@ -133,11 +133,15 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 ```
 Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
   → "Choose mode of payment" selector (radio + Proceed):
-    • Bank Transfer → wallet/bank-transfer (Select Bank picker → account no + Copy + note)  [FE only]
-    • MTN MoMo      → wallet/momo (amount + MoMo number + network + Fund)                   [LIVE backend]
-    • Add Debit Card → "Coming soon" alert                                                  [no screen yet]
+    • Bank Transfer    → wallet/bank-transfer (Select Bank picker → account no + Copy + note)  [FE only]
+    • MTN MoMo         → wallet/momo?provider=mtn                                              [LIVE backend]
+    • AirtelTigo Money → wallet/momo?provider=atl                                              [LIVE backend]
+    • Telecel Cash     → wallet/momo?provider=tgo                                              [LIVE backend]
+    • Add Debit Card   → "Coming soon" alert                                                   [no screen yet]
 ```
 - `wallet/momo.tsx` is the ONLY method wired to the backend (`POST /api/wallet/topup`).
+  Reads `?provider=mtn|atl|tgo` to pre-select the network + set the header; user can still
+  switch via the in-screen Network picker. All amounts in GH₵.
 - `wallet/bank-transfer.tsx` is front-end only: static partner-bank list + placeholder
   Troski virtual account numbers, Copy via expo-clipboard. **FOLLOW-UP**: backend must
   issue real per-user virtual accounts + reconcile inbound transfers (GH₵ 0.25 charge,
