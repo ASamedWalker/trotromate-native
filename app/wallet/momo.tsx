@@ -54,6 +54,11 @@ export default function MomoTopUpScreen() {
       return
     }
 
+    // The field holds a clean local number (e.g. 200000000) for editability, but
+    // the MoMo API expects the full MSISDN (233XXXXXXXXX). Sending the 9-digit
+    // local form is what made the backend reject with "Top up Failed".
+    const msisdn = '233' + phone.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
     setAnim({ state: 'loading', message: `Adding GH₵ ${effectiveAmount.toFixed(2)} to your wallet` })
@@ -65,7 +70,7 @@ export default function MomoTopUpScreen() {
         body: JSON.stringify({
           auth_user_id: user.id,
           amount: effectiveAmount,
-          phone,
+          phone: msisdn,
           provider,
         }),
       })
@@ -77,16 +82,18 @@ export default function MomoTopUpScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         setAnim({
           state: 'success',
-          message: data.display_text || `A MoMo prompt was sent to +233${phone}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
+          message: data.display_text || `A MoMo prompt was sent to +${msisdn}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
         })
       } else {
         setAnim(null)
-        Alert.alert('Error', data.error || 'Failed to initiate top-up')
+        console.warn('[topup] backend rejected:', res.status, JSON.stringify(data))
+        Alert.alert('Top-up failed', data.error || 'We could not start the MoMo prompt. Please check the number and try again.')
       }
-    } catch {
+    } catch (err) {
       setLoading(false)
       setAnim(null)
-      Alert.alert('Error', 'Network error. Please try again.')
+      console.warn('[topup] network error:', err)
+      Alert.alert('Network error', 'Could not reach the top-up service. Please check your connection and try again.')
     }
   }
 
