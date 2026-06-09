@@ -142,6 +142,15 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
 - `wallet/momo.tsx` is the ONLY method wired to the backend (`POST /api/wallet/topup`).
   Reads `?provider=mtn|atl|tgo` to pre-select the network + set the header; user can still
   switch via the in-screen Network picker. All amounts in GH₵.
+- Top-up animation: on Fund, `components/WalletTopUpAnimation.tsx` shows a "money
+  dropping into a wallet" overlay (RN `Animated` — gold ₵ coins fall into the brand
+  wallet; success → green check + "Approve on your phone" + Done). Built WITHOUT
+  `lottie-react-native` on purpose (it's a native dep = dev-client rebuild). **To make
+  it a real Lottie**: `npx expo install lottie-react-native`, rebuild the dev client,
+  drop a branded JSON in `assets/lottie/`, swap the coins/wallet block for `<LottieView>`.
+- MoMo number prefill is normalised to a clean local number (`replace(/\D/g,'')` then
+  strip `233`/leading `0`) so the field stays under `maxLength={10}` and editable — the
+  old `replace('+233','')` left a 12-digit value that the input silently rejected.
 - Network branding: `components/NetworkLogo.tsx` renders brand-accurate wordmark badges
   (MTN black-on-yellow, AT red→blue gradient, Telecel white-on-red) from official colours —
   NOT bundled logo art (trademark-safe, scalable). Swap for official vector/PNG here if

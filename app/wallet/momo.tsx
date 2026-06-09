@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
 import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
+import WalletTopUpAnimation from '@/components/WalletTopUpAnimation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -27,12 +28,15 @@ export default function MomoTopUpScreen() {
   const { user } = useAuthContext()
   const { provider: providerParam } = useLocalSearchParams<{ provider?: string }>()
   const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
+  // Normalise the stored auth phone to a clean local number (strip +233 / 233 / leading 0)
+  const initialPhone = (user?.phone || '').replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
 
   const [amount, setAmount] = useState<number | null>(null)
   const [customAmount, setCustomAmount] = useState('')
-  const [phone, setPhone] = useState(user?.phone?.replace('+233', '') || '')
+  const [phone, setPhone] = useState(initialPhone)
   const [provider, setProvider] = useState<string>(initialProvider)
   const [loading, setLoading] = useState(false)
+  const [anim, setAnim] = useState<{ state: 'loading' | 'success'; message: string } | null>(null)
 
   const effectiveAmount = amount || (customAmount ? parseFloat(customAmount) : 0)
 
@@ -52,6 +56,7 @@ export default function MomoTopUpScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
+    setAnim({ state: 'loading', message: `Adding GH₵ ${effectiveAmount.toFixed(2)} to your wallet` })
 
     try {
       const res = await fetch(`${API_URL}/api/wallet/topup`, {
@@ -70,16 +75,17 @@ export default function MomoTopUpScreen() {
 
       if (data.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        Alert.alert(
-          'Check your phone!',
-          data.display_text || `A MoMo prompt has been sent to +233${phone}. Approve to fund your wallet.`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        )
+        setAnim({
+          state: 'success',
+          message: data.display_text || `A MoMo prompt was sent to +233${phone}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
+        })
       } else {
+        setAnim(null)
         Alert.alert('Error', data.error || 'Failed to initiate top-up')
       }
     } catch {
       setLoading(false)
+      setAnim(null)
       Alert.alert('Error', 'Network error. Please try again.')
     }
   }
@@ -218,6 +224,13 @@ export default function MomoTopUpScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <WalletTopUpAnimation
+        visible={anim !== null}
+        state={anim?.state ?? 'loading'}
+        message={anim?.message ?? ''}
+        onDone={() => { setAnim(null); router.back() }}
+      />
     </SafeAreaView>
   )
 }
