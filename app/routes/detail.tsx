@@ -248,7 +248,7 @@ export default function RouteDetailScreen() {
       {/* ── Full screen map ── */}
       <Mapbox.MapView
         style={{ flex: 1 }}
-        styleURL="mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31"
+        styleURL="mapbox://styles/mapbox/navigation-day-v1"
         logoEnabled={false}
         attributionEnabled={false}
         compassEnabled={false}
