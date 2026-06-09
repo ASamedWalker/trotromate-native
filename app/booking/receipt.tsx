@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as Haptics from 'expo-haptics'
@@ -21,6 +22,7 @@ const TICKET = {
 }
 
 export default function ReceiptScreen() {
+  const router = useRouter()
   const [showSafety, setShowSafety] = useState(false)
 
   return (
@@ -65,11 +67,15 @@ export default function ReceiptScreen() {
             <View style={[s.notch, { right: -10 }]} />
           </View>
 
-          {/* QR */}
+          {/* QR — tap simulates the conductor scan -> trip -> arrival */}
           <View style={{ alignItems: 'center', paddingTop: 18 }}>
-            <View style={{ padding: 8, backgroundColor: '#fff', borderRadius: 8 }}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/booking/arrived' as never) }}
+              style={{ padding: 8, backgroundColor: '#fff', borderRadius: 8 }}
+            >
               <QRCode value={TICKET.ref} size={140} />
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => Haptics.selectionAsync()}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}

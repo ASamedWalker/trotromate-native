@@ -155,7 +155,7 @@ export default function CheckoutScreen() {
       <View style={s.payBar}>
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)}
+          onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); router.push('/booking/receipt' as never) }}
           style={s.payBtn}
         >
           <Text style={s.payBtnText}>Pay ${total.toFixed(2)}</Text>

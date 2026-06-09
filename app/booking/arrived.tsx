@@ -97,7 +97,7 @@ export default function ArrivedScreen() {
         {/* Done */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); router.back() }}
+          onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); router.dismissAll() }}
           style={s.doneBtn}
         >
           <Text style={s.doneText}>Done</Text>
