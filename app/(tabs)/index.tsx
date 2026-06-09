@@ -14,7 +14,7 @@ import { useRouter, type Href } from 'expo-router'
 import {
   MapPin, ChevronRight, ChevronDown,
   Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
-  WalletCards, ScanLine,
+  WalletCards, ScanLine, Wifi,
   House, Briefcase,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -173,28 +173,36 @@ export default function HomeScreen() {
               shadowColor: BRAND, shadowOpacity: 0.3,
             }}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-              <View>
-                <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>
-                  Wallet Balance
-                </Text>
-                <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5 }}>
-                  {formattedBalance}
-                </Text>
+            {/* Decorative discs for depth */}
+            <View style={{ position: 'absolute', top: -45, right: -35, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' }} />
+            <View style={{ position: 'absolute', bottom: -55, left: -45, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+            {/* Top: chip + contactless + eye */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ width: 44, height: 33, borderRadius: 7, backgroundColor: '#E9C46A', justifyContent: 'center', alignItems: 'center', paddingVertical: 5, gap: 3 }}>
+                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
+                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
+                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
               </View>
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
-                hitSlop={12}
-                style={{
-                  width: 40, height: 40, borderRadius: 20,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  justifyContent: 'center', alignItems: 'center',
-                }}
-              >
-                {balanceVisible ? <Eye size={20} color="#fff" /> : <EyeOff size={20} color="#fff" />}
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Wifi size={20} color="rgba(255,255,255,0.85)" style={{ transform: [{ rotate: '90deg' }] }} />
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
+                  hitSlop={12}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
+                >
+                  {balanceVisible ? <Eye size={18} color="#fff" /> : <EyeOff size={18} color="#fff" />}
+                </Pressable>
+              </View>
             </View>
 
+            {/* Balance */}
+            <View style={{ marginTop: 22, marginBottom: 24 }}>
+              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>Wallet Balance</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5 }}>{formattedBalance}</Text>
+            </View>
+
+            {/* Actions */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
@@ -211,15 +219,9 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 style={{ flex: 1 }}
               >
-                <View style={{
-                  height: 48, borderRadius: BASE.radius.md,
-                  backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <ScanLine size={18} color="#fff" />
-                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
-                  </View>
+                <View style={{ height: 48, borderRadius: BASE.radius.md, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <ScanLine size={18} color="#fff" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
                 </View>
               </TouchableOpacity>
             </View>
