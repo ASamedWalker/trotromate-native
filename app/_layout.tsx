@@ -206,6 +206,9 @@ function AppInner() {
         <Stack.Screen name="booking/processing" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="booking/receipt" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="booking/arrived" options={{ headerShown: false }} />
+        <Stack.Screen name="scan/index" options={{ headerShown: false }} />
+        <Stack.Screen name="scan/confirm" options={{ headerShown: false }} />
+        <Stack.Screen name="scan/pin" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="wallet/fund" options={{ headerShown: false }} />
         <Stack.Screen

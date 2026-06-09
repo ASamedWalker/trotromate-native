@@ -207,7 +207,7 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'QR payment coming soon!') }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/scan' as never) }}
                 activeOpacity={0.85}
                 style={{ flex: 1 }}
               >
