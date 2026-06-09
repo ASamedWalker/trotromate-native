@@ -223,18 +223,18 @@ export default function RouteDetailScreen() {
 
 
   // Mock stops for timeline — will be replaced by route_stops from DB
-  const mockStops = useMemo(() => {
-    const stops = [
-      { name: from, letter: from.charAt(0).toUpperCase(), minsAgo: 30, passed: true },
-      { name: 'Nkrumah Ave', letter: 'N', minsAgo: 20, passed: true },
-      { name: 'Kwame Rd', letter: 'K', minsAgo: 15, passed: true },
-      { name: 'Station Junction', letter: 'S', minsAgo: 10, passed: true },
-      { name: 'Market Square', letter: 'M', minsAgo: 5, passed: false, isCurrent: true },
-      { name: 'Ring Road', letter: 'R', minsAgo: null, passed: false },
-      { name: to, letter: to.charAt(0).toUpperCase(), minsAgo: null, passed: false, isFinal: true },
-    ]
-    return stops
-  }, [from, to])
+  const mockStops = useMemo(() => [
+    { name: from, letter: from.charAt(0).toUpperCase(), minsAgo: 30, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
+    { name: 'Nkrumah Ave', letter: 'N', minsAgo: 20, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
+    { name: 'Kwame Rd', letter: 'K', minsAgo: 15, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
+    { name: 'Station Junction', letter: 'S', minsAgo: 10, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
+    { name: 'Market Square', letter: 'M', minsAgo: null as number | null, etaMin: null as number | null, passed: false, isCurrent: true, isFinal: false },
+    { name: 'Ring Road', letter: 'R', minsAgo: null as number | null, etaMin: 4 as number | null, passed: false, isCurrent: false, isFinal: false },
+    { name: to, letter: to.charAt(0).toUpperCase(), minsAgo: null as number | null, etaMin: 9 as number | null, passed: false, isCurrent: false, isFinal: true },
+  ], [from, to])
+
+  const currentStopName = mockStops.find(s => s.isCurrent)?.name ?? ''
+  const destEta = mockStops[mockStops.length - 1].etaMin ?? 0
 
   const durationText = duration >= 60
     ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
@@ -701,10 +701,23 @@ export default function RouteDetailScreen() {
               {/* Back button */}
               <TouchableOpacity
                 onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSelectedVehicle(null) }}
-                style={{ paddingHorizontal: 24, marginBottom: 16 }}
+                style={{ paddingHorizontal: 24, marginBottom: 12 }}
               >
                 <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>← Back to list</Text>
               </TouchableOpacity>
+
+              {/* ETA headline — live, updates as real driver data arrives */}
+              <View style={{ paddingHorizontal: 24, marginBottom: 18 }}>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: '#000', letterSpacing: -0.6 }}>
+                  Arrives in ~{destEta} min
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
+                    Now at {currentStopName} · updates live
+                  </Text>
+                </View>
+              </View>
 
               {/* Timeline */}
               <View style={{ paddingHorizontal: 24 }}>
@@ -730,10 +743,10 @@ export default function RouteDetailScreen() {
                         ) : (
                           <View style={{
                             width: 28, height: 28, borderRadius: 14,
-                            backgroundColor: stop.passed ? BRAND : '#E5E7EB',
+                            backgroundColor: stop.passed || isFinal ? BRAND : '#E5E7EB',
                             justifyContent: 'center', alignItems: 'center',
                           }}>
-                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed ? '#fff' : '#9CA3AF' }}>
+                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed || isFinal ? '#fff' : '#9CA3AF' }}>
                               {stop.letter}
                             </Text>
                           </View>
@@ -756,19 +769,26 @@ export default function RouteDetailScreen() {
                         justifyContent: 'center',
                       }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                            <Text numberOfLines={1} style={{
+                              fontFamily: isCurrent || isFinal ? font.extrabold : font.bold,
+                              fontSize: isCurrent ? 16 : 15,
+                              color: stop.passed || isCurrent || isFinal ? '#000' : '#9CA3AF',
+                            }}>
+                              {stop.name}
+                            </Text>
+                            {isFinal && (
+                              <View style={{ backgroundColor: '#FFF0EB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                                <Text style={{ fontFamily: font.bold, fontSize: 10, color: BRAND }}>Your stop</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={{
-                            fontFamily: isCurrent ? font.extrabold : font.bold,
-                            fontSize: isCurrent ? 16 : 15,
-                            color: stop.passed || isCurrent ? '#000' : '#9CA3AF',
-                          }}>
-                            {stop.name}
-                          </Text>
-                          <Text style={{
-                            fontFamily: font.medium,
+                            fontFamily: font.bold,
                             fontSize: 13,
-                            color: isFinal ? '#22c55e' : stop.passed ? '#9CA3AF' : '#D1D5DB',
+                            color: isFinal ? BRAND : isCurrent ? '#22c55e' : stop.passed ? '#9CA3AF' : '#6B7280',
                           }}>
-                            {isFinal ? 'Arrived' : isCurrent ? 'Now' : stop.minsAgo != null ? `${stop.minsAgo} mins ago` : '—'}
+                            {stop.passed ? `${stop.minsAgo} min ago` : isCurrent ? 'Here now' : `in ${stop.etaMin} min`}
                           </Text>
                         </View>
                       </View>
