@@ -202,6 +202,9 @@ function AppInner() {
         <Stack.Screen name="booking/choose" options={{ headerShown: false }} />
         <Stack.Screen name="booking/trip" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="booking/confirm" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/checkout" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/receipt" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/arrived" options={{ headerShown: false }} />
         <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="wallet/fund" options={{ headerShown: false }} />
         <Stack.Screen
