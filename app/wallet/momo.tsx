@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
+import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -157,22 +158,24 @@ export default function MomoTopUpScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <Text style={[s.sectionLabel, { color: t.textSecondary }]}>NETWORK</Text>
           <View style={s.providerRow}>
-            {PROVIDERS.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={[s.providerBtn, {
-                  backgroundColor: provider === p.id ? p.color : (isDark ? '#1c1917' : '#f5f5f4'),
-                  borderColor: provider === p.id ? p.color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                }]}
-                onPress={() => { setProvider(p.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
-              >
-                <Text style={[s.providerText, {
-                  color: provider === p.id ? p.textColor : t.text,
-                }]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {PROVIDERS.map((p) => {
+              const sel = provider === p.id
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[s.providerBtn, {
+                    backgroundColor: sel ? (isDark ? 'rgba(255,77,28,0.12)' : '#FFF0EB') : (isDark ? '#1c1917' : '#f5f5f4'),
+                    borderColor: sel ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                  }]}
+                  onPress={() => { setProvider(p.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
+                >
+                  <NetworkLogo id={p.id as NetworkId} width={46} height={30} />
+                  <Text style={[s.providerText, { color: sel ? BRAND : t.text }]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </Animated.View>
 
@@ -257,9 +260,9 @@ const s = StyleSheet.create({
   // Providers
   providerRow: { flexDirection: 'row', gap: 8 },
   providerBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1,
+    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, gap: 8,
   },
-  providerText: { fontSize: 12, fontFamily: font.bold },
+  providerText: { fontSize: 11, fontFamily: font.bold, textAlign: 'center' },
 
   // Summary
   summaryCard: { borderRadius: 14, padding: 16, gap: 10, borderWidth: 1 },

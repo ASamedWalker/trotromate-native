@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { ArrowLeft, Landmark, Smartphone, CreditCard, Check } from 'lucide-react-native'
 import { font, themed } from '@/lib/theme'
+import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -16,13 +17,14 @@ const METHODS: {
   id: MethodId
   label: string
   Icon: typeof Landmark
+  network?: NetworkId
   route: Href | null
   soon?: boolean
 }[] = [
   { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: '/wallet/bank-transfer' as Href },
-  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, route: '/wallet/momo?provider=mtn' as Href },
-  { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, route: '/wallet/momo?provider=atl' as Href },
-  { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, route: '/wallet/momo?provider=tgo' as Href },
+  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, network: 'mtn', route: '/wallet/momo?provider=mtn' as Href },
+  { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, network: 'atl', route: '/wallet/momo?provider=atl' as Href },
+  { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, network: 'tgo', route: '/wallet/momo?provider=tgo' as Href },
   { id: 'card', label: 'Add Debit Card', Icon: CreditCard, route: null, soon: true },
 ]
 
@@ -76,9 +78,13 @@ export default function TopUpWalletScreen() {
                     borderColor: active ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F1F0'),
                   }]}
                 >
-                  <View style={[s.iconTile, { backgroundColor: active ? BRAND_TINT : (isDark ? '#292524' : '#F6F6F5') }]}>
-                    <m.Icon size={20} color={active ? BRAND : (isDark ? '#a8a29e' : '#57534e')} />
-                  </View>
+                  {m.network ? (
+                    <NetworkLogo id={m.network} width={44} height={44} />
+                  ) : (
+                    <View style={[s.iconTile, { backgroundColor: active ? BRAND_TINT : (isDark ? '#292524' : '#F6F6F5') }]}>
+                      <m.Icon size={20} color={active ? BRAND : (isDark ? '#a8a29e' : '#57534e')} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={[s.rowLabel, { color: t.text }]}>{m.label}</Text>
                     {m.soon && <Text style={s.soon}>Coming soon</Text>}

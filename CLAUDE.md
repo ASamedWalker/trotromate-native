@@ -142,6 +142,10 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
 - `wallet/momo.tsx` is the ONLY method wired to the backend (`POST /api/wallet/topup`).
   Reads `?provider=mtn|atl|tgo` to pre-select the network + set the header; user can still
   switch via the in-screen Network picker. All amounts in GH₵.
+- Network branding: `components/NetworkLogo.tsx` renders brand-accurate wordmark badges
+  (MTN black-on-yellow, AT red→blue gradient, Telecel white-on-red) from official colours —
+  NOT bundled logo art (trademark-safe, scalable). Swap for official vector/PNG here if
+  brand-approved assets arrive. Used in the top-up selector + MoMo network picker.
 - `wallet/bank-transfer.tsx` is front-end only: static partner-bank list + placeholder
   Troski virtual account numbers, Copy via expo-clipboard. **FOLLOW-UP**: backend must
   issue real per-user virtual accounts + reconcile inbound transfers (GH₵ 0.25 charge,
