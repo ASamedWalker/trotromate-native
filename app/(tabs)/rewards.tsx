@@ -33,7 +33,7 @@ import type { LeaderboardEntry } from '@/lib/types'
 const MAROON = '#6B1D1D'
 
 const PODIUM_RING: Record<number, string> = {
-  1: '#f59e0b',
+  1: '#FF4D1C',
   2: '#a78bfa',
   3: '#22c55e',
 }
@@ -83,7 +83,7 @@ function PodiumAvatar({ entry, rank, isFirst }: {
         {isFirst ? (
           <View style={{
             marginTop: -14,
-            backgroundColor: '#f59e0b',
+            backgroundColor: '#FF4D1C',
             paddingHorizontal: 12,
             paddingVertical: 3,
             borderRadius: 12,
@@ -122,7 +122,7 @@ function PodiumAvatar({ entry, rank, isFirst }: {
       <Text style={{
         fontSize: isFirst ? 14 : 12,
         fontFamily: font.bold,
-        color: isFirst ? '#f59e0b' : 'rgba(255,255,255,0.8)',
+        color: isFirst ? '#FF4D1C' : 'rgba(255,255,255,0.8)',
         marginTop: 2,
       }}>
         {entry ? `${formatPts(entry.weekly_points)} pts` : '--'}
@@ -180,7 +180,7 @@ export default function RewardsScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={c.white}
-            colors={[c.amber500]}
+            colors={['#FF4D1C']}
           />
         }
       >
@@ -296,7 +296,7 @@ export default function RewardsScreen() {
               style={s.earnHeader}
             >
               <View style={s.earnIconWrap}>
-                <TrendingUp size={20} color={isDark ? c.amber400 : '#815100'} />
+                <TrendingUp size={20} color={isDark ? '#FF6A3D' : '#FF4D1C'} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.earnTitle}>Earn Points</Text>

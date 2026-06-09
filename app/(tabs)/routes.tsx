@@ -95,10 +95,10 @@ export default function RoutesScreen() {
   }, [routes, activeFilter, searchQuery, favorites])
 
   const filters: { key: Filter; label: string; icon: typeof Bus | null; color: string }[] = [
-    { key: 'all', label: 'All', icon: null, color: c.amber500 },
-    { key: 'trotro', label: 'Trotro', icon: Bus, color: c.amber500 },
+    { key: 'all', label: 'All', icon: null, color: '#FF4D1C' },
+    { key: 'trotro', label: 'Trotro', icon: Bus, color: '#FF4D1C' },
     { key: 'okada', label: 'Okada', icon: Bike, color: c.orange500 },
-    { key: 'popular', label: 'Popular', icon: TrendingUp, color: c.amber500 },
+    { key: 'popular', label: 'Popular', icon: TrendingUp, color: '#FF4D1C' },
     { key: 'saved', label: 'Saved', icon: Heart, color: c.red500 },
   ]
 
@@ -112,7 +112,7 @@ export default function RoutesScreen() {
     const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
     const isOkada = item.transport_type === 'okada'
-    const accent = isOkada ? c.orange500 : c.amber500
+    const accent = isOkada ? c.orange500 : '#FF4D1C'
 
     return (
       <TouchableOpacity
@@ -131,7 +131,7 @@ export default function RoutesScreen() {
           <View style={s.cardTop}>
             <View style={s.cardTopLeft}>
               <View style={[s.typeBadge, { backgroundColor: `${accent}20` }]}>
-                <Text style={[s.typeBadgeText, { color: isOkada ? '#9a3412' : '#815100' }]}>
+                <Text style={[s.typeBadgeText, { color: isOkada ? '#9a3412' : '#FF4D1C' }]}>
                   {isOkada ? 'Okada' : 'Trotro'}
                 </Text>
               </View>
@@ -192,7 +192,7 @@ export default function RoutesScreen() {
             style={s.regionDropdown}
           >
             <Text style={s.regionDropdownText}>{activeRegionLabel}</Text>
-            <ChevronDown size={16} color={c.amber500} />
+            <ChevronDown size={16} color={'#FF4D1C'} />
           </TouchableOpacity>
         </View>
 
@@ -232,7 +232,7 @@ export default function RoutesScreen() {
               >
                 {active ? (
                   <LinearGradient
-                    colors={['#815100', '#f8a010']}
+                    colors={['#FF4D1C', '#FF4D1C']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={s.chipGradient}
@@ -259,7 +259,7 @@ export default function RoutesScreen() {
 
         {(params.from || params.to) && (
           <View style={s.filterRow}>
-            <MapPin size={14} color={c.amber500} />
+            <MapPin size={14} color={'#FF4D1C'} />
             <Text style={s.filterText}>
               Showing: {params.from || 'Any'} {'\u2192'} {params.to || 'Any'}
             </Text>
@@ -308,8 +308,8 @@ export default function RoutesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={async () => { setRefreshing(true); await refetch(); setRefreshing(false) }}
-              tintColor={c.amber500}
-              colors={[c.amber500]}
+              tintColor={'#FF4D1C'}
+              colors={['#FF4D1C']}
             />
           }
           ListEmptyComponent={
@@ -330,7 +330,7 @@ export default function RoutesScreen() {
                   activeOpacity={0.7}
                   style={s.addRouteBtn}
                 >
-                  <Plus size={16} color={c.amber500} />
+                  <Plus size={16} color={'#FF4D1C'} />
                   <Text style={s.addRouteBtnText}>Add This Route</Text>
                 </TouchableOpacity>
               )}
@@ -343,7 +343,7 @@ export default function RoutesScreen() {
                 activeOpacity={0.7}
                 style={s.footerCta}
               >
-                <Plus size={16} color={c.amber500} />
+                <Plus size={16} color={'#FF4D1C'} />
                 <Text style={s.footerCtaText}>Can't find your route? Add it</Text>
               </TouchableOpacity>
             ) : null
@@ -373,7 +373,7 @@ export default function RoutesScreen() {
                   <Text style={[s.modalOptionText, isActive && s.modalOptionTextActive]}>
                     {region.label}
                   </Text>
-                  {isActive && <Check size={18} color={c.amber500} />}
+                  {isActive && <Check size={18} color={'#FF4D1C'} />}
                 </TouchableOpacity>
               )
             })}
@@ -404,7 +404,7 @@ const getStyles = (isDark: boolean) => {
     headerLabel: {
       fontSize: 10,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#FF4D1C',
       textTransform: 'uppercase',
       letterSpacing: 2,
       marginBottom: 4,
@@ -432,7 +432,7 @@ const getStyles = (isDark: boolean) => {
     regionDropdownText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: c.amber500,
+      color: '#FF4D1C',
     },
 
     // M3 Search bar — pill shape
@@ -595,7 +595,7 @@ const getStyles = (isDark: boolean) => {
     viewDetailsText: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
 
     // Empty
@@ -610,11 +610,11 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 20,
       paddingVertical: 12,
       borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb',
+      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FFF0EB',
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#fde68a',
+      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#FFD2C2',
     },
-    addRouteBtnText: { fontSize: 14, fontFamily: font.semibold, color: c.amber500 },
+    addRouteBtnText: { fontSize: 14, fontFamily: font.semibold, color: '#FF4D1C' },
     footerCta: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -623,7 +623,7 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 16,
       marginBottom: 80,
     },
-    footerCtaText: { fontSize: 14, fontFamily: font.medium, color: c.amber500 },
+    footerCtaText: { fontSize: 14, fontFamily: font.medium, color: '#FF4D1C' },
 
     // Region Hero Banner
     heroBanner: {
@@ -691,7 +691,7 @@ const getStyles = (isDark: boolean) => {
     },
     modalOptionTextActive: {
       fontFamily: font.semibold,
-      color: c.amber500,
+      color: '#FF4D1C',
     },
   })
 }
