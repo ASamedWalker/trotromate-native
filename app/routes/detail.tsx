@@ -805,7 +805,7 @@ export default function RouteDetailScreen() {
                 }}>
                   <BellRing size={18} color={BRAND} />
                   <Text style={{ fontFamily: font.medium, fontSize: 13, color: BRAND, flex: 1 }}>
-                    We'll notify you when this bus is approaching your stop
+                    Arrival alerts are coming soon — we&apos;ll ping your phone when your bus is close
                   </Text>
                 </View>
               )}

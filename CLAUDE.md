@@ -109,3 +109,8 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 - Queue Status quick action screen
 - Booking system
 - Apply Uber Base tokens to Lines, Wallet, Tales, Rewards tabs
+- **Bus arrival notifications** (route detail timeline bell — currently UI stub).
+  Gated on real driver GPS data. Build order:
+  1. iOS Live Activity / Android ongoing notification (reuse `lib/services/liveActivity.ts`) — watch bus ETA on lock screen without opening the app
+  2. Push "approaching" alert — bell registers a watch (bus + stop); backend sends push when near (`usePushNotifications` already registers tokens)
+  3. WhatsApp alert — backend (WhatsApp Business API / Twilio) using the user's auth phone number
