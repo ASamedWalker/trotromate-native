@@ -6,7 +6,7 @@ import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
-import { c, font, themed } from '@/lib/theme'
+import { font, themed } from '@/lib/theme'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -72,7 +72,7 @@ export default function WalletScreen() {
   const glass = {
     backgroundColor: isDark ? 'rgba(60,51,43,0.2)' : 'rgba(0,0,0,0.02)',
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(0,0,0,0.06)',
+    borderColor: isDark ? 'rgba(255,77,28,0.1)' : 'rgba(0,0,0,0.06)',
   }
 
   return (
@@ -92,7 +92,7 @@ export default function WalletScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.amber500} colors={[c.amber500]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF4D1C" colors={["#FF4D1C"]} />
         }
       >
         {/* ── Balance Card — Glass + Gold Glow ── */}
@@ -123,15 +123,15 @@ export default function WalletScreen() {
               <View style={s.balanceCardBtns}>
                 <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
                   <View style={s.balanceCardBtnAmber}>
-                    <MaterialIcons name="add" size={18} color="#1c1917" />
+                    <MaterialIcons name="add" size={18} color="#fff" />
                     <Text style={s.balanceCardBtnPrimaryText}>Add Money</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.balanceCardBtnOutline, {
-                  borderColor: isDark ? 'rgba(255,173,58,0.3)' : 'rgba(255,173,58,0.2)',
+                  borderColor: isDark ? 'rgba(255,77,28,0.3)' : 'rgba(255,77,28,0.2)',
                 }]} activeOpacity={0.85} onPress={() => comingSoon('Send')}>
-                  <MaterialIcons name="ios-share" size={18} color="#FFAD3A" />
-                  <Text style={[s.balanceCardBtnOutlineText, { color: '#FFAD3A' }]}>Send</Text>
+                  <MaterialIcons name="ios-share" size={18} color="#FF4D1C" />
+                  <Text style={[s.balanceCardBtnOutlineText, { color: '#FF4D1C' }]}>Send</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -160,7 +160,7 @@ export default function WalletScreen() {
                 <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7} onPress={() => comingSoon(a.label)}>
                   <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
                     <View style={[s.quickCircle, glass]}>
-                      <MaterialIcons name={a.name} size={24} color="#FFAD3A" />
+                      <MaterialIcons name={a.name} size={24} color="#FF4D1C" />
                     </View>
                     <Text style={s.quickLabel}>{a.label}</Text>
                   </Animated.View>
@@ -175,7 +175,7 @@ export default function WalletScreen() {
                 <Text style={s.viewAll}>View All</Text>
               </View>
               <LinearGradient
-                colors={['#FFAD3A', '#ff7e3a']}
+                colors={['#FF4D1C', '#D63A12']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={s.passCard}
@@ -211,14 +211,14 @@ export default function WalletScreen() {
                 const isTopup = tx.type === 'topup'
                 const icon = isTopup ? 'account-balance' as const : 'commute' as const
                 const amountStr = isTopup ? `+GHS ${Number(tx.amount).toFixed(2)}` : `-GHS ${Number(tx.amount).toFixed(2)}`
-                const amountColor = isTopup ? '#FFAD3A' : t.text
+                const amountColor = isTopup ? '#FF4D1C' : t.text
                 const statusLabel = tx.status === 'success' ? (isTopup ? 'MOMO PAY' : 'COMPLETED') : tx.status.toUpperCase()
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 return (
                 <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
                   <View style={[s.txRow, glass]}>
                     <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : '#f5f5f4' }]}>
-                      <MaterialIcons name={icon} size={20} color="#FFAD3A" />
+                      <MaterialIcons name={icon} size={20} color="#FF4D1C" />
                     </View>
                     <View style={s.txInfo}>
                       <Text style={[s.txLabel, { color: t.text }]}>{tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')}</Text>
@@ -263,15 +263,15 @@ export default function WalletScreen() {
 
               {/* Central glass wallet */}
               <View style={[s.emptyWalletBox, glass]}>
-                <MaterialIcons name="account-balance-wallet" size={56} color={isDark ? 'rgba(255,173,58,0.5)' : 'rgba(255,173,58,0.3)'} />
+                <MaterialIcons name="account-balance-wallet" size={56} color={isDark ? 'rgba(255,77,28,0.5)' : 'rgba(255,77,28,0.3)'} />
               </View>
 
               {/* Floating glass coins */}
               <View style={[s.floatingCoin1, glass]}>
-                <MaterialIcons name="currency-exchange" size={18} color="rgba(255,173,58,0.4)" />
+                <MaterialIcons name="currency-exchange" size={18} color="rgba(255,77,28,0.4)" />
               </View>
               <View style={[s.floatingCoin2, glass]}>
-                <MaterialIcons name="payments" size={16} color="rgba(255,173,58,0.3)" />
+                <MaterialIcons name="payments" size={16} color="rgba(255,77,28,0.3)" />
               </View>
             </View>
 
@@ -290,7 +290,7 @@ export default function WalletScreen() {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity style={[s.emptySecondaryBtn, {
-                borderColor: isDark ? 'rgba(255,173,58,0.4)' : 'rgba(255,173,58,0.3)',
+                borderColor: isDark ? 'rgba(255,77,28,0.4)' : 'rgba(255,77,28,0.3)',
               }]} activeOpacity={0.85} onPress={handleAuthAction}>
                 <Text style={s.emptySecondaryText}>Connect MoMo Account</Text>
               </TouchableOpacity>
@@ -333,22 +333,22 @@ const s = StyleSheet.create({
     borderRadius: 16, padding: 24, alignItems: 'center', overflow: 'hidden',
   },
   goldGlow: {
-    shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 0 },
+    shadowColor: '#FF4D1C', shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.05, shadowRadius: 20,
   },
   balanceGlowOrb: {
     position: 'absolute', top: -20, right: -20,
     width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(255,173,58,0.08)',
+    backgroundColor: 'rgba(255,77,28,0.08)',
   },
   comingSoonBadge: {
-    backgroundColor: 'rgba(255,173,58,0.15)',
+    backgroundColor: 'rgba(255,77,28,0.15)',
     paddingHorizontal: 12, paddingVertical: 4,
     borderRadius: 99, alignSelf: 'center', marginBottom: 12,
-    borderWidth: 1, borderColor: 'rgba(255,173,58,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,77,28,0.2)',
   },
   comingSoonText: {
-    fontSize: 10, fontFamily: font.bold, color: '#FFAD3A',
+    fontSize: 10, fontFamily: font.bold, color: '#FF4D1C',
     letterSpacing: 2,
   },
   balanceLabelText: {
@@ -359,9 +359,9 @@ const s = StyleSheet.create({
   balanceCardBtnPrimary: { flex: 1 },
   balanceCardBtnAmber: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#FFAD3A', paddingVertical: 13, borderRadius: 12,
+    backgroundColor: '#FF4D1C', paddingVertical: 13, borderRadius: 12,
   },
-  balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#1c1917' },
+  balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#fff' },
   balanceCardBtnOutline: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 13, borderRadius: 12, borderWidth: 1,
@@ -374,8 +374,8 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(60,51,43,0.4)', paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
   },
-  liveSyncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFAD3A' },
-  liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 1 },
+  liveSyncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF4D1C' },
+  liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
 
   // Quick actions
   quickRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16 },
@@ -385,7 +385,7 @@ const s = StyleSheet.create({
 
   // Section
   sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
-  viewAll: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 1 },
+  viewAll: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
   passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
 
   // Active Pass
@@ -422,7 +422,7 @@ const s = StyleSheet.create({
   emptyIllustration: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
   emptyGlow: {
     position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(255,173,58,0.06)',
+    backgroundColor: 'rgba(255,77,28,0.06)',
   },
   emptyWalletBox: {
     width: 100, height: 100, borderRadius: 20, justifyContent: 'center', alignItems: 'center',
@@ -443,8 +443,8 @@ const s = StyleSheet.create({
   emptyPrimaryBtn: { width: '100%' },
   emptyPrimaryInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#FFAD3A', paddingVertical: 16, borderRadius: 14,
-    shadowColor: '#FFAD3A', shadowOffset: { width: 0, height: 6 },
+    backgroundColor: '#FF4D1C', paddingVertical: 16, borderRadius: 14,
+    shadowColor: '#FF4D1C', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
   },
   emptyPrimaryText: { fontSize: 17, fontFamily: font.bold, color: '#000' },
@@ -452,7 +452,7 @@ const s = StyleSheet.create({
     width: '100%', paddingVertical: 14, borderRadius: 14,
     borderWidth: 1, alignItems: 'center',
   },
-  emptySecondaryText: { fontSize: 12, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 2 },
+  emptySecondaryText: { fontSize: 12, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
 
   // Empty transactions
   txEmptyHeader: {
@@ -472,10 +472,10 @@ const s = StyleSheet.create({
   promoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   promoContent: { gap: 6 },
   promoTagWrap: {
-    backgroundColor: 'rgba(255,173,58,0.2)', paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: 'rgba(255,77,28,0.2)', paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 4, alignSelf: 'flex-start', marginBottom: 4,
   },
-  promoTag: { fontSize: 10, fontFamily: font.bold, color: '#FFAD3A', letterSpacing: 2 },
+  promoTag: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
   promoTitle: { fontSize: 20, fontFamily: font.bold, color: '#ffffff', lineHeight: 26 },
   promoSub: { fontSize: 10, fontFamily: font.bold, color: '#a8a29e', letterSpacing: 0.5 },
 })
