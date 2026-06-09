@@ -14,7 +14,7 @@ import { useRouter, type Href } from 'expo-router'
 import {
   MapPin, ChevronRight, ChevronDown,
   Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
-  WalletCards, ScanLine, Wifi,
+  WalletCards, ScanLine,
   House, Briefcase,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -177,23 +177,15 @@ export default function HomeScreen() {
             <View style={{ position: 'absolute', top: -45, right: -35, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' }} />
             <View style={{ position: 'absolute', bottom: -55, left: -45, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
-            {/* Top: chip + contactless + eye */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ width: 44, height: 33, borderRadius: 7, backgroundColor: '#E9C46A', justifyContent: 'center', alignItems: 'center', paddingVertical: 5, gap: 3 }}>
-                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
-                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
-                <View style={{ width: 28, height: 1.5, backgroundColor: 'rgba(0,0,0,0.25)' }} />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <Wifi size={20} color="rgba(255,255,255,0.85)" style={{ transform: [{ rotate: '90deg' }] }} />
-                <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
-                  hitSlop={12}
-                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
-                >
-                  {balanceVisible ? <Eye size={18} color="#fff" /> : <EyeOff size={18} color="#fff" />}
-                </Pressable>
-              </View>
+            {/* Top: eye toggle */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
+                hitSlop={12}
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
+              >
+                {balanceVisible ? <Eye size={18} color="#fff" /> : <EyeOff size={18} color="#fff" />}
+              </Pressable>
             </View>
 
             {/* Balance */}
