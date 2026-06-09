@@ -12,8 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
-  X, MapPin, ChevronRight, Navigation,
-  Clock, CircleDot, ArrowUpDown,
+  X, MapPin, CircleDot, ArrowUpDown, Home, Briefcase, Locate,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
@@ -21,8 +20,11 @@ import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
 import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { useLocation } from '@/lib/hooks/useLocation'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 
 const BRAND = '#FF4D1C'
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
 
 /* ── Services ── */
 
@@ -103,6 +105,37 @@ export default function PlanTripScreen() {
   const fromRef = useRef<TextInput>(null)
   const toRef = useRef<TextInput>(null)
   const { location } = useLocation()
+  const { user: authUser } = useAuthContext()
+
+  // Saved-place shortcuts (shared with the "Your Trip" booking screen)
+  const [locationName, setLocationName] = useState('')
+  const [homeAddress, setHomeAddress] = useState('')
+  const [workAddress, setWorkAddress] = useState('')
+
+  // Reverse-geocode the user's current location for the "Current location" row
+  useEffect(() => {
+    if (!location) return
+    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?types=place,locality&limit=1&access_token=${MAPBOX_TOKEN}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.features?.[0]) setLocationName(data.features[0].place_name?.split(',').slice(0, 2).join(',') || data.features[0].text)
+      })
+      .catch(() => setLocationName('Accra, GH'))
+  }, [location?.latitude])
+
+  // Load saved Home/Work addresses
+  useEffect(() => {
+    if (!authUser?.id) return
+    fetch(`${API_URL}/api/addresses?auth_user_id=${authUser.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.addresses) data.addresses.forEach((a: { label: string; address: string }) => {
+          if (a.label === 'Home') setHomeAddress(a.address)
+          if (a.label === 'Work') setWorkAddress(a.address)
+        })
+      })
+      .catch(() => {})
+  }, [authUser?.id])
 
   const [from, setFrom] = useState(params.from || '')
   const [to, setTo] = useState(params.to || '')
@@ -215,6 +248,25 @@ export default function PlanTripScreen() {
     // re-trigger the from/to auto-search effect).
     setSelectedPlanIndex(null)
   }
+
+  // Fill the active field from a saved-place shortcut, then advance to "to"
+  const fillShortcut = (value: string) => {
+    if (!value) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    if (activeInput === 'to') {
+      setTo(value)
+    } else {
+      setFrom(value)
+      setActiveInput('to')
+      toRef.current?.focus()
+    }
+  }
+
+  const SHORTCUTS = [
+    { key: 'home', Icon: Home, label: 'Home', value: homeAddress, placeholder: 'Add home address', color: '#374151' },
+    { key: 'work', Icon: Briefcase, label: 'Work', value: workAddress, placeholder: 'Add work address', color: '#374151' },
+    { key: 'current', Icon: Locate, label: 'Current location', value: locationName, placeholder: 'Fetching location…', color: '#10B981' },
+  ]
 
   const showingResults = hasSearched && canSearch
 
@@ -333,38 +385,27 @@ export default function PlanTripScreen() {
             </View>
           </View>
 
-          {/* Pickup pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, marginTop: 14 }}
-          >
-            <TouchableOpacity
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fromRef.current?.focus(); setActiveInput('from') }}
-              activeOpacity={0.7}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 6,
-                paddingHorizontal: 14, paddingVertical: 8,
-                borderRadius: 100, backgroundColor: '#F3F4F6',
-              }}
-            >
-              <MapPin size={14} color="#6B7280" />
-              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#374151' }}>Edit pickup</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 6,
-                paddingHorizontal: 14, paddingVertical: 8,
-                borderRadius: 100, backgroundColor: '#F3F4F6',
-              }}
-            >
-              <Clock size={14} color="#6B7280" />
-              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#374151' }}>Leave now</Text>
-              <ChevronRight size={12} color="#9CA3AF" style={{ transform: [{ rotate: '90deg' }] }} />
-            </TouchableOpacity>
-          </ScrollView>
+          {/* Saved-place shortcuts (Your Trip style) — hidden once routes show */}
+          {!showingResults && (
+            <View style={{ marginTop: 12 }}>
+              {SHORTCUTS.map((sc, i) => (
+                <TouchableOpacity
+                  key={sc.key}
+                  activeOpacity={0.7}
+                  onPress={() => fillShortcut(sc.value)}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                    <sc.Icon size={18} color={sc.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000' }}>{sc.label}</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }} numberOfLines={1}>{sc.value || sc.placeholder}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
