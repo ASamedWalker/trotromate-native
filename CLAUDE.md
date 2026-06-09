@@ -148,6 +148,12 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
   `lottie-react-native` on purpose (it's a native dep = dev-client rebuild). **To make
   it a real Lottie**: `npx expo install lottie-react-native`, rebuild the dev client,
   drop a branded JSON in `assets/lottie/`, swap the coins/wallet block for `<LottieView>`.
+- Post-top-up destination: success "View Wallet" → `router.dismissAll()` + `navigate('/wallet')`,
+  landing on the Wallet tab (refetches on focus, so balance + `topup` tx appear once approved).
+  **FOLLOW-UP (no instant confirmation today)**: MoMo funds clear async after the user approves
+  the USSD prompt — there's no in-app callback. For a true "GH₵ X added ✓" moment, add a
+  backend webhook (MoMo provider → server → Realtime balance update / `usePushNotifications`
+  push), then show a confirmation toast/state in-app. Until then the Wallet tab is the source of truth.
 - MoMo number prefill is normalised to a clean local number (`replace(/\D/g,'')` then
   strip `233`/leading `0`) so the field stays under `maxLength={10}` and editable — the
   old `replace('+233','')` left a 12-digit value that the input silently rejected.
