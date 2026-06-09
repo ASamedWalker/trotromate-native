@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -7,585 +7,627 @@ import {
   RefreshControl,
   useColorScheme,
   StyleSheet,
+  Alert,
+  Share,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Path } from 'react-native-svg'
 import {
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
+  Wallet as WalletIcon,
+  Coins,
+  Flame,
+  Bus,
+  Clock,
+  AlertTriangle,
+  TrainFront,
+  Camera,
+  Gift,
+  Users,
+  Check,
+  Copy,
+  Share2,
+  Banknote,
   TrendingUp,
-  Trophy,
-  Zap,
 } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
 import { useRouter, type Href } from 'expo-router'
-import { c, themed, font } from '@/lib/theme'
+import { themed, font } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
-import { useLeaderboard } from '@/lib/hooks/useRewards'
+import { useProfile, usePointsHistory } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
-import { ReferralCard } from '@/components/ReferralCard'
-import InitialsAvatar from '@/components/InitialsAvatar'
 import { SkeletonRewards } from '@/components/Skeleton'
-import type { LeaderboardEntry } from '@/lib/types'
+import { supabase } from '@/lib/supabase'
+import { REPORT_POINTS, STREAK_CONFIG } from '@/lib/constants/rewards'
+import type { PointsHistoryEntry } from '@/lib/types'
 
 /* ── Constants ──────────────────────────────────────── */
 
-const MAROON = '#6B1D1D'
+const BRAND = '#FF4D1C'
+const COIN_TO_GHS = 0.1 // 1 coin ≈ GH₵0.10 (124 coins → GH₵12.40)
+const TABS = ['Coins', 'Earn', 'History', 'Referrals'] as const
+type Tab = (typeof TABS)[number]
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat', 'Sun']
 
-const PODIUM_RING: Record<number, string> = {
-  1: '#FF4D1C',
-  2: '#a78bfa',
-  3: '#22c55e',
-}
+/* ── Semicircular coin gauge ─────────────────────────── */
 
-/* ── Podium Avatar ──────────────────────────────────── */
-
-function PodiumAvatar({ entry, rank, isFirst }: {
-  entry?: LeaderboardEntry
-  rank: number
-  isFirst?: boolean
-}) {
-  const size = isFirst ? 112 : 80
-  const ringWidth = isFirst ? 6 : 4
-  const ringColor = PODIUM_RING[rank] ?? c.stone400
+function CoinGauge({ value, max, isDark }: { value: number; max: number; isDark: boolean }) {
+  const W = 240
+  const R = 96
+  const SW = 18
+  const cx = W / 2
+  const cy = R + SW / 2
+  const H = cy + SW / 2 + 2
+  const len = Math.PI * R
+  const f = Math.max(0, Math.min(1, max > 0 ? value / max : 0))
+  // Top semicircle: left point → right point, sweep over the top
+  const d = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
+  const track = isDark ? 'rgba(255,255,255,0.10)' : '#F1ECEA'
 
   return (
-    <View style={{ alignItems: 'center', width: isFirst ? 130 : 100 }}>
-      {isFirst && <Text style={{ fontSize: 28, marginBottom: 4 }}>👑</Text>}
-
-      <View style={{ alignItems: 'center', marginBottom: 10 }}>
-        <View style={{
-          width: size + ringWidth * 2 + 4,
-          height: size + ringWidth * 2 + 4,
-          borderRadius: (size + ringWidth * 2 + 4) / 2,
-          borderWidth: ringWidth,
-          borderColor: ringColor,
-          padding: 2,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <View style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: 'hidden',
-            backgroundColor: '#4A1212',
-          }}>
-            <InitialsAvatar
-              name={entry?.display_name ?? null}
-              deviceId={entry?.device_id ?? ''}
-              size={size}
-            />
-          </View>
-        </View>
-
-        {/* Rank badge */}
-        {isFirst ? (
-          <View style={{
-            marginTop: -14,
-            backgroundColor: '#FF4D1C',
-            paddingHorizontal: 12,
-            paddingVertical: 3,
-            borderRadius: 12,
-          }}>
-            <Text style={{ fontSize: 11, fontFamily: font.bold, color: '#2a1700' }}>MVP</Text>
-          </View>
-        ) : (
-          <View style={{
-            position: 'absolute',
-            bottom: -4,
-            right: isFirst ? undefined : -2,
-            backgroundColor: '#fff',
-            width: 22,
-            height: 22,
-            borderRadius: 11,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <Text style={{ fontSize: 10, fontFamily: font.bold, color: '#312e2d' }}>{rank}</Text>
-          </View>
-        )}
+    <View style={{ width: W, height: H + 22, alignItems: 'center' }}>
+      <Svg width={W} height={H}>
+        <Path d={d} stroke={track} strokeWidth={SW} fill="none" strokeLinecap="round" />
+        <Path
+          d={d}
+          stroke={BRAND}
+          strokeWidth={SW}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${len * f} ${len}`}
+        />
+      </Svg>
+      {/* Center value */}
+      <View style={{ position: 'absolute', top: cy - 58, width: W, alignItems: 'center' }}>
+        <Coins size={22} color={BRAND} />
+        <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: isDark ? '#fff' : '#1c1917', letterSpacing: -1, marginTop: 2 }}>
+          {value.toLocaleString()}
+        </Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>
+          Troski Coin
+        </Text>
       </View>
-
-      <Text
-        style={{
-          fontSize: isFirst ? 18 : 14,
-          fontFamily: font.bold,
-          color: '#fff',
-          textAlign: 'center',
-        }}
-        numberOfLines={1}
-      >
-        {entry?.display_name ?? '--'}
-      </Text>
-
-      <Text style={{
-        fontSize: isFirst ? 14 : 12,
-        fontFamily: font.bold,
-        color: isFirst ? '#FF4D1C' : 'rgba(255,255,255,0.8)',
-        marginTop: 2,
-      }}>
-        {entry ? `${formatPts(entry.weekly_points)} pts` : '--'}
-      </Text>
+      {/* Scale labels */}
+      <View style={{ position: 'absolute', top: cy - 4, width: W, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6 }}>
+        <Text style={gaugeScaleStyle(isDark)}>0</Text>
+        <Text style={gaugeScaleStyle(isDark)}>{max}</Text>
+      </View>
     </View>
   )
 }
 
-/* ── Helpers ─────────────────────────────────────────── */
+function gaugeScaleStyle(isDark: boolean) {
+  return { fontFamily: font.bold, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.45)' : '#9CA3AF' } as const
+}
 
-function formatPts(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`
-  return n.toLocaleString()
+/* ── History row meta ────────────────────────────────── */
+
+function historyMeta(entry: PointsHistoryEntry): { label: string; Icon: typeof Bus } {
+  if (entry.points < 0) return { label: entry.reason || 'Coin Redeemed', Icon: Banknote }
+  switch (entry.report_type) {
+    case 'fare': return { label: 'Fare Payment Reward', Icon: Bus }
+    case 'queue': return { label: 'Queue Status Report', Icon: Clock }
+    case 'incident': return { label: 'Incident Report', Icon: AlertTriangle }
+    case 'train': return { label: 'Train Report', Icon: TrainFront }
+    case 'tale': return { label: 'Pulse Post Shared', Icon: Camera }
+    case 'referral': return { label: 'Referral Bonus', Icon: Gift }
+    case 'streak': return { label: 'Streak Bonus', Icon: Flame }
+    default: return { label: entry.reason || 'Coins Earned', Icon: Coins }
+  }
 }
 
 /* ── Main Screen ─────────────────────────────────────── */
 
 export default function RewardsScreen() {
   const router = useRouter()
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
+  const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
-  const t = themed(isDark)
   const { deviceId, refreshProfile } = useApp()
-  const { entries: leaderboard, isLoading, refetch: refetchLeaderboard } = useLeaderboard(deviceId)
-  useRefreshOnFocus([['profile', deviceId], ['leaderboard', deviceId]])
 
-  const [period, setPeriod] = useState<'week' | 'all'>('all')
-  const [showEarnInfo, setShowEarnInfo] = useState(false)
+  const { profile, rank, isLoading, refetch: refetchProfile } = useProfile(deviceId)
+  const { entries: history, refetch: refetchHistory } = usePointsHistory(deviceId)
+  useRefreshOnFocus([['profile', deviceId], ['history', deviceId]])
+
+  const [tab, setTab] = useState<Tab>('Coins')
   const [refreshing, setRefreshing] = useState(false)
+
+  // Referral state
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [referralCount, setReferralCount] = useState(0)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!deviceId) return
+    ;(async () => {
+      try {
+        const { data: p } = await supabase
+          .from('contributor_profiles')
+          .select('id, referral_code, referral_count')
+          .eq('device_id', deviceId)
+          .single()
+        if (!p) return
+        let code = p.referral_code
+        if (!code) {
+          code = `TROSKI-${deviceId.substring(0, 4).toUpperCase()}`
+          await supabase.from('contributor_profiles').update({ referral_code: code }).eq('id', p.id)
+        }
+        setReferralCode(code)
+        const { count } = await supabase
+          .from('referrals')
+          .select('*', { count: 'exact', head: true })
+          .eq('referrer_device_id', deviceId)
+        setReferralCount(count || 0)
+      } catch {
+        // non-critical
+      }
+    })()
+  }, [deviceId])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await Promise.all([refreshProfile(), refetchLeaderboard()])
+    await Promise.all([refreshProfile(), refetchProfile(), refetchHistory()])
     setRefreshing(false)
-  }, [refreshProfile, refetchLeaderboard])
+  }, [refreshProfile, refetchProfile, refetchHistory])
 
-  const sortedBoard = useMemo(() => {
-    if (period === 'all') {
-      return [...leaderboard].sort((a, b) => b.total_points - a.total_points)
+  /* ── Derived data ── */
+  const coins = profile?.total_points ?? 0
+  const streak = profile?.current_streak ?? 0
+  const ghsValue = (coins * COIN_TO_GHS).toFixed(2)
+  const gaugeMax = Math.max(200, Math.ceil((coins + 1) / 100) * 100)
+
+  const derived = useMemo(() => {
+    const now = Date.now()
+    const dayMs = 86_400_000
+    const todayStr = new Date(now).toDateString()
+    const yestStr = new Date(now - dayMs).toDateString()
+    const monthStart = new Date(new Date(now).getFullYear(), new Date(now).getMonth(), 1).getTime()
+
+    let todayPoints = 0
+    let thisWeek = 0
+    let prevWeek = 0
+    let monthEarned = 0
+    let redeemed = 0
+    const groups: { title: string; items: PointsHistoryEntry[] }[] = [
+      { title: 'Today', items: [] },
+      { title: 'Yesterday', items: [] },
+      { title: 'Earlier', items: [] },
+    ]
+
+    for (const h of history) {
+      const t = new Date(h.created_at).getTime()
+      const ds = new Date(h.created_at).toDateString()
+      if (ds === todayStr) { todayPoints += h.points; groups[0].items.push(h) }
+      else if (ds === yestStr) groups[1].items.push(h)
+      else groups[2].items.push(h)
+      if (now - t < 7 * dayMs && h.points > 0) thisWeek += h.points
+      else if (now - t >= 7 * dayMs && now - t < 14 * dayMs && h.points > 0) prevWeek += h.points
+      if (t >= monthStart && h.points > 0) monthEarned += h.points
+      if (h.points < 0) redeemed += Math.abs(h.points)
     }
-    return leaderboard
-  }, [leaderboard, period])
+    return {
+      todayPoints,
+      weekDelta: thisWeek - prevWeek,
+      monthEarned,
+      redeemed,
+      groups: groups.filter((g) => g.items.length > 0),
+    }
+  }, [history])
 
-  const pointsKey = period === 'all' ? 'total_points' : 'weekly_points'
+  /* ── Earn actions (real point values) ── */
+  const earnActions = useMemo(() => [
+    { label: 'Report a fare', sub: 'Tell the community what you paid', pts: REPORT_POINTS.fare, Icon: Bus, route: '/report/fare' },
+    { label: 'Report a queue status', sub: 'Update bay queue at the terminal', pts: REPORT_POINTS.queue, Icon: Users, route: '/report/queue' },
+    { label: 'Report incidents', sub: 'Accidents, breakdowns, roadblocks', pts: REPORT_POINTS.incident, Icon: AlertTriangle, route: '/report/incident' },
+    { label: 'Share to Pulse', sub: 'Post your commute experience', pts: REPORT_POINTS.tale, Icon: Camera, route: '/report/photo' },
+    { label: '7-day streak bonus', sub: 'Use Troski 7 days in a row', pts: STREAK_CONFIG.BONUS_POINTS, Icon: Flame, route: null },
+    { label: 'Refer a friend', sub: 'They must complete 3 trips', pts: 500, Icon: Gift, route: null },
+  ], [])
+
+  const handleCopy = async () => {
+    if (!referralCode) return
+    try {
+      await Clipboard.setStringAsync(referralCode)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      handleShare()
+    }
+  }
+
+  const handleShare = async () => {
+    if (!referralCode) return
+    try {
+      await Share.share({
+        message: `Use my referral code ${referralCode} on Troski and we both earn coins! Check trotro fares, okada prices & more. https://www.troski.me`,
+      })
+    } catch {
+      // cancelled
+    }
+  }
+
+  const goEarn = (route: string | null) => {
+    if (!route) { setTab('Earn'); return }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    router.push(route as Href)
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Rewards</Text>
+      </View>
+
+      {/* Sub-tabs */}
+      <View style={s.tabRow}>
+        {TABS.map((tb) => {
+          const active = tab === tb
+          return (
+            <TouchableOpacity
+              key={tb}
+              activeOpacity={0.8}
+              onPress={() => { setTab(tb); Haptics.selectionAsync() }}
+              style={[s.tabPill, active && s.tabPillActive]}
+            >
+              <Text style={[s.tabPillText, active && s.tabPillTextActive]}>{tb}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
       <ScrollView
         style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={c.white}
-            colors={['#FF4D1C']}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} colors={[BRAND]} />}
       >
-        {/* ═══ MAROON HERO ═══ */}
-        <Animated.View entering={FadeInDown.duration(400)} style={s.hero}>
-          <View style={[s.heroDecor, { top: -40, right: -30, width: 160, height: 160 }]} />
-          <View style={[s.heroDecor, { bottom: 40, left: -50, width: 120, height: 120 }]} />
-
-          {isLoading ? (
-            <SkeletonRewards isDark={isDark} />
-          ) : (
-            <>
-              <Text style={s.heroTitle}>Leaderboard</Text>
-              <Text style={s.heroSubtitle}>Season 4 • Accra Metro</Text>
-
-              {/* Period tabs */}
-              <View style={s.periodRow}>
-                <TouchableOpacity
-                  onPress={() => setPeriod('week')}
-                  activeOpacity={0.7}
-                  style={[s.periodTab, period === 'week' && s.periodTabActive]}
-                >
-                  <Text style={[s.periodText, period === 'week' && s.periodTextActive]}>
-                    THIS WEEK
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setPeriod('all')}
-                  activeOpacity={0.7}
-                  style={[s.periodTab, period === 'all' && s.periodTabActive]}
-                >
-                  <Text style={[s.periodText, period === 'all' && s.periodTextActive]}>
-                    ALL TIME
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Podium */}
-              {sortedBoard.length > 0 ? (
-                <View style={s.podiumRow}>
-                  <View style={{ marginTop: 24 }}>
-                    <PodiumAvatar entry={sortedBoard[1]} rank={2} />
+        {isLoading ? (
+          <SkeletonRewards isDark={isDark} />
+        ) : (
+          <Animated.View entering={FadeInDown.duration(350)}>
+            {/* ═══════════ COINS ═══════════ */}
+            {tab === 'Coins' && (
+              <>
+                <View style={s.card}>
+                  <Text style={s.coinCaption}>1 coin ≈ GH₵{COIN_TO_GHS.toFixed(2)}</Text>
+                  <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <CoinGauge value={coins} max={gaugeMax} isDark={isDark} />
                   </View>
-                  <PodiumAvatar entry={sortedBoard[0]} rank={1} isFirst />
-                  <View style={{ marginTop: 24 }}>
-                    <PodiumAvatar entry={sortedBoard[2]} rank={3} />
+                  <View style={s.statRow}>
+                    <Stat label="Today" value={`${derived.todayPoints >= 0 ? '' : ''}${derived.todayPoints}`} isDark={isDark} />
+                    <View style={s.statDivider} />
+                    <Stat label="Streak" value={`${streak}`} isDark={isDark} />
+                    <View style={s.statDivider} />
+                    <Stat label="Rank" value={rank ? `#${rank}` : '--'} isDark={isDark} onPress={() => router.push('/leaderboard' as Href)} />
                   </View>
                 </View>
-              ) : (
-                <View style={s.emptyPodium}>
-                  <Trophy size={40} color="rgba(255,255,255,0.3)" />
-                  <Text style={s.emptyPodiumText}>No contributors yet this week</Text>
+
+                <TouchableOpacity activeOpacity={0.9} style={s.primaryBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.navigate('/wallet' as Href) }}>
+                  <WalletIcon size={18} color="#fff" />
+                  <Text style={s.primaryBtnText}>View Wallet</Text>
+                </TouchableOpacity>
+
+                <View style={s.banner}>
+                  <TrendingUp size={16} color="#16a34a" />
+                  <Text style={s.bannerText}>
+                    {derived.weekDelta > 0
+                      ? `You've earned ${derived.weekDelta}+ more points than last week`
+                      : 'Keep earning coins to climb the ranks'}
+                  </Text>
                 </View>
-              )}
-            </>
-          )}
-        </Animated.View>
+              </>
+            )}
 
-        {/* ═══ Overlap content ═══ */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.overlapContent}>
-          {/* Referral card — Stitch style */}
-          <ReferralCard />
-
-          {/* Ranked list 4–7 */}
-          {!isLoading && sortedBoard.length > 3 && (
-            <View style={s.rankedSection}>
-              <Text style={s.rankedSectionTitle}>Top Contributors</Text>
-
-              {sortedBoard.slice(3, 8).map((entry) => {
-                const isMe = entry.device_id === deviceId
-
-                return (
-                  <View
-                    key={entry.id}
-                    style={[s.rankedRow, isMe && s.rankedRowMe]}
-                  >
-                    <View style={s.rankedLeft}>
-                      <Text style={s.rankedRankNum}>{entry.rank}</Text>
-                      <View style={s.rankedAvatarWrap}>
-                        <InitialsAvatar
-                          name={entry.display_name ?? null}
-                          deviceId={entry.device_id ?? ''}
-                          size={40}
-                        />
-                      </View>
-                      <Text style={s.rankedName} numberOfLines={1}>
-                        {(entry.display_name ?? 'Anonymous').toUpperCase()}
-                        {isMe ? ' (YOU)' : ''}
-                      </Text>
-                    </View>
-                    <Text style={s.rankedPts}>
-                      {formatPts(entry[pointsKey])} pts
+            {/* ═══════════ EARN ═══════════ */}
+            {tab === 'Earn' && (
+              <>
+                {/* Daily streak */}
+                <View style={s.streakCard}>
+                  <View style={s.streakTop}>
+                    <Text style={s.streakTitle}>Daily Streak</Text>
+                    <Text style={s.streakBadge}>{streak} day streak</Text>
+                  </View>
+                  <View style={s.streakDays}>
+                    {DAYS.map((d, i) => {
+                      const done = i < Math.min(streak, 7)
+                      return (
+                        <View key={d} style={{ alignItems: 'center', gap: 6 }}>
+                          <View style={[s.dayDot, done && s.dayDotDone]}>
+                            {done ? <Check size={14} color={BRAND} strokeWidth={3} /> : <Text style={s.dayNum}>{i + 1}</Text>}
+                          </View>
+                          <Text style={s.dayLabel}>{d}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                  <View style={s.streakNote}>
+                    <Text style={s.streakNoteText}>
+                      Complete 7 days and earn +{STREAK_CONFIG.BONUS_POINTS} bonus pts
+                      {streak < 7 ? ` — ${7 - streak} day${7 - streak === 1 ? '' : 's'} left!` : ' — done!'}
                     </Text>
                   </View>
-                )
-              })}
+                </View>
 
-              <TouchableOpacity
-                onPress={() => router.push('/leaderboard' as Href)}
-                activeOpacity={0.7}
-                style={s.viewFullBtn}
-              >
-                <Text style={s.viewFullText}>View Full Leaderboard</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ═══ How to Earn Points ═══ */}
-          <View style={s.section}>
-            <TouchableOpacity
-              onPress={() => setShowEarnInfo(!showEarnInfo)}
-              activeOpacity={0.7}
-              style={s.earnHeader}
-            >
-              <View style={s.earnIconWrap}>
-                <TrendingUp size={20} color={isDark ? '#FF6A3D' : '#FF4D1C'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.earnTitle}>Earn Points</Text>
-                <Text style={s.earnSubtitle}>Report fares, queues & more</Text>
-              </View>
-              {showEarnInfo ? (
-                <ChevronUp size={20} color={t.textTertiary} />
-              ) : (
-                <ChevronDown size={20} color={t.textTertiary} />
-              )}
-            </TouchableOpacity>
-
-            {showEarnInfo && (
-              <View style={s.earnBody}>
-                {[
-                  { action: 'Report a fare', points: '+10', icon: '🚐' },
-                  { action: 'Report queue status', points: '+5', icon: '🕐' },
-                  { action: 'Report incident', points: '+15', icon: '⚠️' },
-                  { action: 'Report train', points: '+10', icon: '🚆' },
-                  { action: 'Share a tale', points: '+8', icon: '📸' },
-                  { action: '7-day streak bonus', points: '+5', icon: '🔥' },
-                ].map((item, index, arr) => (
-                  <View
-                    key={index}
-                    style={[s.earnRow, index < arr.length - 1 && s.earnRowBorder]}
-                  >
-                    <Text style={s.earnEmoji}>{item.icon}</Text>
-                    <Text style={s.earnAction}>{item.action}</Text>
-                    <View style={s.earnPointsPill}>
-                      <Zap size={12} color="#815100" />
-                      <Text style={s.earnPointsText}>{item.points}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+                {/* Earn coin list */}
+                <Text style={s.sectionTitle}>Earn Coin</Text>
+                <Text style={s.sectionSub}>Report fares, queues & more</Text>
+                <View style={s.listCard}>
+                  {earnActions.map((a, i) => (
+                    <TouchableOpacity
+                      key={a.label}
+                      activeOpacity={0.7}
+                      onPress={() => goEarn(a.route)}
+                      style={[s.earnRow, i < earnActions.length - 1 && s.rowBorder]}
+                    >
+                      <View style={s.earnIcon}><a.Icon size={18} color={BRAND} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.earnLabel}>{a.label}</Text>
+                        <Text style={s.earnSub}>{a.sub}</Text>
+                      </View>
+                      <View style={s.ptsPill}>
+                        <Text style={s.ptsPillText}>+{a.pts}</Text>
+                        <Coins size={12} color={BRAND} />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
             )}
-          </View>
-        </Animated.View>
 
-        <View style={{ height: 90 }} />
+            {/* ═══════════ HISTORY ═══════════ */}
+            {tab === 'History' && (
+              <>
+                <Text style={s.availLabel}>Available Coin</Text>
+                <View style={s.availRow}>
+                  <Coins size={26} color={BRAND} />
+                  <Text style={s.availValue}>{coins.toLocaleString()}</Text>
+                </View>
+                <Text style={s.availSub}>Equivalent to <Text style={{ fontFamily: font.bold, color: isDark ? '#fff' : '#1c1917' }}>GH₵{ghsValue}</Text> in value</Text>
+
+                <TouchableOpacity activeOpacity={0.85} style={s.cashOutBtn} onPress={() => Alert.alert('Cash Out — Coming soon', 'Redeeming Troski Coins for MoMo cash is on the way. Keep earning in the meantime!')}>
+                  <Banknote size={18} color="#16a34a" />
+                  <Text style={s.cashOutText}>Cash Out</Text>
+                </TouchableOpacity>
+
+                <View style={s.summaryRow}>
+                  <View style={[s.summaryCard, { marginRight: 6 }]}>
+                    <Text style={s.summaryLabel}>This Month</Text>
+                    <Text style={[s.summaryValue, { color: '#16a34a' }]}>+{derived.monthEarned}</Text>
+                  </View>
+                  <View style={[s.summaryCard, { marginLeft: 6 }]}>
+                    <Text style={s.summaryLabel}>Redeemed</Text>
+                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF') }]}>
+                      {derived.redeemed > 0 ? `-${derived.redeemed}` : '0'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={s.sectionTitle}>Coin History</Text>
+                {derived.groups.length === 0 ? (
+                  <View style={s.emptyHistory}>
+                    <Coins size={36} color={isDark ? '#57534e' : '#D4D4D2'} />
+                    <Text style={s.emptyHistoryText}>No coin activity yet. Start reporting to earn!</Text>
+                  </View>
+                ) : (
+                  derived.groups.map((g) => (
+                    <View key={g.title} style={{ marginTop: 6 }}>
+                      <Text style={s.histGroup}>{g.title}</Text>
+                      <View style={s.listCard}>
+                        {g.items.map((h, i) => {
+                          const meta = historyMeta(h)
+                          const positive = h.points >= 0
+                          return (
+                            <View key={h.id} style={[s.histRow, i < g.items.length - 1 && s.rowBorder]}>
+                              <View style={[s.histIcon, !positive && { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEECEC' }]}>
+                                <meta.Icon size={16} color={positive ? BRAND : '#ef4444'} />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={s.histLabel}>{meta.label}</Text>
+                                <Text style={s.histTime}>{histTime(h.created_at)}</Text>
+                              </View>
+                              <Text style={[s.histPts, { color: positive ? '#16a34a' : '#ef4444' }]}>
+                                {positive ? '+' : '-'}{Math.abs(h.points)}
+                              </Text>
+                            </View>
+                          )
+                        })}
+                      </View>
+                    </View>
+                  ))
+                )}
+              </>
+            )}
+
+            {/* ═══════════ REFERRALS ═══════════ */}
+            {tab === 'Referrals' && (
+              <>
+                <View style={s.refTopCard}>
+                  <View style={s.refAvatars}>
+                    {[0, 1, 2, 3].map((i) => (
+                      <View key={i} style={[s.refAvatar, { marginLeft: i === 0 ? 0 : -10, backgroundColor: ['#FFD6C7', '#C7E5FF', '#D7F5D7', '#EAD7FF'][i] }]}>
+                        <Users size={14} color="#fff" />
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => Alert.alert('Referral History', referralCount > 0 ? `${referralCount} friend${referralCount === 1 ? '' : 's'} have joined with your code.` : 'No referrals yet. Share your code to get started!')}>
+                    <Text style={s.refHistoryLink}>View History</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={s.refCountRow}>
+                  <Text style={s.refCountLabel}>Total Completed Referrals</Text>
+                  <Text style={s.refCountValue}>{referralCount} Friend{referralCount === 1 ? '' : 's'}</Text>
+                </View>
+
+                {/* Gift graphic */}
+                <View style={s.giftWrap}>
+                  <View style={[s.orbit, { width: 200, height: 200, borderRadius: 100 }]} />
+                  <View style={[s.orbit, { width: 140, height: 140, borderRadius: 70 }]} />
+                  <View style={s.giftCircle}><Gift size={40} color={BRAND} /></View>
+                  {[
+                    { top: 6, left: 30 }, { top: 30, right: 18 }, { bottom: 12, left: 18 }, { bottom: 24, right: 30 },
+                  ].map((pos, i) => (
+                    <View key={i} style={[s.orbitAvatar, pos as object, { backgroundColor: ['#FFD6C7', '#C7E5FF', '#D7F5D7', '#EAD7FF'][i] }]}>
+                      <Users size={13} color="#fff" />
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={s.refTitle}>Invite Friends</Text>
+                <Text style={s.refSub}>Get 500 pts per referral who completes 3 trips</Text>
+
+                <View style={s.codeRow}>
+                  <View style={s.codeBox}>
+                    <Text style={s.codeLabel}>Your referral code</Text>
+                    <Text style={s.codeText}>{referralCode ?? '—'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy}>
+                    {copied ? <Check size={18} color="#16a34a" /> : <Copy size={18} color={BRAND} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={s.codeShare}>
+                    <Share2 size={16} color="#fff" />
+                    <Text style={s.codeShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Animated.View>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
+}
+
+/* ── Small stat cell ─────────────────────────────────── */
+
+function Stat({ label, value, isDark, onPress }: { label: string; value: string; isDark: boolean; onPress?: () => void }) {
+  const body = (
+    <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: isDark ? '#fff' : '#1c1917' }}>{value}</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>{label}</Text>
+    </View>
+  )
+  if (onPress) return <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.6} onPress={onPress}>{body}</TouchableOpacity>
+  return body
+}
+
+function histTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 /* ── Styles ──────────────────────────────────────────── */
 
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
-
-  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const surfaceHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
-  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
+  const surface = isDark ? '#1c1c1e' : '#ffffff'
+  const subText = isDark ? 'rgba(255,255,255,0.55)' : '#9CA3AF'
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#F1ECEA'
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fcf5f2' },
-    section: { marginBottom: 16 },
+    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fafaf9' },
 
-    /* ═══ MAROON HERO ═══ */
-    hero: {
-      backgroundColor: MAROON,
-      paddingTop: 40,
-      paddingBottom: 48,
-      paddingHorizontal: 20,
-      overflow: 'hidden',
-    },
-    heroDecor: {
-      position: 'absolute',
-      borderRadius: 999,
-      backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    heroTitle: {
-      fontSize: 32,
-      fontFamily: font.extrabold,
-      color: '#fff',
-      textAlign: 'center',
-      letterSpacing: -1,
-    },
-    heroSubtitle: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.7)',
-      textAlign: 'center',
-      textTransform: 'uppercase',
-      letterSpacing: 3,
-      marginTop: 6,
-      marginBottom: 20,
-    },
+    header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8, alignItems: 'center' },
+    headerTitle: { fontFamily: font.bold, fontSize: 18, color: t.text },
 
-    periodRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 24,
-      marginBottom: 20,
-    },
-    periodTab: {
-      paddingBottom: 6,
-      borderBottomWidth: 2,
-      borderBottomColor: 'transparent',
-    },
-    periodTabActive: {
-      borderBottomColor: '#fff',
-    },
-    periodText: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: 'rgba(255,255,255,0.4)',
-      letterSpacing: 1.5,
-    },
-    periodTextActive: {
-      color: '#fff',
-    },
+    /* sub-tabs */
+    tabRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8 },
+    tabPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F4F1F0' },
+    tabPillActive: { backgroundColor: BRAND },
+    tabPillText: { fontFamily: font.semibold, fontSize: 13, color: subText },
+    tabPillTextActive: { color: '#fff' },
 
-    podiumRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      justifyContent: 'center',
-      gap: 8,
+    card: {
+      backgroundColor: surface, borderRadius: 20, paddingVertical: 20, padding: 20,
+      borderWidth: isDark ? 1 : 0, borderColor: border,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0 : 0.06, shadowRadius: 16, elevation: isDark ? 0 : 3,
     },
-    emptyPodium: {
-      alignItems: 'center',
-      paddingVertical: 40,
-    },
-    emptyPodiumText: {
-      color: 'rgba(255,255,255,0.5)',
-      fontSize: 14,
-      fontFamily: font.medium,
-      marginTop: 12,
-    },
+    coinCaption: { alignSelf: 'center', fontFamily: font.medium, fontSize: 12, color: subText },
 
-    /* ═══ Overlap content ═══ */
-    overlapContent: {
-      marginTop: -20,
-      paddingHorizontal: 20,
-    },
+    statRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 16, borderTopWidth: 1, borderTopColor: border },
+    statDivider: { width: 1, height: 28, backgroundColor: border },
 
-    /* ═══ Ranked list ═══ */
-    rankedSection: {
-      marginBottom: 16,
+    primaryBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      height: 52, borderRadius: 14, backgroundColor: BRAND, marginTop: 16,
     },
-    rankedSectionTitle: {
-      fontSize: 11,
-      fontFamily: font.bold,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
-      textTransform: 'uppercase',
-      letterSpacing: 3,
-      marginBottom: 14,
-      paddingHorizontal: 4,
-    },
-    rankedRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 16,
-      borderRadius: 14,
-      backgroundColor: surfaceLow,
-      marginBottom: 8,
-    },
-    rankedRowMe: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)',
-    },
-    rankedLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      flex: 1,
-    },
-    rankedRankNum: {
-      width: 22,
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
-      textAlign: 'center',
-    },
-    rankedAvatarWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      overflow: 'hidden',
-      opacity: 0.8,
-    },
-    rankedName: {
-      flex: 1,
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: t.text,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-    },
-    rankedPts: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#815100',
-    },
-    viewFullBtn: {
-      paddingVertical: 16,
-      alignItems: 'center',
-    },
-    viewFullText: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: '#815100',
-      textTransform: 'uppercase',
-      letterSpacing: 2,
-    },
+    primaryBtnText: { fontFamily: font.bold, fontSize: 15, color: '#fff' },
 
-    /* ═══ Earn Points ═══ */
-    earnHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 18,
-      borderRadius: 16,
-      backgroundColor: surfaceLowest,
-      gap: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 12,
-      elevation: isDark ? 0 : 3,
+    banner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
+      backgroundColor: isDark ? 'rgba(22,163,74,0.12)' : '#EAF7EE', borderRadius: 12, padding: 14,
     },
-    earnIconWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(129,81,0,0.08)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    earnTitle: {
-      fontSize: 17,
-      fontFamily: font.bold,
-      color: t.text,
-    },
-    earnSubtitle: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59',
-      marginTop: 2,
-    },
-    earnBody: {
-      paddingHorizontal: 18,
-      paddingVertical: 8,
-      backgroundColor: surfaceLowest,
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
-      marginTop: -12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 12,
-      elevation: isDark ? 0 : 3,
-    },
-    earnRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 14,
-      gap: 12,
-    },
-    earnRowBorder: {
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8',
-    },
-    earnEmoji: {
-      fontSize: 20,
-      width: 28,
-      textAlign: 'center',
-    },
-    earnAction: {
-      flex: 1,
-      fontSize: 15,
-      fontFamily: font.medium,
-      color: t.text,
-    },
-    earnPointsPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      borderRadius: 12,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(129,81,0,0.08)',
-    },
-    earnPointsText: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#815100',
-    },
+    bannerText: { flex: 1, fontFamily: font.medium, fontSize: 13, color: isDark ? '#86efac' : '#15803d' },
 
+    /* streak */
+    streakCard: { backgroundColor: BRAND, borderRadius: 20, padding: 18, overflow: 'hidden' },
+    streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+    streakTitle: { fontFamily: font.bold, fontSize: 18, color: '#fff' },
+    streakBadge: { fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
+    streakDays: { flexDirection: 'row', justifyContent: 'space-between' },
+    dayDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+    dayDotDone: { backgroundColor: '#fff' },
+    dayNum: { fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
+    dayLabel: { fontFamily: font.medium, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
+    streakNote: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 10, padding: 12, marginTop: 16 },
+    streakNoteText: { fontFamily: font.medium, fontSize: 12.5, color: '#fff', textAlign: 'center' },
+
+    sectionTitle: { fontFamily: font.bold, fontSize: 18, color: t.text, marginTop: 22 },
+    sectionSub: { fontFamily: font.regular, fontSize: 13, color: subText, marginTop: 2, marginBottom: 12 },
+
+    listCard: { backgroundColor: surface, borderRadius: 16, paddingHorizontal: 14, borderWidth: isDark ? 1 : 0, borderColor: border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2, marginTop: 8 },
+    rowBorder: { borderBottomWidth: 1, borderBottomColor: border },
+
+    earnRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+    earnIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
+    earnLabel: { fontFamily: font.semibold, fontSize: 15, color: t.text },
+    earnSub: { fontFamily: font.regular, fontSize: 12, color: subText, marginTop: 2 },
+    ptsPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+    ptsPillText: { fontFamily: font.bold, fontSize: 14, color: BRAND },
+
+    /* history */
+    availLabel: { fontFamily: font.medium, fontSize: 13, color: subText, marginTop: 4 },
+    availRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+    availValue: { fontFamily: font.extrabold, fontSize: 34, color: t.text, letterSpacing: -1 },
+    availSub: { fontFamily: font.regular, fontSize: 13, color: subText, marginTop: 2 },
+    cashOutBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: '#16a34a', borderRadius: 12, paddingHorizontal: 16, height: 42, marginTop: 16 },
+    cashOutText: { fontFamily: font.bold, fontSize: 14, color: '#16a34a' },
+    summaryRow: { flexDirection: 'row', marginTop: 18 },
+    summaryCard: { flex: 1, backgroundColor: surface, borderRadius: 14, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 10, elevation: isDark ? 0 : 2 },
+    summaryLabel: { fontFamily: font.medium, fontSize: 12, color: subText },
+    summaryValue: { fontFamily: font.extrabold, fontSize: 22, marginTop: 6 },
+    histGroup: { fontFamily: font.bold, fontSize: 12, color: subText, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 2 },
+    histRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
+    histIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
+    histLabel: { fontFamily: font.semibold, fontSize: 14, color: t.text },
+    histTime: { fontFamily: font.regular, fontSize: 12, color: subText, marginTop: 2 },
+    histPts: { fontFamily: font.extrabold, fontSize: 15 },
+    emptyHistory: { alignItems: 'center', gap: 10, paddingVertical: 40 },
+    emptyHistoryText: { fontFamily: font.medium, fontSize: 13, color: subText, textAlign: 'center', paddingHorizontal: 40 },
+
+    /* referrals */
+    refTopCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: surface, borderRadius: 16, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border },
+    refAvatars: { flexDirection: 'row', alignItems: 'center' },
+    refAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: surface },
+    refHistoryLink: { fontFamily: font.bold, fontSize: 13, color: BRAND },
+    refCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 4 },
+    refCountLabel: { fontFamily: font.medium, fontSize: 14, color: subText },
+    refCountValue: { fontFamily: font.bold, fontSize: 14, color: t.text },
+
+    giftWrap: { alignItems: 'center', justifyContent: 'center', height: 220, marginTop: 10 },
+    orbit: { position: 'absolute', borderWidth: 1, borderColor: border },
+    giftCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
+    orbitAvatar: { position: 'absolute', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: isDark ? '#0c0a09' : '#fafaf9' },
+
+    refTitle: { fontFamily: font.bold, fontSize: 20, color: t.text, textAlign: 'center', marginTop: 4 },
+    refSub: { fontFamily: font.regular, fontSize: 13, color: subText, textAlign: 'center', marginTop: 4, marginBottom: 18, paddingHorizontal: 20 },
+    codeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    codeBox: { flex: 1, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: border },
+    codeLabel: { fontFamily: font.regular, fontSize: 11, color: subText },
+    codeText: { fontFamily: font.extrabold, fontSize: 18, color: t.text, letterSpacing: 2, marginTop: 2 },
+    codeCopy: { width: 48, height: 48, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
+    codeShare: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, paddingHorizontal: 18, borderRadius: 14, backgroundColor: BRAND },
+    codeShareText: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
   })
 }

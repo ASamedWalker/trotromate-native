@@ -43,10 +43,35 @@ DISABLED globally. Light only. `Appearance.setColorScheme('light')` in `_layout.
 | Home | `(tabs)/index.tsx` | Greeting, wallet card, services, my routes |
 | Lines | `(tabs)/lines.tsx` | Routes + Train merged with segment toggle |
 | Wallet | `(tabs)/wallet.tsx` | Balance, transactions, MoMo top-up |
-| Tales | `(tabs)/tales.tsx` | Community photo feed |
-| Rewards | `(tabs)/rewards.tsx` | Leaderboard, earn points |
+| Pulse | `(tabs)/tales.tsx` | Community feed (Instagram-style). Radio/broadcast icon |
+| Rewards | `(tabs)/rewards.tsx` | Coins / Earn / History / Referrals sub-tabs |
 
 Profile accessible via header avatar (no Profile tab).
+
+## Pulse (was "Tales")
+Renamed **user-facing only** (June 2026): tab label, feed empty state, composer
+button ("Post to Pulse"), profile stat, reel badge, notification labels.
+**Internal code + ALL backend identifiers are still `tale*`** on purpose — table
+`tale_posts`, `report_type: 'tale'`, notification pref keys (`tale_likes` etc.),
+hooks (`useTalesFeed`), types (`TalePost`), `components/TalesScreen.tsx`,
+`lib/hooks/useTales.ts`, `lib/services/tales.ts`. Renaming those would break the
+live Supabase backend for zero user benefit. Composer header intentionally keeps
+"Trotro Tales" (matches Figma). Don't "fix" the internal tale naming.
+
+## Rewards (4 sub-tabs, June 2026)
+`(tabs)/rewards.tsx` — segmented Coins / Earn / History / Referrals (brand pills):
+- **Coins**: semicircular SVG gauge (`react-native-svg`) of `total_points` (labeled
+  "Troski Coin"), stats Today/Streak/Rank (Rank → `/leaderboard`), View Wallet, weekly delta banner.
+- **Earn**: Daily Streak card (Mon–Sun, `current_streak`, real +5 bonus from `STREAK_CONFIG`)
+  + Earn Coin list (real `REPORT_POINTS` values; rows deep-link to report screens).
+- **History**: Available Coin + `points_history` grouped Today/Yesterday/Earlier.
+- **Referrals**: reuses `referral_code`/`referral_count` (contributor_profiles + referrals table) + Share.
+- Coin↔GH₵: `COIN_TO_GHS = 0.1` (display only). The OLD leaderboard podium is gone
+  from the tab; the full `/leaderboard` screen still exists (reachable via Rank stat).
+- **FOLLOW-UP (no backend yet)**: "Cash Out" is a "Coming soon" stub — needs a
+  coin→MoMo redemption endpoint + a `coin_redemptions`/balance model. Coins are just
+  points today; if a real coin economy lands, split it from `total_points`.
+  `components/ReferralCard.tsx` is now unused (logic inlined into the Referrals tab).
 
 ## Route Detail Flow (June 2026)
 ```
@@ -134,7 +159,7 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
 - Buses Nearby quick action screen
 - Queue Status quick action screen
 - Booking system
-- Apply Uber Base tokens to Lines, Wallet, Tales, Rewards tabs
+- Apply Uber Base tokens to Lines tab (Wallet, Pulse, Rewards done)
 - **Bus arrival notifications** (route detail timeline bell — currently UI stub).
   Gated on real driver GPS data. Build order:
   1. iOS Live Activity / Android ongoing notification (reuse `lib/services/liveActivity.ts`) — watch bus ETA on lock screen without opening the app
