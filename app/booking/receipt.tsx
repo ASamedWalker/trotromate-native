@@ -49,7 +49,13 @@ export default function ReceiptScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 }}>
+      {/* Close — back to home */}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 4 }}>
+        <TouchableOpacity onPress={() => { if (router.canDismiss()) router.dismissAll(); else router.replace('/(tabs)' as never) }} style={s.closeTop} hitSlop={8}>
+          <X size={20} color="#111" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 }}>
         {/* Success */}
         <View style={{ alignItems: 'center' }}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -169,6 +175,7 @@ export default function ReceiptScreen() {
 const s = StyleSheet.create({
   checkRing: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(34,197,94,0.15)', justifyContent: 'center', alignItems: 'center' },
   pulseRing: { position: 'absolute', width: 96, height: 96, borderRadius: 48, backgroundColor: GREEN },
+  closeTop: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   checkCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: GREEN, justifyContent: 'center', alignItems: 'center' },
   title: { fontFamily: font.bold, fontSize: 20, color: '#111', marginTop: 18 },
   subtitle: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 4 },
