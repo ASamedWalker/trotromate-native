@@ -43,7 +43,7 @@ interface Service {
 }
 
 const SERVICES: Service[] = [
-  { id: 'bus', label: 'Bus', image: require('@/assets/images/home/bus_icon_bg_removed.png'), route: '/booking' },
+  { id: 'bus', label: 'Bus', image: require('@/assets/images/home/bus_icon_bg_removed.png'), route: '/routes/search' },
   { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), comingSoon: true },
   { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png') },
   { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), comingSoon: true },

@@ -198,9 +198,6 @@ function AppInner() {
             login" bug). slide_from_bottom keeps the upward feel. */}
         <Stack.Screen name="auth/phone" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="auth/verify" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="booking/index" options={{ headerShown: false }} />
-        <Stack.Screen name="booking/trip" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="booking/confirm" options={{ headerShown: false }} />
         <Stack.Screen name="booking/checkout" options={{ headerShown: false }} />
         <Stack.Screen name="booking/processing" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="booking/receipt" options={{ headerShown: false, gestureEnabled: false }} />
