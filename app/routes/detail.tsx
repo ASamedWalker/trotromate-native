@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
@@ -613,26 +613,11 @@ export default function RouteDetailScreen() {
                         borderWidth: 1, borderColor: '#F3F4F6',
                         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
                       }}>
-                        {/* Bus code + Live badge */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <Image
-                              source={TRANSPORT_OPTIONS.find(o => o.id === selectedTransport)?.image || TRANSPORT_OPTIONS[0].image}
-                              style={{ width: 48, height: 48, opacity: v.isStale ? 0.4 : 1 }}
-                              resizeMode="contain"
-                            />
-                            <View>
-                              <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#000' }}>{v.plateNumber}</Text>
-                              {'driver' in v && (v as any).driver && (
-                                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#374151', marginTop: 1 }}>
-                                  {(v as any).driver}
-                                </Text>
-                              )}
-                              <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>
-                                {v.routeLabel || `${from} → ${to}`}
-                              </Text>
-                            </View>
-                          </View>
+                        {/* ETA headline + Live */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: v.isStale ? '#9CA3AF' : '#000', letterSpacing: -0.4 }}>
+                            {v.isStale ? 'Offline' : etaMins != null ? (etaMins <= 2 ? 'Arriving now' : `Arriving in ${etaMins} min`) : 'At a stop'}
+                          </Text>
                           {!v.isStale && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
                               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
@@ -641,17 +626,28 @@ export default function RouteDetailScreen() {
                           )}
                         </View>
 
-                        {/* Speed + ETA */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                            {v.isStale ? 'Last seen 2+ min ago' : v.speed ? `Moving at ${Math.round(v.speed)} km/h` : 'Stationary'}
+                        {/* Friendly status */}
+                        <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 3 }}>
+                          {v.isStale ? 'Last seen a moment ago' : v.speed && v.speed > 0 ? 'On the way' : 'Waiting at a stop'}
+                        </Text>
+
+                        {/* Divider */}
+                        <View style={{ height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 }} />
+
+                        {/* Plate + driver (secondary) — tap opens the bus timeline */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <Image
+                            source={TRANSPORT_OPTIONS.find(o => o.id === selectedTransport)?.image || TRANSPORT_OPTIONS[0].image}
+                            style={{ width: 30, height: 30, opacity: v.isStale ? 0.4 : 1 }}
+                            resizeMode="contain"
+                          />
+                          <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14, color: '#111' }} numberOfLines={1}>
+                            {v.plateNumber}
+                            {'driver' in v && (v as any).driver ? (
+                              <Text style={{ fontFamily: font.regular, color: '#9CA3AF' }}>{`   ·   ${(v as any).driver}`}</Text>
+                            ) : null}
                           </Text>
-                          {etaMins && !v.isStale && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Bus size={14} color={BRAND} />
-                              <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>{etaMins} min</Text>
-                            </View>
-                          )}
+                          <ChevronRight size={18} color="#D1D5DB" />
                         </View>
                       </TouchableOpacity>
                     )
