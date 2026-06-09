@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   X, MapPin, ChevronRight, Navigation,
-  Clock,
+  Clock, CircleDot, ArrowUpDown,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
@@ -269,19 +269,15 @@ export default function PlanTripScreen() {
           </ScrollView>
         </View>
 
-        {/* ── From / To Inputs ── */}
+        {/* ── From / To connected input (Your Trip style) ── */}
         <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-          {/* From */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-            <MapPin size={24} color="#000" strokeWidth={3} />
+          <View style={{ borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#fff', overflow: 'hidden' }}>
+            {/* From */}
             <View style={{
-              flex: 1, flexDirection: 'row', alignItems: 'center',
-              backgroundColor: '#fff', borderRadius: 12,
-              paddingHorizontal: 14, height: 48,
-              borderWidth: activeInput === 'from' ? 2 : 1,
-              borderColor: activeInput === 'from' ? '#000' : '#E5E7EB',
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+              flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 54,
+              backgroundColor: activeInput === 'from' ? '#F9FAFB' : 'transparent',
             }}>
+              <MapPin size={18} color="#10B981" style={{ marginRight: 10 }} />
               <TextInput
                 ref={fromRef}
                 placeholder="From where?"
@@ -289,7 +285,7 @@ export default function PlanTripScreen() {
                 value={from}
                 onChangeText={setFrom}
                 onFocus={() => setActiveInput('from')}
-                style={{ flex: 1, fontFamily: font.medium, fontSize: 16, color: '#000', padding: 0 }}
+                style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
                 returnKeyType="next"
                 onSubmitEditing={() => toRef.current?.focus()}
               />
@@ -299,19 +295,26 @@ export default function PlanTripScreen() {
                 </TouchableOpacity>
               )}
             </View>
-          </View>
 
-          {/* To */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Navigation size={24} color="#000" strokeWidth={3} />
+            {/* Divider + swap */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: '#F0F0F0' }} />
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); const f = from; setFrom(to); setTo(f) }}
+                style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginHorizontal: 10 }}
+                hitSlop={6}
+              >
+                <ArrowUpDown size={15} color="#374151" strokeWidth={2.5} />
+              </TouchableOpacity>
+              <View style={{ flex: 1, height: 1, backgroundColor: '#F0F0F0' }} />
+            </View>
+
+            {/* To */}
             <View style={{
-              flex: 1, flexDirection: 'row', alignItems: 'center',
-              backgroundColor: '#fff', borderRadius: 12,
-              paddingHorizontal: 14, height: 48,
-              borderWidth: activeInput === 'to' ? 2 : 1,
-              borderColor: activeInput === 'to' ? '#000' : '#E5E7EB',
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+              flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 54,
+              backgroundColor: activeInput === 'to' ? '#F9FAFB' : 'transparent',
             }}>
+              <CircleDot size={18} color="#EF4444" style={{ marginRight: 10 }} />
               <TextInput
                 ref={toRef}
                 placeholder="To where?"
@@ -319,7 +322,7 @@ export default function PlanTripScreen() {
                 value={to}
                 onChangeText={setTo}
                 onFocus={() => setActiveInput('to')}
-                style={{ flex: 1, fontFamily: font.medium, fontSize: 16, color: '#000', padding: 0 }}
+                style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
                 returnKeyType="done"
               />
               {to.length > 0 && (
