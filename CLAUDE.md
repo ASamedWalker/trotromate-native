@@ -104,6 +104,20 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 - System keyboard over custom keypads (platform conventions)
 - No custom back buttons — rely on system gestures
 
+## Wallet Top-Up Flow (June 2026)
+```
+Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
+  → "Choose mode of payment" selector (radio + Proceed):
+    • Bank Transfer → wallet/bank-transfer (Select Bank picker → account no + Copy + note)  [FE only]
+    • MTN MoMo      → wallet/momo (amount + MoMo number + network + Fund)                   [LIVE backend]
+    • Add Debit Card → "Coming soon" alert                                                  [no screen yet]
+```
+- `wallet/momo.tsx` is the ONLY method wired to the backend (`POST /api/wallet/topup`).
+- `wallet/bank-transfer.tsx` is front-end only: static partner-bank list + placeholder
+  Troski virtual account numbers, Copy via expo-clipboard. **FOLLOW-UP**: backend must
+  issue real per-user virtual accounts + reconcile inbound transfers (GH₵ 0.25 charge,
+  ~2 min reflect). Debit Card needs a card-tokenization/PSP integration before building.
+
 ## Next Up (as of June 2026)
 - **Scan to Pay — live camera (FOLLOW-UP)**. UI flow is DONE (`app/scan/`):
   Home "Scan To Pay" -> scan/index (Pay with QR) -> scan/confirm (Bus Details +

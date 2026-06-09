@@ -1,225 +1,101 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { LinearGradient } from 'expo-linear-gradient'
-import { ArrowLeft, Phone } from 'lucide-react-native'
-import { MaterialIcons } from '@expo/vector-icons'
-import { c, font, themed } from '@/lib/theme'
-import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { useRouter, type Href } from 'expo-router'
+import { ArrowLeft, Landmark, Smartphone, CreditCard, Check } from 'lucide-react-native'
+import { font, themed } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
-const AMOUNTS = [5, 10, 20, 50]
-const PROVIDERS = [
-  { id: 'mtn', label: 'MTN MoMo', color: '#FFCC00', textColor: '#000' },
-  { id: 'tgo', label: 'Telecel Cash', color: '#E60000', textColor: '#fff' },
-  { id: 'atl', label: 'AirtelTigo', color: '#ED1C24', textColor: '#fff' },
+const BRAND = '#FF4D1C'
+const BRAND_TINT = '#FFF0EB'
+
+type MethodId = 'bank' | 'mtn' | 'card'
+
+const METHODS: {
+  id: MethodId
+  label: string
+  Icon: typeof Landmark
+  route: Href | null
+  soon?: boolean
+}[] = [
+  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: '/wallet/bank-transfer' as Href },
+  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, route: '/wallet/momo' as Href },
+  { id: 'card', label: 'Add Debit Card', Icon: CreditCard, route: null, soon: true },
 ]
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-
-export default function FundWalletScreen() {
+export default function TopUpWalletScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const router = useRouter()
-  const { user } = useAuthContext()
+  const [selected, setSelected] = useState<MethodId>('bank')
 
-  const [amount, setAmount] = useState<number | null>(null)
-  const [customAmount, setCustomAmount] = useState('')
-  const [phone, setPhone] = useState(user?.phone?.replace('+233', '') || '')
-  const [provider, setProvider] = useState<string>('mtn')
-  const [loading, setLoading] = useState(false)
-
-  const effectiveAmount = amount || (customAmount ? parseFloat(customAmount) : 0)
-
-  const handleFund = async () => {
-    if (!effectiveAmount || effectiveAmount < 1) {
-      Alert.alert('Invalid Amount', 'Please select or enter an amount (min GHS 1)')
+  const handleProceed = () => {
+    const method = METHODS.find((m) => m.id === selected)
+    if (!method) return
+    if (method.soon || !method.route) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      Alert.alert('Coming soon', 'Debit card top-up is on the way. Use Bank Transfer or MTN MoMo for now.')
       return
     }
-    if (phone.length < 9) {
-      Alert.alert('Invalid Phone', 'Please enter your MoMo phone number')
-      return
-    }
-    if (!user?.id) {
-      Alert.alert('Auth Required', 'Please verify your phone number first')
-      return
-    }
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setLoading(true)
-
-    try {
-      const res = await fetch(`${API_URL}/api/wallet/topup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          auth_user_id: user.id,
-          amount: effectiveAmount,
-          phone,
-          provider,
-        }),
-      })
-
-      const data = await res.json()
-      setLoading(false)
-
-      if (data.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        Alert.alert(
-          'Check your phone!',
-          data.display_text || `A MoMo prompt has been sent to +233${phone}. Approve to fund your wallet.`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        )
-      } else {
-        Alert.alert('Error', data.error || 'Failed to initiate top-up')
-      }
-    } catch (err) {
-      setLoading(false)
-      Alert.alert('Error', 'Network error. Please try again.')
-    }
+    router.push(method.route)
   }
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={s.iconBtn}>
           <ArrowLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>Add Money</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[s.headerTitle, { color: t.text }]}>Top Up Wallet</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        {/* Amount selection */}
+      <View style={s.body}>
         <Animated.View entering={FadeInDown.duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>SELECT AMOUNT</Text>
-          <View style={s.amountGrid}>
-            {AMOUNTS.map((a) => (
-              <TouchableOpacity
-                key={a}
-                style={[s.amountBtn, {
-                  backgroundColor: amount === a ? '#FFAD3A' : (isDark ? '#1c1917' : '#f5f5f4'),
-                  borderColor: amount === a ? '#FFAD3A' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                }]}
-                onPress={() => { setAmount(a); setCustomAmount(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
-              >
-                <Text style={[s.amountBtnText, { color: amount === a ? '#1c1917' : t.text }]}>
-                  GH₵ {a}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Custom amount */}
-          <View style={[s.customRow, {
-            backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <Text style={[s.customPrefix, { color: t.textSecondary }]}>GH₵</Text>
-            <TextInput
-              style={[s.customInput, { color: t.text }]}
-              placeholder="Other amount"
-              placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-              keyboardType="decimal-pad"
-              value={customAmount}
-              onChangeText={(v) => { setCustomAmount(v); setAmount(null) }}
-            />
-          </View>
+          <Text style={[s.title, { color: t.text }]}>Choose mode of payment</Text>
+          <Text style={[s.subtitle, { color: t.textSecondary }]}>
+            Select any of the payment options below to top-up wallet
+          </Text>
         </Animated.View>
 
-        {/* Phone number */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>MOMO NUMBER</Text>
-          <View style={[s.phoneRow, {
-            backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <Text style={s.phoneFlag}>🇬🇭</Text>
-            <Text style={[s.phonePrefix, { color: t.text }]}>+233</Text>
-            <TextInput
-              style={[s.phoneInput, { color: t.text }]}
-              placeholder="24 XXX XXXX"
-              placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={setPhone}
-            />
-          </View>
-        </Animated.View>
+        <View style={s.list}>
+          {METHODS.map((m, i) => {
+            const active = selected === m.id
+            return (
+              <Animated.View key={m.id} entering={FadeInDown.delay(80 + i * 70).duration(400)}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => { setSelected(m.id); Haptics.selectionAsync() }}
+                  style={[s.row, {
+                    backgroundColor: isDark ? '#1c1917' : '#ffffff',
+                    borderColor: active ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F1F0'),
+                  }]}
+                >
+                  <View style={[s.iconTile, { backgroundColor: active ? BRAND_TINT : (isDark ? '#292524' : '#F6F6F5') }]}>
+                    <m.Icon size={20} color={active ? BRAND : (isDark ? '#a8a29e' : '#57534e')} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.rowLabel, { color: t.text }]}>{m.label}</Text>
+                    {m.soon && <Text style={s.soon}>Coming soon</Text>}
+                  </View>
+                  <View style={[s.radio, active ? { backgroundColor: BRAND, borderColor: BRAND } : { borderColor: isDark ? '#44403c' : '#D4D4D2' }]}>
+                    {active && <Check size={13} color="#fff" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            )
+          })}
+        </View>
 
-        {/* Provider selection */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>NETWORK</Text>
-          <View style={s.providerRow}>
-            {PROVIDERS.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={[s.providerBtn, {
-                  backgroundColor: provider === p.id ? p.color : (isDark ? '#1c1917' : '#f5f5f4'),
-                  borderColor: provider === p.id ? p.color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                }]}
-                onPress={() => { setProvider(p.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
-              >
-                <Text style={[s.providerText, {
-                  color: provider === p.id ? p.textColor : t.text,
-                }]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+        <View style={{ flex: 1 }} />
 
-        {/* Summary */}
-        {effectiveAmount > 0 && (
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={[s.summaryCard, {
-            backgroundColor: isDark ? '#1c1917' : '#ffffff',
-            borderColor: isDark ? 'rgba(255,173,58,0.1)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Amount</Text>
-              <Text style={[s.summaryValue, { color: t.text }]}>GH₵ {effectiveAmount.toFixed(2)}</Text>
-            </View>
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Fee</Text>
-              <Text style={[s.summaryValue, { color: '#22c55e' }]}>Free</Text>
-            </View>
-            <View style={[s.summaryDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]} />
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.text, fontFamily: font.bold }]}>Total</Text>
-              <Text style={[s.summaryTotal, { color: '#FFAD3A' }]}>GH₵ {effectiveAmount.toFixed(2)}</Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Fund button */}
-        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-          <TouchableOpacity
-            onPress={handleFund}
-            disabled={loading || effectiveAmount < 1}
-            activeOpacity={0.85}
-            style={{ opacity: effectiveAmount < 1 ? 0.5 : 1 }}
-          >
-            <LinearGradient
-              colors={['#FF716A', '#FFAD3A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.fundBtn}
-            >
-              <MaterialIcons name="add-circle" size={20} color="#1c1917" />
-              <Text style={s.fundBtnText}>
-                {loading ? 'Processing...' : `Fund GH₵ ${effectiveAmount > 0 ? effectiveAmount.toFixed(2) : '0.00'}`}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        <TouchableOpacity activeOpacity={0.9} onPress={handleProceed} style={s.proceed}>
+          <Text style={s.proceedText}>Proceed</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   )
 }
@@ -228,56 +104,31 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8,
   },
-  headerTitle: { fontSize: 20, fontFamily: font.bold },
-  scroll: { paddingHorizontal: 20, gap: 24 },
+  iconBtn: { width: 40, height: 40, justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontFamily: font.bold },
 
-  sectionLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 2, marginBottom: 10 },
+  body: { flex: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
+  title: { fontSize: 20, fontFamily: font.bold, letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, fontFamily: font.regular, marginTop: 6, lineHeight: 20 },
 
-  // Amounts
-  amountGrid: { flexDirection: 'row', gap: 10 },
-  amountBtn: {
-    flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center',
-    borderWidth: 1,
+  list: { gap: 12, marginTop: 24 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 14, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5,
   },
-  amountBtnText: { fontSize: 16, fontFamily: font.bold },
-
-  customRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 10,
-    paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, height: 56,
+  iconTile: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  rowLabel: { fontSize: 15, fontFamily: font.semibold },
+  soon: { fontSize: 11, fontFamily: font.medium, color: '#9CA3AF', marginTop: 2 },
+  radio: {
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2,
+    justifyContent: 'center', alignItems: 'center',
   },
-  customPrefix: { fontSize: 16, fontFamily: font.bold, marginRight: 8 },
-  customInput: { flex: 1, fontSize: 18, fontFamily: font.bold },
 
-  // Phone
-  phoneRow: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
-    borderRadius: 14, borderWidth: 1, height: 56, gap: 8,
+  proceed: {
+    height: 54, borderRadius: 14, backgroundColor: BRAND,
+    justifyContent: 'center', alignItems: 'center',
   },
-  phoneFlag: { fontSize: 20 },
-  phonePrefix: { fontSize: 16, fontFamily: font.bold },
-  phoneInput: { flex: 1, fontSize: 18, fontFamily: font.semibold, letterSpacing: 1 },
-
-  // Providers
-  providerRow: { flexDirection: 'row', gap: 8 },
-  providerBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1,
-  },
-  providerText: { fontSize: 12, fontFamily: font.bold },
-
-  // Summary
-  summaryCard: { borderRadius: 14, padding: 16, gap: 10, borderWidth: 1 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontSize: 14, fontFamily: font.medium },
-  summaryValue: { fontSize: 14, fontFamily: font.bold },
-  summaryDivider: { height: 1, marginVertical: 4 },
-  summaryTotal: { fontSize: 20, fontFamily: font.extrabold },
-
-  // Fund button
-  fundBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 14,
-  },
-  fundBtnText: { fontSize: 16, fontFamily: font.bold, color: '#1c1917' },
+  proceedText: { fontSize: 16, fontFamily: font.bold, color: '#fff' },
 })
