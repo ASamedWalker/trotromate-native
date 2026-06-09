@@ -105,6 +105,15 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 - No custom back buttons — rely on system gestures
 
 ## Next Up (as of June 2026)
+- **Scan to Pay** (entry: Home "Scan To Pay" button) — 5-screen flow from Figma:
+  1. Pay with QR — camera scan frame + "OR Manually" -> Input Bus Code
+  2. Input Bus Code — scan frame + Bus Code text field -> Continue
+  3. Bus Details card (route, duration, STC Coach, Seat, Bus Code, Amount) -> Continue
+  4. Payment method (Troski Wallet / MTN MoMo) -> Continue
+  5. Wallet PIN — "Enter your Troski PIN", 6-box PIN + custom numeric keypad
+  Notes: camera scan needs expo-camera/barcode-scanner (native module -> rebuild);
+  reuse the Bus Details + payment-method blocks from booking/checkout.tsx; PIN keypad
+  is a custom grid (not system keyboard). Brand orange #FF4D1C.
 - Buses Nearby quick action screen
 - Queue Status quick action screen
 - Booking system
