@@ -177,8 +177,9 @@ export default function HomeScreen() {
             <View style={{ position: 'absolute', top: -45, right: -35, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' }} />
             <View style={{ position: 'absolute', bottom: -55, left: -45, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
-            {/* Top: eye toggle */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {/* Top: label + eye toggle */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>Wallet Balance</Text>
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
                 hitSlop={12}
@@ -189,10 +190,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Balance */}
-            <View style={{ marginTop: 22, marginBottom: 24 }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 6 }}>Wallet Balance</Text>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5 }}>{formattedBalance}</Text>
-            </View>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5, marginTop: 14, marginBottom: 22 }}>{formattedBalance}</Text>
 
             {/* Actions */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
