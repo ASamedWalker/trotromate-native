@@ -1,6 +1,29 @@
 import { File } from 'expo-file-system'
 import { supabase } from '@/lib/supabase/client'
-import type { TalePost, TalePostType, TaleMediaType } from '@/lib/types'
+import {
+  validateDisplayName,
+  validateCaption,
+  validateLocation,
+  validateEnum,
+  sanitizeString,
+  TALE_POST_TYPES,
+} from '@/lib/security/validate'
+import type { TalePost, TalePostType, TaleMediaType, LevelSlug } from '@/lib/types'
+
+/**
+ * Fetch the real rewards tier for a set of authors in one query.
+ * Used to show genuine contributor levels on Pulse (no fabricated badges).
+ */
+export async function fetchAuthorLevels(deviceIds: string[]): Promise<Record<string, LevelSlug>> {
+  const ids = [...new Set(deviceIds)].filter(Boolean)
+  if (ids.length === 0) return {}
+  const { data, error } = await supabase
+    .from('contributor_profiles')
+    .select('device_id, current_level')
+    .in('device_id', ids)
+  if (error || !data) return {}
+  return Object.fromEntries(data.map((p) => [p.device_id, p.current_level as LevelSlug]))
+}
 
 /** Broadcast push for new tale */
 async function broadcastTalePush(deviceId: string, displayName: string | null, caption: string | null) {
@@ -33,14 +56,6 @@ async function broadcastTalePush(deviceId: string, displayName: string | null, c
     }
   } catch (e) { console.warn("[troski] silent error:", e) }
 }
-import {
-  validateDisplayName,
-  validateCaption,
-  validateLocation,
-  validateEnum,
-  sanitizeString,
-  TALE_POST_TYPES,
-} from '@/lib/security/validate'
 
 const MAX_IMAGES = 5
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -113,6 +128,12 @@ export async function fetchTales(params: {
 
   const posts = (data ?? []) as TalePost[]
   const nextCursor = posts.length === limit ? posts[posts.length - 1]?.created_at : null
+
+  // Attach real contributor tiers (skipped for anonymous posts)
+  const levels = await fetchAuthorLevels(posts.filter((p) => !p.is_anonymous).map((p) => p.device_id))
+  for (const p of posts) {
+    if (!p.is_anonymous && levels[p.device_id]) p.author_level = levels[p.device_id]
+  }
 
   return { posts, nextCursor }
 }

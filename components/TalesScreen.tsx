@@ -44,18 +44,20 @@ import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
+import { LEVELS } from '@/lib/constants/rewards'
 import type { TalePost } from '@/lib/types'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
-// ─── Contributor badge tiers ────────────────────────────
+// ─── Contributor tier badge (REAL data) ─────────────────
+// Reads the author's actual rewards tier (merged from
+// contributor_profiles in fetchTales). No fabricated labels.
 
-function getContributorBadge(post: TalePost): { label: string; color: string; ringColor: string } {
-  const hash = post.device_id.charCodeAt(post.device_id.length - 1) % 4
-  if (hash === 0) return { label: 'Local Expert', color: '#7c3aed', ringColor: '#a78bfa' }
-  if (hash === 1) return { label: 'Road Scout', color: '#d97706', ringColor: '#fbbf24' }
-  if (hash === 2) return { label: 'Commuter', color: '#0891b2', ringColor: '#22d3ee' }
-  return { label: 'Explorer', color: '#15803d', ringColor: '#4ade80' }
+function getContributorBadge(post: TalePost): { label: string; color: string; ringColor: string } | null {
+  if (!post.author_level) return null
+  const lvl = LEVELS[post.author_level]
+  if (!lvl) return null
+  return { label: `${lvl.emoji} ${lvl.name}`, color: lvl.color, ringColor: lvl.color }
 }
 
 function getDisplayName(post: TalePost): string {
@@ -171,7 +173,7 @@ const TaleCard = React.memo(function TaleCard({
       {/* ── Header ── */}
       <View style={s.header}>
         <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-          <View style={[s.avatarRing, { borderColor: badge.ringColor }]}>
+          <View style={[s.avatarRing, { borderColor: badge ? badge.ringColor : isDark ? 'rgba(255,255,255,0.12)' : '#E7E5E4' }]}>
             <InitialsAvatar
               name={post.display_name}
               deviceId={post.device_id}
@@ -185,7 +187,7 @@ const TaleCard = React.memo(function TaleCard({
             <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
               <Text style={s.name} numberOfLines={1}>{displayName}</Text>
             </TouchableOpacity>
-            <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>
+            {badge && <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>}
           </View>
           <View style={s.headerMeta}>
             <MapPin size={10} color={isDark ? 'rgba(255,255,255,0.35)' : '#a8a29e'} />

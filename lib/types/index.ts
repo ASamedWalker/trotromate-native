@@ -289,6 +289,8 @@ export interface TalePost {
   video_url: string | null
   video_thumbnail_url: string | null
   video_duration_secs: number | null
+  /** Author's real rewards tier, merged client-side from contributor_profiles */
+  author_level?: LevelSlug
 }
 
 export interface TalePostWithMeta extends TalePost {
@@ -307,6 +309,8 @@ export interface TaleComment {
   created_at: string
   parent_comment_id: string | null
   reply_count: number
+  /** Author's real rewards tier, merged client-side from contributor_profiles */
+  author_level?: LevelSlug
 }
 
 export interface TaleCommentWithMeta extends TaleComment {

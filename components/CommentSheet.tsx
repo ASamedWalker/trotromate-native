@@ -18,6 +18,7 @@ import { useComments } from '@/lib/hooks/useComments'
 import { useApp } from '@/lib/contexts/AppContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { timeAgo } from '@/lib/utils/time'
+import { LEVELS } from '@/lib/constants/rewards'
 import type { TaleComment } from '@/lib/types'
 
 interface CommentSheetProps {
@@ -239,6 +240,9 @@ function CommentRow({
           <Text style={[s.commentName, isReply && s.commentNameSmall]}>
             {comment.display_name ?? `User-${comment.device_id.slice(-4).toUpperCase()}`}
           </Text>
+          {comment.author_level && LEVELS[comment.author_level] ? (
+            <Text> {LEVELS[comment.author_level].emoji}</Text>
+          ) : null}
           {isOwn && <Text style={s.youBadge}> You</Text>}
           {'  '}
           <Text style={isReply ? s.commentBodySmall : s.commentBody}>

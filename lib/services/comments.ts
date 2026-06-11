@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { validateDisplayName, validateComment } from '@/lib/security/validate'
+import { fetchAuthorLevels } from '@/lib/services/tales'
 import type { TaleComment } from '@/lib/types'
 
 export type { TaleComment }
@@ -20,7 +21,13 @@ export async function fetchComments(postId: string): Promise<TaleComment[]> {
     return []
   }
 
-  return (data ?? []) as TaleComment[]
+  // Attach real contributor tiers for the tier badge next to names
+  const comments = (data ?? []) as TaleComment[]
+  const levels = await fetchAuthorLevels(comments.map((c) => c.device_id))
+  for (const c of comments) {
+    if (levels[c.device_id]) c.author_level = levels[c.device_id]
+  }
+  return comments
 }
 
 /** Fetch replies for a specific parent comment */
