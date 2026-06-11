@@ -368,7 +368,7 @@ const s = StyleSheet.create({
   },
   balanceCardBtnOutlineText: { fontSize: 14, fontFamily: font.bold },
   balanceAmountRow: { marginBottom: 16 },
-  balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -2 },
+  balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -0.5 },
   liveSyncBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(60,51,43,0.4)', paddingHorizontal: 12, paddingVertical: 5,

@@ -32,14 +32,19 @@ export const c = {
   black: '#000000',
 }
 
-// Plus Jakarta Sans font family map (weights baked into font names for RN)
+// Baloo 2 font family map (weights baked into font names for RN).
+// App-wide font — owner decision, June 2026 (was Plus Jakarta Sans).
 export const font = {
-  regular: 'PlusJakartaSans_400Regular',
-  medium: 'PlusJakartaSans_500Medium',
-  semibold: 'PlusJakartaSans_600SemiBold',
-  bold: 'PlusJakartaSans_700Bold',
-  extrabold: 'PlusJakartaSans_800ExtraBold',
-  black: 'PlusJakartaSans_800ExtraBold', // No 900 weight — use 800
+  regular: 'Baloo2_400Regular',
+  medium: 'Baloo2_500Medium',
+  semibold: 'Baloo2_600SemiBold',
+  bold: 'Baloo2_700Bold',
+  extrabold: 'Baloo2_800ExtraBold',
+  black: 'Baloo2_800ExtraBold', // No 900 weight — use 800
+  // Display aliases (kept so screens can diverge from body text later)
+  display: 'Baloo2_700Bold',
+  displaySemi: 'Baloo2_600SemiBold',
+  displayHeavy: 'Baloo2_800ExtraBold',
 }
 
 // Glass surface constants

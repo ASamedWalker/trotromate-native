@@ -271,24 +271,24 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 10,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontFamily: 'Baloo2_600SemiBold',
     color: 'rgba(255,255,255,0.4)',
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
   fieldValue: {
     fontSize: 16,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontFamily: 'Baloo2_600SemiBold',
     color: '#fff',
     marginTop: 2,
   },
   fieldPlaceholder: {
     color: 'rgba(255,255,255,0.25)',
-    fontFamily: 'PlusJakartaSans_400Regular',
+    fontFamily: 'Baloo2_400Regular',
   },
   fieldInput: {
     fontSize: 16,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'Baloo2_500Medium',
     color: '#fff',
     paddingVertical: 0,
     marginTop: 2,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   customText: {
     fontSize: 14,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'Baloo2_500Medium',
     color: '#10b981',
   },
 
@@ -350,12 +350,12 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'Baloo2_500Medium',
     color: 'rgba(255,255,255,0.7)',
   },
   chipTextSelected: {
     color: '#fff',
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontFamily: 'Baloo2_600SemiBold',
   },
 
   // Confirm
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   confirmText: {
     fontSize: 17,
-    fontFamily: 'PlusJakartaSans_700Bold',
+    fontFamily: 'Baloo2_700Bold',
     color: '#fff',
     letterSpacing: 0.3,
   },
