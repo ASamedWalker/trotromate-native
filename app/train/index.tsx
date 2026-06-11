@@ -22,7 +22,6 @@ import {
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
-import { GlassBackButton } from '@/components/GlassBackButton'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
@@ -375,7 +374,7 @@ export default function TrainLinesScreen() {
   )
 
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.container} edges={['bottom']}>
       {/* GRDA Header Bar */}
       <LinearGradient
         colors={['#0891b2', '#1e40af']}
@@ -383,8 +382,7 @@ export default function TrainLinesScreen() {
         end={{ x: 1, y: 0 }}
         style={s.headerBar}
       >
-        <GlassBackButton isDark={true} size={36} />
-        <View style={[s.headerLogo, { marginLeft: 10 }]}>
+        <View style={s.headerLogo}>
           <ShieldCheck size={18} color="#fff" />
         </View>
         <Text style={s.headerTitle}>GRDA Official</Text>
@@ -408,9 +406,6 @@ export default function TrainLinesScreen() {
         <Animated.View entering={FadeInDown.duration(400)} style={s.hero}>
           <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
           <Text style={s.heroTitle}>Train Index</Text>
-          <Text style={s.heroDesc}>
-            Select a regional rail line to view live schedules and fare info.
-          </Text>
         </Animated.View>
 
         {/* ─── Departure Board ─────────────────────────── */}
@@ -699,7 +694,7 @@ const getStyles = (isDark: boolean) => {
     // ── Hero Section ──
     hero: {
       paddingHorizontal: 24,
-      paddingTop: 20,
+      paddingTop: 14,
       paddingBottom: 8,
     },
     heroLabel: {
@@ -711,18 +706,11 @@ const getStyles = (isDark: boolean) => {
     },
     heroTitle: {
       fontSize: 36,
-      fontFamily: font.extrabold,
+      fontFamily: font.displayHeavy,
       color: onSurface,
-      letterSpacing: -1,
-      lineHeight: 40,
+      letterSpacing: 0,
+      lineHeight: 44,
       marginBottom: 8,
-    },
-    heroDesc: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      lineHeight: 20,
-      maxWidth: 280,
     },
 
     // ── Departure Board (always dark — like a real station display) ──

@@ -58,18 +58,18 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+    header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
     title: {
       fontSize: 28,
-      fontFamily: font.extrabold,
+      fontFamily: font.displayHeavy,
       color: t.text,
-      letterSpacing: -0.5,
+      letterSpacing: 0,
     },
     segmentWrap: {
       flexDirection: 'row',
       marginHorizontal: 20,
-      marginTop: 8,
-      marginBottom: 8,
+      marginTop: 6,
+      marginBottom: 6,
       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
       borderRadius: 12,
       padding: 3,

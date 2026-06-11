@@ -94,6 +94,18 @@ export default function RoutesScreen() {
     return result
   }, [routes, activeFilter, searchQuery, favorites])
 
+  // Citymapper-style line identity: each corridor gets a stable colour so
+  // riders recognise "their" line at a glance. Deterministic hash of route id.
+  const LINE_COLORS = [
+    '#E32017', '#0098D4', '#00782A', '#9B0056', '#003688',
+    '#EE7C0E', '#00A4A7', '#7156A5', '#B36305', '#DC241F',
+  ]
+  const lineColorFor = (id: string) => {
+    let h = 0
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+    return LINE_COLORS[h % LINE_COLORS.length]
+  }
+
   const filters: { key: Filter; label: string; icon: typeof Bus | null; color: string }[] = [
     { key: 'all', label: 'All', icon: null, color: '#FF4D1C' },
     { key: 'trotro', label: 'Trotro', icon: Bus, color: '#FF4D1C' },
@@ -112,7 +124,7 @@ export default function RoutesScreen() {
     const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
     const isOkada = item.transport_type === 'okada'
-    const accent = isOkada ? c.orange500 : '#FF4D1C'
+    const accent = lineColorFor(item.id)
 
     return (
       <TouchableOpacity
@@ -130,8 +142,8 @@ export default function RoutesScreen() {
           {/* Top: badge + route name + fare */}
           <View style={s.cardTop}>
             <View style={s.cardTopLeft}>
-              <View style={[s.typeBadge, { backgroundColor: `${accent}20` }]}>
-                <Text style={[s.typeBadgeText, { color: isOkada ? '#9a3412' : '#FF4D1C' }]}>
+              <View style={[s.typeBadge, { backgroundColor: `${accent}1C` }]}>
+                <Text style={[s.typeBadgeText, { color: accent }]}>
                   {isOkada ? 'Okada' : 'Trotro'}
                 </Text>
               </View>
@@ -161,24 +173,14 @@ export default function RoutesScreen() {
             )}
           </View>
 
-          {/* View Details button */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              addSearch({ id: item.id, from: item.from_location, to: item.to_location, transportType: item.transport_type as 'trotro' | 'okada' | undefined })
-              router.push({ pathname: '/routes/[id]', params: { id: item.id } })
-            }}
-            style={s.viewDetailsBtn}
-          >
-            <Text style={s.viewDetailsText}>View Details</Text>
-          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     )
   }, [isDark])
 
   return (
-    <SafeAreaView style={s.container}>
+    // Rendered inside the Lines tab, which already pads the top safe area
+    <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Editorial Header */}
       <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
         <View style={s.headerRow}>
@@ -344,7 +346,7 @@ export default function RoutesScreen() {
                 style={s.footerCta}
               >
                 <Plus size={16} color={'#FF4D1C'} />
-                <Text style={s.footerCtaText}>Can't find your route? Add it</Text>
+                <Text style={s.footerCtaText}>Can&apos;t find your route? Add it</Text>
               </TouchableOpacity>
             ) : null
           }
@@ -394,7 +396,7 @@ const getStyles = (isDark: boolean) => {
     container: { flex: 1, backgroundColor: isDark ? t.bg : '#fcf5f2' },
 
     // Editorial header
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    header: { paddingHorizontal: 20, paddingTop: 2, paddingBottom: 8 },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -411,9 +413,9 @@ const getStyles = (isDark: boolean) => {
     },
     headerTitle: {
       fontSize: 28,
-      fontFamily: font.extrabold,
+      fontFamily: font.displayHeavy,
       color: t.text,
-      letterSpacing: -0.5,
+      letterSpacing: 0,
     },
 
     // Region dropdown
@@ -547,9 +549,9 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'flex-end',
     },
     fareAmount: {
-      fontSize: 20,
-      fontFamily: font.extrabold,
-      letterSpacing: -0.3,
+      fontSize: 26,
+      fontFamily: font.displayHeavy,
+      letterSpacing: 0,
     },
     fareLabel: {
       fontSize: 9,
@@ -560,12 +562,11 @@ const getStyles = (isDark: boolean) => {
       marginTop: 2,
     },
 
-    // Meta row
+    // Meta row (last element in the card now that View Details is gone)
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
-      marginBottom: 14,
     },
     metaItem: {
       flexDirection: 'row',
@@ -586,17 +587,6 @@ const getStyles = (isDark: boolean) => {
     },
 
     // View Details button
-    viewDetailsBtn: {
-      alignItems: 'center',
-      paddingVertical: 12,
-      borderRadius: 14,
-      backgroundColor: surfaceContainerHigh,
-    },
-    viewDetailsText: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#FF4D1C',
-    },
 
     // Empty
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
