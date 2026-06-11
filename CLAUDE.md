@@ -58,20 +58,28 @@ hooks (`useTalesFeed`), types (`TalePost`), `components/TalesScreen.tsx`,
 live Supabase backend for zero user benefit. Composer header intentionally keeps
 "Trotro Tales" (matches Figma). Don't "fix" the internal tale naming.
 
-## Rewards (4 sub-tabs, June 2026)
-`(tabs)/rewards.tsx` — segmented Coins / Earn / History / Referrals (brand pills):
-- **Coins**: semicircular SVG gauge (`react-native-svg`) of `total_points` (labeled
-  "Troski Coin"), stats Today/Streak/Rank (Rank → `/leaderboard`), View Wallet, weekly delta banner.
-- **Earn**: Daily Streak card (Mon–Sun, `current_streak`, real +5 bonus from `STREAK_CONFIG`)
-  + Earn Coin list (real `REPORT_POINTS` values; rows deep-link to report screens).
-- **History**: Available Coin + `points_history` grouped Today/Yesterday/Earlier.
-- **Referrals**: reuses `referral_code`/`referral_count` (contributor_profiles + referrals table) + Share.
-- Coin↔GH₵: `COIN_TO_GHS = 0.1` (display only). The OLD leaderboard podium is gone
-  from the tab; the full `/leaderboard` screen still exists (reachable via Rank stat).
-- **FOLLOW-UP (no backend yet)**: "Cash Out" is a "Coming soon" stub — needs a
-  coin→MoMo redemption endpoint + a `coin_redemptions`/balance model. Coins are just
-  points today; if a real coin economy lands, split it from `total_points`.
-  `components/ReferralCard.tsx` is now unused (logic inlined into the Referrals tab).
+## Rewards (4 sub-tabs, June 2026 — game-feel + Transit-style recognition)
+`(tabs)/rewards.tsx` — segmented Coins / Earn / History / Referrals (brand pills).
+**DELIBERATE DECISION (owner, June 2026): NO money/cash framing on this screen.**
+Coins are recognition + tier progress only (modeled on Transit app's GO/Royale:
+civic impact, leaderboards, status — not payment). GH₵ equivalence, COIN_TO_GHS
+and the Cash Out stub were REMOVED — do not reintroduce without owner say-so.
+- **Coins**: speedometer gauge (`react-native-svg`) — count-up + arc sweep + gold
+  TroskiCoin marker riding the arc + ticks that light up; scale = REAL tier bounds
+  from `LEVELS` (`lib/constants/rewards.ts`, shared w/ leaderboard; passenger emoji
+  is 🎫). Tier pill, Tier Journey strip (current node bounces), Community Impact
+  card (`total_reports`), View Leaderboard CTA, stats Today/Streak/Rank.
+- **Earn**: gradient Daily Streak card — week anchored to actual weekday via
+  `last_report_date`; earned days show coins; "streak on the line" urgency; real
+  `STREAK_CONFIG` bonus. Missions = 2-col emoji grid (real `REPORT_POINTS`).
+- **History**: Total Coins card + This Month/Redeemed + grouped `points_history`.
+- **Referrals**: `referral_code`/`referral_count`, How-it-works steps,
+  `REFERRAL_POINTS` (=500) constant, spinning-orbit gift graphic.
+- `components/TroskiCoin.tsx` = gold "T" coin SVG (reused across tabs).
+- Anims: core RN `Animated` ONLY (Bob/Spin in rewards.tsx) — reanimated is banned
+  inside ScrollView on Android. Confetti (`react-native-confetti-cannon`) fires
+  once per tier-up / 7-day streak via AsyncStorage `@troski_rewards_celebrated_v1`.
+- `components/ReferralCard.tsx` is unused (logic inlined into the Referrals tab).
 
 ## Route Detail Flow (June 2026)
 ```

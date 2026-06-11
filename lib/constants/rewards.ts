@@ -20,12 +20,14 @@ export const STREAK_CONFIG = {
   BONUS_POINTS: 5,
 }
 
+export const REFERRAL_POINTS = 500 // awarded when a referred friend completes 3 trips
+
 export const LEVELS: Record<LevelSlug, LevelInfo> = {
   passenger: {
     slug: 'passenger',
     name: 'Passenger',
     icon: 'user',
-    emoji: '🚶',
+    emoji: '🎫',
     min_points: 0,
     max_points: 49,
     color: '#78716c',
