@@ -9,6 +9,7 @@ import {
   ShieldCheck, Star, BadgeCheck, Camera, UserCheck,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
+import { formatGHS } from '@/lib/utils/currency'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
 
@@ -29,7 +30,7 @@ const VERIFY_ITEMS = [
 ]
 
 const PAYMENTS = [
-  { id: 'wallet', label: 'Troski Wallet', sub: '$2,500.00' },
+  { id: 'wallet', label: 'Troski Wallet', sub: 'GH₵ 2,500.00' },
   { id: 'momo', label: 'MTN MoMo', sub: '***** 2096' },
 ]
 
@@ -119,9 +120,9 @@ export default function CheckoutScreen() {
             <Ticket size={16} color={BRAND} />
             <Text style={[s.linkText, { fontSize: 14 }]}>Use Promo Code</Text>
           </TouchableOpacity>
-          <View style={s.fareRow}><Text style={s.detailLabel}>Bus Fare</Text><Text style={s.fareValue}>${fare.bus.toFixed(2)}</Text></View>
-          <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>${fare.service.toFixed(2)}</Text></View>
-          <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>${total.toFixed(2)}</Text></View>
+          <View style={s.fareRow}><Text style={s.detailLabel}>Bus Fare</Text><Text style={s.fareValue}>{formatGHS(fare.bus)}</Text></View>
+          <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.service)}</Text></View>
+          <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{formatGHS(total)}</Text></View>
         </View>
 
         {/* ── Payment method ── */}

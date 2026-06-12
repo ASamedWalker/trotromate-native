@@ -9,7 +9,7 @@ import { font } from '@/lib/theme'
 const BRAND = '#FF4D1C'
 
 const PAYMENTS = [
-  { id: 'wallet', label: 'Troski Wallet', sub: '$2,500.00', emoji: '👛' },
+  { id: 'wallet', label: 'Troski Wallet', sub: 'GH₵ 2,500.00', emoji: '👛' },
   { id: 'momo', label: 'MTN MoMo', sub: '***** 2096', emoji: '🏦' },
 ]
 
@@ -57,7 +57,7 @@ export default function ScanConfirmScreen() {
           ))}
 
           <View style={s.divider} />
-          <View style={s.row}><Text style={s.rowLabel}>Amount</Text><Text style={s.amount}>$25.25</Text></View>
+          <View style={s.row}><Text style={s.rowLabel}>Amount</Text><Text style={s.amount}>GH₵ 25.25</Text></View>
         </View>
 
         {/* Payment method */}

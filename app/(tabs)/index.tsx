@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
+import { formatGHS } from '@/lib/utils/currency'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
@@ -102,7 +103,7 @@ export default function HomeScreen() {
   const firstName = displayName.split(' ')[0]
   const balance = walletBalance ?? 0
   const formattedBalance = balanceVisible
-    ? `$${balance.toLocaleString('en', { minimumFractionDigits: 2 })}`
+    ? formatGHS(balance)
     : '******'
 
   const handleServiceTap = useCallback((svc: Service) => {

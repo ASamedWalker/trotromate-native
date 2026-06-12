@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
+import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -112,8 +113,8 @@ export default function WalletScreen() {
             <View style={s.balanceAmountRow}>
               <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
                 {balanceVisible
-                  ? `GHS ${balance.toLocaleString('en', { minimumFractionDigits: 2 })}`
-                  : 'GHS ••••••'
+                  ? formatGHS(balance)
+                  : 'GH₵ ••••••'
                 }
               </Text>
             </View>
@@ -210,7 +211,7 @@ export default function WalletScreen() {
               {transactions.slice(0, 5).map((tx: any, i: number) => {
                 const isTopup = tx.type === 'topup'
                 const icon = isTopup ? 'account-balance' as const : 'commute' as const
-                const amountStr = isTopup ? `+GHS ${Number(tx.amount).toFixed(2)}` : `-GHS ${Number(tx.amount).toFixed(2)}`
+                const amountStr = `${isTopup ? '+' : '-'}${formatGHS(Number(tx.amount))}`
                 const amountColor = isTopup ? '#FF4D1C' : t.text
                 const statusLabel = tx.status === 'success' ? (isTopup ? 'MOMO PAY' : 'COMPLETED') : tx.status.toUpperCase()
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -221,7 +222,7 @@ export default function WalletScreen() {
                       <MaterialIcons name={icon} size={20} color="#FF4D1C" />
                     </View>
                     <View style={s.txInfo}>
-                      <Text style={[s.txLabel, { color: t.text }]}>{tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')}</Text>
+                      <Text style={[s.txLabel, { color: t.text }]}>{(tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')).replace(/\bGHS\b/g, 'GH₵')}</Text>
                       <Text style={s.txDate}>{date}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
