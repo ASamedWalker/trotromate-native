@@ -22,7 +22,7 @@ import {
   Flag,
   ChevronDown,
   Camera,
-  DollarSign,
+  Banknote,
   Check,
   Clock,
   MapPin,
@@ -126,6 +126,9 @@ export default function TripScreen() {
   const [selectedOriginIdx, setSelectedOriginIdx] = useState(0)
   const [selectedDestIdx, setSelectedDestIdx] = useState(-1) // -1 = last station
 
+  // ── Trotro alight-stop selection (-1 = ride to the corridor end) ──
+  const [selectedAlightIdx, setSelectedAlightIdx] = useState(-1)
+
   // All stations on the line (ordered), used for the picker
   const allLineStations = useMemo(() => {
     if (!isTrain || !line) return null
@@ -167,24 +170,9 @@ export default function TripScreen() {
     }
   }, [allLineStations, selectedDestIdx])
 
-  // Resolve trip stations — sliced for train based on selection
-  const tripStations = useMemo(() => {
-    // ── Train mode: slice allLineStations to selected range ──
-    if (isTrain && allLineStations) {
-      const destIdx = selectedDestIdx === -1 ? allLineStations.length - 1 : selectedDestIdx
-      const fromIdx = Math.min(selectedOriginIdx, destIdx)
-      const toIdx = Math.max(selectedOriginIdx, destIdx)
-      const sliced = allLineStations.slice(fromIdx, toIdx + 1)
-      if (sliced.length < 2) return null
-      return sliced.map((s, i) => ({
-        ...s,
-        isOrigin: i === 0,
-        isDestination: i === sliced.length - 1,
-      })) as TripStation[]
-    }
-
-    // ── Trotro mode: use fallback coords + DB stations ──
-    if (!route) return null
+  // ── Trotro: full corridor (origin → corridor end with intermediate stops) ──
+  const trotroCorridor = useMemo(() => {
+    if (isTrain || !route) return null
 
     // Look up coords: try DB station first, then fallback coordinate map
     const fromStation = allStations.find(
@@ -217,7 +205,36 @@ export default function TripScreen() {
       { id: toStation?.id ?? 'dest', name: route.to_location, ...toCoords },
       stationsWithCoords,
     )
-  }, [isTrain, allLineStations, selectedOriginIdx, selectedDestIdx, route, allStations])
+  }, [isTrain, route, allStations])
+
+  // Resolve trip stations — train slices by origin/dest, trotro by alight stop
+  const tripStations = useMemo(() => {
+    // ── Train mode: slice allLineStations to selected range ──
+    if (isTrain && allLineStations) {
+      const destIdx = selectedDestIdx === -1 ? allLineStations.length - 1 : selectedDestIdx
+      const fromIdx = Math.min(selectedOriginIdx, destIdx)
+      const toIdx = Math.max(selectedOriginIdx, destIdx)
+      const sliced = allLineStations.slice(fromIdx, toIdx + 1)
+      if (sliced.length < 2) return null
+      return sliced.map((s, i) => ({
+        ...s,
+        isOrigin: i === 0,
+        isDestination: i === sliced.length - 1,
+      })) as TripStation[]
+    }
+
+    // ── Trotro mode: ride the full corridor, or alight early at a chosen stop ──
+    if (!trotroCorridor) return null
+    if (selectedAlightIdx < 1 || selectedAlightIdx >= trotroCorridor.length - 1) {
+      return trotroCorridor
+    }
+    const sliced = trotroCorridor.slice(0, selectedAlightIdx + 1)
+    return sliced.map((s, i) => ({
+      ...s,
+      isOrigin: i === 0,
+      isDestination: i === sliced.length - 1,
+    })) as TripStation[]
+  }, [isTrain, allLineStations, selectedOriginIdx, selectedDestIdx, trotroCorridor, selectedAlightIdx])
 
   // Route label for display (includes selected stations for train)
   const routeLabel = useMemo(() => {
@@ -323,6 +340,25 @@ export default function TripScreen() {
   }, [endTrip, deviceId, router])
 
   // Submit fare from post-trip prompt — awards 8 pts (5 base + 3 fare bonus)
+  // After the fare prompt closes: completed trips land on the arrival
+  // celebration screen with the REAL ride stats; abandoned ones just go back.
+  const finishToArrival = useCallback((trip: CompletedTripResult | null) => {
+    const p = trip?.payload
+    if (p?.reached_destination) {
+      router.replace({
+        pathname: '/booking/arrived',
+        params: {
+          distance: p.distance_km != null ? String(p.distance_km) : '',
+          duration: String(p.duration_mins ?? ''),
+          stops: String(Math.max((p.station_count ?? 1) - 1, 0)),
+          route: routeLabel,
+        },
+      })
+    } else {
+      router.back()
+    }
+  }, [router, routeLabel])
+
   const handleSubmitFare = useCallback(async () => {
     const fare = parseFloat(fareInput)
     if (completedTrip?.tripId && fare > 0) {
@@ -341,19 +377,24 @@ export default function TripScreen() {
       }
       refreshProfile()
     }
+    const finished = completedTrip
     setShowFarePrompt(false)
     setFareInput('')
     setCompletedTrip(null)
-    router.back()
-  }, [fareInput, completedTrip, deviceId, refreshProfile, setLastReward, router])
+    // Let the native Modal fully dismiss first — navigating while it's open
+    // is silently swallowed on iOS
+    setTimeout(() => finishToArrival(finished), 350)
+  }, [fareInput, completedTrip, deviceId, refreshProfile, setLastReward, finishToArrival])
 
   // Skip fare prompt — close immediately, award 5 pts (base only) in background
   const handleSkipFare = useCallback(() => {
     const tripId = completedTrip?.tripId
+    const finished = completedTrip
     setShowFarePrompt(false)
     setFareInput('')
     setCompletedTrip(null)
-    router.back()
+    // Same Modal-dismissal race as handleSubmitFare
+    setTimeout(() => finishToArrival(finished), 350)
 
     // Award points in background — don't block the UI
     if (tripId && deviceId) {
@@ -362,7 +403,7 @@ export default function TripScreen() {
         refreshProfile()
       })
     }
-  }, [completedTrip, deviceId, refreshProfile, setLastReward, router])
+  }, [completedTrip, deviceId, refreshProfile, setLastReward, finishToArrival])
 
   // Still fetching route data — show loading spinner
   const isStillLoading = (!route && !isTrain && routeLoading) || (!line && isTrain)
@@ -396,8 +437,8 @@ export default function TripScreen() {
     )
   }
 
-  // Route found but coordinates couldn't be resolved (only blocks train — trotro doesn't need map)
-  if (!tripStations && isTrain && line) {
+  // Route loaded but station coordinates couldn't be resolved — GO needs geometry
+  if (!tripStations && ((isTrain && line) || (!isTrain && route))) {
     return (
       <SafeAreaView style={s.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
@@ -514,7 +555,9 @@ export default function TripScreen() {
   const shouldAutoEnd = tripState === 'arrived' || (!isNearRoute && simProgress >= 100)
 
   useEffect(() => {
-    if (shouldAutoEnd && isActive && deviceId && !showFarePrompt && !completedTrip && !isEndingRef.current) {
+    // NOT gated on isActive: 'arrived' (which makes isActive false) is exactly
+    // the state that must trigger the auto-end → fare prompt flow
+    if (shouldAutoEnd && tripState !== 'idle' && deviceId && !showFarePrompt && !completedTrip && !isEndingRef.current) {
       isEndingRef.current = true
       ;(async () => {
         const result = await endTrip(deviceId)
@@ -525,7 +568,7 @@ export default function TripScreen() {
         isEndingRef.current = false
       })()
     }
-  }, [shouldAutoEnd, isActive, deviceId, endTrip, showFarePrompt, completedTrip])
+  }, [shouldAutoEnd, tripState, deviceId, endTrip, showFarePrompt, completedTrip])
 
   // Effective progress: real GPS when near, simulated when far
   const effectiveProgress = isNearRoute
@@ -771,33 +814,7 @@ export default function TripScreen() {
   )
 
   /* ══════════════════════════════════════════════════════════════
-     TROTRO — GO Mode not available, redirect back
-     ══════════════════════════════════════════════════════════════ */
-  if (!isTrain) {
-    return (
-      <SafeAreaView style={s.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <TrainFront size={40} color={c.amber500} />
-          <Text style={[s.loadingText, { marginTop: 0, fontSize: 16 }]}>
-            GO Mode is for trains only
-          </Text>
-          <Text style={[s.loadingText, { marginTop: 0, fontSize: 13 }]}>
-            Track your journey in real-time on Ghana's railway lines.
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            style={{ backgroundColor: c.amber500, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-          >
-            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  /* ══════════════════════════════════════════════════════════════
-     TRAIN — Full navigation map with all features
+     GO MODE — full navigation map (trains AND trotro corridors)
      ══════════════════════════════════════════════════════════════ */
   return (
     <View style={s.container}>
@@ -1114,7 +1131,7 @@ export default function TripScreen() {
                 activeOpacity={0.7}
                 style={s.tripActionBtn}
               >
-                <DollarSign size={18} color="#815100" />
+                <Banknote size={18} color="#815100" />
                 <Text style={s.tripActionText}>Report Fare</Text>
               </TouchableOpacity>
             </View>
@@ -1172,10 +1189,15 @@ export default function TripScreen() {
                     </View>
                   )}
 
-                  {/* Destination — tappable for train */}
+                  {/* Destination — tappable for train; trotro picks an alight stop */}
+                  {(() => {
+                    const canPickDest = isTrain
+                      ? !!allLineStations
+                      : !!trotroCorridor && trotroCorridor.length > 2
+                    return (
                   <TouchableOpacity
-                    activeOpacity={isTrain && allLineStations ? 0.6 : 1}
-                    onPress={() => isTrain && allLineStations && setStationPickerTarget('dest')}
+                    activeOpacity={canPickDest ? 0.6 : 1}
+                    onPress={() => canPickDest && setStationPickerTarget('dest')}
                     style={s.stationRow}
                   >
                     <View style={s.stationTimeline}>
@@ -1184,10 +1206,14 @@ export default function TripScreen() {
                     </View>
                     <View style={[s.stationInfo, { flex: 1 }]}>
                       <Text style={s.stationNameBold}>{dest?.name}</Text>
-                      <Text style={s.stationSub}>Destination{isTrain && allLineStations ? ' · Tap to change' : ''}</Text>
+                      <Text style={s.stationSub}>
+                        {isTrain ? 'Destination' : 'Alight at'}{canPickDest ? ' · Tap to change' : ''}
+                      </Text>
                     </View>
-                    {isTrain && allLineStations && <ChevronDown size={16} color="#b2acaa" />}
+                    {canPickDest && <ChevronDown size={16} color="#b2acaa" />}
                   </TouchableOpacity>
+                    )
+                  })()}
                 </View>
               )}
 
@@ -1215,7 +1241,7 @@ export default function TripScreen() {
 
       {renderFareModal()}
 
-      {/* ── Station picker modal (train only) ── */}
+      {/* ── Station picker modal (train origin/dest · trotro alight stop) ── */}
       <Modal
         visible={stationPickerTarget !== null}
         transparent
@@ -1230,16 +1256,21 @@ export default function TripScreen() {
           <View style={s.pickerSheet}>
             <View style={s.pickerHandle} />
             <Text style={s.pickerTitle}>
-              Select {stationPickerTarget === 'origin' ? 'Origin' : 'Destination'}
+              {stationPickerTarget === 'origin' ? 'Select Origin' : isTrain ? 'Select Destination' : 'Where will you alight?'}
             </Text>
             <ScrollView style={s.pickerList} bounces={false}>
-              {allLineStations?.map((station, idx) => {
-                const isSelected = stationPickerTarget === 'origin'
-                  ? idx === selectedOriginIdx
-                  : idx === (selectedDestIdx === -1 ? (allLineStations.length - 1) : selectedDestIdx)
-                const isDisabled = stationPickerTarget === 'origin'
-                  ? idx >= (selectedDestIdx === -1 ? allLineStations.length - 1 : selectedDestIdx)
-                  : idx <= selectedOriginIdx
+              {(isTrain ? allLineStations : trotroCorridor)?.map((station, idx) => {
+                const list = (isTrain ? allLineStations : trotroCorridor)!
+                const isSelected = !isTrain
+                  ? idx === (selectedAlightIdx < 1 ? list.length - 1 : selectedAlightIdx)
+                  : stationPickerTarget === 'origin'
+                    ? idx === selectedOriginIdx
+                    : idx === (selectedDestIdx === -1 ? (list.length - 1) : selectedDestIdx)
+                const isDisabled = !isTrain
+                  ? idx === 0
+                  : stationPickerTarget === 'origin'
+                    ? idx >= (selectedDestIdx === -1 ? list.length - 1 : selectedDestIdx)
+                    : idx <= selectedOriginIdx
 
                 return (
                   <TouchableOpacity
@@ -1247,7 +1278,9 @@ export default function TripScreen() {
                     activeOpacity={isDisabled ? 0.3 : 0.7}
                     onPress={() => {
                       if (isDisabled) return
-                      if (stationPickerTarget === 'origin') {
+                      if (!isTrain) {
+                        setSelectedAlightIdx(idx === list.length - 1 ? -1 : idx)
+                      } else if (stationPickerTarget === 'origin') {
                         setSelectedOriginIdx(idx)
                       } else {
                         setSelectedDestIdx(idx)

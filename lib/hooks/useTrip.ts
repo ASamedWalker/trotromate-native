@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import * as Notifications from 'expo-notifications'
 import * as TaskManager from 'expo-task-manager'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useLocation, requestBackgroundPermission, type UserLocation } from './useLocation'
+import { requestBackgroundPermission, type UserLocation } from './useLocation'
 import {
   computeTripProgress,
   type TripStation,
@@ -11,9 +11,18 @@ import {
 } from '@/lib/services/trip'
 import { buildCompletedTrip, saveCompletedTrip, type CompletedTripPayload } from '@/lib/services/trips'
 import { startTripActivity, updateTripActivity, endTripActivity } from '@/lib/services/liveActivity'
+import { supabase } from '@/lib/supabase/client'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const TRIP_STORAGE_KEY = '@troski_active_trip'
 const BACKGROUND_TASK = 'TROSKI_TRIP_TRACKING'
+
+// Transit's crowdsourcing model: a rider in GO Mode broadcasts their vehicle's
+// position to riders waiting down the line. Opt-in by construction (GO is an
+// explicit user action), Realtime-broadcast only (no DB writes — phone GPS is
+// 1-2s fresh vs ~15s for transponders). Consumers subscribe to gps:trip:{routeId}.
+const POSITION_BROADCAST_ENABLED = true
+const BROADCAST_INTERVAL_MS = 10_000
 
 export type TripState = 'idle' | 'active' | 'approaching' | 'arrived'
 
@@ -42,7 +51,312 @@ interface UseTripReturn {
   clearCompletedTrip: () => void
 }
 
-// Register background task for location tracking
+/* ════════════════════════════════════════════════════════════════════
+   Module-level singleton store.
+
+   There is exactly ONE active trip per app, but useTrip() is consumed
+   from several mounted components at once (trip screen, ExploreMap
+   banner, stacked navigator entries). Per-instance hook state caused
+   split-brain trips: each instance ran its own watcher, its own
+   hasAlerted, its own tripState — duplicate notifications, and the
+   instance the UI rendered was not the one that detected arrival.
+   All trip state and side-effect machinery therefore lives here, once;
+   the hook is just a subscription.
+   ════════════════════════════════════════════════════════════════════ */
+
+interface TripSnapshot {
+  tripState: TripState
+  activeTrip: ActiveTrip | null
+  progress: TripProgress | null
+  lastCompletedTrip: CompletedTripResult | null
+}
+
+let snapshot: TripSnapshot = {
+  tripState: 'idle',
+  activeTrip: null,
+  progress: null,
+  lastCompletedTrip: null,
+}
+
+const listeners = new Set<() => void>()
+
+function setSnapshot(patch: Partial<TripSnapshot>) {
+  snapshot = { ...snapshot, ...patch }
+  listeners.forEach((l) => l())
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function getSnapshot(): TripSnapshot {
+  return snapshot
+}
+
+// Side-effect machinery — single set for the whole app
+let watcherSub: Location.LocationSubscription | null = null
+let pollInterval: ReturnType<typeof setInterval> | null = null
+let lastFixTs = 0
+let hasAlerted = false
+let prevProgress = 0
+let broadcastChannel: RealtimeChannel | null = null
+let lastBroadcastTs = 0
+let restorePromise: Promise<void> | null = null
+
+function handleFix(loc: UserLocation) {
+  const trip = snapshot.activeTrip
+  if (!trip) return
+  lastFixTs = Date.now()
+
+  const p = computeTripProgress(loc, trip.stations, {
+    transportType: trip.transportType ?? 'trotro',
+    prevProgress,
+  })
+  prevProgress = p.progressPercent
+
+  // Broadcast position to riders down the line (throttled, fire-and-forget)
+  if (POSITION_BROADCAST_ENABLED && broadcastChannel) {
+    const now = Date.now()
+    if (now - lastBroadcastTs >= BROADCAST_INTERVAL_MS) {
+      lastBroadcastTs = now
+      Promise.resolve(
+        broadcastChannel.send({
+          type: 'broadcast',
+          event: 'pos',
+          payload: {
+            routeId: trip.routeId,
+            transportType: trip.transportType ?? 'trotro',
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            heading: loc.heading,
+            progressPercent: p.progressPercent,
+            ts: loc.timestamp,
+          },
+        }),
+      ).catch(() => {})
+    }
+  }
+
+  // Update Live Activity / Android notification with new progress
+  updateTripActivity(trip, p).catch(() => {})
+
+  if (p.shouldAlertGetOff && !hasAlerted) {
+    hasAlerted = true
+    setSnapshot({ progress: p, tripState: 'arrived' })
+
+    const dest = trip.stations.find((s) => s.isDestination)
+    Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Time to get off!',
+        body: `You're approaching ${dest?.name ?? 'your destination'}`,
+        data: {
+          screen: 'trip',
+          routeId: trip.routeId,
+          type: trip.transportType ?? 'trotro',
+          lineId: trip.trainLineId ?? undefined,
+        },
+        sound: true,
+      },
+      trigger: null,
+    })
+    return
+  }
+
+  // Never downgrade 'arrived' — later fixes at the stop would flip the
+  // state back and deadlock the auto-end flow
+  if (!hasAlerted && p.isApproachingDestination && p.distanceToDestinationKm < 1) {
+    setSnapshot({ progress: p, tripState: 'approaching' })
+    return
+  }
+
+  setSnapshot({ progress: p })
+}
+
+function toUserLocation(loc: Location.LocationObject): UserLocation {
+  return {
+    latitude: loc.coords.latitude,
+    longitude: loc.coords.longitude,
+    accuracy: loc.coords.accuracy,
+    heading: loc.coords.heading != null && loc.coords.heading >= 0 ? loc.coords.heading : null,
+    timestamp: loc.timestamp,
+  }
+}
+
+function stopTracking() {
+  watcherSub?.remove()
+  watcherSub = null
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+function startTracking() {
+  stopTracking()
+
+  Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 8000,
+      distanceInterval: 50,
+    },
+    (loc) => handleFix(toUserLocation(loc)),
+  )
+    .then((sub) => {
+      watcherSub = sub
+    })
+    .catch(() => {})
+
+  // Poll fallback: iOS CoreLocation auto-pauses foreground watchers it deems
+  // stationary (and the simulator never resumes them). Skip whenever the
+  // watcher delivered recently.
+  pollInterval = setInterval(async () => {
+    if (Date.now() - lastFixTs < 7000) return
+    if (!snapshot.activeTrip) return
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+      handleFix(toUserLocation(loc))
+    } catch {
+      // GPS hiccup — next tick retries
+    }
+  }, 8000)
+}
+
+function openBroadcastChannel(routeId: string) {
+  if (!POSITION_BROADCAST_ENABLED) return
+  try {
+    broadcastChannel = supabase.channel(`gps:trip:${routeId}`)
+    broadcastChannel.subscribe()
+    lastBroadcastTs = 0
+  } catch {
+    broadcastChannel = null
+  }
+}
+
+function closeBroadcastChannel() {
+  if (broadcastChannel) {
+    Promise.resolve(supabase.removeChannel(broadcastChannel)).catch(() => {})
+    broadcastChannel = null
+  }
+}
+
+async function registerBackgroundTask(routeLabel: string) {
+  try {
+    const bgGranted = await requestBackgroundPermission()
+    if (!bgGranted) return
+    const isRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK)
+    if (isRunning) return
+    await Location.startLocationUpdatesAsync(BACKGROUND_TASK, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 15000,
+      distanceInterval: 100,
+      foregroundService: {
+        notificationTitle: 'Troski GO Mode',
+        notificationBody: `Tracking your trip: ${routeLabel}`,
+        notificationColor: '#f59e0b',
+      },
+      showsBackgroundLocationIndicator: true,
+    })
+  } catch {
+    // Background tracking is optional
+  }
+}
+
+/** Restore a persisted trip after app relaunch — idempotent. */
+function ensureRestored(): Promise<void> {
+  if (restorePromise) return restorePromise
+  restorePromise = (async () => {
+    try {
+      if (snapshot.activeTrip) return
+      const raw = await AsyncStorage.getItem(TRIP_STORAGE_KEY)
+      if (!raw) return
+      const trip: ActiveTrip = JSON.parse(raw)
+      hasAlerted = false
+      prevProgress = 0
+      setSnapshot({ activeTrip: trip, tripState: 'active', progress: null })
+      openBroadcastChannel(trip.routeId)
+      startTracking()
+      registerBackgroundTask(trip.routeLabel)
+    } catch {
+      // silent
+    }
+  })()
+  return restorePromise
+}
+
+async function startTripImpl(
+  routeId: string,
+  routeLabel: string,
+  stations: TripStation[],
+  opts?: { transportType?: 'trotro' | 'train'; trainLineId?: string | null },
+): Promise<void> {
+  const trip: ActiveTrip = {
+    routeId,
+    routeLabel,
+    stations,
+    startedAt: Date.now(),
+    transportType: opts?.transportType ?? 'trotro',
+    trainLineId: opts?.trainLineId ?? null,
+  }
+
+  hasAlerted = false
+  prevProgress = 0
+  setSnapshot({ activeTrip: trip, tripState: 'active', progress: null })
+
+  // Persist for the background task + relaunch restore
+  await AsyncStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(trip))
+
+  openBroadcastChannel(routeId)
+
+  // Start Live Activity (iOS) / rich notification (Android)
+  startTripActivity(trip).catch(() => {})
+
+  startTracking()
+  registerBackgroundTask(routeLabel)
+}
+
+async function endTripImpl(deviceId: string): Promise<CompletedTripResult | null> {
+  const trip = snapshot.activeTrip
+  const reachedDestination = snapshot.tripState === 'arrived'
+
+  // Clear state immediately
+  hasAlerted = false
+  prevProgress = 0
+  setSnapshot({ activeTrip: null, tripState: 'idle', progress: null })
+
+  stopTracking()
+  closeBroadcastChannel()
+  AsyncStorage.removeItem(TRIP_STORAGE_KEY)
+  Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {})
+
+  // End Live Activity / dismiss Android notification
+  endTripActivity().catch(() => {})
+
+  // Persist trip data to Supabase
+  if (trip && deviceId && trip.stations.length >= 2) {
+    const payload = buildCompletedTrip({
+      deviceId,
+      routeId: trip.routeId,
+      routeLabel: trip.routeLabel,
+      trainLineId: trip.trainLineId,
+      transportType: trip.transportType ?? 'trotro',
+      stations: trip.stations,
+      startedAt: trip.startedAt,
+      reachedDestination,
+    })
+    const tripId = await saveCompletedTrip(payload)
+    const result: CompletedTripResult = { tripId, payload }
+    setSnapshot({ lastCompletedTrip: result })
+    return result
+  }
+
+  return null
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Background task — fires when the app is backgrounded mid-trip
+   ════════════════════════════════════════════════════════════════════ */
 TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
   if (error) return
   if (!data) return
@@ -57,13 +371,7 @@ TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
     if (!raw) return
 
     const trip: ActiveTrip = JSON.parse(raw)
-    const userLoc: UserLocation = {
-      latitude: latest.coords.latitude,
-      longitude: latest.coords.longitude,
-      accuracy: latest.coords.accuracy,
-      heading: latest.coords.heading != null && latest.coords.heading >= 0 ? latest.coords.heading : null,
-      timestamp: latest.timestamp,
-    }
+    const userLoc = toUserLocation(latest)
 
     const progress = computeTripProgress(userLoc, trip.stations, {
       transportType: trip.transportType ?? 'trotro',
@@ -98,209 +406,24 @@ TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
 })
 
 export function useTrip(): UseTripReturn {
-  const [tripState, setTripState] = useState<TripState>('idle')
-  const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null)
-  const [progress, setProgress] = useState<TripProgress | null>(null)
-  const [lastCompletedTrip, setLastCompletedTrip] = useState<CompletedTripResult | null>(null)
-  const hasAlerted = useRef(false)
-  const prevProgressRef = useRef(0)
-  const { startWatching, stopWatching } = useLocation()
+  const snap = useSyncExternalStore(subscribe, getSnapshot)
 
-  // Refs to avoid stale closures in endTrip
-  const activeTripRef = useRef<ActiveTrip | null>(null)
-  const tripStateRef = useRef<TripState>('idle')
-
-  // Keep refs in sync with state
-  useEffect(() => { activeTripRef.current = activeTrip }, [activeTrip])
-  useEffect(() => { tripStateRef.current = tripState }, [tripState])
-
-  // Restore active trip on mount + restart location watching
+  // Restore a persisted trip on first consumer mount (idempotent)
   useEffect(() => {
-    ;(async () => {
-      try {
-        const raw = await AsyncStorage.getItem(TRIP_STORAGE_KEY)
-        if (raw) {
-          const trip: ActiveTrip = JSON.parse(raw)
-          setActiveTrip(trip)
-          setTripState('active')
-        }
-      } catch {
-        // silent
-      }
-    })()
+    ensureRestored()
   }, [])
-
-  const handleLocationUpdate = useCallback(
-    (loc: UserLocation) => {
-      if (!activeTripRef.current) return
-
-      const trip = activeTripRef.current
-      const p = computeTripProgress(loc, trip.stations, {
-        transportType: trip.transportType ?? 'trotro',
-        prevProgress: prevProgressRef.current,
-      })
-      prevProgressRef.current = p.progressPercent
-      setProgress(p)
-
-      // Update Live Activity / Android notification with new progress
-      updateTripActivity(trip, p).catch(() => {})
-
-      if (p.shouldAlertGetOff && !hasAlerted.current) {
-        hasAlerted.current = true
-        setTripState('arrived')
-
-        const dest = trip.stations.find((s) => s.isDestination)
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Time to get off!',
-            body: `You're approaching ${dest?.name ?? 'your destination'}`,
-            data: {
-              screen: 'trip',
-              routeId: trip.routeId,
-              type: trip.transportType ?? 'trotro',
-              lineId: trip.trainLineId ?? undefined,
-            },
-            sound: true,
-          },
-          trigger: null,
-        })
-      } else if (p.isApproachingDestination && p.distanceToDestinationKm < 1) {
-        setTripState('approaching')
-      }
-    },
-    [],
-  )
-
-  // Restart location watching + background task when trip is restored from storage
-  useEffect(() => {
-    if (!activeTrip || tripState !== 'active') return
-
-    // Restart foreground watching
-    startWatching(handleLocationUpdate, 8000)
-
-    // Re-register background task (may have been lost on app kill)
-    ;(async () => {
-      try {
-        const bgGranted = await requestBackgroundPermission()
-        if (bgGranted) {
-          const isRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK)
-          if (!isRunning) {
-            await Location.startLocationUpdatesAsync(BACKGROUND_TASK, {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 15000,
-              distanceInterval: 100,
-              foregroundService: {
-                notificationTitle: 'Troski GO Mode',
-                notificationBody: `Tracking your trip: ${activeTrip.routeLabel}`,
-                notificationColor: '#f59e0b',
-              },
-              showsBackgroundLocationIndicator: true,
-            })
-          }
-        }
-      } catch {
-        // Background is optional
-      }
-    })()
-    // Only run when activeTrip changes (mount/restore), not every render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTrip?.routeId])
-
-  const startTrip = useCallback(
-    async (routeId: string, routeLabel: string, stations: TripStation[], opts?: { transportType?: 'trotro' | 'train'; trainLineId?: string | null }) => {
-      const trip: ActiveTrip = {
-        routeId,
-        routeLabel,
-        stations,
-        startedAt: Date.now(),
-        transportType: opts?.transportType ?? 'trotro',
-        trainLineId: opts?.trainLineId ?? null,
-      }
-
-      setActiveTrip(trip)
-      setTripState('active')
-      hasAlerted.current = false
-      prevProgressRef.current = 0
-      setProgress(null)
-
-      // Persist for background task
-      await AsyncStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(trip))
-
-      // Start Live Activity (iOS) / rich notification (Android)
-      startTripActivity(trip).catch(() => {})
-
-      // Start foreground tracking
-      startWatching(handleLocationUpdate, 8000)
-
-      // Try to start background tracking
-      try {
-        const bgGranted = await requestBackgroundPermission()
-        if (bgGranted) {
-          const isRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK)
-          if (!isRunning) {
-            await Location.startLocationUpdatesAsync(BACKGROUND_TASK, {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 15000,
-              distanceInterval: 100,
-              foregroundService: {
-                notificationTitle: 'Troski GO Mode',
-                notificationBody: `Tracking your trip: ${routeLabel}`,
-                notificationColor: '#f59e0b',
-              },
-              showsBackgroundLocationIndicator: true,
-            })
-          }
-        }
-      } catch {
-        // Background tracking is optional
-      }
-    },
-    [startWatching, handleLocationUpdate],
-  )
-
-  const endTrip = useCallback(async (deviceId: string): Promise<CompletedTripResult | null> => {
-    // Read from refs to avoid stale closure
-    const trip = activeTripRef.current
-    const reachedDestination = tripStateRef.current === 'arrived'
-
-    // Clear state immediately
-    setTripState('idle')
-    setActiveTrip(null)
-    setProgress(null)
-    hasAlerted.current = false
-    prevProgressRef.current = 0
-
-    stopWatching()
-    AsyncStorage.removeItem(TRIP_STORAGE_KEY)
-    Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {})
-
-    // End Live Activity / dismiss Android notification
-    endTripActivity().catch(() => {})
-
-    // Persist trip data to Supabase
-    if (trip && deviceId && trip.stations.length >= 2) {
-      const payload = buildCompletedTrip({
-        deviceId,
-        routeId: trip.routeId,
-        routeLabel: trip.routeLabel,
-        trainLineId: trip.trainLineId,
-        transportType: trip.transportType ?? 'trotro',
-        stations: trip.stations,
-        startedAt: trip.startedAt,
-        reachedDestination,
-      })
-      const tripId = await saveCompletedTrip(payload)
-      const result: CompletedTripResult = { tripId, payload }
-      setLastCompletedTrip(result)
-      return result
-    }
-
-    return null
-  }, [stopWatching])
 
   const clearCompletedTrip = useCallback(() => {
-    setLastCompletedTrip(null)
+    setSnapshot({ lastCompletedTrip: null })
   }, [])
 
-  return { tripState, activeTrip, progress, lastCompletedTrip, startTrip, endTrip, clearCompletedTrip }
+  return {
+    tripState: snap.tripState,
+    activeTrip: snap.activeTrip,
+    progress: snap.progress,
+    lastCompletedTrip: snap.lastCompletedTrip,
+    startTrip: startTripImpl,
+    endTrip: endTripImpl,
+    clearCompletedTrip,
+  }
 }
