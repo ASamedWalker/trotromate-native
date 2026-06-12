@@ -14,7 +14,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Navigation } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Navigation, Trophy } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
@@ -22,6 +22,9 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
+import { useQuery } from '@tanstack/react-query'
+import { fetchLineChampions } from '@/lib/services/reports'
+import InitialsAvatar from '@/components/InitialsAvatar'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
@@ -55,6 +58,12 @@ export default function RouteDetailScreen() {
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
+  const { data: champions = [] } = useQuery({
+    queryKey: ['line-champions', id],
+    queryFn: () => fetchLineChampions(id!),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  })
 
   if (isLoading) {
     return (
@@ -418,6 +427,38 @@ export default function RouteDetailScreen() {
             </Text>
           </View>
         </View>
+
+        {/* ─── Line Champions — top reporters on this corridor ─── */}
+        {champions.length > 0 && (
+          <View style={s.championsSection}>
+            <View style={s.bulletinHeader}>
+              <Trophy size={18} color="#d97706" />
+              <Text style={s.bulletinTitle}>Line Champions</Text>
+            </View>
+            <View style={s.championsCard}>
+              {champions.map((champ, i) => (
+                <View key={champ.deviceId} style={[s.championRow, i > 0 && s.championRowBorder]}>
+                  <Text style={s.championMedal}>{['🥇', '🥈', '🥉'][i] ?? '🏅'}</Text>
+                  <InitialsAvatar name={champ.displayName} size={36} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={s.championName} numberOfLines={1}>{champ.displayName}</Text>
+                    <Text style={s.championSub}>
+                      {champ.reportCount} fare report{champ.reportCount !== 1 ? 's' : ''} on this line
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => { haptics.light(); router.push('/leaderboard') }}
+                style={s.championsCta}
+              >
+                <Text style={s.championsCtaText}>View full leaderboard</Text>
+                <ChevronRight size={16} color="#d97706" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 16 }} />
       </ScrollView>
@@ -898,6 +939,61 @@ const getStyles = (isDark: boolean) => {
       fontSize: 14,
       marginTop: 4,
       color: outlineVariant,
+    },
+
+    // ── Line Champions ──
+    championsSection: {
+      marginHorizontal: 24,
+      marginTop: 24,
+    },
+    championsCard: {
+      backgroundColor: surfaceLowest,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingTop: 6,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    championRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 12,
+    },
+    championRowBorder: {
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
+    },
+    championMedal: {
+      fontSize: 20,
+      marginRight: 10,
+    },
+    championName: {
+      fontFamily: font.bold,
+      fontSize: 14,
+      color: onSurface,
+    },
+    championSub: {
+      fontFamily: font.medium,
+      fontSize: 12,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+    championsCta: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 4,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
+    },
+    championsCtaText: {
+      fontFamily: font.semibold,
+      fontSize: 13,
+      color: '#d97706',
     },
 
     // ── GPRTU Bulletins ──

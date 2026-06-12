@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -27,12 +27,31 @@ export default function WalletScreen() {
   const hasTransactions = transactions.length > 0
   const hasActivePass = false
 
+  // "GH₵ X added ✓" moment — until the MoMo webhook lands, detect credits by
+  // comparing balances across refetches (focus + pull-to-refresh). Lyft's
+  // payment-trust principle: make the money moment explicit, never silent.
+  const prevBalanceRef = useRef<number | null>(null)
+  const [credited, setCredited] = useState<number | null>(null)
+  const creditTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (creditTimer.current) clearTimeout(creditTimer.current) }, [])
+
   const fetchWallet = useCallback(async () => {
     if (!user?.id) return
     try {
       const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
       const data = await res.json()
-      if (data.balance != null) setBalance(data.balance)
+      if (data.balance != null) {
+        const next = Number(data.balance)
+        const prev = prevBalanceRef.current
+        if (prev != null && next > prev) {
+          setCredited(next - prev)
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+          if (creditTimer.current) clearTimeout(creditTimer.current)
+          creditTimer.current = setTimeout(() => setCredited(null), 5000)
+        }
+        prevBalanceRef.current = next
+        setBalance(next)
+      }
       if (data.transactions) setTransactions(data.transactions)
     } catch (e) { console.warn("[troski] silent error:", e) }
   }, [user?.id])
@@ -118,6 +137,14 @@ export default function WalletScreen() {
                 }
               </Text>
             </View>
+
+            {/* Credit celebration — appears when a top-up lands */}
+            {credited != null && (
+              <Animated.View entering={FadeInDown.duration(300)} style={s.creditedBanner}>
+                <MaterialIcons name="check-circle" size={16} color="#16a34a" />
+                <Text style={s.creditedText}>{formatGHS(credited)} added to your wallet</Text>
+              </Animated.View>
+            )}
 
             {/* Buttons — Add Money + Send */}
             {isAuthenticated && (
@@ -369,6 +396,22 @@ const s = StyleSheet.create({
   },
   balanceCardBtnOutlineText: { fontSize: 14, fontFamily: font.bold },
   balanceAmountRow: { marginBottom: 16 },
+  creditedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(22,163,74,0.12)',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 14,
+  },
+  creditedText: {
+    fontFamily: font.semibold,
+    fontSize: 13,
+    color: '#16a34a',
+  },
   balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -0.5 },
   liveSyncBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

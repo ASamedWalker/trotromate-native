@@ -34,6 +34,7 @@ import { c, themed, font, shadow } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
+import { fareConfidence } from '@/lib/utils/fare-confidence'
 import { useQueryClient } from '@tanstack/react-query'
 import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -140,6 +141,7 @@ export default function RoutesScreen() {
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
     const isOkada = item.transport_type === 'okada'
     const accent = lineColorFor(item.id)
+    const confidence = fareConfidence(item.fare_stats)
 
     return (
       <TouchableOpacity
@@ -180,6 +182,14 @@ export default function RoutesScreen() {
               <Clock size={14} color={t.textTertiary} />
               <Text style={s.metaText}>{lastUpdated}</Text>
             </View>
+            {confidence && (
+              <View style={s.metaItem}>
+                <View style={[s.confidenceDot, { backgroundColor: confidence.color }]} />
+                <Text style={[s.metaText, { color: confidence.color, fontFamily: font.semibold }]}>
+                  {confidence.label}
+                </Text>
+              </View>
+            )}
             {item.is_gprtu_verified && (
               <View style={s.metaItem}>
                 <ShieldCheck size={14} color="#16a34a" />
@@ -587,6 +597,11 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
+    },
+    confidenceDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
     },
     metaText: {
       fontSize: 13,
