@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Check, Star, ChevronRight } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
@@ -27,13 +28,22 @@ export default function ArrivedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
-      {/* Hero */}
-      <LinearGradient colors={['#FF6A3D', '#FF4D1C', '#E03A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+      {/* Hero — arrival photo like the Figma, dark gradient so the card pops */}
+      <View style={s.hero}>
+        <Image
+          source={require('@/assets/images/successful_receipt.png')}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          transition={300}
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.05)', 'transparent', 'rgba(0,0,0,0.35)']}
+          style={StyleSheet.absoluteFillObject}
+        />
         <SafeAreaView edges={['top']}>
           <View style={{ height: 8 }} />
         </SafeAreaView>
-        <Image source={require('@/assets/images/home/bus_icon_bg_removed.png')} style={s.heroBus} resizeMode="contain" />
-      </LinearGradient>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} style={{ marginTop: -28 }}>
         {/* Arrived card */}
@@ -108,10 +118,9 @@ export default function ArrivedScreen() {
 }
 
 const s = StyleSheet.create({
-  hero: { height: 300, alignItems: 'center', justifyContent: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroBus: { width: 220, height: 220 },
+  hero: { height: 300, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
 
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#F1F1F0' },
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4 },
   checkCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: BRAND, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#fff' },
   arrived: { fontFamily: font.bold, fontSize: 18, color: '#111', marginTop: 10 },
   arrivedSub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 },
