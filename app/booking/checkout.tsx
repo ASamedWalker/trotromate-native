@@ -156,10 +156,10 @@ export default function CheckoutScreen() {
       <View style={s.payBar}>
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/booking/processing' as never) }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: '/booking/processing', params: { from: params.from ?? '', to: params.to ?? '' } } as any) }}
           style={s.payBtn}
         >
-          <Text style={s.payBtnText}>Pay ${total.toFixed(2)}</Text>
+          <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
         </TouchableOpacity>
       </View>
 

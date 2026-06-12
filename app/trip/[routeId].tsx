@@ -88,15 +88,17 @@ function getActiveSchedule(lineCode: string): { schedule: typeof TRAIN_SCHEDULES
 
 export default function TripScreen() {
   const router = useRouter()
-  const { routeId, type, lineId } = useLocalSearchParams<{
+  const { routeId, type, lineId, dataSaver: dataSaverParam } = useLocalSearchParams<{
     routeId: string
     type?: string
     lineId?: string
+    dataSaver?: string
   }>()
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const isTrain = type === 'train'
+  const [dataSaver, setDataSaver] = useState(dataSaverParam === '1')
   const { route, isLoading: routeLoading } = useRouteDetail(isTrain ? '' : (routeId ?? ''))
   const { line, stations: trainStations } = useTrainLineDetail(isTrain ? (lineId ?? '') : '')
   const { stations: allStations } = useStations()
@@ -820,7 +822,20 @@ export default function TripScreen() {
     <View style={s.container}>
       <StatusBar style={isNightTime ? 'light' : 'dark'} />
 
-      {/* Full-screen map */}
+      {/* Full-screen map — skipped in Data Saver: tiles are the data cost,
+          GPS itself is essentially free. The sheet still carries live progress. */}
+      {dataSaver ? (
+        <LinearGradient
+          colors={isNightTime ? ['#1c1917', '#292524'] : ['#fcf5f2', '#f3e7df']}
+          style={StyleSheet.absoluteFillObject}
+        >
+          <View style={s.liteCenter}>
+            <View style={s.liteIconRing}><Navigation size={28} color="#f8a010" /></View>
+            <Text style={s.liteTitle} numberOfLines={2}>{routeLabel}</Text>
+            <Text style={s.liteSub}>Data Saver is on — map paused.{'\n'}Your trip progress stays live below.</Text>
+          </View>
+        </LinearGradient>
+      ) : (
       <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}
         styleURL={mapStyleURL}
@@ -975,6 +990,7 @@ export default function TripScreen() {
           </Mapbox.ShapeSource>
         )}
       </Mapbox.MapView>
+      )}
 
       {/* Speed indicator — Waze style */}
       {isActive && (
@@ -1005,6 +1021,16 @@ export default function TripScreen() {
             {isActive ? `TRIP #${(routeId ?? '').substring(0, 6).toUpperCase()}` : routeLabel}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); setDataSaver((v) => !v) }}
+          style={[s.saverChip, dataSaver && s.saverChipOn]}
+          activeOpacity={0.8}
+          hitSlop={6}
+        >
+          <Text style={[s.saverChipText, dataSaver && s.saverChipTextOn]}>
+            {dataSaver ? 'Saver ON' : 'Saver'}
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
 
       {/* ── Draggable bottom sheet ── */}
@@ -1339,6 +1365,52 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: 16,
       paddingBottom: 8,
       gap: 12,
+    },
+    saverChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 100,
+      backgroundColor: isDark ? 'rgba(28,28,30,0.85)' : 'rgba(255,255,255,0.85)',
+    },
+    saverChipOn: {
+      backgroundColor: '#f8a010',
+    },
+    saverChipText: {
+      fontFamily: font.bold,
+      fontSize: 12,
+      color: isDark ? '#e5e5e5' : '#5f5b59',
+    },
+    saverChipTextOn: {
+      color: '#fff',
+    },
+    liteCenter: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 40,
+      paddingBottom: 160,
+      gap: 12,
+    },
+    liteIconRing: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: 'rgba(248,160,16,0.14)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    liteTitle: {
+      fontFamily: font.extrabold,
+      fontSize: 20,
+      color: onSurface,
+      textAlign: 'center',
+    },
+    liteSub: {
+      fontFamily: font.medium,
+      fontSize: 13,
+      color: onSurfaceVariant,
+      textAlign: 'center',
+      lineHeight: 19,
     },
     backBtn: {
       width: 44,
