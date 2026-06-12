@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ import { c, themed, font, shadow } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
+import { useQueryClient } from '@tanstack/react-query'
+import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
 import type { RouteWithStats } from '@/lib/types'
@@ -93,6 +95,19 @@ export default function RoutesScreen() {
 
     return result
   }, [routes, activeFilter, searchQuery, favorites])
+
+  // Anticipatory prefetch (Uber "work ahead of the user" pattern): warm the
+  // detail queries for the cards on screen so /routes/[id] opens instantly.
+  // prefetchQuery is a no-op while the cached copy is still fresh.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    for (const r of filteredRoutes.slice(0, 6)) {
+      queryClient.prefetchQuery({
+        queryKey: ['route', r.id],
+        queryFn: () => fetchRouteById(r.id),
+      })
+    }
+  }, [filteredRoutes, queryClient])
 
   // Citymapper-style line identity: each corridor gets a stable colour so
   // riders recognise "their" line at a glance. Deterministic hash of route id.

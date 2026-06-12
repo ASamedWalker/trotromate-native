@@ -8,7 +8,6 @@ import {
   TouchableWithoutFeedback,
   Modal,
   useColorScheme,
-  ActivityIndicator,
   StyleSheet,
   Platform,
 } from 'react-native'
@@ -17,8 +16,11 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { SkeletonRouteDetail } from '@/components/Skeleton'
+import { HeroText } from '@/components/HeroText'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
@@ -57,9 +59,7 @@ export default function RouteDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={c.amber500} />
-        </View>
+        <SkeletonRouteDetail isDark={isDark} />
       </SafeAreaView>
     )
   }
@@ -96,7 +96,7 @@ export default function RouteDetailScreen() {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Stitch Hero — tall with cinematic image */}
-        <Animated.View entering={FadeIn.duration(500)} style={s.heroSection}>
+        <Animated.View entering={FadeIn.duration(dur.emphasized)} style={s.heroSection}>
           {hero ? (
             <>
               <Image
@@ -141,7 +141,7 @@ export default function RouteDetailScreen() {
 
             {/* Fare display */}
             <View style={s.heroFareRow}>
-              <Text style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</Text>
+              <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
               <Text style={s.heroFareLabel}>
                 {route.is_gprtu_verified ? 'official fare' : 'reported fare'}
               </Text>
@@ -159,7 +159,7 @@ export default function RouteDetailScreen() {
         </Animated.View>
 
         {/* Trust & Verification — overlaps hero */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.trustSection}>
+        <Animated.View entering={FadeInDown.delay(200).duration(dur.entrance)} style={s.trustSection}>
           {/* GPRTU Verified card */}
           {route.is_gprtu_verified && (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setShowGprtuInfo(true)} style={s.gprtuCard}>
@@ -429,7 +429,7 @@ export default function RouteDetailScreen() {
             {/* Official Fare */}
             <View style={s.modalFareCard}>
               <Text style={s.modalFareLabel}>OFFICIAL FARE</Text>
-              <Text style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</Text>
+              <HeroText size={36} style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</HeroText>
               <Text style={s.modalFareSub}>Set and regulated by GPRTU</Text>
             </View>
 
@@ -532,11 +532,7 @@ const getStyles = (isDark: boolean) => {
       gap: 10,
     },
     heroFareValue: {
-      fontSize: 44,
-      fontFamily: font.extrabold,
       color: '#f8a010',
-      // Baloo 2 bottom-anchors in a clamped line box — below ~1.32x the caps get sliced
-      lineHeight: 58,
     },
     heroFareLabel: {
       fontSize: 14,
@@ -955,10 +951,7 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 6,
     },
     modalFareValue: {
-      fontSize: 36,
-      fontFamily: font.extrabold,
       color: '#059669',
-      lineHeight: 48,
     },
     modalFareSub: {
       fontSize: 12,

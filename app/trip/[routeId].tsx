@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { HeroText } from '@/components/HeroText'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   Navigation,
@@ -961,7 +962,7 @@ export default function TripScreen() {
       {/* Speed indicator — Waze style */}
       {isActive && (
         <View style={s.speedBadge}>
-          <Text style={s.speedValue}>{speedKmh}</Text>
+          <HeroText size={20} style={s.speedValue}>{speedKmh}</HeroText>
           <Text style={s.speedUnit}>km/h</Text>
         </View>
       )}
@@ -1846,10 +1847,7 @@ const getStyles = (isDark: boolean) => {
       }),
     },
     speedValue: {
-      fontSize: 20,
-      fontFamily: font.extrabold,
       color: onSurface,
-      lineHeight: 26,
     },
     speedUnit: {
       fontSize: 9,

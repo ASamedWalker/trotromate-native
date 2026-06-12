@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import {
@@ -24,7 +24,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { AuthProvider } from '@/lib/contexts/AuthContext'
-import { queryClient } from '@/lib/query-client'
+import { queryClient, persistOptions } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePreferences } from '@/lib/hooks/usePreferences'
@@ -265,13 +265,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppErrorBoundary>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
           <AppProvider>
             <AuthProvider>
               <AppInner />
             </AuthProvider>
           </AppProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </AppErrorBoundary>
     </GestureHandlerRootView>
   )

@@ -103,8 +103,9 @@ Lyft's LPL: atomic elements → shared internal components → consistency + low
 maintenance **[verified]** ([LPL](https://design.lyft.com/building-a-design-system-library-3a1f0d09088f)).
 Evidence we need this: the June 2026 Baloo lineHeight clip bug had to be fixed in
 **6 places across 4 files** because fare/number display is re-implemented per screen.
-**Move:** extract `<HeroNumber>`, `<FareText>`, `<RouteRow>`, `<StatCard>`,
-`<SectionHeader>` primitives; TroskiCoin already proves the pattern.
+**Move:** extract shared primitives; TroskiCoin already proves the pattern.
+`<HeroText>` (display text, metrics baked in) shipped June 2026; `<RouteRow>`,
+`<StatCard>`, `<SectionHeader>` remain.
 
 ### P12. Dark mode is a majority transit feature
 **>50% of Transit users run dark mode (75% after sundown)** **[verified]**. Trotro

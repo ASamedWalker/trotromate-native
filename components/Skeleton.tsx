@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { View, Animated, StyleSheet, useColorScheme } from 'react-native'
 import { themed } from '@/lib/theme'
+import { dur } from '@/lib/motion'
 
 interface SkeletonProps {
   width: number | `${number}%`
@@ -17,8 +18,8 @@ export default function Skeleton({ width, height, borderRadius = 8, style }: Ske
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: dur.pulse, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: dur.pulse, useNativeDriver: true }),
       ])
     )
     pulse.start()
@@ -141,6 +142,57 @@ export function SkeletonRewards({ isDark }: { isDark: boolean }) {
             <Skeleton width={50} height={14} borderRadius={6} />
           </View>
         ))}
+      </View>
+    </View>
+  )
+}
+
+export function SkeletonTrainCard({ isDark }: { isDark: boolean }) {
+  return (
+    <View
+      style={{
+        borderRadius: 24,
+        padding: 20,
+        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de',
+      }}
+    >
+      <Skeleton width={72} height={20} borderRadius={6} />
+      <Skeleton width="80%" height={22} style={{ marginTop: 14 }} />
+      <Skeleton width="45%" height={22} style={{ marginTop: 6 }} />
+      <Skeleton width="35%" height={13} style={{ marginTop: 10 }} />
+      <View style={[skeletons.row, { marginTop: 16 }]}>
+        <Skeleton width={70} height={26} borderRadius={8} />
+        <Skeleton width={90} height={14} />
+      </View>
+      <Skeleton width="100%" height={48} borderRadius={14} style={{ marginTop: 18 }} />
+    </View>
+  )
+}
+
+export function SkeletonRouteDetail({ isDark }: { isDark: boolean }) {
+  return (
+    <View>
+      {/* Hero: badges → route title → giant fare */}
+      <View style={{ paddingHorizontal: 24, paddingTop: 90, paddingBottom: 28, gap: 12 }}>
+        <View style={[skeletons.row, { gap: 10 }]}>
+          <Skeleton width={100} height={24} borderRadius={20} />
+          <Skeleton width={70} height={14} />
+        </View>
+        <Skeleton width="85%" height={30} />
+        <Skeleton width={180} height={44} borderRadius={10} style={{ marginTop: 6 }} />
+        <Skeleton width="55%" height={14} />
+      </View>
+      {/* Trust card + tab pills + content card */}
+      <View style={{ paddingHorizontal: 24, gap: 14 }}>
+        <Skeleton width="100%" height={64} borderRadius={16} />
+        <View style={[skeletons.row, { gap: 8 }]}>
+          <Skeleton width={86} height={36} borderRadius={20} />
+          <Skeleton width={100} height={36} borderRadius={20} />
+          <Skeleton width={86} height={36} borderRadius={20} />
+        </View>
+        <Skeleton width="100%" height={180} borderRadius={20} />
       </View>
     </View>
   )

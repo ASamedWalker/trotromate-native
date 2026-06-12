@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { c, font, themed } from '@/lib/theme'
+import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -25,7 +26,7 @@ export default function LinesScreen() {
   return (
     <View style={s.container}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: t.bg }}>
-        <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
+        <Animated.View entering={FadeInDown.duration(dur.base)} style={s.header}>
           <Text style={s.title}>Lines</Text>
         </Animated.View>
 

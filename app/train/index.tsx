@@ -5,12 +5,13 @@ import {
   TouchableOpacity,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
   RefreshControl,
   StyleSheet,
   type DimensionValue,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { SkeletonTrainCard } from '@/components/Skeleton'
+import { HeroText } from '@/components/HeroText'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
@@ -285,7 +287,7 @@ export default function TrainLinesScreen() {
                     Line {item.code}
                   </Text>
                 </View>
-                <Text style={s.lineTitle}>{item.name}</Text>
+                <HeroText size={24} style={s.lineTitle}>{item.name}</HeroText>
                 <Text style={s.lineSubtitle}>{meta.subtitle}</Text>
               </View>
               <View style={s.shieldBox}>
@@ -403,13 +405,13 @@ export default function TrainLinesScreen() {
         }
       >
         {/* ─── Hero Section ──────────────────────────────── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={s.hero}>
+        <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.hero}>
           <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
-          <Text style={s.heroTitle}>Train Index</Text>
+          <HeroText size={36} weight="displayHeavy" style={s.heroTitle}>Train Index</HeroText>
         </Animated.View>
 
         {/* ─── Departure Board ─────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(150).duration(400)} style={s.board}>
+        <Animated.View entering={FadeInDown.delay(150).duration(dur.entrance)} style={s.board}>
           <View style={s.boardGlow} />
 
           {/* Top row */}
@@ -598,10 +600,11 @@ export default function TrainLinesScreen() {
         </Animated.View>
 
         {/* ─── Rail Line Cards ─────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.section}>
+        <Animated.View entering={FadeInDown.delay(300).duration(dur.entrance)} style={s.section}>
           {isLoading ? (
-            <View style={s.centered}>
-              <ActivityIndicator size="large" color="#0ea5e9" />
+            <View style={{ gap: 24 }}>
+              <SkeletonTrainCard isDark={isDark} />
+              <SkeletonTrainCard isDark={isDark} />
             </View>
           ) : lines.length === 0 ? (
             <View style={s.emptyCard}>
@@ -705,11 +708,8 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 6,
     },
     heroTitle: {
-      fontSize: 36,
-      fontFamily: font.displayHeavy,
       color: onSurface,
       letterSpacing: 0,
-      lineHeight: 48,
       marginBottom: 8,
     },
 
@@ -1017,11 +1017,8 @@ const getStyles = (isDark: boolean) => {
       textTransform: 'uppercase',
     },
     lineTitle: {
-      fontSize: 24,
-      fontFamily: font.extrabold,
       color: onSurface,
       letterSpacing: -0.5,
-      lineHeight: 32,
     },
     lineSubtitle: {
       fontSize: 13,
