@@ -7,7 +7,8 @@ Ghana's mobility super app — crowdsourced transit info, ticketing, ride-hailin
 - **Expo SDK 54** + React Native + expo-router (file-based routing)
 - **Supabase** backend (Postgres, Auth with phone OTP, Realtime, RLS)
 - **Mapbox** (`@rnmapbox/maps`) — custom style `mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31`
-- **Font**: Plus Jakarta Sans (was Poppins — fully replaced)
+- **Font**: Baloo 2 (June 2026; was Jakarta, before that Poppins). Tokens = `font.*` from `lib/theme.ts` — never hardcode family names.
+  **lineHeight RULE**: Baloo 2's natural box is 1.6em and RN bottom-anchors clamped lines, so any explicit `lineHeight` < 1.3× fontSize slices glyph tops (1.13× is the floor for digits/ALL-CAPS-only text). When in doubt omit lineHeight. Styles with `fontWeight` but no `fontFamily` render the SYSTEM font, not Baloo (register/auth/onboarding titles still do — intentional until those screens get a pass).
 - **Icons**: Lucide React Native
 - **Bottom sheets**: `@gorhom/bottom-sheet`
 - **Animations**: `react-native-reanimated` (but NOT Animated.View inside ScrollView on Android — causes width bugs)

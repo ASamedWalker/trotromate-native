@@ -1849,7 +1849,7 @@ const getStyles = (isDark: boolean) => {
       fontSize: 20,
       fontFamily: font.extrabold,
       color: onSurface,
-      lineHeight: 22,
+      lineHeight: 26,
     },
     speedUnit: {
       fontSize: 9,

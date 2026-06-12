@@ -709,7 +709,7 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.displayHeavy,
       color: onSurface,
       letterSpacing: 0,
-      lineHeight: 44,
+      lineHeight: 48,
       marginBottom: 8,
     },
 
@@ -1021,7 +1021,7 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.extrabold,
       color: onSurface,
       letterSpacing: -0.5,
-      lineHeight: 28,
+      lineHeight: 32,
     },
     lineSubtitle: {
       fontSize: 13,

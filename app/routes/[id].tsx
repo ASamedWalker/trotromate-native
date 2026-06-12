@@ -535,7 +535,8 @@ const getStyles = (isDark: boolean) => {
       fontSize: 44,
       fontFamily: font.extrabold,
       color: '#f8a010',
-      lineHeight: 48,
+      // Baloo 2 bottom-anchors in a clamped line box — below ~1.32x the caps get sliced
+      lineHeight: 58,
     },
     heroFareLabel: {
       fontSize: 14,
@@ -957,7 +958,7 @@ const getStyles = (isDark: boolean) => {
       fontSize: 36,
       fontFamily: font.extrabold,
       color: '#059669',
-      lineHeight: 40,
+      lineHeight: 48,
     },
     modalFareSub: {
       fontSize: 12,

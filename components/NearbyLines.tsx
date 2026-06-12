@@ -458,7 +458,7 @@ const getStyles = (isDark: boolean) => {
     timeBoxNumber: {
       fontSize: 20,
       fontFamily: font.black,
-      lineHeight: 22,
+      lineHeight: 26,
     },
     timeBoxUnit: {
       fontSize: 8,
