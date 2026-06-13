@@ -82,6 +82,36 @@ and the Cash Out stub were REMOVED — do not reintroduce without owner say-so.
   once per tier-up / 7-day streak via AsyncStorage `@troski_rewards_celebrated_v1`.
 - `components/ReferralCard.tsx` is unused (logic inlined into the Referrals tab).
 
+## GO Mode — Trip Tracking (June 2026)
+The moat feature (docs/DESIGN_DIRECTION.md): live in-ride companion for trotro
+AND train, built on Transit's GO model.
+- **Engine**: `lib/hooks/useTrip.ts` is a MODULE-LEVEL SINGLETON store
+  (useSyncExternalStore) — never per-component state; multiple consumers
+  (trip screen, ExploreMap) share one watcher/one tripState. Poll fallback
+  every 8s because iOS CoreLocation silently pauses "stationary" foreground
+  watchers. 'arrived' state is STICKY (never downgrade — deadlocks auto-end).
+- **Entries**: route detail "Start GO Mode" CTA; booking receipt asks
+  "Keep track of your ride?" (Track live / Data Saver / Not now) — tracking
+  is ALWAYS the rider's explicit choice (data costs money in Ghana).
+- **Data Saver**: skips the Mapbox map entirely (tiles = the data cost),
+  lite backdrop + sheet carries all progress; "Saver" chip in trip header
+  toggles. Pass `dataSaver=1` param to /trip/[routeId].
+- **Alight picker**: trotro corridors slice origin→chosen stop ("Where will
+  you alight?"); get-off alarm = local notification at 300m threshold.
+- **Position broadcast**: while GO active, `gps:trip:{routeId}` Realtime
+  BROADCAST (no DB writes) every 10s with anonymous tripKey. Consumers:
+  `useLiveTripPositions(routeId)` → live dots on routes/detail.tsx map +
+  "N trotros live" pill + Live Trotros row on routes/[id].
+  **Channels MUST go through `lib/services/tripChannel.ts`** (ref-counted,
+  one channel per topic per client) — two channels on one topic on one
+  socket kill each other's subscription on removeChannel.
+- **Arrival handoff**: completed trips → /booking/arrived with real
+  distance/duration/stops params; GO rides hide the driver card and rate
+  the LINE, never an individual mate.
+- Post-trip fare prompt (GH₵, +5/+8 pts) feeds `fare_reports` WITH
+  `reporter_id` (uuid col; deviceId is undashed hex — Postgres accepts it,
+  returns it dashed; normalize when joining contributor_profiles).
+
 ## Route Detail Flow (June 2026)
 ```
 Home → "Where to?" → routes/search.tsx (Plan a Trip)

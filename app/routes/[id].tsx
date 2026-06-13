@@ -25,6 +25,7 @@ import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { useQuery } from '@tanstack/react-query'
 import { fetchLineChampions } from '@/lib/services/reports'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
@@ -64,6 +65,7 @@ export default function RouteDetailScreen() {
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   })
+  const liveTrips = useLiveTripPositions(id)
 
   if (isLoading) {
     return (
@@ -265,6 +267,19 @@ export default function RouteDetailScreen() {
                 isDark={isDark}
               />
             </View>
+
+            {/* Live trotros — crowdsourced from riders in GO Mode */}
+            {liveTrips.length > 0 && (
+              <View style={s.pulseRow}>
+                <Text style={s.pulseLabel}>Live Trotros</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' }} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#16a34a' }}>
+                    {liveTrips.length} riding now
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* ETA comparison */}
             {traffic.duration_in_traffic_mins != null && traffic.typical_duration_mins != null && (

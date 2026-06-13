@@ -11,7 +11,7 @@ import {
 } from '@/lib/services/trip'
 import { buildCompletedTrip, saveCompletedTrip, type CompletedTripPayload } from '@/lib/services/trips'
 import { startTripActivity, updateTripActivity, endTripActivity } from '@/lib/services/liveActivity'
-import { supabase } from '@/lib/supabase/client'
+import { acquireTripChannel, releaseTripChannel } from '@/lib/services/tripChannel'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const TRIP_STORAGE_KEY = '@troski_active_trip'
@@ -24,6 +24,10 @@ const BACKGROUND_TASK = 'TROSKI_TRIP_TRACKING'
 const POSITION_BROADCAST_ENABLED = true
 const BROADCAST_INTERVAL_MS = 10_000
 
+function newTripKey(): string {
+  return 'xxxxxxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16))
+}
+
 export type TripState = 'idle' | 'active' | 'approaching' | 'arrived'
 
 export interface ActiveTrip {
@@ -33,6 +37,8 @@ export interface ActiveTrip {
   startedAt: number
   transportType?: 'trotro' | 'train'
   trainLineId?: string | null
+  /** Anonymous per-trip key so riders down-line can tell vehicles apart */
+  tripKey?: string
 }
 
 /** Returned after endTrip so the UI can show a post-trip prompt */
@@ -101,6 +107,7 @@ let lastFixTs = 0
 let hasAlerted = false
 let prevProgress = 0
 let broadcastChannel: RealtimeChannel | null = null
+let broadcastRouteId: string | null = null
 let lastBroadcastTs = 0
 let restorePromise: Promise<void> | null = null
 
@@ -126,6 +133,7 @@ function handleFix(loc: UserLocation) {
           event: 'pos',
           payload: {
             routeId: trip.routeId,
+            tripKey: trip.tripKey ?? 'rider',
             transportType: trip.transportType ?? 'trotro',
             latitude: loc.latitude,
             longitude: loc.longitude,
@@ -226,19 +234,23 @@ function startTracking() {
 function openBroadcastChannel(routeId: string) {
   if (!POSITION_BROADCAST_ENABLED) return
   try {
-    broadcastChannel = supabase.channel(`gps:trip:${routeId}`)
-    broadcastChannel.subscribe()
+    // Shared ref-counted channel — a watcher screen on the same corridor
+    // must survive this trip ending (and vice versa)
+    broadcastChannel = acquireTripChannel(routeId)
+    broadcastRouteId = routeId
     lastBroadcastTs = 0
   } catch {
     broadcastChannel = null
+    broadcastRouteId = null
   }
 }
 
 function closeBroadcastChannel() {
-  if (broadcastChannel) {
-    Promise.resolve(supabase.removeChannel(broadcastChannel)).catch(() => {})
-    broadcastChannel = null
+  if (broadcastRouteId) {
+    releaseTripChannel(broadcastRouteId)
   }
+  broadcastChannel = null
+  broadcastRouteId = null
 }
 
 async function registerBackgroundTask(routeLabel: string) {
@@ -272,6 +284,7 @@ function ensureRestored(): Promise<void> {
       const raw = await AsyncStorage.getItem(TRIP_STORAGE_KEY)
       if (!raw) return
       const trip: ActiveTrip = JSON.parse(raw)
+      if (!trip.tripKey) trip.tripKey = newTripKey()
       hasAlerted = false
       prevProgress = 0
       setSnapshot({ activeTrip: trip, tripState: 'active', progress: null })
@@ -298,6 +311,7 @@ async function startTripImpl(
     startedAt: Date.now(),
     transportType: opts?.transportType ?? 'trotro',
     trainLineId: opts?.trainLineId ?? null,
+    tripKey: newTripKey(),
   }
 
   hasAlerted = false
