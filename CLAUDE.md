@@ -205,7 +205,19 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
   issue real per-user virtual accounts + reconcile inbound transfers (GH₵ 0.25 charge,
   ~2 min reflect). Debit Card needs a card-tokenization/PSP integration before building.
 
-## Next Up (as of June 2026)
+## Next Up (updated 2026-06-13 — after GO Mode/trust-loop sprints)
+Top of queue (in value order):
+1. **Rating persistence** — booking/arrived stars+tags are client-only; save
+   them (new table) → per-line reliability scores on Lines cards (last piece
+   of the trust loop)
+2. **AutoTroski boarding detection** — one-tap "On this trotro?" prompt
+   (Transit AutoGO pattern; 1M+ trips started via their version)
+3. Backend asks (other repo): MoMo confirmation webhook (client banner is
+   ready and fires on refetch today); booking backend (checkout/ticket/driver
+   are mocks built to receive real data); fix off-corridor station geocodes
+   in Supabase (e.g. "Asofan New Station" sits ~3.5km off the road)
+
+Original list (still valid):
 - **Scan to Pay — live camera (FOLLOW-UP)**. UI flow is DONE (`app/scan/`):
   Home "Scan To Pay" -> scan/index (Pay with QR) -> scan/confirm (Bus Details +
   payment) -> scan/pin (6-box PIN + keypad) -> reuses booking/processing -> receipt.
