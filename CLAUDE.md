@@ -90,9 +90,11 @@ AND train, built on Transit's GO model.
   (trip screen, ExploreMap) share one watcher/one tripState. Poll fallback
   every 8s because iOS CoreLocation silently pauses "stationary" foreground
   watchers. 'arrived' state is STICKY (never downgrade — deadlocks auto-end).
-- **Entries**: route detail "Start GO Mode" CTA; booking receipt asks
-  "Keep track of your ride?" (Track live / Data Saver / Not now) — tracking
-  is ALWAYS the rider's explicit choice (data costs money in Ghana).
+- **Entries**: booking receipt asks "Keep track of your ride?" (Track live /
+  Data Saver / Not now) — tracking is ALWAYS the rider's explicit choice (data
+  costs money in Ghana). NOTE (owner, 2026-06-12): GO Mode must NOT appear on
+  the route pages — the "Start GO Mode" CTA was removed from routes/[id].tsx.
+  Do not reintroduce a GO entry on routes/[id] or routes/detail.
 - **Data Saver**: skips the Mapbox map entirely (tiles = the data cost),
   lite backdrop + sheet carries all progress; "Saver" chip in trip header
   toggles. Pass `dataSaver=1` param to /trip/[routeId].
@@ -111,6 +113,34 @@ AND train, built on Transit's GO model.
 - Post-trip fare prompt (GH₵, +5/+8 pts) feeds `fare_reports` WITH
   `reporter_id` (uuid col; deviceId is undashed hex — Postgres accepts it,
   returns it dashed; normalize when joining contributor_profiles).
+
+## Train Section (June 2026)
+`app/train/index.tsx` (Train segment of Lines tab) + `app/train/[lineId].tsx`.
+- **Departure board**: dark "station display" with flip-style countdown to the
+  next departure across all lines. States: waiting (countdown) / in-transit
+  (progress) / no-service. **No-service renders only on SUNDAY** (all schedules
+  are `'Mon – Sat'`, `hasNoSunday`) — see `computeLineDeparture`. Saturday is
+  always a service day. Schedules live in `lib/constants/train-schedule.ts`.
+- **Departure reminders (NEW)**: `lib/services/trainReminders.ts` +
+  `useDepartureReminders` hook. Fires a local notification
+  `REMINDER_LEAD_MINUTES` (15) before departure via `scheduleNotificationAsync`
+  TIME_INTERVAL trigger seeded from the live board countdown (so it matches what
+  ticks). Persisted in AsyncStorage `@troski_train_reminders_v1` (pruned on
+  read). UI: "Remind me 15 min before" button in the board waiting state +
+  a bell toggle on each waiting line card (replaced the old duplicate MapPin→
+  detail icon). Toggle = arm/cancel. Hidden when no waiting departure or the
+  next one is inside the 15-min lead. NOT runtime tap-tested yet — sim clock
+  was on a Sunday (UTC day 0) so no waiting state surfaced; static checks pass.
+- **Train UI backlog (my audit, owner asked for perspective 2026-06-13)** —
+  remaining, in value order: (1) honest live status — board/timeline show fake
+  green "ON TIME"/"LIVE SERVICE" even with no data + 4-month-old reports; show
+  "Scheduled" + report age; (2) animate the `FlipDigit` (named flip, renders a
+  static Text); (3) currency consistency — `₵15`/`GHS 15.00`/`₵14.00` all
+  appear, route through the currency util (GH₵ rule); (4) replace foreign
+  Unsplash hero photos in `[lineId].tsx` (mock data); (5) detail has no primary
+  action (read-only) — reminder helps but consider ticket/notify; (6) two
+  identical "Official Timetable" headers — title by direction; (7) "Train
+  Index" → "Trains".
 
 ## Route Detail Flow (June 2026)
 ```
@@ -207,9 +237,12 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
 
 ## Next Up (updated 2026-06-13 — after GO Mode/trust-loop sprints)
 Top of queue (in value order):
-1. **Rating persistence** — booking/arrived stars+tags are client-only; save
-   them (new table) → per-line reliability scores on Lines cards (last piece
-   of the trust loop)
+1. **Rating persistence — CODE DONE (2026-06-12), MIGRATION PENDING**: run
+   `lib/supabase/migrations/051_ride_ratings.sql` in the Supabase SQL editor
+   (anon key can't do DDL). Client degrades gracefully until then. Pieces:
+   `ride_ratings` table + `route_rating_stats` view; `lib/services/ratings.ts`;
+   arrived.tsx saves stars+tags on Done (GO passes `routeId`; booking demo
+   saves with null route); Lines cards + route detail show `★ avg (count)`.
 2. **AutoTroski boarding detection** — one-tap "On this trotro?" prompt
    (Transit AutoGO pattern; 1M+ trips started via their version)
 3. Backend asks (other repo): MoMo confirmation webhook (client banner is

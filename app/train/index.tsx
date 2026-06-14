@@ -7,8 +7,10 @@ import {
   useColorScheme,
   RefreshControl,
   StyleSheet,
+  Alert,
   type DimensionValue,
 } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SkeletonTrainCard } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
@@ -16,10 +18,11 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   TrainFront,
-  MapPin,
   Clock,
   ArrowRight,
   ShieldCheck,
+  Bell,
+  BellRing,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
@@ -27,6 +30,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
+import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
+import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
 import type { TrainLineWithStats } from '@/lib/types'
@@ -231,6 +236,34 @@ export default function TrainLinesScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { lines, isLoading, refetch } = useTrainLines()
+  const { isSet, toggle } = useDepartureReminders()
+
+  // Arm / disarm a departure reminder from a waiting DepartureInfo.
+  // secondsUntilDeparture is the live countdown so the alert lines up with
+  // what the rider sees ticking on the board.
+  const toggleReminder = useCallback(
+    async (dep: Extract<DepartureInfo, { type: 'waiting' }>) => {
+      Haptics.selectionAsync()
+      const { on, denied } = await toggle({
+        scheduleId: dep.schedule.id,
+        lineCode: dep.schedule.code,
+        origin: dep.origin,
+        destination: dep.destination,
+        departTime: dep.departTime,
+        secondsUntilDeparture: dep.remaining,
+      })
+      if (denied) {
+        Alert.alert(
+          'Reminder not set',
+          'Enable notifications for Troski, or pick a departure more than ' +
+            `${REMINDER_LEAD_MINUTES} minutes away.`,
+        )
+      } else if (on) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      }
+    },
+    [toggle],
+  )
 
   // Live clock — ticks every second (Ghana time)
   const [tick, setTick] = useState(0)
@@ -339,15 +372,26 @@ export default function TrainLinesScreen() {
                   <Text style={s.lineActionPrimaryText}>View Schedule</Text>
                 </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
-                }
-                activeOpacity={0.7}
-                style={s.lineActionIcon}
-              >
-                <MapPin size={20} color={isDark ? '#a8a29e' : '#815100'} />
-              </TouchableOpacity>
+              {/* Reminder toggle — only when this line has an upcoming departure
+                  far enough out to be useful; replaces the old duplicate
+                  "open detail" icon that did nothing the card tap didn't. */}
+              {isWaiting && dep.type === 'waiting' &&
+                dep.remaining > REMINDER_LEAD_MINUTES * 60 && (() => {
+                  const armed = isSet(dep.schedule.id)
+                  return (
+                    <TouchableOpacity
+                      onPress={() => toggleReminder(dep)}
+                      activeOpacity={0.7}
+                      style={[s.lineActionIcon, armed && s.lineActionIconOn]}
+                    >
+                      {armed ? (
+                        <BellRing size={20} color="#22c55e" />
+                      ) : (
+                        <Bell size={20} color={isDark ? '#a8a29e' : '#815100'} />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })()}
             </View>
           </View>
 
@@ -372,7 +416,7 @@ export default function TrainLinesScreen() {
         </TouchableOpacity>
       )
     },
-    [isDark, s, lineDepartures, router]
+    [isDark, s, lineDepartures, router, isSet, toggleReminder]
   )
 
   return (
@@ -489,6 +533,31 @@ export default function TrainLinesScreen() {
                   <Text style={s.onTimeText}>On Time</Text>
                 </View>
               </View>
+
+              {/* Remind me — fires REMINDER_LEAD_MINUTES before this departure */}
+              {(() => {
+                const armed = isSet(departure.schedule.id)
+                const tooSoon = departure.remaining <= REMINDER_LEAD_MINUTES * 60
+                if (tooSoon && !armed) return null
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => toggleReminder(departure)}
+                    style={[s.remindBtn, armed && s.remindBtnOn]}
+                  >
+                    {armed ? (
+                      <BellRing size={16} color="#22c55e" />
+                    ) : (
+                      <Bell size={16} color="#0ea5e9" />
+                    )}
+                    <Text style={[s.remindText, armed && { color: '#22c55e' }]}>
+                      {armed
+                        ? `Reminder set · ${REMINDER_LEAD_MINUTES} min before`
+                        : `Remind me ${REMINDER_LEAD_MINUTES} min before`}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })()}
             </>
           )}
 
@@ -871,6 +940,29 @@ const getStyles = (isDark: boolean) => {
     },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
 
+    // ── Remind-me button (board) ──
+    remindBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: 'rgba(14,165,233,0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(14,165,233,0.25)',
+    },
+    remindBtnOn: {
+      backgroundColor: 'rgba(34,197,94,0.12)',
+      borderColor: 'rgba(34,197,94,0.3)',
+    },
+    remindText: {
+      fontSize: 13,
+      fontFamily: font.semibold,
+      color: '#0ea5e9',
+    },
+
     // ── In-transit ──
     transitSection: { marginBottom: 20 },
     progressTrack: {
@@ -1104,6 +1196,10 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: outlineVariant,
+    },
+    lineActionIconOn: {
+      backgroundColor: 'rgba(34,197,94,0.12)',
+      borderColor: 'rgba(34,197,94,0.3)',
     },
 
     // Bottom gradient strip
