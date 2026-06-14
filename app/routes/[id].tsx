@@ -14,7 +14,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Navigation, Trophy } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
@@ -383,25 +383,6 @@ export default function RouteDetailScreen() {
             </TouchableOpacity>
           </View>
         )}
-
-        {/* GO Mode — ride this corridor with live progress + get-off alert */}
-        <View style={s.goSection}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => {
-              haptics.medium()
-              router.push({ pathname: '/trip/[routeId]', params: { routeId: id! } })
-            }}
-            style={s.goCta}
-          >
-            <Navigation size={20} color="#fff" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.goCtaTitle}>Start GO Mode</Text>
-              <Text style={s.goCtaSub}>Live trip tracking · wakes you before your stop</Text>
-            </View>
-            <ChevronRight size={20} color="rgba(255,255,255,0.8)" />
-          </TouchableOpacity>
-        </View>
 
         {/* Safety Row — always visible */}
         <View style={s.safetyRow}>
@@ -896,37 +877,6 @@ const getStyles = (isDark: boolean) => {
       fontSize: 14,
       fontFamily: font.semibold,
       color: '#815100',
-    },
-
-    // GO Mode CTA
-    goSection: {
-      marginHorizontal: 24,
-      marginTop: 20,
-    },
-    goCta: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 14,
-      backgroundColor: '#f8a010',
-      borderRadius: 18,
-      paddingHorizontal: 18,
-      paddingVertical: 16,
-      shadowColor: '#f8a010',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    goCtaTitle: {
-      fontFamily: font.extrabold,
-      fontSize: 17,
-      color: '#fff',
-    },
-    goCtaSub: {
-      fontFamily: font.medium,
-      fontSize: 12,
-      color: 'rgba(255,255,255,0.85)',
-      marginTop: 1,
     },
 
     // Safety row
