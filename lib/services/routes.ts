@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Route, RouteWithStats, RouteFareStats, FareReport, RouteStop, TransportType } from '@/lib/types'
+import type { Route, RouteWithStats, RouteFareStats, RouteRatingStats, FareReport, RouteStop, TransportType } from '@/lib/types'
 import { detectRegion } from '@/lib/config/regions'
 import { validateGhanaLocation, validateFare, validateEnum, sanitizeString, TRANSPORT_TYPES } from '@/lib/security/validate'
 
@@ -16,16 +16,19 @@ export async function fetchRoutes(from?: string, to?: string, transportType?: Tr
   if (transportType) query = query.eq('transport_type', transportType)
   if (region) query = query.eq('region', region)
 
-  const [{ data: routes, error }, { data: fareStats }] = await Promise.all([
+  const [{ data: routes, error }, { data: fareStats }, { data: ratingStats }] = await Promise.all([
     query,
     supabase.from('route_fare_stats').select('*'),
+    supabase.from('route_rating_stats').select('*'),
   ])
   if (error || !routes) return []
 
   const statsMap = new Map(fareStats?.map((fs: RouteFareStats) => [fs.route_id, fs]) || [])
+  const ratingMap = new Map(ratingStats?.map((rs: RouteRatingStats) => [rs.route_id, rs]) || [])
   const routesWithStats = routes.map((route: Route) => ({
     ...route,
     fare_stats: statsMap.get(route.id) || null,
+    rating_stats: ratingMap.get(route.id) || null,
   }))
 
   // Sort: recently reported first, then popular, then alphabetical
@@ -101,11 +104,10 @@ export async function fetchRouteById(
 
   if (error || !route) return null
 
-  const { data: fareStats } = await supabase
-    .from('route_fare_stats')
-    .select('*')
-    .eq('route_id', id)
-    .single()
+  const [{ data: fareStats }, { data: ratingStats }] = await Promise.all([
+    supabase.from('route_fare_stats').select('*').eq('route_id', id).single(),
+    supabase.from('route_rating_stats').select('*').eq('route_id', id).maybeSingle(),
+  ])
 
   const [{ data: reports }, { data: stops }] = await Promise.all([
     supabase
@@ -125,6 +127,7 @@ export async function fetchRouteById(
     route: {
       ...route,
       fare_stats: fareStats || null,
+      rating_stats: ratingStats || null,
       stops: (stops as RouteStop[] | null) || [],
     },
     recentReports: reports || [],

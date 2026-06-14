@@ -11,6 +11,8 @@ import { Check, Star, ChevronRight } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { useDeviceId } from '@/lib/hooks/useDeviceId'
+import { submitRideRating } from '@/lib/services/ratings'
 
 const BRAND = '#FF4D1C'
 const DRIVER = { name: 'Mr John Kwame', role: 'Bus Driver', first: 'John' }
@@ -20,7 +22,8 @@ const STATS = [['8.4', 'Km', 'Distance'], ['30', 'mins', 'Duration'], ['2', '', 
 export default function ArrivedScreen() {
   const router = useRouter()
   // GO Mode passes the real ride stats; the booking demo path passes none
-  const params = useLocalSearchParams<{ distance?: string; duration?: string; stops?: string; route?: string }>()
+  const params = useLocalSearchParams<{ distance?: string; duration?: string; stops?: string; route?: string; routeId?: string }>()
+  const { deviceId } = useDeviceId()
   const isGoTrip = !!params.duration
   const stats: [string, string, string][] = isGoTrip
     ? [
@@ -35,6 +38,21 @@ export default function ArrivedScreen() {
   const toggleTag = (t: string) => {
     Haptics.selectionAsync()
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+  }
+
+  const handleDone = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    // Fire-and-forget: never hold the user on the celebration screen
+    if (rating > 0 && deviceId) {
+      submitRideRating({
+        rating,
+        tags,
+        deviceId,
+        routeId: params.routeId || null,
+        tripType: isGoTrip ? 'go' : 'booking',
+      }).catch(() => {})
+    }
+    router.dismissAll()
   }
 
   return (
@@ -132,7 +150,7 @@ export default function ArrivedScreen() {
         {/* Done */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); router.dismissAll() }}
+          onPress={handleDone}
           style={s.doneBtn}
         >
           <Text style={s.doneText}>Done</Text>

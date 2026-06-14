@@ -27,6 +27,7 @@ import {
   Check,
   TrendingUp,
   ShieldCheck,
+  Star,
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -187,6 +188,14 @@ export default function RoutesScreen() {
                 <View style={[s.confidenceDot, { backgroundColor: confidence.color }]} />
                 <Text style={[s.metaText, { color: confidence.color, fontFamily: font.semibold }]}>
                   {confidence.label}
+                </Text>
+              </View>
+            )}
+            {item.rating_stats && item.rating_stats.rating_count > 0 && (
+              <View style={s.metaItem}>
+                <Star size={14} color="#F5A623" fill="#F5A623" />
+                <Text style={[s.metaText, { color: '#B45309', fontFamily: font.semibold }]}>
+                  {Number(item.rating_stats.avg_rating).toFixed(1)} ({item.rating_stats.rating_count})
                 </Text>
               </View>
             )}

@@ -90,9 +90,18 @@ export interface RouteTraffic {
   delay_mins: number
 }
 
+// Per-route rider rating aggregates (route_rating_stats view)
+export interface RouteRatingStats {
+  route_id: string
+  avg_rating: number
+  rating_count: number
+  last_rated_at: string | null
+}
+
 // Route with merged fare statistics
 export interface RouteWithStats extends Route {
   fare_stats: RouteFareStats | null
+  rating_stats?: RouteRatingStats | null
   traffic?: RouteTraffic | null
   stops?: RouteStop[]
 }

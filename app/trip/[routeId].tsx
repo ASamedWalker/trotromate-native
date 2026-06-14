@@ -354,12 +354,14 @@ export default function TripScreen() {
           duration: String(p.duration_mins ?? ''),
           stops: String(Math.max((p.station_count ?? 1) - 1, 0)),
           route: routeLabel,
+          // Rating persistence: arrived saves stars+tags against this route
+          routeId: isTrain ? '' : (routeId ?? ''),
         },
       })
     } else {
       router.back()
     }
-  }, [router, routeLabel])
+  }, [router, routeLabel, routeId, isTrain])
 
   const handleSubmitFare = useCallback(async () => {
     const fare = parseFloat(fareInput)
