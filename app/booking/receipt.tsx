@@ -3,14 +3,13 @@ import {
   View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Easing, Share, Linking, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X, Navigation } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
+import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { fetchRoutes } from '@/lib/services/routes'
 
 const BRAND = '#FF4D1C'
 const GREEN = '#22C55E'
@@ -27,35 +26,9 @@ const TICKET = {
 export default function ReceiptScreen() {
   const router = useRouter()
   const { profile } = useApp()
-  const ride = useLocalSearchParams<{ from?: string; to?: string }>()
   const passenger = profile?.display_name || TICKET.passenger
   const [showSafety, setShowSafety] = useState(false)
   const [copied, setCopied] = useState(false)
-
-  // Trip tracking is the rider's CHOICE — GPS + map tiles cost mobile data,
-  // so nothing starts unless they opt in here (when the driver arrives).
-  const [trackChoice, setTrackChoice] = useState<'pending' | 'dismissed'>('pending')
-  const [findingRoute, setFindingRoute] = useState(false)
-
-  const startTracking = async (dataSaver: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    const from = (ride.from || TICKET.fromName).trim()
-    const to = (ride.to || TICKET.toName).trim()
-    setFindingRoute(true)
-    try {
-      const matches = await fetchRoutes(from, to)
-      const routeId = matches?.[0]?.id
-      if (routeId) {
-        router.push({ pathname: '/trip/[routeId]', params: { routeId, dataSaver: dataSaver ? '1' : '' } })
-        return
-      }
-      Alert.alert('Tracking unavailable', `Live tracking isn't ready for ${from} → ${to} yet — we're still mapping this corridor.`)
-    } catch {
-      Alert.alert('Tracking unavailable', 'Could not load this corridor right now. You can start tracking later from the route page.')
-    } finally {
-      setFindingRoute(false)
-    }
-  }
 
   const copyRef = async () => {
     await Clipboard.setStringAsync(TICKET.ref)
@@ -191,44 +164,6 @@ export default function ReceiptScreen() {
         </View>
         </View>
 
-        {/* Keep track of your ride? — explicit opt-in, data cost stated plainly */}
-        {trackChoice === 'pending' && (
-          <View style={s.trackCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Navigation size={16} color="#111" />
-              <Text style={s.trackTitle}>Keep track of your ride?</Text>
-            </View>
-            <Text style={s.trackSub}>
-              Live progress and a wake-up alert before your stop. Tracking uses mobile
-              data — Data Saver skips the map to keep it light.
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={s.trackBtnPrimary}
-                disabled={findingRoute}
-                onPress={() => startTracking(false)}
-              >
-                <Text style={s.trackBtnPrimaryText}>{findingRoute ? 'Loading…' : 'Track live'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={s.trackBtnLite}
-                disabled={findingRoute}
-                onPress={() => startTracking(true)}
-              >
-                <Text style={s.trackBtnLiteText}>Data Saver</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              onPress={() => { Haptics.selectionAsync(); setTrackChoice('dismissed') }}
-              style={{ alignSelf: 'center', marginTop: 12 }}
-              hitSlop={8}
-            >
-              <Text style={s.trackSkip}>Not now — save my data</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
 
       {/* Bottom actions */}
@@ -312,14 +247,6 @@ const s = StyleSheet.create({
 
   metaStrip: { flexDirection: 'row', backgroundColor: '#FAFAF9', borderRadius: 14, marginHorizontal: 16, marginTop: 18, paddingVertical: 12 },
 
-  trackCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 3 },
-  trackTitle: { fontFamily: font.bold, fontSize: 15, color: '#111' },
-  trackSub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 6, lineHeight: 19 },
-  trackBtnPrimary: { flex: 1, height: 46, borderRadius: 14, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
-  trackBtnPrimaryText: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
-  trackBtnLite: { flex: 1, height: 46, borderRadius: 14, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  trackBtnLiteText: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-  trackSkip: { fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' },
   metaLabel: { fontFamily: font.medium, fontSize: 11, color: '#9CA3AF' },
   metaValue: { fontFamily: font.bold, fontSize: 14, color: '#111', marginTop: 3 },
 
