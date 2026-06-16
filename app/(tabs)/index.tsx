@@ -117,7 +117,7 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     if (id === 'directions') router.push('/routes/search' as any)
     else if (id === 'nearby') router.push('/(tabs)/lines' as any)
-    else if (id === 'queue') router.push('/report/queue' as any)
+    else if (id === 'queue') router.push('/queue/status' as any)
   }, [router])
 
   return (
