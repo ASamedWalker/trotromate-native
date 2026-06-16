@@ -4,6 +4,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
+import { Image } from 'expo-image'
+import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { ChevronLeft, Plus, Bus, Clock } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
@@ -36,33 +39,49 @@ export default function QueueStatusScreen() {
   ]
 
   return (
-    <SafeAreaView edges={['top']} style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); router.back() }}
-          hitSlop={12}
-          style={s.backBtn}
-        >
-          <ChevronLeft size={22} color="#111" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Queue Status</Text>
-          <Text style={s.subtitle}>Across all stations</Text>
-        </View>
-      </View>
-
+    <View style={s.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={BRAND} colors={[BRAND]} />}
       >
-        {/* Summary chips */}
+        {/* ── Hero: photo + dark wash + title, frosted stat cards overlapping ── */}
+        <View style={s.hero}>
+          <Image
+            source={require('@/assets/images/queue_status_image.png')}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            transition={300}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <SafeAreaView edges={['top']}>
+            <View style={s.heroBar}>
+              <TouchableOpacity
+                onPress={() => { Haptics.selectionAsync(); router.back() }}
+                hitSlop={12}
+                style={s.backBtn}
+              >
+                <ChevronLeft size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <View style={s.heroText}>
+              <Text style={s.title}>Queue Status</Text>
+              <Text style={s.subtitle}>Across all stations</Text>
+            </View>
+          </SafeAreaView>
+        </View>
+
+        {/* Frosted glass stat cards — overlap the hero's bottom edge */}
         <View style={s.statsRow}>
           {stats.map((st) => (
-            <View key={st.label} style={s.statChip}>
-              <Text style={[s.statNum, { color: st.color }]}>{st.n}</Text>
-              <Text style={s.statLabel}>{st.label}</Text>
+            <View key={st.label} style={s.statCardWrap}>
+              <BlurView intensity={40} tint="light" style={s.statCard}>
+                <Text style={[s.statNum, { color: st.color }]}>{st.n}</Text>
+                <Text style={s.statLabel}>{st.label}</Text>
+              </BlurView>
             </View>
           ))}
         </View>
@@ -125,21 +144,31 @@ export default function QueueStatusScreen() {
           <Text style={s.reportText}>Report a Queue</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAF9' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
-  title: { fontFamily: font.bold, fontSize: 22, color: '#111', letterSpacing: -0.5 },
-  subtitle: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 1 },
 
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingVertical: 8 },
-  statChip: { flex: 1, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  // ── Hero ──
+  hero: { height: 230, backgroundColor: '#1c1917', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  heroBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6 },
+  heroText: { paddingHorizontal: 24, marginTop: 8 },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
+  title: { fontFamily: font.bold, fontSize: 26, color: '#fff', letterSpacing: -0.5 },
+  subtitle: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+
+  // ── Frosted stat cards (overlap hero bottom) ──
+  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: -36, marginBottom: 8 },
+  statCardWrap: {
+    flex: 1, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
+  },
+  statCard: { paddingVertical: 14, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.6)' },
   statNum: { fontFamily: font.extrabold, fontSize: 22 },
-  statLabel: { fontFamily: font.medium, fontSize: 11, color: '#6B7280', marginTop: 2 },
+  statLabel: { fontFamily: font.medium, fontSize: 11, color: '#374151', marginTop: 2 },
 
   center: { paddingVertical: 60, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40, gap: 8 },
