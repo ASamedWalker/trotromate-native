@@ -9,6 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -24,8 +25,8 @@ export default function WalletScreen() {
   const { user } = useAuthContext()
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<any[]>([])
+  const [passes, setPasses] = useState<ActivePass[]>([])
   const hasTransactions = transactions.length > 0
-  const hasActivePass = false
 
   // "GH₵ X added ✓" moment — until the MoMo webhook lands, detect credits by
   // comparing balances across refetches (focus + pull-to-refresh). Lyft's
@@ -53,6 +54,8 @@ export default function WalletScreen() {
         setBalance(next)
       }
       if (data.transactions) setTransactions(data.transactions)
+      // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
+      setPasses(normalizeActivePasses(data.passes, Date.now()))
     } catch (e) { console.warn("[troski] silent error:", e) }
   }, [user?.id])
 
@@ -166,41 +169,50 @@ export default function WalletScreen() {
         {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
           /* ── Active Pass + Transactions (funded state) ── */
           <>
-            {/* Active Pass */}
-            <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
-              <View style={s.passHeader}>
-                <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
-                <Text style={s.viewAll}>View All</Text>
-              </View>
-              <LinearGradient
-                colors={['#FF4D1C', '#D63A12']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={s.passCard}
-              >
-                <View style={s.passTop}>
-                  <View>
-                    <View style={s.passLiveRow}>
-                      <View style={s.passLiveDot} />
-                      <Text style={s.passLiveText}>LIVE PASS</Text>
+            {/* Active Pass — real tickets from the wallet backend; hidden when
+                the user has none (no more mock pass) */}
+            {passes.length > 0 && (() => {
+              const pass = passes[0]
+              return (
+                <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
+                  <View style={s.passHeader}>
+                    <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
+                    {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
+                  </View>
+                  <LinearGradient
+                    colors={['#FF4D1C', '#D63A12']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.passCard}
+                  >
+                    <View style={s.passTop}>
+                      <View style={{ flex: 1 }}>
+                        <View style={s.passLiveRow}>
+                          <View style={s.passLiveDot} />
+                          <Text style={s.passLiveText}>ACTIVE PASS</Text>
+                        </View>
+                        <Text style={s.passRoute} numberOfLines={1}>{pass.route_label}</Text>
+                      </View>
+                      <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
                     </View>
-                    <Text style={s.passRoute}>Madina → Circle</Text>
-                  </View>
-                  <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
-                </View>
-                <View style={s.passBottom}>
-                  <View>
-                    <Text style={s.passFieldLabel}>EXPIRES</Text>
-                    <Text style={s.passFieldValue}>24 OCT 2026</Text>
-                  </View>
-                  <View style={s.passTripsLeft}>
-                    <Text style={s.passTripsText}>12 TRIPS LEFT</Text>
-                  </View>
-                </View>
-                {/* Decorative circle */}
-                <View style={s.passDecorCircle} />
-              </LinearGradient>
-            </Animated.View>
+                    <View style={s.passBottom}>
+                      <View>
+                        <Text style={s.passFieldLabel}>EXPIRES</Text>
+                        <Text style={s.passFieldValue}>{formatPassExpiry(pass.expires_at)}</Text>
+                      </View>
+                      <View style={s.passTripsLeft}>
+                        <Text style={s.passTripsText}>{pass.trip_code}</Text>
+                      </View>
+                    </View>
+                    {pass.van_plate && (
+                      <Text style={s.passPlate}>Van {pass.van_plate} · {formatGHS(pass.fare)}</Text>
+                    )}
+                    {/* Decorative circle */}
+                    <View style={s.passDecorCircle} />
+                  </LinearGradient>
+                </Animated.View>
+              )
+            })()}
 
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
@@ -408,6 +420,7 @@ const s = StyleSheet.create({
     borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   passTripsText: { fontSize: 10, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
+  passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
   passDecorCircle: {
     position: 'absolute', left: -20, bottom: -20,
     width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',

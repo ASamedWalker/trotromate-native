@@ -32,6 +32,49 @@ unblocks the others:
 | Traffic Status | ❌ not built | `/api/traffic/*` (Google Routes) | mostly **frontend** (API exists) |
 | `POPULAR_STATIONS` (driver, plan) | ⚠️ static | could derive from `usePopularRoutes` | optional, low priority |
 
+## Database snapshot (2026-06-16, anon-key probe)
+Real data is healthier than assumed, and a **booking/ticket schema already
+exists**:
+
+| Table | Rows | Note |
+|---|---|---|
+| contributor_profiles | 1,666 | real users |
+| routes / route_stops / stations / transport_stops | 293 / 561 / 98 / 2,387 | full graph |
+| fare_reports | 292 | crowdsourced fares |
+| points_history / contributor_badges / badges | 569 / 155 / 10 | rewards live |
+| completed_trips | 62 | GO trips |
+| traffic_cache | 168 | **Google traffic cached — backs Traffic Status** |
+| train_lines / train_stations / train_reports | 3 / 22 / 4 | trains |
+| queue_reports | 20 | queues (older) |
+| **tickets** | **12** | real schema, see below |
+| **bookings** | 0 | table exists, empty |
+| **wallet_transactions** | 0 | table exists, empty |
+| ride_ratings | 3 | ⚠️ our 3 test rows — cleanup SQL still un-run |
+| driver_profiles / driver_trips / safety_ratings | 1 / 0 / 0 | no real driver pool |
+| vehicle_positions | 8 | live GPS sparse (Terminals "live" rarely fires) |
+| passes / terminals / terminal_bays / wallets | — | **do not exist** |
+
+**`tickets` columns:** `id, trip_code, route_label, van_plate, fare, currency,
+status (active/used/expired), expires_at, used_at, buyer_wallet_id,
+wallet_transaction_id, fleet_transaction_id, booking_id, booked_by_phone,
+booking_source (app/whatsapp), auth_user_id, created_at`.
+
+Sample: `TRK-367G · Madina → Circle · GHS 8 · expired · whatsapp`. The wallet
+"Active Pass" mock (`Madina → Circle`, 12 trips) is literally modelled on these.
+
+**Implications (revise the phases):**
+- **Active Pass = real now.** It's `tickets WHERE status='active'` for the user
+  — table + data exist, no backend. A "pass" is not a separate model; it's an
+  active ticket (single trip_code, not a trips-left counter — drop the "12 TRIPS
+  LEFT" framing or back it with a real multi-use field if one is added).
+- Identity: users are keyed by **`auth_user_id`**; tickets join via
+  `buyer_wallet_id` / `auth_user_id`. To read a user's pass we need their wallet
+  id (from the wallet endpoint) or `auth_user_id` populated on new tickets
+  (currently null on the legacy/test rows).
+- **Receipt** can *read* a real ticket; only ticket *creation* (debit wallet +
+  issue ticket atomically) still needs a backend endpoint.
+- **Traffic Status** has 168 cached rows to render today.
+
 ## Backend reality
 The app talks to a PWA/Next API (troski.me). Endpoints that **exist today**:
 `/api/wallet/balance`, `/api/wallet/topup`, `/api/traffic/{routeId}`,
