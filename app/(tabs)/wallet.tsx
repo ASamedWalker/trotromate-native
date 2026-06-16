@@ -61,11 +61,6 @@ export default function WalletScreen() {
   // Refetch when returning from fund screen
   useFocusEffect(useCallback(() => { fetchWallet() }, [fetchWallet]))
 
-  const comingSoon = (feature: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    alert(`${feature} coming soon!`)
-  }
-
   const handleAuthAction = () => {
     if (!isAuthenticated) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -146,7 +141,7 @@ export default function WalletScreen() {
               </Animated.View>
             )}
 
-            {/* Buttons — Add Money + Send */}
+            {/* Add Money — fund the wallet to pay for bookings */}
             {isAuthenticated && (
               <View style={s.balanceCardBtns}>
                 <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
@@ -154,12 +149,6 @@ export default function WalletScreen() {
                     <MaterialIcons name="add" size={18} color="#fff" />
                     <Text style={s.balanceCardBtnPrimaryText}>Add Money</Text>
                   </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.balanceCardBtnOutline, {
-                  borderColor: isDark ? 'rgba(255,77,28,0.3)' : 'rgba(255,77,28,0.2)',
-                }]} activeOpacity={0.85} onPress={() => comingSoon('Send')}>
-                  <MaterialIcons name="ios-share" size={18} color="#FF4D1C" />
-                  <Text style={[s.balanceCardBtnOutlineText, { color: '#FF4D1C' }]}>Send</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -175,27 +164,8 @@ export default function WalletScreen() {
         </Animated.View>
 
         {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
-          /* ── Active Pass + Quick Actions + Transactions (funded state) ── */
+          /* ── Active Pass + Transactions (funded state) ── */
           <>
-            {/* Quick actions */}
-            <Animated.View entering={FadeInDown.delay(80).duration(400)} style={s.quickRow}>
-              {[
-                { name: 'qr-code-scanner' as const, label: 'Scan' },
-                { name: 'swap-horiz' as const, label: 'Transfer' },
-                { name: 'electric-bolt' as const, label: 'Bills' },
-                { name: 'more-horiz' as const, label: 'More' },
-              ].map((a, i) => (
-                <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7} onPress={() => comingSoon(a.label)}>
-                  <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
-                    <View style={[s.quickCircle, glass]}>
-                      <MaterialIcons name={a.name} size={24} color="#FF4D1C" />
-                    </View>
-                    <Text style={s.quickLabel}>{a.label}</Text>
-                  </Animated.View>
-                </TouchableOpacity>
-              ))}
-            </Animated.View>
-
             {/* Active Pass */}
             <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
               <View style={s.passHeader}>
@@ -390,11 +360,6 @@ const s = StyleSheet.create({
     backgroundColor: '#FF4D1C', paddingVertical: 13, borderRadius: 12,
   },
   balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#fff' },
-  balanceCardBtnOutline: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 13, borderRadius: 12, borderWidth: 1,
-  },
-  balanceCardBtnOutlineText: { fontSize: 14, fontFamily: font.bold },
   balanceAmountRow: { marginBottom: 16 },
   creditedBanner: {
     flexDirection: 'row',
@@ -422,10 +387,6 @@ const s = StyleSheet.create({
   liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
 
   // Quick actions
-  quickRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16 },
-  quickItem: { alignItems: 'center' },
-  quickCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  quickLabel: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, textAlign: 'center' },
 
   // Section
   sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
