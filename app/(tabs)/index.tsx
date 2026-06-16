@@ -18,6 +18,7 @@ import {
   House, Briefcase,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -210,9 +211,12 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 style={{ flex: 1 }}
               >
-                <View style={{ height: 48, borderRadius: BASE.radius.md, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <ScanLine size={18} color="#fff" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
+                {/* Real frosted glass over the gradient (was a flat translucent fill) */}
+                <View style={{ borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' }}>
+                  <BlurView intensity={24} tint="light" style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.12)' }}>
+                    <ScanLine size={18} color="#fff" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
+                  </BlurView>
                 </View>
               </TouchableOpacity>
             </View>
