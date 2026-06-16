@@ -190,6 +190,7 @@ function AppInner() {
         <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
         <Stack.Screen name="queue/status" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="terminals/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="profile/[deviceId]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/followers" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
