@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
+import { usePopularStations } from '@/lib/hooks/usePopularStations'
 import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePlannerResults'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import * as Haptics from 'expo-haptics'
@@ -34,12 +35,6 @@ const BRAND = '#FF4D1C'
 const RoutePlanMap = lazy(() =>
   import('@/components/RoutePlanMap').then(mod => ({ default: mod.RoutePlanMap }))
 )
-
-const POPULAR_STATIONS = [
-  'Circle', 'Madina', 'Tema', 'Kaneshie', 'Lapaz',
-  'Achimota', 'Legon', 'Kasoa', 'Dansoman', 'Spintex',
-  'Nima', 'Osu', 'Labadi', 'Teshie', 'Ashaiman',
-]
 
 type TransportMode = 'all' | 'trotro' | 'okada' | 'walk'
 
@@ -131,7 +126,8 @@ export default function RoutePlannerScreen() {
     return { distance_km: dist, duration_mins: Math.round(dist / 5 * 60), from: f, to: t2 }
   }, [from, to])
 
-  const filteredStations = POPULAR_STATIONS.filter((station) => {
+  const popularStations = usePopularStations()
+  const filteredStations = popularStations.filter((station) => {
     const query = activeInput === 'from' ? from : to
     if (!query) return true
     return station.toLowerCase().includes(query.toLowerCase())
