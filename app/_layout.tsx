@@ -177,7 +177,6 @@ function AppInner() {
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="routes/search" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
