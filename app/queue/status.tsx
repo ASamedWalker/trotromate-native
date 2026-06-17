@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Image } from 'expo-image'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
-import { ChevronLeft, Plus, Bus, Clock } from 'lucide-react-native'
+import { ChevronLeft, Plus, Bus, Clock, Gauge } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils/time'
@@ -65,6 +65,14 @@ export default function QueueStatusScreen() {
                 style={s.backBtn}
               >
                 <ChevronLeft size={22} color="#fff" />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity
+                onPress={() => { Haptics.selectionAsync(); router.push('/traffic/status' as never) }}
+                style={s.trafficLink}
+              >
+                <Gauge size={14} color="#fff" />
+                <Text style={s.trafficLinkText}>Traffic</Text>
               </TouchableOpacity>
             </View>
             <View style={s.heroText}>
@@ -156,6 +164,8 @@ const s = StyleSheet.create({
   heroBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6 },
   heroText: { paddingHorizontal: 24, marginTop: 8 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
+  trafficLink: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 12, height: 34, borderRadius: 17 },
+  trafficLinkText: { fontFamily: font.bold, fontSize: 13, color: '#fff' },
   title: { fontFamily: font.bold, fontSize: 26, color: '#fff', letterSpacing: -0.5 },
   subtitle: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
