@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image,
 } from 'react-native'
@@ -12,6 +12,8 @@ import * as Haptics from 'expo-haptics'
 import { formatGHS } from '@/lib/utils/currency'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { useRouteDetail } from '@/lib/hooks/useRoutes'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 
 const BRAND = '#FF4D1C'
 
@@ -29,24 +31,45 @@ const VERIFY_ITEMS = [
   { Icon: UserCheck, title: 'Safety & Conduct Review', desc: 'Driver activity, commuter feedback, and ratings are continuously monitored to maintain a safe and reliable commuting experience' },
 ]
 
-const PAYMENTS = [
-  { id: 'wallet', label: 'Troski Wallet', sub: 'GH₵ 2,500.00' },
-  { id: 'momo', label: 'MTN MoMo', sub: '***** 2096' },
-]
 
 export default function CheckoutScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; route_id?: string }>()
 
   const fromName = params.from || 'Kaneshie Terminal'
   const toName = params.to || 'Kumasi Central'
 
-  const fare = { bus: 25.0, service: 0.25 }
+  // Real fare for this route (crowdsourced avg, else official). Falls back to a
+  // placeholder only when no route context was passed.
+  const { route } = useRouteDetail(params.route_id || '')
+  const busFare = route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? 25.0
+  const fare = { bus: busFare, service: 0.25 }
   const total = fare.bus + fare.service
 
   const [payment, setPayment] = useState('wallet')
   const [showDriver, setShowDriver] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
+
+  // Real wallet balance (same source as the Wallet tab) — replaces the old
+  // hardcoded "GH₵ 2,500.00" mock.
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+  const { user } = useAuthContext()
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const fetchBalance = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      const data = await res.json()
+      if (data.balance != null) setWalletBalance(Number(data.balance))
+    } catch { /* leave null → "Tap to check" */ }
+  }, [API_URL, user?.id])
+  useEffect(() => { fetchBalance() }, [fetchBalance])
+
+  const payments = [
+    { id: 'wallet', label: 'Troski Wallet', sub: walletBalance != null ? formatGHS(walletBalance) : 'Balance unavailable' },
+    { id: 'momo', label: 'MTN MoMo', sub: 'Pay with mobile money' },
+  ]
+  const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
@@ -131,7 +154,7 @@ export default function CheckoutScreen() {
           <TouchableOpacity style={s.addBtn} hitSlop={8}><Plus size={16} color="#111" /></TouchableOpacity>
         </View>
         <View style={s.card}>
-          {PAYMENTS.map((p, i) => {
+          {payments.map((p, i) => {
             const sel = payment === p.id
             return (
               <TouchableOpacity
@@ -154,13 +177,23 @@ export default function CheckoutScreen() {
 
       {/* ── Pay button ── */}
       <View style={s.payBar}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: '/booking/processing', params: { from: params.from ?? '', to: params.to ?? '' } } as any) }}
-          style={s.payBtn}
-        >
-          <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
-        </TouchableOpacity>
+        {insufficient ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/wallet/fund' as never) }}
+            style={s.payBtn}
+          >
+            <Text style={s.payBtnText}>Top up to pay {formatGHS(total)}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: '/booking/processing', params: { from: params.from ?? '', to: params.to ?? '' } } as any) }}
+            style={s.payBtn}
+          >
+            <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── Driver Details modal ── */}

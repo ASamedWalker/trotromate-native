@@ -502,7 +502,7 @@ export default function RouteDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 // Start the booking flow: Confirm Booking -> Pay -> Receipt -> Arrived.
-                router.push({ pathname: '/booking/checkout', params: { from, to } } as any)
+                router.push({ pathname: '/booking/checkout', params: { from, to, route_id: routeId } } as any)
               }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
