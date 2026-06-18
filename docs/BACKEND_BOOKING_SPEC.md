@@ -81,9 +81,18 @@ body: {
   rows created and linked.
 - Insufficient funds returns 402 and issues nothing.
 
-## How to build it (decided)
+## How to build it (decided — see migration 053, supersedes 052)
+Confirmed (owner, 2026-06-18): the wallet balance is **derived from
+`wallet_transactions` in Supabase** (sum of signed amounts), the wallet **is the
+user** (`auth_user_id`, no separate wallet-account table), and the old in-app
+balance was mock. Money lives in Supabase → booking is **one atomic transaction,
+no saga**. Canonical schema + RPCs are defined in
+`lib/supabase/migrations/053_wallet_balance_and_booking.sql` (recreates the empty
+`wallet_transactions`/`bookings`, adds `get_wallet_balance()`, fixes the
+service-role grant). 052 is superseded.
+
 Atomicity lives in **one Postgres function**, wrapped by the existing Next API.
-- **`create_booking()` RPC** — draft in `lib/supabase/migrations/052_booking_rpc.sql`.
+- **`create_booking()` RPC** — defined in `053_wallet_balance_and_booking.sql`.
   Single transaction: lock the wallet ledger → check funds → debit
   `wallet_transactions` → insert `bookings` → insert `tickets`. All-or-nothing.
   `confirm_booking()` issues the ticket for the async MoMo path from the webhook.

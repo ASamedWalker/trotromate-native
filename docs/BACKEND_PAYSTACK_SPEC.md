@@ -72,25 +72,24 @@ export async function POST(req: Request) {
   const authUserId = evt.data.metadata?.auth_user_id
   const amountGhs = evt.data.amount / 100
 
-  // IDEMPOTENCY: a webhook can fire more than once. Insert keyed on the
-  // Paystack reference; ignore duplicates. (Add a unique index on
-  // wallet_transactions.provider_ref.)  VERIFY wallet_transactions columns.
-  const wallet = await resolveWalletId(authUserId)
+  // Canonical schema (migration 053): the wallet IS the user (auth_user_id);
+  // balance = sum(wallet_transactions.amount). No separate wallet id to resolve.
+  // IDEMPOTENCY: unique index on provider_ref — a repeated charge.success must
+  // not double-credit (ignore on conflict).
   await sb.from('wallet_transactions').insert({
-    wallet_id: wallet,
+    auth_user_id: authUserId,
     amount: amountGhs,            // credit (+)
     type: 'topup',
     provider: 'paystack',
     provider_ref: ref,           // unique → idempotent
     status: 'success',
-  }) // .onConflict(provider_ref) ignore
+  }) // ignore on conflict (provider_ref)
 
   // If this charge was for a booking (metadata.booking_id), issue the ticket:
   if (evt.data.metadata?.booking_id) {
     await sb.rpc('confirm_booking', {
       p_booking_id: evt.data.metadata.booking_id,
-      p_buyer_wallet_id: wallet,
-      p_fleet_transaction_id: ref,
+      p_provider_ref: ref,
     })
   }
   return new Response('ok', { status: 200 })
