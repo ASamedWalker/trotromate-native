@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Easing, Share, Linking, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as Haptics from 'expo-haptics'
@@ -26,12 +26,28 @@ const TICKET = {
 export default function ReceiptScreen() {
   const router = useRouter()
   const { profile } = useApp()
+  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string }>()
   const passenger = profile?.display_name || TICKET.passenger
   const [showSafety, setShowSafety] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Real ticket from the booking flow; falls back to the demo TICKET when this
+  // screen is opened without a booking (e.g. direct deep link).
+  const code3 = (s?: string) => (s || '').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()
+  const t = {
+    code: params.trip_code || TICKET.code,
+    ref: params.trip_code || TICKET.ref,
+    fromName: params.from || TICKET.fromName,
+    toName: params.to || TICKET.toName,
+    fromCode: params.from ? code3(params.from) : TICKET.fromCode,
+    toCode: params.to ? code3(params.to) : TICKET.toCode,
+    fare: params.fare ? `GH₵ ${parseFloat(params.fare).toFixed(2)}` : TICKET.fare,
+    departure: TICKET.departure,
+    duration: TICKET.duration,
+  }
+
   const copyRef = async () => {
-    await Clipboard.setStringAsync(TICKET.ref)
+    await Clipboard.setStringAsync(t.ref)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
@@ -65,7 +81,7 @@ export default function ReceiptScreen() {
     try {
       await Share.share({
         title: 'My Troski Trip',
-        message: `🚌 My Troski trip\n${TICKET.fromName} → ${TICKET.toName}\nTicket: ${TICKET.ref}\nFare ${TICKET.fare} · Departs in ${TICKET.departure}\n\nBook yours on Troski.`,
+        message: `🚌 My Troski trip\n${t.fromName} → ${t.toName}\nTicket: ${t.ref}\nFare ${t.fare} · Departs in ${t.departure}\n\nBook yours on Troski.`,
       })
     } catch {
       // dismissed / unavailable — no-op
@@ -99,14 +115,14 @@ export default function ReceiptScreen() {
           {/* Top: passenger + code */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{passenger}</Text>
-            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#9CA3AF', letterSpacing: 1 }}>{TICKET.code}</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#9CA3AF', letterSpacing: 1 }}>{t.code}</Text>
           </View>
 
           {/* From — To */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 }}>
             <View>
-              <Text style={s.bigCode}>{TICKET.fromCode}</Text>
-              <Text style={s.codeName}>{TICKET.fromName}</Text>
+              <Text style={s.bigCode}>{t.fromCode}</Text>
+              <Text style={s.codeName}>{t.fromName}</Text>
             </View>
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               {/* shrink-wraps to the dash row so the rails end exactly at the squares */}
@@ -119,8 +135,8 @@ export default function ReceiptScreen() {
               </View>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={s.bigCode}>{TICKET.toCode}</Text>
-              <Text style={s.codeName}>{TICKET.toName}</Text>
+              <Text style={s.bigCode}>{t.toCode}</Text>
+              <Text style={s.codeName}>{t.toName}</Text>
             </View>
           </View>
 
@@ -138,11 +154,11 @@ export default function ReceiptScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/booking/arrived' as never) }}
               style={s.qrFrame}
             >
-              <QRCode value={TICKET.ref} size={140} />
+              <QRCode value={t.ref} size={140} />
             </TouchableOpacity>
             <TouchableOpacity onPress={copyRef} style={s.refPill}>
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: copied ? '#16A34A' : '#6B7280', letterSpacing: 0.5 }}>
-                {copied ? 'Copied!' : TICKET.ref}
+                {copied ? 'Copied!' : t.ref}
               </Text>
               {copied ? <Check size={13} color="#16A34A" /> : <Copy size={13} color="#9CA3AF" />}
             </TouchableOpacity>
@@ -151,9 +167,9 @@ export default function ReceiptScreen() {
           {/* Fare / departure / duration */}
           <View style={s.metaStrip}>
             {[
-              ['Fare Paid', TICKET.fare],
-              ['Departure', TICKET.departure],
-              ['Duration', TICKET.duration],
+              ['Fare Paid', t.fare],
+              ['Departure', t.departure],
+              ['Duration', t.duration],
             ].map(([label, value], i) => (
               <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#EFEFEF' }}>
                 <Text style={s.metaLabel}>{label}</Text>
