@@ -55,9 +55,9 @@ export default function MomoTopUpScreen() {
     }
 
     // The field holds a clean local number (e.g. 200000000) for editability, but
-    // the MoMo API expects the full MSISDN (233XXXXXXXXX). Sending the 9-digit
-    // local form is what made the backend reject with "Top up Failed".
-    const msisdn = '233' + phone.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
+    // Backend validates against /^(?:\+233|0)[2345]\d{8}$/ — it needs the
+    // +233 (or 0) prefix, NOT a bare 233. Build the E.164 form so it passes.
+    const msisdn = '+233' + phone.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
@@ -82,7 +82,7 @@ export default function MomoTopUpScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         setAnim({
           state: 'success',
-          message: data.display_text || `A MoMo prompt was sent to +${msisdn}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
+          message: data.display_text || `A MoMo prompt was sent to ${msisdn}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
         })
       } else {
         setAnim(null)
