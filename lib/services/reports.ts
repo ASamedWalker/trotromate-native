@@ -69,6 +69,9 @@ export async function submitFareReport(params: {
     .insert({
       route_id: routeId,
       reported_fare: fare,
+      // Attribution powers Line Champions + per-line recognition.
+      // reporter_id is uuid-typed; Postgres accepts the undashed hex deviceId.
+      reporter_id: params.deviceId,
       reporter_phone: null,
     })
     .select('id')
@@ -189,4 +192,53 @@ export async function submitIncidentReport(params: {
   )
 
   return { reportId: report.id }
+}
+
+/* ── Line Champions ──────────────────────────────────────────
+   Top fare-report contributors for a single corridor. Per-line
+   recognition is the verified Transit pattern for driving
+   contribution (each line gets its own leaderboard). */
+
+export interface LineChampion {
+  deviceId: string
+  displayName: string
+  reportCount: number
+}
+
+export async function fetchLineChampions(routeId: string, limit = 3): Promise<LineChampion[]> {
+  try {
+    const { data: reports } = await supabase
+      .from('fare_reports')
+      .select('reporter_id')
+      .eq('route_id', routeId)
+      .not('reporter_id', 'is', null)
+      .order('reported_at', { ascending: false })
+      .limit(400)
+    if (!reports || reports.length === 0) return []
+
+    // reporter_id is uuid-typed (comes back dashed); contributor_profiles
+    // stores the raw 32-hex deviceId — normalize before tallying/joining
+    const tally = new Map<string, number>()
+    for (const r of reports) {
+      if (!r.reporter_id) continue
+      const raw = String(r.reporter_id).replace(/-/g, '')
+      tally.set(raw, (tally.get(raw) ?? 0) + 1)
+    }
+    const top = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit)
+    if (top.length === 0) return []
+
+    const { data: profiles } = await supabase
+      .from('contributor_profiles')
+      .select('device_id, display_name')
+      .in('device_id', top.map(([id]) => id))
+    const nameOf = new Map((profiles ?? []).map((p) => [p.device_id, p.display_name]))
+
+    return top.map(([deviceId, reportCount]) => ({
+      deviceId,
+      reportCount,
+      displayName: nameOf.get(deviceId) || 'Troski Rider',
+    }))
+  } catch {
+    return []
+  }
 }

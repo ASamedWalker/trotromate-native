@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import {
@@ -24,7 +24,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { AuthProvider } from '@/lib/contexts/AuthContext'
-import { queryClient } from '@/lib/query-client'
+import { queryClient, persistOptions } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePreferences } from '@/lib/hooks/usePreferences'
@@ -177,7 +177,6 @@ function AppInner() {
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="routes/search" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="routes/plan" options={{ headerShown: false }} />
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
@@ -189,6 +188,9 @@ function AppInner() {
         <Stack.Screen name="train/index" options={{ headerShown: false }} />
         <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
+        <Stack.Screen name="queue/status" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="terminals/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="traffic/status" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="profile/[deviceId]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/followers" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
@@ -265,13 +267,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppErrorBoundary>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
           <AppProvider>
             <AuthProvider>
               <AppInner />
             </AuthProvider>
           </AppProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </AppErrorBoundary>
     </GestureHandlerRootView>
   )

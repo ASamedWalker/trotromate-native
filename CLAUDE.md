@@ -8,7 +8,7 @@ Ghana's mobility super app — crowdsourced transit info, ticketing, ride-hailin
 - **Supabase** backend (Postgres, Auth with phone OTP, Realtime, RLS)
 - **Mapbox** (`@rnmapbox/maps`) — custom style `mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31`
 - **Font**: Baloo 2 (June 2026; was Jakarta, before that Poppins). Tokens = `font.*` from `lib/theme.ts` — never hardcode family names.
-  **lineHeight RULE**: Baloo 2's natural box is 1.6em and RN bottom-anchors clamped lines, so any explicit `lineHeight` < 1.3× fontSize slices glyph tops (1.13× is the floor for digits/ALL-CAPS-only text). When in doubt omit lineHeight. Styles with `fontWeight` but no `fontFamily` render the SYSTEM font, not Baloo (register/auth/onboarding titles still do — intentional until those screens get a pass).
+  **lineHeight RULE**: Baloo 2's natural box is 1.6em and RN bottom-anchors clamped lines, so any explicit `lineHeight` < 1.3× fontSize slices glyph tops (1.13× is the floor for digits/ALL-CAPS-only text). When in doubt omit lineHeight. For display-size text (≥20px) use `components/HeroText.tsx` — safe metrics are baked in there; never hand-set fontSize+lineHeight pairs for big Baloo text. Styles with `fontWeight` but no `fontFamily` render the SYSTEM font, not Baloo (register/auth/onboarding titles still do — intentional until those screens get a pass).
 - **Icons**: Lucide React Native
 - **Bottom sheets**: `@gorhom/bottom-sheet`
 - **Animations**: `react-native-reanimated` (but NOT Animated.View inside ScrollView on Android — causes width bugs)
@@ -81,6 +81,66 @@ and the Cash Out stub were REMOVED — do not reintroduce without owner say-so.
   inside ScrollView on Android. Confetti (`react-native-confetti-cannon`) fires
   once per tier-up / 7-day streak via AsyncStorage `@troski_rewards_celebrated_v1`.
 - `components/ReferralCard.tsx` is unused (logic inlined into the Referrals tab).
+
+## GO Mode — Trip Tracking (June 2026)
+The moat feature (docs/DESIGN_DIRECTION.md): live in-ride companion for trotro
+AND train, built on Transit's GO model.
+- **Engine**: `lib/hooks/useTrip.ts` is a MODULE-LEVEL SINGLETON store
+  (useSyncExternalStore) — never per-component state; multiple consumers
+  (trip screen, ExploreMap) share one watcher/one tripState. Poll fallback
+  every 8s because iOS CoreLocation silently pauses "stationary" foreground
+  watchers. 'arrived' state is STICKY (never downgrade — deadlocks auto-end).
+- **Entries**: booking receipt asks "Keep track of your ride?" (Track live /
+  Data Saver / Not now) — tracking is ALWAYS the rider's explicit choice (data
+  costs money in Ghana). NOTE (owner, 2026-06-12): GO Mode must NOT appear on
+  the route pages — the "Start GO Mode" CTA was removed from routes/[id].tsx.
+  Do not reintroduce a GO entry on routes/[id] or routes/detail.
+- **Data Saver**: skips the Mapbox map entirely (tiles = the data cost),
+  lite backdrop + sheet carries all progress; "Saver" chip in trip header
+  toggles. Pass `dataSaver=1` param to /trip/[routeId].
+- **Alight picker**: trotro corridors slice origin→chosen stop ("Where will
+  you alight?"); get-off alarm = local notification at 300m threshold.
+- **Position broadcast**: while GO active, `gps:trip:{routeId}` Realtime
+  BROADCAST (no DB writes) every 10s with anonymous tripKey. Consumers:
+  `useLiveTripPositions(routeId)` → live dots on routes/detail.tsx map +
+  "N trotros live" pill + Live Trotros row on routes/[id].
+  **Channels MUST go through `lib/services/tripChannel.ts`** (ref-counted,
+  one channel per topic per client) — two channels on one topic on one
+  socket kill each other's subscription on removeChannel.
+- **Arrival handoff**: completed trips → /booking/arrived with real
+  distance/duration/stops params; GO rides hide the driver card and rate
+  the LINE, never an individual mate.
+- Post-trip fare prompt (GH₵, +5/+8 pts) feeds `fare_reports` WITH
+  `reporter_id` (uuid col; deviceId is undashed hex — Postgres accepts it,
+  returns it dashed; normalize when joining contributor_profiles).
+
+## Train Section (June 2026)
+`app/train/index.tsx` (Train segment of Lines tab) + `app/train/[lineId].tsx`.
+- **Departure board**: dark "station display" with flip-style countdown to the
+  next departure across all lines. States: waiting (countdown) / in-transit
+  (progress) / no-service. **No-service renders only on SUNDAY** (all schedules
+  are `'Mon – Sat'`, `hasNoSunday`) — see `computeLineDeparture`. Saturday is
+  always a service day. Schedules live in `lib/constants/train-schedule.ts`.
+- **Departure reminders (NEW)**: `lib/services/trainReminders.ts` +
+  `useDepartureReminders` hook. Fires a local notification
+  `REMINDER_LEAD_MINUTES` (15) before departure via `scheduleNotificationAsync`
+  TIME_INTERVAL trigger seeded from the live board countdown (so it matches what
+  ticks). Persisted in AsyncStorage `@troski_train_reminders_v1` (pruned on
+  read). UI: "Remind me 15 min before" button in the board waiting state +
+  a bell toggle on each waiting line card (replaced the old duplicate MapPin→
+  detail icon). Toggle = arm/cancel. Hidden when no waiting departure or the
+  next one is inside the 15-min lead. NOT runtime tap-tested yet — sim clock
+  was on a Sunday (UTC day 0) so no waiting state surfaced; static checks pass.
+- **Train UI backlog (my audit, owner asked for perspective 2026-06-13)** —
+  remaining, in value order: (1) honest live status — board/timeline show fake
+  green "ON TIME"/"LIVE SERVICE" even with no data + 4-month-old reports; show
+  "Scheduled" + report age; (2) animate the `FlipDigit` (named flip, renders a
+  static Text); (3) currency consistency — `₵15`/`GHS 15.00`/`₵14.00` all
+  appear, route through the currency util (GH₵ rule); (4) replace foreign
+  Unsplash hero photos in `[lineId].tsx` (mock data); (5) detail has no primary
+  action (read-only) — reminder helps but consider ticket/notify; (6) two
+  identical "Official Timetable" headers — title by direction; (7) "Train
+  Index" → "Trains".
 
 ## Route Detail Flow (June 2026)
 ```
@@ -175,7 +235,22 @@ Home "Topup Wallet" / Wallet "Add Money" → wallet/fund (Top Up Wallet)
   issue real per-user virtual accounts + reconcile inbound transfers (GH₵ 0.25 charge,
   ~2 min reflect). Debit Card needs a card-tokenization/PSP integration before building.
 
-## Next Up (as of June 2026)
+## Next Up (updated 2026-06-13 — after GO Mode/trust-loop sprints)
+Top of queue (in value order):
+1. **Rating persistence — CODE DONE (2026-06-12), MIGRATION PENDING**: run
+   `lib/supabase/migrations/051_ride_ratings.sql` in the Supabase SQL editor
+   (anon key can't do DDL). Client degrades gracefully until then. Pieces:
+   `ride_ratings` table + `route_rating_stats` view; `lib/services/ratings.ts`;
+   arrived.tsx saves stars+tags on Done (GO passes `routeId`; booking demo
+   saves with null route); Lines cards + route detail show `★ avg (count)`.
+2. **AutoTroski boarding detection** — one-tap "On this trotro?" prompt
+   (Transit AutoGO pattern; 1M+ trips started via their version)
+3. Backend asks (other repo): MoMo confirmation webhook (client banner is
+   ready and fires on refetch today); booking backend (checkout/ticket/driver
+   are mocks built to receive real data); fix off-corridor station geocodes
+   in Supabase (e.g. "Asofan New Station" sits ~3.5km off the road)
+
+Original list (still valid):
 - **Scan to Pay — live camera (FOLLOW-UP)**. UI flow is DONE (`app/scan/`):
   Home "Scan To Pay" -> scan/index (Pay with QR) -> scan/confirm (Bus Details +
   payment) -> scan/pin (6-box PIN + keypad) -> reuses booking/processing -> receipt.

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
+import { usePopularStations } from '@/lib/hooks/usePopularStations'
 import {
   getDriverProfile,
   registerDriver,
@@ -34,16 +35,13 @@ import {
   type DriverStats,
 } from '@/lib/services/driver'
 
-const POPULAR_STATIONS = [
-  'Circle', 'Madina', 'Tema', 'Kaneshie', 'Lapaz', 'Achimota',
-]
-
 export default function DriverDashboardScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
   const t = themed(isDark)
   const { deviceId } = useApp()
+  const popularStations = usePopularStations(6)
 
   const [profile, setProfile] = useState<DriverProfile | null>(null)
   const [trips, setTrips] = useState<DriverTrip[]>([])
@@ -335,7 +333,7 @@ export default function DriverDashboardScreen() {
 
             {/* Quick station picks */}
             <View style={s.stationChips}>
-              {POPULAR_STATIONS.map((st) => (
+              {popularStations.map((st) => (
                 <TouchableOpacity
                   key={st}
                   onPress={() => !tripFrom ? setTripFrom(st) : setTripTo(st)}

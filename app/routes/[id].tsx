@@ -8,18 +8,24 @@ import {
   TouchableWithoutFeedback,
   Modal,
   useColorScheme,
-  ActivityIndicator,
   StyleSheet,
   Platform,
 } from 'react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { SkeletonRouteDetail } from '@/components/Skeleton'
+import { HeroText } from '@/components/HeroText'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
+import { useQuery } from '@tanstack/react-query'
+import { fetchLineChampions } from '@/lib/services/reports'
+import InitialsAvatar from '@/components/InitialsAvatar'
+import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { timeAgo } from '@/lib/utils/time'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
@@ -53,13 +59,18 @@ export default function RouteDetailScreen() {
   const { route, recentReports, isLoading, error } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
+  const { data: champions = [] } = useQuery({
+    queryKey: ['line-champions', id],
+    queryFn: () => fetchLineChampions(id!),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  })
+  const liveTrips = useLiveTripPositions(id)
 
   if (isLoading) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={c.amber500} />
-        </View>
+        <SkeletonRouteDetail isDark={isDark} />
       </SafeAreaView>
     )
   }
@@ -96,7 +107,7 @@ export default function RouteDetailScreen() {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Stitch Hero — tall with cinematic image */}
-        <Animated.View entering={FadeIn.duration(500)} style={s.heroSection}>
+        <Animated.View entering={FadeIn.duration(dur.emphasized)} style={s.heroSection}>
           {hero ? (
             <>
               <Image
@@ -141,7 +152,7 @@ export default function RouteDetailScreen() {
 
             {/* Fare display */}
             <View style={s.heroFareRow}>
-              <Text style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</Text>
+              <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
               <Text style={s.heroFareLabel}>
                 {route.is_gprtu_verified ? 'official fare' : 'reported fare'}
               </Text>
@@ -159,7 +170,7 @@ export default function RouteDetailScreen() {
         </Animated.View>
 
         {/* Trust & Verification — overlaps hero */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.trustSection}>
+        <Animated.View entering={FadeInDown.delay(200).duration(dur.entrance)} style={s.trustSection}>
           {/* GPRTU Verified card */}
           {route.is_gprtu_verified && (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setShowGprtuInfo(true)} style={s.gprtuCard}>
@@ -256,6 +267,19 @@ export default function RouteDetailScreen() {
                 isDark={isDark}
               />
             </View>
+
+            {/* Live trotros — crowdsourced from riders in GO Mode */}
+            {liveTrips.length > 0 && (
+              <View style={s.pulseRow}>
+                <Text style={s.pulseLabel}>Live Trotros</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' }} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#16a34a' }}>
+                    {liveTrips.length} riding now
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* ETA comparison */}
             {traffic.duration_in_traffic_mins != null && traffic.typical_duration_mins != null && (
@@ -400,6 +424,38 @@ export default function RouteDetailScreen() {
           </View>
         </View>
 
+        {/* ─── Line Champions — top reporters on this corridor ─── */}
+        {champions.length > 0 && (
+          <View style={s.championsSection}>
+            <View style={s.bulletinHeader}>
+              <Trophy size={18} color="#d97706" />
+              <Text style={s.bulletinTitle}>Line Champions</Text>
+            </View>
+            <View style={s.championsCard}>
+              {champions.map((champ, i) => (
+                <View key={champ.deviceId} style={[s.championRow, i > 0 && s.championRowBorder]}>
+                  <Text style={s.championMedal}>{['🥇', '🥈', '🥉'][i] ?? '🏅'}</Text>
+                  <InitialsAvatar name={champ.displayName} size={36} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={s.championName} numberOfLines={1}>{champ.displayName}</Text>
+                    <Text style={s.championSub}>
+                      {champ.reportCount} fare report{champ.reportCount !== 1 ? 's' : ''} on this line
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => { haptics.light(); router.push('/leaderboard') }}
+                style={s.championsCta}
+              >
+                <Text style={s.championsCtaText}>View full leaderboard</Text>
+                <ChevronRight size={16} color="#d97706" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         <View style={{ height: 16 }} />
       </ScrollView>
 
@@ -429,7 +485,7 @@ export default function RouteDetailScreen() {
             {/* Official Fare */}
             <View style={s.modalFareCard}>
               <Text style={s.modalFareLabel}>OFFICIAL FARE</Text>
-              <Text style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</Text>
+              <HeroText size={36} style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</HeroText>
               <Text style={s.modalFareSub}>Set and regulated by GPRTU</Text>
             </View>
 
@@ -532,11 +588,7 @@ const getStyles = (isDark: boolean) => {
       gap: 10,
     },
     heroFareValue: {
-      fontSize: 44,
-      fontFamily: font.extrabold,
       color: '#f8a010',
-      // Baloo 2 bottom-anchors in a clamped line box — below ~1.32x the caps get sliced
-      lineHeight: 58,
     },
     heroFareLabel: {
       fontSize: 14,
@@ -854,6 +906,61 @@ const getStyles = (isDark: boolean) => {
       color: outlineVariant,
     },
 
+    // ── Line Champions ──
+    championsSection: {
+      marginHorizontal: 24,
+      marginTop: 24,
+    },
+    championsCard: {
+      backgroundColor: surfaceLowest,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingTop: 6,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    championRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 12,
+    },
+    championRowBorder: {
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
+    },
+    championMedal: {
+      fontSize: 20,
+      marginRight: 10,
+    },
+    championName: {
+      fontFamily: font.bold,
+      fontSize: 14,
+      color: onSurface,
+    },
+    championSub: {
+      fontFamily: font.medium,
+      fontSize: 12,
+      color: onSurfaceVariant,
+      marginTop: 1,
+    },
+    championsCta: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 4,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
+    },
+    championsCtaText: {
+      fontFamily: font.semibold,
+      fontSize: 13,
+      color: '#d97706',
+    },
+
     // ── GPRTU Bulletins ──
     bulletinSection: {
       paddingHorizontal: 24,
@@ -955,10 +1062,7 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 6,
     },
     modalFareValue: {
-      fontSize: 36,
-      fontFamily: font.extrabold,
       color: '#059669',
-      lineHeight: 48,
     },
     modalFareSub: {
       fontSize: 12,

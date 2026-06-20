@@ -176,7 +176,7 @@ export default function PickLocationScreen() {
     }
     const [lng, lat] = currentCoord
     router.replace({
-      pathname: '/routes/plan',
+      pathname: '/routes/search',
       params: {
         picked_target: target,
         picked_label: placeLabel.replace(/^Near /, ''),

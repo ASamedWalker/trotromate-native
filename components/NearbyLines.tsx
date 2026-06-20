@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Animated } fr
 import { useRouter, type Href } from 'expo-router'
 import { ChevronRight, MapPin, ShieldCheck, Clock } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
+import { HeroText } from '@/components/HeroText'
 import { getStationCoords } from '@/lib/utils/station-coords'
 import { haversineKm } from '@/lib/utils/distance'
 import { getWaitEstimate, type StationWithQueue, type QueueStatus } from '@/lib/services/stations'
@@ -233,9 +234,9 @@ export function NearbyLines({
             <View style={s.cardBody}>
               {/* Left: time box */}
               <View style={[s.timeBox, { backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)' }]}>
-                <Text style={[s.timeBoxNumber, { color: queueColor ?? accentColor }]}>
+                <HeroText size={20} weight="black" style={[s.timeBoxNumber, { color: queueColor ?? accentColor }]}>
                   {line.timeNumber === '--' ? '--' : line.timeNumber}
-                </Text>
+                </HeroText>
                 {line.timeUnit === 'minutes' && (
                   <Text style={[s.timeBoxUnit, { color: queueColor ?? accentColor }]}>MIN</Text>
                 )}
@@ -293,9 +294,9 @@ export function NearbyLines({
             <View style={s.cardBody}>
               {/* Left: time box */}
               <View style={[s.timeBox, { backgroundColor: isDark ? 'rgba(34,211,238,0.1)' : 'rgba(34,211,238,0.08)' }]}>
-                <Text style={[s.timeBoxNumber, { color: isLive ? '#22c55e' : accentColor }]}>
+                <HeroText size={20} weight="black" style={[s.timeBoxNumber, { color: isLive ? '#22c55e' : accentColor }]}>
                   {line.timeNumber === '--' ? '--' : line.timeNumber}
-                </Text>
+                </HeroText>
                 {line.timeUnit !== '' && line.liveTag !== 'done' && (
                   <Text style={[s.timeBoxUnit, { color: isLive ? '#22c55e' : accentColor }]}>
                     {line.liveTag === 'scheduled' ? 'DEP' : 'MIN'}
@@ -455,11 +456,7 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    timeBoxNumber: {
-      fontSize: 20,
-      fontFamily: font.black,
-      lineHeight: 26,
-    },
+    timeBoxNumber: {},
     timeBoxUnit: {
       fontSize: 8,
       fontFamily: font.bold,

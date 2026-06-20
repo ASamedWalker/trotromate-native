@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,7 +7,9 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
+import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -23,16 +25,37 @@ export default function WalletScreen() {
   const { user } = useAuthContext()
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<any[]>([])
+  const [passes, setPasses] = useState<ActivePass[]>([])
   const hasTransactions = transactions.length > 0
-  const hasActivePass = false
+
+  // "GH₵ X added ✓" moment — until the MoMo webhook lands, detect credits by
+  // comparing balances across refetches (focus + pull-to-refresh). Lyft's
+  // payment-trust principle: make the money moment explicit, never silent.
+  const prevBalanceRef = useRef<number | null>(null)
+  const [credited, setCredited] = useState<number | null>(null)
+  const creditTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (creditTimer.current) clearTimeout(creditTimer.current) }, [])
 
   const fetchWallet = useCallback(async () => {
     if (!user?.id) return
     try {
       const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
       const data = await res.json()
-      if (data.balance != null) setBalance(data.balance)
+      if (data.balance != null) {
+        const next = Number(data.balance)
+        const prev = prevBalanceRef.current
+        if (prev != null && next > prev) {
+          setCredited(next - prev)
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+          if (creditTimer.current) clearTimeout(creditTimer.current)
+          creditTimer.current = setTimeout(() => setCredited(null), 5000)
+        }
+        prevBalanceRef.current = next
+        setBalance(next)
+      }
       if (data.transactions) setTransactions(data.transactions)
+      // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
+      setPasses(normalizeActivePasses(data.passes, Date.now()))
     } catch (e) { console.warn("[troski] silent error:", e) }
   }, [user?.id])
 
@@ -40,11 +63,6 @@ export default function WalletScreen() {
 
   // Refetch when returning from fund screen
   useFocusEffect(useCallback(() => { fetchWallet() }, [fetchWallet]))
-
-  const comingSoon = (feature: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    alert(`${feature} coming soon!`)
-  }
 
   const handleAuthAction = () => {
     if (!isAuthenticated) {
@@ -112,13 +130,21 @@ export default function WalletScreen() {
             <View style={s.balanceAmountRow}>
               <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
                 {balanceVisible
-                  ? `GHS ${balance.toLocaleString('en', { minimumFractionDigits: 2 })}`
-                  : 'GHS ••••••'
+                  ? formatGHS(balance)
+                  : 'GH₵ ••••••'
                 }
               </Text>
             </View>
 
-            {/* Buttons — Add Money + Send */}
+            {/* Credit celebration — appears when a top-up lands */}
+            {credited != null && (
+              <Animated.View entering={FadeInDown.duration(300)} style={s.creditedBanner}>
+                <MaterialIcons name="check-circle" size={16} color="#16a34a" />
+                <Text style={s.creditedText}>{formatGHS(credited)} added to your wallet</Text>
+              </Animated.View>
+            )}
+
+            {/* Add Money — fund the wallet to pay for bookings */}
             {isAuthenticated && (
               <View style={s.balanceCardBtns}>
                 <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
@@ -126,12 +152,6 @@ export default function WalletScreen() {
                     <MaterialIcons name="add" size={18} color="#fff" />
                     <Text style={s.balanceCardBtnPrimaryText}>Add Money</Text>
                   </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.balanceCardBtnOutline, {
-                  borderColor: isDark ? 'rgba(255,77,28,0.3)' : 'rgba(255,77,28,0.2)',
-                }]} activeOpacity={0.85} onPress={() => comingSoon('Send')}>
-                  <MaterialIcons name="ios-share" size={18} color="#FF4D1C" />
-                  <Text style={[s.balanceCardBtnOutlineText, { color: '#FF4D1C' }]}>Send</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -147,62 +167,52 @@ export default function WalletScreen() {
         </Animated.View>
 
         {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
-          /* ── Active Pass + Quick Actions + Transactions (funded state) ── */
+          /* ── Active Pass + Transactions (funded state) ── */
           <>
-            {/* Quick actions */}
-            <Animated.View entering={FadeInDown.delay(80).duration(400)} style={s.quickRow}>
-              {[
-                { name: 'qr-code-scanner' as const, label: 'Scan' },
-                { name: 'swap-horiz' as const, label: 'Transfer' },
-                { name: 'electric-bolt' as const, label: 'Bills' },
-                { name: 'more-horiz' as const, label: 'More' },
-              ].map((a, i) => (
-                <TouchableOpacity key={a.label} style={s.quickItem} activeOpacity={0.7} onPress={() => comingSoon(a.label)}>
-                  <Animated.View entering={FadeInDown.delay(120 + i * 50).duration(300)} style={{ alignItems: 'center' }}>
-                    <View style={[s.quickCircle, glass]}>
-                      <MaterialIcons name={a.name} size={24} color="#FF4D1C" />
+            {/* Active Pass — real tickets from the wallet backend; hidden when
+                the user has none (no more mock pass) */}
+            {passes.length > 0 && (() => {
+              const pass = passes[0]
+              return (
+                <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
+                  <View style={s.passHeader}>
+                    <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
+                    {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
+                  </View>
+                  <LinearGradient
+                    colors={['#FF4D1C', '#D63A12']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.passCard}
+                  >
+                    <View style={s.passTop}>
+                      <View style={{ flex: 1 }}>
+                        <View style={s.passLiveRow}>
+                          <View style={s.passLiveDot} />
+                          <Text style={s.passLiveText}>ACTIVE PASS</Text>
+                        </View>
+                        <Text style={s.passRoute} numberOfLines={1}>{pass.route_label}</Text>
+                      </View>
+                      <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
                     </View>
-                    <Text style={s.quickLabel}>{a.label}</Text>
-                  </Animated.View>
-                </TouchableOpacity>
-              ))}
-            </Animated.View>
-
-            {/* Active Pass */}
-            <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
-              <View style={s.passHeader}>
-                <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
-                <Text style={s.viewAll}>View All</Text>
-              </View>
-              <LinearGradient
-                colors={['#FF4D1C', '#D63A12']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={s.passCard}
-              >
-                <View style={s.passTop}>
-                  <View>
-                    <View style={s.passLiveRow}>
-                      <View style={s.passLiveDot} />
-                      <Text style={s.passLiveText}>LIVE PASS</Text>
+                    <View style={s.passBottom}>
+                      <View>
+                        <Text style={s.passFieldLabel}>EXPIRES</Text>
+                        <Text style={s.passFieldValue}>{formatPassExpiry(pass.expires_at)}</Text>
+                      </View>
+                      <View style={s.passTripsLeft}>
+                        <Text style={s.passTripsText}>{pass.trip_code}</Text>
+                      </View>
                     </View>
-                    <Text style={s.passRoute}>Madina → Circle</Text>
-                  </View>
-                  <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
-                </View>
-                <View style={s.passBottom}>
-                  <View>
-                    <Text style={s.passFieldLabel}>EXPIRES</Text>
-                    <Text style={s.passFieldValue}>24 OCT 2026</Text>
-                  </View>
-                  <View style={s.passTripsLeft}>
-                    <Text style={s.passTripsText}>12 TRIPS LEFT</Text>
-                  </View>
-                </View>
-                {/* Decorative circle */}
-                <View style={s.passDecorCircle} />
-              </LinearGradient>
-            </Animated.View>
+                    {pass.van_plate && (
+                      <Text style={s.passPlate}>Van {pass.van_plate} · {formatGHS(pass.fare)}</Text>
+                    )}
+                    {/* Decorative circle */}
+                    <View style={s.passDecorCircle} />
+                  </LinearGradient>
+                </Animated.View>
+              )
+            })()}
 
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
@@ -210,7 +220,7 @@ export default function WalletScreen() {
               {transactions.slice(0, 5).map((tx: any, i: number) => {
                 const isTopup = tx.type === 'topup'
                 const icon = isTopup ? 'account-balance' as const : 'commute' as const
-                const amountStr = isTopup ? `+GHS ${Number(tx.amount).toFixed(2)}` : `-GHS ${Number(tx.amount).toFixed(2)}`
+                const amountStr = `${isTopup ? '+' : '-'}${formatGHS(Number(tx.amount))}`
                 const amountColor = isTopup ? '#FF4D1C' : t.text
                 const statusLabel = tx.status === 'success' ? (isTopup ? 'MOMO PAY' : 'COMPLETED') : tx.status.toUpperCase()
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -221,7 +231,7 @@ export default function WalletScreen() {
                       <MaterialIcons name={icon} size={20} color="#FF4D1C" />
                     </View>
                     <View style={s.txInfo}>
-                      <Text style={[s.txLabel, { color: t.text }]}>{tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')}</Text>
+                      <Text style={[s.txLabel, { color: t.text }]}>{(tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')).replace(/\bGHS\b/g, 'GH₵')}</Text>
                       <Text style={s.txDate}>{date}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
@@ -362,12 +372,23 @@ const s = StyleSheet.create({
     backgroundColor: '#FF4D1C', paddingVertical: 13, borderRadius: 12,
   },
   balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#fff' },
-  balanceCardBtnOutline: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 13, borderRadius: 12, borderWidth: 1,
-  },
-  balanceCardBtnOutlineText: { fontSize: 14, fontFamily: font.bold },
   balanceAmountRow: { marginBottom: 16 },
+  creditedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(22,163,74,0.12)',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 14,
+  },
+  creditedText: {
+    fontFamily: font.semibold,
+    fontSize: 13,
+    color: '#16a34a',
+  },
   balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -0.5 },
   liveSyncBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -378,10 +399,6 @@ const s = StyleSheet.create({
   liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
 
   // Quick actions
-  quickRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16 },
-  quickItem: { alignItems: 'center' },
-  quickCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  quickLabel: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, textAlign: 'center' },
 
   // Section
   sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
@@ -403,6 +420,7 @@ const s = StyleSheet.create({
     borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   passTripsText: { fontSize: 10, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
+  passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
   passDecorCircle: {
     position: 'absolute', left: -20, bottom: -20,
     width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',

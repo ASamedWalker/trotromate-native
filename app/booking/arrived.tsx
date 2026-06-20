@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { Image } from 'expo-image'
+import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Check, Star, ChevronRight } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { useDeviceId } from '@/lib/hooks/useDeviceId'
+import { submitRideRating } from '@/lib/services/ratings'
 
 const BRAND = '#FF4D1C'
 const DRIVER = { name: 'Mr John Kwame', role: 'Bus Driver', first: 'John' }
@@ -17,6 +21,17 @@ const STATS = [['8.4', 'Km', 'Distance'], ['30', 'mins', 'Duration'], ['2', '', 
 
 export default function ArrivedScreen() {
   const router = useRouter()
+  // GO Mode passes the real ride stats; the booking demo path passes none
+  const params = useLocalSearchParams<{ distance?: string; duration?: string; stops?: string; route?: string; routeId?: string }>()
+  const { deviceId } = useDeviceId()
+  const isGoTrip = !!params.duration
+  const stats: [string, string, string][] = isGoTrip
+    ? [
+        [params.distance && params.distance !== '' ? params.distance : '—', params.distance ? 'Km' : '', 'Distance'],
+        [params.duration!, 'mins', 'Duration'],
+        [params.stops ?? '0', '', 'Stops'],
+      ]
+    : (STATS as [string, string, string][])
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState<string[]>([])
 
@@ -25,38 +40,73 @@ export default function ArrivedScreen() {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
 
+  const handleDone = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    // Fire-and-forget: never hold the user on the celebration screen
+    if (rating > 0 && deviceId) {
+      submitRideRating({
+        rating,
+        tags,
+        deviceId,
+        routeId: params.routeId || null,
+        tripType: isGoTrip ? 'go' : 'booking',
+      }).catch(() => {})
+    }
+    router.dismissAll()
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
-      {/* Hero */}
-      <LinearGradient colors={['#FF6A3D', '#FF4D1C', '#E03A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+      {/* Hero — arrival photo like the Figma, dark gradient so the card pops */}
+      <View style={s.hero}>
+        <Image
+          source={require('@/assets/images/successful_receipt.png')}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          transition={300}
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.05)', 'transparent', 'rgba(0,0,0,0.35)']}
+          style={StyleSheet.absoluteFillObject}
+        />
         <SafeAreaView edges={['top']}>
           <View style={{ height: 8 }} />
         </SafeAreaView>
-        <Image source={require('@/assets/images/home/bus_icon_bg_removed.png')} style={s.heroBus} resizeMode="contain" />
-      </LinearGradient>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }} style={{ marginTop: -28 }}>
-        {/* Arrived card */}
-        <View style={s.card}>
-          <View style={{ alignItems: 'center', marginTop: -42 }}>
-            <View style={s.checkCircle}><Check size={26} color="#fff" strokeWidth={3.5} /></View>
-            <Text style={s.arrived}>You&apos;ve Arrived !</Text>
-            <Text style={s.arrivedSub}>Safe trip completed</Text>
-          </View>
+      {/* You've Arrived — frosted glass panel FIXED over the hero edge.
+          It lives outside the ScrollView so scrolling content passes
+          beneath it and never rides up into the photo. */}
+      <View style={s.arrivedWrap}>
+        <View style={s.arrivedClip}>
+          <BlurView intensity={55} tint="light" style={s.arrivedBlur}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={s.arrived}>You&apos;ve Arrived !</Text>
+              <Text style={s.arrivedSub}>Safe trip completed</Text>
+            </View>
 
-          <View style={s.statsRow}>
-            {STATS.map(([n, unit, label], i) => (
-              <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#F1F1F0' }}>
-                <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: BRAND }}>
-                  {n}{unit ? <Text style={{ fontSize: 13, color: BRAND }}> {unit}</Text> : null}
-                </Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{label}</Text>
-              </View>
-            ))}
-          </View>
+            <View style={s.statsRow}>
+              {stats.map(([n, unit, label], i) => (
+                <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: 'rgba(0,0,0,0.06)' }}>
+                  <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: BRAND }}>
+                    {n}{unit ? <Text style={{ fontSize: 13, color: BRAND }}> {unit}</Text> : null}
+                  </Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 }}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          </BlurView>
         </View>
+        {/* Check badge straddles the glass edge — outside the clip so it isn't cut */}
+        <View style={s.checkBadge}>
+          <View style={s.checkCircle}><Check size={26} color="#fff" strokeWidth={3.5} /></View>
+        </View>
+      </View>
 
-        {/* Driver */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 16 }}>
+
+        {/* Driver — booking flow only; a trotro GO ride has no assigned driver */}
+        {!isGoTrip && (
         <View style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, padding: 14 }]}>
           <InitialsAvatar name={DRIVER.name} size={44} />
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -68,11 +118,14 @@ export default function ArrivedScreen() {
             <ChevronRight size={16} color="#9CA3AF" />
           </View>
         </View>
+        )}
 
-        {/* Rate */}
+        {/* Rate — GO trips rate the ride/line, never an individual mate */}
         <View style={[s.card, { marginTop: 14, padding: 18 }]}>
           <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>Rate your experience</Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>How was your ride with {DRIVER.first}?</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+            {isGoTrip ? `How was your ride${params.route ? ` on ${params.route}` : ''}?` : `How was your ride with ${DRIVER.first}?`}
+          </Text>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 18 }}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -97,7 +150,7 @@ export default function ArrivedScreen() {
         {/* Done */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); router.dismissAll() }}
+          onPress={handleDone}
           style={s.doneBtn}
         >
           <Text style={s.doneText}>Done</Text>
@@ -108,13 +161,25 @@ export default function ArrivedScreen() {
 }
 
 const s = StyleSheet.create({
-  hero: { height: 300, alignItems: 'center', justifyContent: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroBus: { width: 220, height: 220 },
+  hero: { height: 300, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
 
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#F1F1F0' },
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4 },
+
+  // Frosted arrived panel — shadow on the wrapper (iOS drops shadows on
+  // overflow:hidden views), blur clipped inside, badge floating above
+  arrivedWrap: { marginTop: -64, marginHorizontal: 20, zIndex: 2, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 16, elevation: 5 },
+  arrivedClip: { borderRadius: 20, overflow: 'hidden' },
+  arrivedBlur: {
+    paddingTop: 38,
+    paddingBottom: 18,
+    paddingHorizontal: 18,
+    // iOS: white wash over real blur = frosted glass; Android: translucent card fallback
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.93)',
+  },
+  checkBadge: { position: 'absolute', top: -26, left: 0, right: 0, alignItems: 'center' },
   checkCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: BRAND, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#fff' },
   arrived: { fontFamily: font.bold, fontSize: 18, color: '#111', marginTop: 10 },
-  arrivedSub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 },
+  arrivedSub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 2 },
 
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
 

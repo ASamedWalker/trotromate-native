@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Path, Line } from 'react-native-svg'
 import ConfettiCannon from 'react-native-confetti-cannon'
 import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   Trophy,
@@ -716,14 +717,17 @@ export default function RewardsScreen() {
                       )
                     })}
                   </View>
-                  <View style={s.streakNote}>
-                    <Text style={s.streakNoteText}>
-                      {streakAtRisk
-                        ? `🔥 Your ${streak}-day streak is on the line — report within ${hoursLeft}h to keep it!`
-                        : bonusJustDone
-                          ? `Streak bonus earned — +${STREAK_CONFIG.BONUS_POINTS} pts! Keep it rolling 🎉`
-                          : `Complete ${STREAK_CONFIG.THRESHOLD_DAYS} days and earn +${STREAK_CONFIG.BONUS_POINTS} bonus pts — ${daysToBonus} day${daysToBonus === 1 ? '' : 's'} left!`}
-                    </Text>
+                  {/* Frosted glass note over the gradient */}
+                  <View style={s.streakNoteWrap}>
+                    <BlurView intensity={18} tint="light" style={s.streakNote}>
+                      <Text style={s.streakNoteText}>
+                        {streakAtRisk
+                          ? `🔥 Your ${streak}-day streak is on the line — report within ${hoursLeft}h to keep it!`
+                          : bonusJustDone
+                            ? `Streak bonus earned — +${STREAK_CONFIG.BONUS_POINTS} pts! Keep it rolling 🎉`
+                            : `Complete ${STREAK_CONFIG.THRESHOLD_DAYS} days and earn +${STREAK_CONFIG.BONUS_POINTS} bonus pts — ${daysToBonus} day${daysToBonus === 1 ? '' : 's'} left!`}
+                      </Text>
+                    </BlurView>
                   </View>
                 </LinearGradient>
 
@@ -1034,7 +1038,8 @@ const getStyles = (isDark: boolean) => {
     dayNum: { fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
     dayLabel: { fontFamily: font.medium, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
     dayLabelToday: { fontFamily: font.bold, color: '#fff' },
-    streakNote: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 10, padding: 12, marginTop: 16 },
+    streakNoteWrap: { borderRadius: 10, overflow: 'hidden', marginTop: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+    streakNote: { backgroundColor: 'rgba(255,255,255,0.12)', padding: 12 },
     streakNoteText: { fontFamily: font.medium, fontSize: 12.5, color: '#fff', textAlign: 'center' },
 
     sectionTitle: { fontFamily: font.bold, fontSize: 18, color: t.text, marginTop: 22 },

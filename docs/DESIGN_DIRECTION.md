@@ -103,8 +103,9 @@ Lyft's LPL: atomic elements → shared internal components → consistency + low
 maintenance **[verified]** ([LPL](https://design.lyft.com/building-a-design-system-library-3a1f0d09088f)).
 Evidence we need this: the June 2026 Baloo lineHeight clip bug had to be fixed in
 **6 places across 4 files** because fare/number display is re-implemented per screen.
-**Move:** extract `<HeroNumber>`, `<FareText>`, `<RouteRow>`, `<StatCard>`,
-`<SectionHeader>` primitives; TroskiCoin already proves the pattern.
+**Move:** extract shared primitives; TroskiCoin already proves the pattern.
+`<HeroText>` (display text, metrics baked in) shipped June 2026; `<RouteRow>`,
+`<StatCard>`, `<SectionHeader>` remain.
 
 ### P12. Dark mode is a majority transit feature
 **>50% of Transit users run dark mode (75% after sundown)** **[verified]**. Trotro
@@ -121,8 +122,15 @@ The rest below is the published playbook of production RN apps (Shopify 5-years-
 FlashList, Coinbase, Discord, Gojek Project Butter — consulted, not independently
 verified):
 
-1. **Skeletons, not spinners** — Lines tab currently shows a spinner on load; build a
-   `<Skeleton>` primitive matching card shapes, use app-wide (Home, Lines, Pulse, Wallet).
+1. **Loading policy — never blank, cached-first, rarely skeleton.** Preference order:
+   (a) **cached-data-first**: render last-known fares/routes/balance instantly
+   (TanStack Query `staleTime`/`placeholderData`) and refresh silently — this, not
+   skeletons, is why Uber's rider app feels like it has no loading states;
+   (b) **shimmer placeholder** only for true first-loads with no cache — Uber Base
+   ships this officially as the "Placeholder" component (45° shimmer), Grab documents
+   it for weak networks; (c) **map screens never skeleton** — progressive map render
+   with the sheet filling in; (d) **spinners only inside buttons**. The Lines tab's
+   current bare centered spinner is the one pattern no one defends — replace first.
 2. **Anticipatory prefetch** (P2 above) — perceived speed beats actual speed.
 3. **FlashList v2** for Pulse feed and Lines list (Shopify's recycling list).
 4. **Optimistic UI** — fare reports, likes, coin awards render instantly, reconcile after.

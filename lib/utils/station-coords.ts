@@ -327,6 +327,19 @@ for (const [key, val] of Object.entries(FALLBACK_STATION_COORDS)) {
   FALLBACK_LOOKUP[key.toLowerCase()] = val
 }
 
+// Route names are often informal short forms of curated entries — "Pokuase"
+// for "Pokuase Junction" (and sometimes the reverse). Deterministic pick:
+// shortest matching key, alphabetical tiebreak. Min 4 chars to avoid junk.
+function findCuratedByPrefix(nameLower: string): { latitude: number; longitude: number } | null {
+  if (nameLower.length < 4) return null
+  const matches = Object.keys(FALLBACK_LOOKUP).filter(
+    (k) => k.startsWith(nameLower) || nameLower.startsWith(k),
+  )
+  if (matches.length === 0) return null
+  matches.sort((a, b) => a.length - b.length || a.localeCompare(b))
+  return FALLBACK_LOOKUP[matches[0]]
+}
+
 export function getStationCoords(
   station: { name: string; latitude?: number | null; longitude?: number | null }
 ): { latitude: number; longitude: number } | null {
@@ -334,9 +347,10 @@ export function getStationCoords(
   const curated = FALLBACK_STATION_COORDS[station.name]
     ?? FALLBACK_LOOKUP[station.name.toLowerCase()]
   if (curated) return curated
-  // Fall back to DB coordinates only if no curated match
+  // Fall back to DB coordinates if no exact curated match
   if (station.latitude && station.longitude) {
     return { latitude: station.latitude, longitude: station.longitude }
   }
-  return null
+  // Last resort: prefix-match the curated table (exact DB coords beat a guess)
+  return findCuratedByPrefix(station.name.toLowerCase().trim())
 }

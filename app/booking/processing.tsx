@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, Animated, Easing, StyleSheet, Image } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 
@@ -40,6 +40,7 @@ function Coin({ delay }: { delay: number }) {
 
 export default function ProcessingScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ from?: string; to?: string }>()
   const bob = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -50,9 +51,9 @@ export default function ProcessingScreen() {
         Animated.timing(bob, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
     ).start()
-    const t = setTimeout(() => router.replace('/booking/receipt' as never), 2300)
+    const t = setTimeout(() => router.replace({ pathname: '/booking/receipt', params: { from: params.from ?? '', to: params.to ?? '' } } as any), 2300)
     return () => clearTimeout(t)
-  }, [router, bob])
+  }, [router, bob, params.from, params.to])
 
   const busY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] })
 

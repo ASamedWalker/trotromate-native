@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
+import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 
@@ -79,6 +80,17 @@ export default function RouteDetailScreen() {
 
   // Live vehicles on this route — fallback to mock if none
   const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
+
+  // Crowdsourced live trotros — riders in GO Mode broadcasting on this corridor
+  const liveTrips = useLiveTripPositions(routeId || undefined)
+  const liveTripsGeojson = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: liveTrips.map((t) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [t.longitude, t.latitude] },
+      properties: { tripKey: t.tripKey },
+    })),
+  }), [liveTrips])
 
   const MOCK_VEHICLES: Record<string, { vanId: string; plateNumber: string; routeLabel: string; speed: number; driver: string }[]> = {
     trotro: [
@@ -370,6 +382,31 @@ export default function RouteDetailScreen() {
             />
           </Mapbox.ShapeSource>
         )}
+
+        {/* Live trotros — crowdsourced from riders in GO Mode (1-2s fresh) */}
+        {liveTrips.length > 0 && (
+          <Mapbox.ShapeSource id="live-trips" shape={liveTripsGeojson}>
+            <Mapbox.CircleLayer
+              id="live-trip-halo"
+              style={{
+                circleRadius: 15,
+                circleColor: BRAND,
+                circleOpacity: 0.22,
+                circlePitchAlignment: 'map',
+              }}
+            />
+            <Mapbox.CircleLayer
+              id="live-trip-dot"
+              style={{
+                circleRadius: 8,
+                circleColor: BRAND,
+                circleStrokeWidth: 2.5,
+                circleStrokeColor: '#ffffff',
+                circlePitchAlignment: 'map',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
       </Mapbox.MapView>
 
       {/* ── Close button ── */}
@@ -430,6 +467,18 @@ export default function RouteDetailScreen() {
             </View>
           </View>
 
+          {/* Live corridor pill — riders in GO Mode are sharing this route */}
+          {liveTrips.length > 0 && (
+            <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(255,77,28,0.1)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND }} />
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>
+                  {liveTrips.length} trotro{liveTrips.length !== 1 ? 's' : ''} live on this route
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Two actions: Information + Go Now */}
           <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', gap: 12 }}>
             <TouchableOpacity
@@ -453,7 +502,7 @@ export default function RouteDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 // Start the booking flow: Confirm Booking -> Pay -> Receipt -> Arrived.
-                router.push({ pathname: '/booking/checkout', params: { from, to } } as any)
+                router.push({ pathname: '/booking/checkout', params: { from, to, route_id: routeId } } as any)
               }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

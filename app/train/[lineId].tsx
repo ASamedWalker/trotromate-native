@@ -34,7 +34,7 @@ import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
-import type { TrainReportWithNames, CrowdLevel, TrainStation } from '@/lib/types'
+import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
 
 // ─── Constants ──────────────────────────────────────────
 
@@ -100,18 +100,26 @@ export default function LineDetailScreen() {
   const meta = LINE_META[line?.code ?? ''] ?? DEFAULT_LINE_META
   const heroImage = HERO_IMAGES[line?.code ?? ''] ?? FALLBACK_HERO
 
-  // Build station → schedule times map (first schedule)
-  const stationTimesMap = useMemo(() => {
-    if (!line?.code || !TRAIN_SCHEDULES[line.code]) return {}
-    const map: Record<string, { arrive: string | null; depart: string | null }> = {}
-    const sched = TRAIN_SCHEDULES[line.code][0]
+  // Timeline stops — driven by the schedule itself so the timeline, the times,
+  // and the official timetable below all agree. The train_stations table and
+  // TRAIN_SCHEDULES disagree on station set + order, so using the schedule as
+  // the single source of truth is what keeps the times correct (no more
+  // "Expected —"). Falls back to the DB stations only when no schedule exists.
+  const timelineStops = useMemo(() => {
+    const sched = line?.code ? TRAIN_SCHEDULES[line.code]?.[0] : null
     if (sched) {
-      for (const stop of sched.stops) {
-        map[stop.station] = { arrive: stop.arrive, depart: stop.depart }
-      }
+      return sched.stops.map((stop, i) => ({
+        key: `${stop.station}-${i}`,
+        name: stop.station,
+        displayTime: stop.depart || stop.arrive || null,
+      }))
     }
-    return map
-  }, [line?.code])
+    return stations.map((st) => ({
+      key: st.id,
+      name: st.name,
+      displayTime: null as string | null,
+    }))
+  }, [line?.code, stations])
 
   // Live stats from reports
   const liveStats = useMemo(() => {
@@ -128,12 +136,10 @@ export default function LineDetailScreen() {
   // ─── Station renderer (Stitch tube-line style) ─────────
 
   const renderStation = useCallback(
-    (station: TrainStation, index: number) => {
+    (stop: { key: string; name: string; displayTime: string | null }, index: number) => {
       const isFirst = index === 0
-      const isLast = index === stations.length - 1
-      const times = stationTimesMap[station.name]
-      const displayTime = times?.depart || times?.arrive
-      const isFuture = index > 0 // In static view, all non-origin are "upcoming"
+      const isLast = index === timelineStops.length - 1
+      const displayTime = stop.displayTime
 
       // Status badge logic
       let statusLabel = 'On Time'
@@ -141,34 +147,32 @@ export default function LineDetailScreen() {
       let statusColor = isDark ? '#4ade80' : '#15803d'
 
       // If there's delay data, show it on relevant stations
-      if (liveStats?.avgDelay && index > 0 && index < stations.length - 1) {
+      if (liveStats?.avgDelay && index > 0 && index < timelineStops.length - 1) {
         statusLabel = `~${liveStats.avgDelay}m Delay`
         statusBg = isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7'
         statusColor = isDark ? '#fbbf24' : '#92400e'
       }
 
       return (
-        <View key={station.id} style={s.stationItem}>
+        <View key={stop.key} style={s.stationItem}>
           {/* Dot on the tube line */}
           <View style={s.stationDotWrap}>
             <View style={[
               s.stationDot,
-              {
-                borderColor: (isFirst || !isFuture) ? '#06b6d4' : (isDark ? '#475569' : '#cbd5e1'),
-              },
+              { borderColor: '#06b6d4' },
             ]}>
-              {isFirst && <View style={s.stationDotInner} />}
+              {(isFirst || isLast) && <View style={s.stationDotInner} />}
             </View>
           </View>
 
           {/* Station content */}
-          <View style={[s.stationContent, isFuture && !isLast && { opacity: 0.6 }]}>
+          <View style={s.stationContent}>
             <View style={{ flex: 1 }}>
-              <Text style={s.stationName}>{station.name}</Text>
+              <Text style={s.stationName}>{stop.name}</Text>
               <Text style={s.stationSub}>
                 {isFirst ? `Platform 1 • Departs ${displayTime || '—'}` :
-                 isLast ? `Terminating • Expected ${displayTime || '—'}` :
-                 `Expected ${displayTime || '—'}`}
+                 isLast ? `Terminating • Arrives ${displayTime || '—'}` :
+                 `Arrives ${displayTime || '—'}`}
               </Text>
             </View>
             <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
@@ -178,7 +182,7 @@ export default function LineDetailScreen() {
         </View>
       )
     },
-    [stations, stationTimesMap, liveStats, isDark, s]
+    [timelineStops, liveStats, isDark, s]
   )
 
   // ─── Feedback card renderer ────────────────────────────
@@ -327,7 +331,7 @@ export default function LineDetailScreen() {
 
               {/* Station list */}
               <View style={s.stationList}>
-                {stations.map(renderStation)}
+                {timelineStops.map(renderStation)}
               </View>
             </View>
 
@@ -337,7 +341,7 @@ export default function LineDetailScreen() {
                 <GRDABadge size="small" />
                 <Text style={s.farePrice}>GHS {line.official_fare.toFixed(2)}</Text>
                 <View style={{ flex: 1 }} />
-                <Text style={s.fareStations}>{stations.length} stations</Text>
+                <Text style={s.fareStations}>{timelineStops.length} stations</Text>
               </View>
             )}
           </View>
