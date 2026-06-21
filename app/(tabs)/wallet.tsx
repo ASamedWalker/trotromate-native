@@ -11,6 +11,7 @@ import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import { cancelBooking } from '@/lib/services/booking'
+import { cacheActivePasses, getCachedPasses } from '@/lib/services/ticketCache'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -56,9 +57,19 @@ export default function WalletScreen() {
       }
       if (data.transactions) setTransactions(data.transactions)
       // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
-      setPasses(normalizeActivePasses(data.passes, Date.now()))
+      const active = normalizeActivePasses(data.passes, Date.now())
+      setPasses(active)
+      cacheActivePasses(active) // keep a local copy so the ticket QR works offline
     } catch (e) { console.warn("[troski] silent error:", e) }
   }, [user?.id])
+
+  // Seed passes from the offline cache immediately (and when a fetch fails, the
+  // cached tickets stay visible so the QR is always available with no signal).
+  useEffect(() => {
+    getCachedPasses().then((cached) => {
+      if (cached.length) setPasses((cur) => (cur.length ? cur : cached))
+    })
+  }, [])
 
   useEffect(() => { fetchWallet() }, [fetchWallet])
 
@@ -208,6 +219,10 @@ export default function WalletScreen() {
                     <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
                     {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
                   </View>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => { Haptics.selectionAsync(); router.push({ pathname: '/wallet/ticket', params: { trip_code: pass.trip_code } } as Href) }}
+                  >
                   <LinearGradient
                     colors={['#FF4D1C', '#D63A12']}
                     start={{ x: 0, y: 0 }}
@@ -239,6 +254,7 @@ export default function WalletScreen() {
                     {/* Decorative circle */}
                     <View style={s.passDecorCircle} />
                   </LinearGradient>
+                  </TouchableOpacity>
                   {/* Cancel an unused ticket → full refund to wallet */}
                   <TouchableOpacity
                     activeOpacity={0.7}
