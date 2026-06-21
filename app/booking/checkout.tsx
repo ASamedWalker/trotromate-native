@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image, Alert,
 } from 'react-native'
@@ -15,6 +15,7 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
+import PinModal from '@/components/PinModal'
 
 const BRAND = '#FF4D1C'
 
@@ -51,6 +52,7 @@ export default function CheckoutScreen() {
   const [showDriver, setShowDriver] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
   const [booking, setBooking] = useState(false)
+  const [pinVisible, setPinVisible] = useState(false)
 
   // Real wallet balance (same source as the Wallet tab) — replaces the old
   // hardcoded "GH₵ 2,500.00" mock.
@@ -73,11 +75,20 @@ export default function CheckoutScreen() {
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
 
-  // Pay → real booking: debits the wallet + issues a ticket on the backend,
-  // then hands the real ticket to the processing/receipt flow.
-  const payNow = async () => {
+  // Pay → require the wallet PIN, then book. PIN protects spending if the phone
+  // is unlocked by someone else.
+  const payNow = () => {
     if (!user?.id || booking) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setPinVisible(true)
+  }
+
+  // The actual booking: debits the wallet + issues a ticket on the backend,
+  // then hands the real ticket to the processing/receipt flow.
+  const bookingRef = useRef(false)
+  const doBooking = async () => {
+    if (!user?.id || bookingRef.current) return
+    bookingRef.current = true
     setBooking(true)
     const result = await createBooking({
       authUserId: user.id,
@@ -88,6 +99,7 @@ export default function CheckoutScreen() {
       fare: Number(total.toFixed(2)),
     })
     setBooking(false)
+    bookingRef.current = false
     if (result.ok) {
       router.push({
         pathname: '/booking/processing',
@@ -308,6 +320,14 @@ export default function CheckoutScreen() {
           </SafeAreaView>
         </View>
       </Modal>
+
+      {/* Wallet PIN gate — set on first payment, verify thereafter */}
+      <PinModal
+        visible={pinVisible}
+        subtitle={`Authorise ${formatGHS(total)} for this trip`}
+        onClose={() => setPinVisible(false)}
+        onSuccess={() => { setPinVisible(false); doBooking() }}
+      />
     </SafeAreaView>
   )
 }
