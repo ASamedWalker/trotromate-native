@@ -12,12 +12,14 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import { cancelBooking } from '@/lib/services/booking'
 import { cacheActivePasses, getCachedPasses } from '@/lib/services/ticketCache'
+import { useLanguage } from '@/lib/i18n'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 export default function WalletScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
+  const { t: tr } = useLanguage()
   const [balanceVisible, setBalanceVisible] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
@@ -166,7 +168,7 @@ export default function WalletScreen() {
               </View>
             )}
 
-            <Text style={s.balanceLabelText}>TOTAL WALLET BALANCE</Text>
+            <Text style={s.balanceLabelText}>{tr('wallet.balance').toUpperCase()}</Text>
             <View style={s.balanceAmountRow}>
               <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
                 {balanceVisible
@@ -216,7 +218,7 @@ export default function WalletScreen() {
               style={s.myTicketsRow}
             >
               <View style={s.myTicketsIcon}><QrCode size={18} color="#FF4D1C" /></View>
-              <Text style={s.myTicketsText}>My Tickets</Text>
+              <Text style={s.myTicketsText}>{tr('wallet.myTickets')}</Text>
               <View style={{ flex: 1 }} />
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>

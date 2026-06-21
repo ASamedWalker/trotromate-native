@@ -10,6 +10,7 @@ import {
   StyleSheet,
  Linking , Appearance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useLanguage } from '@/lib/i18n'
 import { useRouter, type Href } from 'expo-router'
 import {
   ChevronRight,
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const { lang, setLanguage, languages } = useLanguage()
 
   const { profile, deviceId } = useApp()
   const { prefs, updatePref } = usePreferences()
@@ -149,6 +151,31 @@ export default function SettingsScreen() {
                 )
               })}
             </View>
+          </View>
+        </View>
+
+        {/* Language (i18n scaffold) */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Language</Text>
+          <View style={s.card}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={s.linkRow}
+              onPress={() => {
+                Alert.alert('Language', 'Choose your language', [
+                  ...languages.map((l) => ({
+                    text: `${l.native}${l.code === lang ? '  ✓' : ''}`,
+                    onPress: () => setLanguage(l.code),
+                  })),
+                  { text: 'Cancel', style: 'cancel' as const },
+                ])
+              }}
+            >
+              <Text style={s.linkLabel}>App Language</Text>
+              <Text style={[s.linkLabel, { color: t.textSecondary }]}>
+                {languages.find((l) => l.code === lang)?.native ?? 'English'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

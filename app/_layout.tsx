@@ -26,6 +26,7 @@ import { AppProvider, useApp } from '@/lib/contexts/AppContext'
 import { AuthProvider } from '@/lib/contexts/AuthContext'
 import { queryClient, persistOptions } from '@/lib/query-client'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
+import { loadLanguage } from '@/lib/i18n'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications'
@@ -135,6 +136,7 @@ function AppInner() {
   // Force light mode — dark mode disabled until properly tested
   useEffect(() => {
     Appearance.setColorScheme('light')
+    loadLanguage() // restore saved language (i18n scaffold)
   }, [])
 
   // Safety net: hide the native splash once the app shell is mounted.
