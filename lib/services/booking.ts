@@ -30,6 +30,33 @@ export type BookingResult =
   | { ok: false; reason: 'insufficient_balance'; balance?: number }
   | { ok: false; reason: 'error'; message?: string }
 
+export type CancelResult =
+  | { ok: true; refunded: number; newBalance: number; alreadyCancelled?: boolean }
+  | { ok: false; message: string }
+
+/** Cancel an active (unscanned) ticket and refund the fare to the wallet. */
+export async function cancelBooking(authUserId: string, tripCode: string): Promise<CancelResult> {
+  try {
+    const res = await fetch(`${API_URL}/api/bookings/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_user_id: authUserId, trip_code: tripCode }),
+    })
+    const data = await res.json().catch(() => null)
+    if (res.ok && (data?.success || data?.already_cancelled)) {
+      return {
+        ok: true,
+        refunded: Number(data.refunded ?? 0),
+        newBalance: Number(data.new_balance ?? 0),
+        alreadyCancelled: !!data.already_cancelled,
+      }
+    }
+    return { ok: false, message: data?.error || 'Could not cancel this booking.' }
+  } catch (e: any) {
+    return { ok: false, message: e?.message || 'Network error' }
+  }
+}
+
 export async function createBooking(req: BookingRequest): Promise<BookingResult> {
   try {
     const res = await fetch(`${API_URL}/api/bookings/create`, {

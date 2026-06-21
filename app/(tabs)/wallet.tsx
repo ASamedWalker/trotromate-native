@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl } from 'react-native'
+import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -10,6 +10,7 @@ import { font, themed } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
+import { cancelBooking } from '@/lib/services/booking'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -63,6 +64,34 @@ export default function WalletScreen() {
 
   // Refetch when returning from fund screen
   useFocusEffect(useCallback(() => { fetchWallet() }, [fetchWallet]))
+
+  const [cancelling, setCancelling] = useState(false)
+  const confirmCancel = (pass: ActivePass) => {
+    if (!user?.id) return
+    Alert.alert(
+      'Cancel this booking?',
+      `${pass.route_label}\n\nYou'll be refunded ${formatGHS(pass.fare)} to your wallet. This can't be undone.`,
+      [
+        { text: 'Keep booking', style: 'cancel' },
+        {
+          text: 'Cancel & refund',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true)
+            const r = await cancelBooking(user.id, pass.trip_code)
+            setCancelling(false)
+            if (r.ok) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              Alert.alert('Booking cancelled', `${formatGHS(r.refunded)} refunded to your wallet.`)
+              fetchWallet()
+            } else {
+              Alert.alert('Could not cancel', r.message)
+            }
+          },
+        },
+      ],
+    )
+  }
 
   const handleAuthAction = () => {
     if (!isAuthenticated) {
@@ -210,6 +239,15 @@ export default function WalletScreen() {
                     {/* Decorative circle */}
                     <View style={s.passDecorCircle} />
                   </LinearGradient>
+                  {/* Cancel an unused ticket → full refund to wallet */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    disabled={cancelling}
+                    onPress={() => confirmCancel(pass)}
+                    style={s.cancelPass}
+                  >
+                    <Text style={s.cancelPassText}>{cancelling ? 'Cancelling…' : 'Cancel booking & refund'}</Text>
+                  </TouchableOpacity>
                 </Animated.View>
               )
             })()}
@@ -426,6 +464,8 @@ const s = StyleSheet.create({
   },
   passTripsText: { fontSize: 10, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
   passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
+  cancelPass: { alignSelf: 'center', marginTop: 12, paddingVertical: 6, paddingHorizontal: 12 },
+  cancelPassText: { fontFamily: font.semibold, fontSize: 13, color: '#EF4444' },
   passDecorCircle: {
     position: 'absolute', left: -20, bottom: -20,
     width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',
