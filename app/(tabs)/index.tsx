@@ -167,14 +167,37 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Wallet Card ── */}
+        {/* ── Wallet Card (stacked-deck look — peeks on the right) ── */}
         <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          {/* Back card 2 — furthest, teal, peeks most on the right */}
+          <LinearGradient
+            colors={['#22D3EE', '#0891B2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              position: 'absolute', top: 18, bottom: 18, left: 55, right: -8,
+              borderRadius: BASE.radius.xl,
+              ...BASE.shadow.card, shadowColor: '#0891B2', shadowOpacity: 0.3,
+            }}
+          />
+          {/* Back card 1 — middle, violet, peeks slightly on the right */}
+          <LinearGradient
+            colors={['#A78BFA', '#7C3AED']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              position: 'absolute', top: 9, bottom: 9, left: 45, right: 3,
+              borderRadius: BASE.radius.xl,
+              ...BASE.shadow.card, shadowColor: '#7C3AED', shadowOpacity: 0.3,
+            }}
+          />
+          {/* Front card — wallet balance (narrower so the deck peeks at right) */}
           <LinearGradient
             colors={[BRAND, '#D63A12']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden',
+              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden', marginRight: 16,
               ...BASE.shadow.card,
               shadowColor: BRAND, shadowOpacity: 0.3,
             }}
