@@ -152,7 +152,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
   emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
 
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   terminalName: { fontFamily: font.bold, fontSize: 16, color: '#111' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   metaText: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },

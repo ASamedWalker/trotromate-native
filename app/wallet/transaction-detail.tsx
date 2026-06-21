@@ -111,13 +111,13 @@ const s = StyleSheet.create({
   statusPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 100 },
   statusPillText: { fontFamily: font.bold, fontSize: 13 },
 
-  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6', gap: 16 },
   rowLabel: { fontFamily: font.medium, fontSize: 14, color: '#9CA3AF' },
   rowValue: { fontFamily: font.semibold, fontSize: 14, color: '#111', flexShrink: 1, textAlign: 'right' },
 
   sectionLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.5, marginTop: 24, marginBottom: 8, textTransform: 'uppercase' },
-  refRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', gap: 12 },
+  refRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   refText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: '#374151' },
   copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   copyText: { fontFamily: font.bold, fontSize: 13, color: BRAND },

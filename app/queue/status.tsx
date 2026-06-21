@@ -185,7 +185,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
   emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
 
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   stationName: { fontFamily: font.bold, fontSize: 16, color: '#111' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },

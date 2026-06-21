@@ -111,7 +111,7 @@ const s = StyleSheet.create({
   qrCard: { backgroundColor: '#fff', borderRadius: 24, padding: 28, alignItems: 'center', gap: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
   code: { fontFamily: font.bold, fontSize: 16, color: '#111', letterSpacing: 2 },
 
-  metaRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 8, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 8, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   metaItem: { flex: 1, alignItems: 'center', gap: 4 },
   metaLabel: { fontFamily: font.bold, fontSize: 10, color: '#9CA3AF', letterSpacing: 1 },
   metaValue: { fontFamily: font.bold, fontSize: 14, color: '#111' },

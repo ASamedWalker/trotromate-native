@@ -177,7 +177,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
   emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
 
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   routeRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   routeName: { fontFamily: font.bold, fontSize: 15, color: '#111', flexShrink: 1 },

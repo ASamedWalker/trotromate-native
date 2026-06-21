@@ -158,7 +158,7 @@ const s = StyleSheet.create({
   emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
 
   groupLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.5, marginLeft: 24, marginBottom: 8, textTransform: 'uppercase' },
-  card: { backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  card: { backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
