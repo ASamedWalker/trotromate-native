@@ -13,7 +13,7 @@ import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin, ChevronRight, ChevronDown,
-  Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
+  Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
   ScanLine, Plus,
   House, Briefcase,
 } from 'lucide-react-native'
