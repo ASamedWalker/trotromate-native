@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ChevronLeft, WifiOff, ShieldCheck } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
+import * as Brightness from 'expo-brightness'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
@@ -29,8 +30,24 @@ export default function TicketScreen() {
     })
   }, [trip_code])
 
-  // (Brightness boost for easier scanning needs expo-brightness — a native
-  // rebuild; deferred. Add later: maximise brightness while this screen shows.)
+  // Max brightness while the QR is shown (restored on leave) so it scans easily
+  // in a dim trotro. Best-effort — needs a native build with expo-brightness.
+  useEffect(() => {
+    let prev: number | null = null
+    let active = true
+    ;(async () => {
+      try {
+        const { status } = await Brightness.requestPermissionsAsync()
+        if (status !== 'granted' || !active) return
+        prev = await Brightness.getBrightnessAsync()
+        await Brightness.setBrightnessAsync(1)
+      } catch { /* native module not linked yet / denied — ignore */ }
+    })()
+    return () => {
+      active = false
+      if (prev != null) Brightness.setBrightnessAsync(prev).catch(() => {})
+    }
+  }, [])
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={s.container}>
