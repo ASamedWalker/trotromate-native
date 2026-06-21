@@ -175,7 +175,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              position: 'absolute', top: 16, bottom: 16, left: 64, right: 0,
+              position: 'absolute', top: 16, bottom: 16, left: 64, right: 12,
               borderRadius: BASE.radius.xl,
               ...BASE.shadow.card, shadowColor: '#0891B2', shadowOpacity: 0.3,
             }}
@@ -186,7 +186,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              position: 'absolute', top: 8, bottom: 8, left: 52, right: 15,
+              position: 'absolute', top: 8, bottom: 8, left: 52, right: 26,
               borderRadius: BASE.radius.xl,
               ...BASE.shadow.card, shadowColor: '#7C3AED', shadowOpacity: 0.3,
             }}
@@ -197,7 +197,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden', marginRight: 32,
+              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden', marginRight: 42,
               ...BASE.shadow.card,
               shadowColor: BRAND, shadowOpacity: 0.3,
             }}
