@@ -91,18 +91,27 @@ export default function TransactionsScreen() {
                 {items.map((tx, i) => {
                   const credit = tx.type === 'topup' || tx.type === 'refund'
                   const pending = tx.status === 'pending'
+                  const failed = tx.status === 'failed'
+                  const muted = pending || failed
                   const title = tx.description || (credit ? 'MoMo Top-up' : 'Payment')
                   const time = new Date(tx.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })
+                  const statusSuffix = failed ? ' · Failed' : pending ? ' · Pending' : ''
+                  const iconColor = failed ? '#9CA3AF' : credit ? '#16a34a' : BRAND
                   return (
                     <View key={tx.id} style={[s.row, i > 0 && s.rowBorder]}>
-                      <View style={[s.icon, { backgroundColor: credit ? '#ECFDF3' : '#FEF0EB' }]}>
-                        {credit ? <ArrowDownLeft size={18} color="#16a34a" /> : <ArrowUpRight size={18} color={BRAND} />}
+                      <View style={[s.icon, { backgroundColor: failed ? '#F3F4F6' : credit ? '#ECFDF3' : '#FEF0EB' }]}>
+                        {credit ? <ArrowDownLeft size={18} color={iconColor} /> : <ArrowUpRight size={18} color={iconColor} />}
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={s.txTitle} numberOfLines={1}>{title}</Text>
-                        <Text style={s.txTime}>{time}{pending ? ' · Pending' : ''}</Text>
+                        <Text style={[s.txTitle, failed && { color: '#9CA3AF' }]} numberOfLines={1}>{title}</Text>
+                        <Text style={[s.txTime, failed && { color: '#EF4444' }]}>{time}{statusSuffix}</Text>
                       </View>
-                      <Text style={[s.amount, { color: credit ? '#16a34a' : '#111' }, pending && { color: '#9CA3AF' }]}>
+                      <Text style={[
+                        s.amount,
+                        { color: credit ? '#16a34a' : '#111' },
+                        muted && { color: '#9CA3AF' },
+                        failed && { textDecorationLine: 'line-through' },
+                      ]}>
                         {credit ? '+' : '-'}{formatGHS(Number(tx.amount))}
                       </Text>
                     </View>
