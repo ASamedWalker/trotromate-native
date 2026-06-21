@@ -20,6 +20,31 @@ export interface ActivePass {
   expires_at: string | null
 }
 
+export interface MyTicket {
+  trip_code: string
+  route_label: string
+  van_plate: string | null
+  fare: number
+  currency: string
+  status: 'active' | 'used' | 'expired' | 'cancelled'
+  expires_at: string | null
+  used_at: string | null
+  created_at: string
+}
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+
+/** All of a user's tickets (every status), newest first. */
+export async function fetchMyTickets(authUserId: string): Promise<MyTicket[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/tickets/list?auth_user_id=${authUserId}`)
+    const data = await res.json().catch(() => null)
+    return Array.isArray(data?.tickets) ? data.tickets : []
+  } catch {
+    return []
+  }
+}
+
 /** Parse + keep only genuinely-active, non-expired passes, soonest expiry first */
 export function normalizeActivePasses(raw: unknown, nowMs: number): ActivePass[] {
   if (!Array.isArray(raw)) return []

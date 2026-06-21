@@ -209,6 +209,18 @@ export default function WalletScreen() {
         {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
           /* ── Active Pass + Transactions (funded state) ── */
           <>
+            {/* My Tickets — full ticket history (active/used/expired/cancelled) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => { Haptics.selectionAsync(); router.push('/wallet/tickets' as Href) }}
+              style={s.myTicketsRow}
+            >
+              <View style={s.myTicketsIcon}><QrCode size={18} color="#FF4D1C" /></View>
+              <Text style={s.myTicketsText}>My Tickets</Text>
+              <View style={{ flex: 1 }} />
+              <ChevronRight size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
             {/* Active Pass — real tickets from the wallet backend; hidden when
                 the user has none (no more mock pass) */}
             {passes.length > 0 && (() => {
@@ -485,6 +497,9 @@ const s = StyleSheet.create({
   passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
   cancelPass: { alignSelf: 'center', marginTop: 12, paddingVertical: 6, paddingHorizontal: 12 },
   cancelPassText: { fontFamily: font.semibold, fontSize: 13, color: '#EF4444' },
+  myTicketsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginTop: 4, marginBottom: 8, backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+  myTicketsIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
+  myTicketsText: { fontFamily: font.bold, fontSize: 15, color: '#111' },
   passDecorCircle: {
     position: 'absolute', left: -20, bottom: -20,
     width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',
