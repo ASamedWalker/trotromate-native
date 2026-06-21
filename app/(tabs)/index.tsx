@@ -240,9 +240,10 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
                 style={{ flex: 1 }}
               >
-                {/* Frosted glass over the gradient — crisper border + icon badge */}
-                <View style={{ borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' }}>
-                  <BlurView intensity={24} tint="light" style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                {/* Frosted glass over the gradient — height pinned to match the
+                    primary button exactly (border-box, so the border is inside) */}
+                <View style={{ height: 52, borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' }}>
+                  <BlurView intensity={24} tint="light" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: 'rgba(255,255,255,0.14)' }}>
                     <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
                       <ScanLine size={15} color="#fff" />
                     </View>
