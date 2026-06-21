@@ -262,10 +262,13 @@ export default function WalletScreen() {
               </View>
               {transactions.slice(0, 5).map((tx: any, i: number) => {
                 const isTopup = tx.type === 'topup'
-                const icon = isTopup ? 'account-balance' as const : 'commute' as const
-                const amountStr = `${isTopup ? '+' : '-'}${formatGHS(Number(tx.amount))}`
-                const amountColor = isTopup ? '#FF4D1C' : t.text
-                const statusLabel = tx.status === 'success' ? (isTopup ? 'MOMO PAY' : 'COMPLETED') : tx.status.toUpperCase()
+                const credit = tx.type === 'topup' || tx.type === 'refund'
+                const icon = isTopup ? 'account-balance' as const : tx.type === 'refund' ? 'undo' as const : 'commute' as const
+                const amountStr = `${credit ? '+' : '-'}${formatGHS(Number(tx.amount))}`
+                const amountColor = credit ? '#16a34a' : t.text
+                const statusLabel = tx.status === 'success'
+                  ? (isTopup ? 'MOMO PAY' : tx.type === 'refund' ? 'REFUNDED' : 'COMPLETED')
+                  : tx.status.toUpperCase()
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 return (
                 <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
