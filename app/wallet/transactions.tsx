@@ -98,7 +98,23 @@ export default function TransactionsScreen() {
                   const statusSuffix = failed ? ' · Failed' : pending ? ' · Pending' : ''
                   const iconColor = failed ? '#9CA3AF' : credit ? '#16a34a' : BRAND
                   return (
-                    <View key={tx.id} style={[s.row, i > 0 && s.rowBorder]}>
+                    <TouchableOpacity
+                      key={tx.id}
+                      activeOpacity={0.6}
+                      onPress={() => {
+                        Haptics.selectionAsync()
+                        router.push({
+                          pathname: '/wallet/transaction-detail',
+                          params: {
+                            type: tx.type, amount: String(tx.amount), status: tx.status,
+                            description: tx.description ?? '', created_at: tx.created_at,
+                            reference: (tx as any).paystack_reference ?? tx.id,
+                            balance_after: String((tx as any).balance_after ?? ''),
+                          },
+                        } as never)
+                      }}
+                      style={[s.row, i > 0 && s.rowBorder]}
+                    >
                       <View style={[s.icon, { backgroundColor: failed ? '#F3F4F6' : credit ? '#ECFDF3' : '#FEF0EB' }]}>
                         {credit ? <ArrowDownLeft size={18} color={iconColor} /> : <ArrowUpRight size={18} color={iconColor} />}
                       </View>
@@ -114,7 +130,7 @@ export default function TransactionsScreen() {
                       ]}>
                         {credit ? '+' : '-'}{formatGHS(Number(tx.amount))}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   )
                 })}
               </View>
