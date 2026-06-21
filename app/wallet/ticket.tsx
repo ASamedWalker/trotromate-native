@@ -4,8 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ChevronLeft, WifiOff, ShieldCheck } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
-import * as Brightness from 'expo-brightness'
 import { font } from '@/lib/theme'
+
+// Lazy-require so a dev client without the native module (pre-rebuild) doesn't crash.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function brightnessMod(): any | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-brightness')
+  } catch { return null }
+}
 import { formatGHS } from '@/lib/utils/currency'
 import { formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import { getCachedPasses } from '@/lib/services/ticketCache'
@@ -33,6 +41,8 @@ export default function TicketScreen() {
   // Max brightness while the QR is shown (restored on leave) so it scans easily
   // in a dim trotro. Best-effort — needs a native build with expo-brightness.
   useEffect(() => {
+    const Brightness = brightnessMod()
+    if (!Brightness) return
     let prev: number | null = null
     let active = true
     ;(async () => {
@@ -41,7 +51,7 @@ export default function TicketScreen() {
         if (status !== 'granted' || !active) return
         prev = await Brightness.getBrightnessAsync()
         await Brightness.setBrightnessAsync(1)
-      } catch { /* native module not linked yet / denied — ignore */ }
+      } catch { /* denied — ignore */ }
     })()
     return () => {
       active = false

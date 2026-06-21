@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator,
 } from 'react-native'
@@ -37,18 +37,38 @@ function dayLabel(iso: string): string {
 export default function TransactionsScreen() {
   const router = useRouter()
   const { user } = useAuthContext()
+  const PAGE = 20
   const [txs, setTxs] = useState<Tx[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const offsetRef = useRef(0)
+
+  const fetchPage = useCallback(async (offset: number) => {
+    if (!user?.id) return { rows: [] as Tx[], more: false }
+    try {
+      const res = await fetch(`${API_URL}/api/wallet/transactions?auth_user_id=${user.id}&limit=${PAGE}&offset=${offset}`)
+      const data = await res.json()
+      return { rows: (Array.isArray(data.transactions) ? data.transactions : []) as Tx[], more: !!data.hasMore }
+    } catch {
+      return { rows: [] as Tx[], more: false }
+    }
+  }, [user?.id])
 
   const load = useCallback(async () => {
-    if (!user?.id) { setLoading(false); return }
-    try {
-      const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
-      const data = await res.json()
-      setTxs(Array.isArray(data.transactions) ? data.transactions : [])
-    } catch { /* keep last */ } finally { setLoading(false); setRefreshing(false) }
-  }, [user?.id])
+    const { rows, more } = await fetchPage(0)
+    offsetRef.current = PAGE
+    setTxs(rows); setHasMore(more); setLoading(false); setRefreshing(false)
+  }, [fetchPage])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    const { rows, more } = await fetchPage(offsetRef.current)
+    offsetRef.current += PAGE
+    setTxs((cur) => [...cur, ...rows]); setHasMore(more); setLoadingMore(false)
+  }, [fetchPage, loadingMore, hasMore])
 
   useFocusEffect(useCallback(() => { load() }, [load]))
 
@@ -73,6 +93,11 @@ export default function TransactionsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 28 }}
+        scrollEventThrottle={200}
+        onScroll={(e) => {
+          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 240) loadMore()
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={BRAND} colors={[BRAND]} />}
       >
         {loading ? (
@@ -138,8 +163,11 @@ export default function TransactionsScreen() {
           ))
         )}
 
-        {!loading && txs.length >= 10 && (
-          <Text style={s.note}>Showing your most recent activity.</Text>
+        {loadingMore && (
+          <View style={{ paddingVertical: 20 }}><ActivityIndicator color={BRAND} /></View>
+        )}
+        {!loading && !hasMore && txs.length > 0 && (
+          <Text style={s.note}>That’s all your activity.</Text>
         )}
       </ScrollView>
     </SafeAreaView>
