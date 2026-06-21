@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
-import { useRouter, type Href } from 'expo-router'
+import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin, ChevronRight, ChevronDown,
   Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
@@ -70,14 +70,18 @@ export default function HomeScreen() {
 
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [balanceVisible, setBalanceVisible] = useState(true)
-  React.useEffect(() => {
-    if (!authUser?.id) return
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-    fetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
-      .then(r => r.json())
-      .then(data => { if (data.balance != null) setWalletBalance(data.balance) })
-      .catch(() => {})
-  }, [authUser?.id])
+  // Refetch on focus (not just mount) so the balance reflects a top-up or
+  // booking debit the moment the user returns Home.
+  useFocusEffect(
+    useCallback(() => {
+      if (!authUser?.id) return
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+      fetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
+        .then(r => r.json())
+        .then(data => { if (data.balance != null) setWalletBalance(data.balance) })
+        .catch(() => {})
+    }, [authUser?.id]),
+  )
 
   const { location } = useLocation()
   const [locationName, setLocationName] = useState('Accra, GH')

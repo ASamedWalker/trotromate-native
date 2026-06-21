@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image,
+  View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -14,6 +14,7 @@ import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { createBooking } from '@/lib/services/booking'
 
 const BRAND = '#FF4D1C'
 
@@ -49,6 +50,7 @@ export default function CheckoutScreen() {
   const [payment, setPayment] = useState('wallet')
   const [showDriver, setShowDriver] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
+  const [booking, setBooking] = useState(false)
 
   // Real wallet balance (same source as the Wallet tab) — replaces the old
   // hardcoded "GH₵ 2,500.00" mock.
@@ -70,6 +72,41 @@ export default function CheckoutScreen() {
     { id: 'momo', label: 'MTN MoMo', sub: 'Pay with mobile money' },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
+
+  // Pay → real booking: debits the wallet + issues a ticket on the backend,
+  // then hands the real ticket to the processing/receipt flow.
+  const payNow = async () => {
+    if (!user?.id || booking) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setBooking(true)
+    const result = await createBooking({
+      authUserId: user.id,
+      routeLabel: `${fromName} → ${toName}`,
+      pickupName: fromName,
+      dropoffName: toName,
+      vehicleType: 'everyday',
+      fare: Number(total.toFixed(2)),
+    })
+    setBooking(false)
+    if (result.ok) {
+      router.push({
+        pathname: '/booking/processing',
+        params: {
+          from: params.from ?? '', to: params.to ?? '',
+          trip_code: result.ticket.trip_code,
+          expires_at: result.ticket.expires_at,
+          fare: String(result.ticket.fare),
+        },
+      } as any)
+    } else if (result.reason === 'insufficient_balance') {
+      Alert.alert('Insufficient balance', 'Top up your wallet to complete this booking.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Top up', onPress: () => router.push('/wallet/fund' as never) },
+      ])
+    } else {
+      Alert.alert('Booking failed', result.message || 'Could not complete the booking. Please try again.')
+    }
+  }
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
@@ -188,10 +225,11 @@ export default function CheckoutScreen() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: '/booking/processing', params: { from: params.from ?? '', to: params.to ?? '' } } as any) }}
-            style={s.payBtn}
+            disabled={booking}
+            onPress={payNow}
+            style={[s.payBtn, booking && { opacity: 0.6 }]}
           >
-            <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
+            <Text style={s.payBtnText}>{booking ? 'Processing…' : `Pay ${formatGHS(total)}`}</Text>
           </TouchableOpacity>
         )}
       </View>

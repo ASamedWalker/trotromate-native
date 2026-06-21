@@ -216,7 +216,12 @@ export default function WalletScreen() {
 
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
-              <Text style={[s.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
+              <View style={s.passHeader}>
+                <Text style={[s.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
+                {transactions.length > 5 && (
+                  <Text style={s.viewAll} onPress={() => router.push('/wallet/transactions' as Href)}>SEE ALL</Text>
+                )}
+              </View>
               {transactions.slice(0, 5).map((tx: any, i: number) => {
                 const isTopup = tx.type === 'topup'
                 const icon = isTopup ? 'account-balance' as const : 'commute' as const

@@ -40,7 +40,7 @@ function Coin({ delay }: { delay: number }) {
 
 export default function ProcessingScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; expires_at?: string; fare?: string }>()
   const bob = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -51,9 +51,15 @@ export default function ProcessingScreen() {
         Animated.timing(bob, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
     ).start()
-    const t = setTimeout(() => router.replace({ pathname: '/booking/receipt', params: { from: params.from ?? '', to: params.to ?? '' } } as any), 2300)
+    const t = setTimeout(() => router.replace({
+      pathname: '/booking/receipt',
+      params: {
+        from: params.from ?? '', to: params.to ?? '',
+        trip_code: params.trip_code ?? '', expires_at: params.expires_at ?? '', fare: params.fare ?? '',
+      },
+    } as any), 2300)
     return () => clearTimeout(t)
-  }, [router, bob, params.from, params.to])
+  }, [router, bob, params.from, params.to, params.trip_code, params.expires_at, params.fare])
 
   const busY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] })
 
