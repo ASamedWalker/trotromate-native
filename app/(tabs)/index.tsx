@@ -14,7 +14,7 @@ import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin, ChevronRight, ChevronDown,
   Bell, Eye, EyeOff, Compass, Bus as BusIcon, Users,
-  WalletCards, ScanLine,
+  ScanLine, Plus,
   House, Briefcase,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -225,23 +225,27 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 style={{ flex: 1 }}
               >
-                <View style={{ height: 48, borderRadius: BASE.radius.md, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <WalletCards size={18} color="#000" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#000' }}>Topup Wallet</Text>
+                <View style={{ height: 52, borderRadius: BASE.radius.md, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
+                  <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={16} color="#fff" strokeWidth={2.6} />
+                  </View>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1c1917' }}>Topup Wallet</Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/scan' as never) }}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 style={{ flex: 1 }}
               >
-                {/* Real frosted glass over the gradient (was a flat translucent fill) */}
-                <View style={{ borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' }}>
-                  <BlurView intensity={24} tint="light" style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.12)' }}>
-                    <ScanLine size={18} color="#fff" />
+                {/* Frosted glass over the gradient — crisper border + icon badge */}
+                <View style={{ borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' }}>
+                  <BlurView intensity={24} tint="light" style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
+                      <ScanLine size={15} color="#fff" />
+                    </View>
                     <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
                   </BlurView>
                 </View>
