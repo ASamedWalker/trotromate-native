@@ -105,8 +105,8 @@ export default function TrainReportScreen() {
 
     if (reportType === 'delay') {
       const delayVal = parseInt(delayMins, 10)
-      if (isNaN(delayVal) || delayVal <= 0) {
-        Alert.alert('Invalid Delay', 'Please enter delay in minutes')
+      if (isNaN(delayVal) || delayVal <= 0 || delayVal > 1440) {
+        Alert.alert('Invalid Delay', 'Enter the delay in minutes (1–1440)')
         return
       }
     }

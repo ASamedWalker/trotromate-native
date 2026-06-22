@@ -42,20 +42,25 @@ export default function VerifyOTP() {
     }
 
     if (newOtp.every(d => d !== '')) {
-      setLoading(true)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const { success, error } = await verifyOtp(phone || '', newOtp.join(''))
-      setLoading(false)
+      submitOtp(newOtp.join(''))
+    }
+  }
 
-      if (success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        router.push({ pathname: '/register/profile', params: { phone, email } } as any)
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-        Alert.alert('Invalid Code', error || 'Please try again')
-        setOtp(Array(OTP_LENGTH).fill(''))
-        refs.current[0]?.focus()
-      }
+  const submitOtp = async (code: string) => {
+    if (loading || code.length < OTP_LENGTH) return
+    setLoading(true)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    const { success, error } = await verifyOtp(phone || '', code)
+    setLoading(false)
+
+    if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      router.push({ pathname: '/register/profile', params: { phone, email } } as any)
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Invalid Code', error || 'Please try again')
+      setOtp(Array(OTP_LENGTH).fill(''))
+      refs.current[0]?.focus()
     }
   }
 
@@ -127,7 +132,7 @@ export default function VerifyOTP() {
       {/* CTA */}
       <Animated.View entering={FadeInDown.delay(320).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
         <Pressable
-          onPress={() => {}}
+          onPress={() => submitOtp(otp.join(''))}
           disabled={loading || otp.some(d => !d)}
           style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >

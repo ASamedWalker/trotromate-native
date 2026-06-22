@@ -11,7 +11,7 @@ import {
   DeviceEventEmitter,
   Animated,
 } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Image } from 'expo-image'
@@ -100,6 +100,15 @@ export default function ReelScreen() {
     if (!player) return
     player.muted = isMuted
   }, [isMuted, player])
+
+  // Pause playback when the reel loses focus (navigating away / backgrounding)
+  // so video doesn't keep decoding off-screen and burn battery + data.
+  useFocusEffect(
+    useCallback(() => {
+      player?.play()
+      return () => player?.pause()
+    }, [player])
+  )
 
   useEffect(() => {
     if (!player) return

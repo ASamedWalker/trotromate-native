@@ -59,13 +59,15 @@ export default function CheckoutScreen() {
   const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
   const { user } = useAuthContext()
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [balanceLoading, setBalanceLoading] = useState(true)
   const fetchBalance = useCallback(async () => {
-    if (!user?.id) return
+    if (!user?.id) { setBalanceLoading(false); return }
     try {
       const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
       const data = await res.json()
       if (data.balance != null) setWalletBalance(Number(data.balance))
     } catch { /* leave null → "Tap to check" */ }
+    finally { setBalanceLoading(false) }
   }, [API_URL, user?.id])
   useEffect(() => { fetchBalance() }, [fetchBalance])
 
@@ -74,6 +76,9 @@ export default function CheckoutScreen() {
     { id: 'momo', label: 'MTN MoMo', sub: 'Pay with mobile money' },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
+  // Don't let the user pay from the wallet until we know the balance — avoids a
+  // silent overdraw path when the balance fetch is slow or timed out.
+  const waitingBalance = payment === 'wallet' && balanceLoading
 
   // Pay → require the wallet PIN, then book. PIN protects spending if the phone
   // is unlocked by someone else.
@@ -237,11 +242,11 @@ export default function CheckoutScreen() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}
-            disabled={booking}
+            disabled={booking || waitingBalance}
             onPress={payNow}
-            style={[s.payBtn, booking && { opacity: 0.6 }]}
+            style={[s.payBtn, (booking || waitingBalance) && { opacity: 0.6 }]}
           >
-            <Text style={s.payBtnText}>{booking ? 'Processing…' : `Pay ${formatGHS(total)}`}</Text>
+            <Text style={s.payBtnText}>{booking ? 'Processing…' : waitingBalance ? 'Checking balance…' : `Pay ${formatGHS(total)}`}</Text>
           </TouchableOpacity>
         )}
       </View>

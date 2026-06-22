@@ -27,8 +27,11 @@ export default function HowDidYouHear() {
   const router = useRouter()
   const { completeOnboarding } = useOnboarding()
   const [selected, setSelected] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const handleDone = async () => {
+    if (submitting) return
+    setSubmitting(true)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
     if (selected) {
@@ -83,9 +86,9 @@ export default function HowDidYouHear() {
 
       {/* CTA */}
       <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
-        <Pressable onPress={handleDone} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
-          <LinearGradient colors={[BRAND, BRAND]} style={s.btn}>
-            <Text style={s.btnText}>Go to Home Screen</Text>
+        <Pressable onPress={handleDone} disabled={submitting} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+          <LinearGradient colors={submitting ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]} style={s.btn}>
+            <Text style={s.btnText}>{submitting ? 'Setting up…' : 'Go to Home Screen'}</Text>
           </LinearGradient>
         </Pressable>
       </Animated.View>

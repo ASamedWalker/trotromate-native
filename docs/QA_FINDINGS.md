@@ -4,7 +4,37 @@ Companion to `docs/FEATURE_TRACKER.csv` (96 features, user stories + expected
 behaviour). This logs every error surfaced by the code audit, its severity, and
 disposition. Phase order: spec → test/document → fix logistical/UX → re-test.
 
-## ✅ Fixed this pass (frontend logistical/UX, verified tsc-clean)
+## ✅ Re-audit pass 2 (2026-06-22) — fixed this pass (tsc-clean)
+
+Full re-sweep of all 96 features via 6 parallel area audits against current code.
+
+| ID | Bug found | Fix |
+|----|-----------|-----|
+| W1 | Wallet flashed blank "quiet" empty-state for seconds on open, then flipped to funded | Seed balance+tx from `walletCache` on mount + `hydrated` skeleton guard; cache only written on confirmed balance (no clobber on partial response) |
+| RW7 | `fetchLeaderboard` had NO `.order()` → ranks assigned by unsorted DB order (WRONG ranks shown) | Added `.order('weekly_points', { ascending: false })` |
+| R2 | "Verify" button on signup OTP screen was a dead no-op (`onPress={() => {}}`) | Extracted `submitOtp`; button now triggers verification with loading guard |
+| R4 | Profile save error was swallowed — advanced to PIN even if the DB write failed | `throw error` → Alert → return; only advances on success |
+| R6 | Survey "Go to Home" had no double-submit guard (could fire `completeOnboarding` repeatedly) | `submitting` state + disabled button + label |
+| B1 | Checkout "Pay" was enabled while wallet balance still loading/unknown → silent overdraw path | Pay disabled ("Checking balance…") until balance resolves (`waitingBalance`) |
+| W12 | MoMo top-up phone accepted any 9+ chars (bad numbers reach backend) | Validate Ghana mobile format `^0?[25]\d{8}$` |
+| RP1 | Fare report had no upper bound (₵500 accepted client-side) | Bound 0.01–200 (matches backend MAX_FARE) |
+| RP4 | Train delay minutes unbounded | Bound 1–1440 |
+| N1 | Notifications fetched once → stale | `useRefreshOnFocus(['notifications'])` refetch on focus (realtime still deferred) |
+| BU1 | Bulletins loaded once → stale | `useFocusEffect` refetch on focus (realtime still deferred) |
+| P3 | Reel video kept decoding in background (battery + data) | `useFocusEffect` pauses player on blur/unmount |
+
+New file: `lib/services/walletCache.ts` (wallet snapshot cache).
+
+### Still open after pass 2 (deferred — backend/native/by-design)
+- S3a/S3b: scan-to-pay still never debits + bus code not passed confirm→pin (whole scan flow is a UI mock; needs `/api/scan-pay` + expo-camera). DEFERRED.
+- Ride rating has no offline queue + `051_ride_ratings.sql` migration still unrun → ratings silently lost. DEFERRED (run migration; add to offline-queue).
+- G4 post-trip fare submit is fire-and-forget with no retry/queue — by design today.
+- routes/detail arrival bell state-only; train "On Time"/Unsplash hero hardcoded (no telemetry); traffic "Flowing" static — DEFERRED (need live data).
+- Realtime subscriptions for comments/activity/notifications — DEFERRED (backend channels).
+- i18n: ~5 screens (Pulse/Profile/Activity/Notif/Bulletin) still English — owner scope = critical screens only.
+- RW4 referral count not refetched on pull-refresh (stale until remount) — minor, documented.
+
+## ✅ Fixed pass 1 (frontend logistical/UX, verified tsc-clean)
 
 | ID | Bug | Fix |
 |----|-----|-----|

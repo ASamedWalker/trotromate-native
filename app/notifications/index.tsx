@@ -25,6 +25,7 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
+import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { timeAgo } from '@/lib/utils/time'
 import type { NotificationType } from '@/lib/services/notifications'
 
@@ -47,6 +48,8 @@ export default function NotificationsScreen() {
   const { deviceId } = useApp()
   const { notifications, unreadCount, isLoading, markAsRead, markAllRead, refetch } =
     useNotifications(deviceId)
+  // Refresh stale notifications when the screen regains focus (no realtime yet).
+  useRefreshOnFocus([['notifications']])
 
   const [isRefreshing, setIsRefreshing] = useState(false)
 

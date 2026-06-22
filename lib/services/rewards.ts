@@ -507,6 +507,7 @@ export async function fetchLeaderboard(
   const { data, error } = await supabase
     .from('weekly_leaderboard')
     .select('*')
+    .order('weekly_points', { ascending: false })
     .limit(50)
 
   if (error || !data) return { entries: [] }

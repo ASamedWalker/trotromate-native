@@ -62,10 +62,15 @@ export default function WalletScreen() {
         prevBalanceRef.current = next
         setBalance(next)
       }
-      const txs = data.transactions ?? null
+      const txs = Array.isArray(data.transactions) ? data.transactions : null
       if (txs) setTransactions(txs)
-      // Snapshot balance + transactions so the next open paints instantly.
-      cacheWallet({ balance: Number(data.balance) || 0, transactions: txs ?? [] })
+      // Snapshot balance + transactions so the next open paints instantly. Only
+      // write on a confirmed balance, and keep the last-known transactions if
+      // this response omitted them (partial/timed-out body) — never clobber a
+      // good cache with an empty list.
+      if (data.balance != null) {
+        cacheWallet({ balance: Number(data.balance), transactions: txs ?? transactions })
+      }
       // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
       const active = normalizeActivePasses(data.passes, Date.now())
       setPasses(active)

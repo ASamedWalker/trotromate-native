@@ -45,8 +45,10 @@ export default function MomoTopUpScreen() {
       Alert.alert('Invalid Amount', 'Please select or enter an amount (min GHS 1)')
       return
     }
-    if (phone.length < 9) {
-      Alert.alert('Invalid Phone', 'Please enter your MoMo phone number')
+    // Ghana mobile: 9 local digits (optionally a leading 0), 2nd digit 2 or 5
+    // (MTN/Telecel/AirtelTigo prefixes). Catches typos before the backend rejects.
+    if (!/^0?[25]\d{8}$/.test(phone.replace(/\D/g, ''))) {
+      Alert.alert('Invalid Phone', 'Enter a valid Ghana MoMo number (e.g. 024 XXX XXXX)')
       return
     }
     if (!user?.id) {

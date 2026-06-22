@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 import {
   View,
   Text,
@@ -109,9 +110,9 @@ export default function BulletinScreen() {
     setIsLoading(false)
   }, [])
 
-  useEffect(() => {
-    load()
-  }, [load])
+  // Refetch each time the screen regains focus so bulletins don't go stale
+  // after the first mount (no realtime channel on this feed yet).
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   const handleRefresh = async () => {
     setIsRefreshing(true)

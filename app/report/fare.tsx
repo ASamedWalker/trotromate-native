@@ -78,8 +78,8 @@ export default function FareReportScreen() {
     }
 
     const fareValue = parseFloat(fare)
-    if (isNaN(fareValue) || fareValue <= 0) {
-      Alert.alert('Invalid Fare', 'Please enter a valid fare amount')
+    if (isNaN(fareValue) || fareValue <= 0 || fareValue > 200) {
+      Alert.alert('Invalid Fare', 'Enter a valid fare between GH₵0.01 and GH₵200')
       return
     }
 

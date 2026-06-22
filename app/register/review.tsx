@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
@@ -51,10 +51,14 @@ export default function ReviewDetails() {
       profileData.phone = fullPhone
       if (deviceId) {
         const { error } = await supabase.from('contributor_profiles').update(profileData).eq('device_id', deviceId)
-        if (error) console.warn('[review] Profile update error:', error.message)
+        if (error) throw error
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('[review] Profile save error:', e)
+      setSaving(false)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Could not save profile', e?.message || 'Please check your connection and try again.')
+      return
     }
 
     setSaving(false)
