@@ -28,6 +28,12 @@ const en: Dict = {
   'common.done': 'Done',
   'common.seeAll': 'See All',
   'common.retry': 'Retry',
+  // Bottom nav (keep short — small tab labels)
+  'nav.home': 'Home',
+  'nav.lines': 'Lines',
+  'nav.wallet': 'Wallet',
+  'nav.pulse': 'Pulse',
+  'nav.rewards': 'Rewards',
   // Home
   'home.hello': 'Hello',
   'home.walletBalance': 'Wallet Balance',
@@ -58,6 +64,10 @@ const en: Dict = {
 const tw: Dict = {
   'common.cancel': 'Gyae',
   'common.done': 'Awie',
+  'nav.home': 'Fie',
+  'nav.lines': 'Akwan',
+  'nav.wallet': 'Sika',
+  'nav.rewards': 'Akatua',
   'common.seeAll': 'Hwɛ ne nyinaa',
   'home.hello': 'Akwaaba',
   'home.walletBalance': 'Sika a Ɛwɔ Kotokuo Mu',
@@ -83,6 +93,10 @@ const tw: Dict = {
 const fat: Dict = {
   'common.cancel': 'Gyae',
   'home.hello': 'Akwaaba',
+  'nav.home': 'Fie',
+  'nav.lines': 'Akwan',
+  'nav.wallet': 'Sika',
+  'nav.rewards': 'Akatua',
   'home.walletBalance': 'Sika a Ɔwɔ Kotokur Mu',
   'home.topupWallet': 'Fa Sika Hyɛ Mu',
   'home.scanToPay': 'Scan na Tua',
@@ -100,6 +114,8 @@ const fat: Dict = {
 const ee: Dict = {
   'common.cancel': 'Tɔ te',
   'common.done': 'Vɔ',
+  'nav.home': 'Aƒe',
+  'nav.wallet': 'Gakotoku',
   'home.hello': 'Woezɔ',
   'home.walletBalance': 'Ga si le Gakotoku me',
   'home.topupWallet': 'Tsɔ Ga De Eme',
@@ -123,6 +139,8 @@ const ee: Dict = {
 const ga: Dict = {
   'common.cancel': 'Gbã',
   'common.done': 'Egbe naa',
+  'nav.home': 'Shia',
+  'nav.wallet': 'Kotoku',
   'home.hello': 'Ojekoo',
   'home.walletBalance': 'Shika ni Yɔɔ Kotoku lɛ Mli',
   'home.topupWallet': 'Kɛ Shika Wo Mli',
@@ -146,6 +164,10 @@ const ga: Dict = {
 const ha: Dict = {
   'common.cancel': 'Soke',
   'common.done': 'An gama',
+  'nav.home': 'Gida',
+  'nav.lines': 'Layi',
+  'nav.wallet': 'Walat',
+  'nav.rewards': 'Lada',
   'common.seeAll': 'Duba duka',
   'home.hello': 'Sannu',
   'home.walletBalance': 'Kuɗin Walat',
@@ -171,6 +193,7 @@ const ha: Dict = {
 const dag: Dict = {
   'common.cancel': 'Chɛ',
   'home.hello': 'Dasiba',
+  'nav.home': 'Yili',
   'home.walletBalance': 'Laɣiri din be Kotoku ni',
   'home.topupWallet': 'Niŋ Laɣiri',
   'home.scanToPay': 'Scan ka Yo',

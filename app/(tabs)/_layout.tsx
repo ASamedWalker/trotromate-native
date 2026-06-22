@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import { useLanguage } from '@/lib/i18n'
 
 const BRAND = '#FF4D1C'
 
@@ -19,20 +20,22 @@ const TAB_ICONS: Record<string, typeof Home> = {
   rewards: Trophy,
 }
 
-const TAB_LABELS: Record<string, string> = {
-  index: 'Home',
-  lines: 'Lines',
-  wallet: 'Wallet',
-  tales: 'Pulse',
-  rewards: 'Rewards',
+// route name → i18n key (also used to decide which tabs are visible)
+const TAB_KEYS: Record<string, string> = {
+  index: 'nav.home',
+  lines: 'nav.lines',
+  wallet: 'nav.wallet',
+  tales: 'nav.pulse',
+  rewards: 'nav.rewards',
 }
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const isDark = useColorScheme() === 'dark'
 
+  const { t } = useLanguage()
   // Only render visible tabs (filter out hidden ones)
-  const visibleRoutes = state.routes.filter(r => TAB_LABELS[r.name])
+  const visibleRoutes = state.routes.filter(r => TAB_KEYS[r.name])
 
   return (
     <View style={[
@@ -44,7 +47,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         const realIndex = state.routes.indexOf(route)
         const isFocused = state.index === realIndex
         const Icon = TAB_ICONS[route.name] || Home
-        const label = TAB_LABELS[route.name] || route.name
+        const label = t(TAB_KEYS[route.name] || 'nav.home')
 
         const onPress = () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

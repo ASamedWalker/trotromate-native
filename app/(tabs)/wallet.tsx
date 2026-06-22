@@ -139,7 +139,7 @@ export default function WalletScreen() {
     <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : '#fafaf9' }]} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={[s.headerTitle, { color: t.text }]}>Wallet</Text>
+        <Text style={[s.headerTitle, { color: t.text }]}>{tr('wallet.title')}</Text>
         <TouchableOpacity onPress={toggleBalance} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           {balanceVisible
             ? <Eye size={22} color={isDark ? '#78716c' : '#a8a29e'} />
@@ -192,7 +192,7 @@ export default function WalletScreen() {
                 <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
                   <View style={s.balanceCardBtnAmber}>
                     <MaterialIcons name="add" size={18} color="#fff" />
-                    <Text style={s.balanceCardBtnPrimaryText}>Add Money</Text>
+                    <Text style={s.balanceCardBtnPrimaryText}>{tr('wallet.addMoney')}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -230,7 +230,7 @@ export default function WalletScreen() {
               return (
                 <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
                   <View style={s.passHeader}>
-                    <Text style={[s.sectionTitle, { color: t.text }]}>Active Pass</Text>
+                    <Text style={[s.sectionTitle, { color: t.text }]}>{tr('wallet.activePass')}</Text>
                     {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
                   </View>
                   <TouchableOpacity
@@ -285,7 +285,7 @@ export default function WalletScreen() {
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
               <View style={s.passHeader}>
-                <Text style={[s.sectionTitle, { color: t.text }]}>Recent Transactions</Text>
+                <Text style={[s.sectionTitle, { color: t.text }]}>{tr('wallet.recentTransactions')}</Text>
                 {transactions.length > 5 && (
                   <Text style={s.viewAll} onPress={() => router.push('/wallet/transactions' as Href)}>SEE ALL</Text>
                 )}
