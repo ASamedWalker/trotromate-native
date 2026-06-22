@@ -17,7 +17,7 @@ export default function VerifyOtpScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { phone } = useLocalSearchParams<{ phone: string }>()
-  const { verifyOtp, linkToDevice } = useAuthContext()
+  const { verifyOtp, linkToDevice, signInWithPhone } = useAuthContext()
   const { deviceId } = useApp()
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
@@ -121,7 +121,7 @@ export default function VerifyOtpScreen() {
             Resend code in <Text style={{ color: BRAND, fontWeight: '600' }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
           </Text>
         ) : (
-          <Pressable onPress={() => setTimer(60)}>
+          <Pressable onPress={async () => { await signInWithPhone(phone); setTimer(60) }}>
             <Text style={s.resendLink}>Resend</Text>
           </Pressable>
         )}

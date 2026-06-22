@@ -24,6 +24,10 @@ export default function RegisterPhone() {
       Alert.alert('Invalid Number', 'Enter a valid Ghana phone number')
       return
     }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert('Invalid Email', 'Enter a valid email address or leave it blank')
+      return
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
 

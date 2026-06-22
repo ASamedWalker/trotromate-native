@@ -16,7 +16,7 @@ export default function VerifyOTP() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { phone, email } = useLocalSearchParams<{ phone: string; email?: string }>()
-  const { verifyOtp } = useAuthContext()
+  const { verifyOtp, signInWithPhone } = useAuthContext()
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
@@ -116,7 +116,7 @@ export default function VerifyOTP() {
             Resend code in <Text style={{ color: BRAND, fontWeight: '600' }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
           </Text>
         ) : (
-          <Pressable onPress={() => setTimer(60)}>
+          <Pressable onPress={async () => { await signInWithPhone(phone || ''); setTimer(60) }}>
             <Text style={s.resendLink}>Resend</Text>
           </Pressable>
         )}

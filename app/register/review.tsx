@@ -105,7 +105,7 @@ export default function ReviewDetails() {
 
         <Text style={s.terms}>
           By tapping on "Confirm & Continue", you'll be agreeing to{'\n'}
-          Troski's <Text style={s.termsLink}>Terms & Condition</Text> and <Text style={s.termsLink}>Privacy Policy</Text>
+          Troski's <Text style={s.termsLink} onPress={() => router.push('/terms' as never)}>Terms & Condition</Text> and <Text style={s.termsLink} onPress={() => router.push('/privacy' as never)}>Privacy Policy</Text>
         </Text>
       </Animated.View>
     </View>

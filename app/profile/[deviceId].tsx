@@ -56,16 +56,14 @@ export default function PublicProfileScreen() {
   const isOwnProfile = myDeviceId === profileDeviceId
   const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null
 
-  // XP progress (points within current level)
-  const xpThresholds = [0, 50, 150, 300, 500, 1000, 2000]
+  // XP progress within the current tier — use the REAL tier bounds from LEVELS
+  // (was a hardcoded threshold array that didn't match the tier definitions).
   const currentXP = profile.total_points
-  let levelIdx = xpThresholds.findIndex((t) => currentXP < t)
-  if (levelIdx === -1) levelIdx = xpThresholds.length
-  const prevThreshold = xpThresholds[Math.max(0, levelIdx - 1)] || 0
-  const nextThreshold = xpThresholds[levelIdx] || currentXP + 200
-  const xpInLevel = currentXP - prevThreshold
-  const xpNeeded = nextThreshold - prevThreshold
-  const xpPercent = Math.min((xpInLevel / xpNeeded) * 100, 100)
+  const isTopTier = !isFinite(levelInfo.max_points as number)
+  const prevThreshold = levelInfo.min_points
+  const nextThreshold = isTopTier ? currentXP : (levelInfo.max_points as number)
+  const xpNeeded = Math.max(1, nextThreshold - prevThreshold)
+  const xpPercent = isTopTier ? 100 : Math.min(((currentXP - prevThreshold) / xpNeeded) * 100, 100)
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
@@ -119,9 +117,9 @@ export default function PublicProfileScreen() {
           <View style={s.xpHeader}>
             <View>
               <Text style={s.xpLabel}>CURRENT XP</Text>
-              <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {nextThreshold}</Text></Text>
+              <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {isTopTier ? 'MAX' : nextThreshold}</Text></Text>
             </View>
-            <Text style={s.xpRemaining}>{Math.max(0, nextThreshold - currentXP)} to next level</Text>
+            <Text style={s.xpRemaining}>{isTopTier ? 'Top tier reached' : `${Math.max(0, nextThreshold - currentXP)} to next level`}</Text>
           </View>
           <View style={s.xpBarBg}>
             <View style={[s.xpBarFill, { width: `${xpPercent}%` }]} />
