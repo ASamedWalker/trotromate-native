@@ -21,7 +21,8 @@ import {
   Heart,
   X,
   Bike,
-  Bus,
+  BusFront,
+  LayoutGrid,
   Plus,
   ChevronDown,
   Check,
@@ -123,9 +124,9 @@ export default function RoutesScreen() {
     return LINE_COLORS[h % LINE_COLORS.length]
   }
 
-  const filters: { key: Filter; label: string; icon: typeof Bus | null; color: string }[] = [
-    { key: 'all', label: 'All', icon: null, color: '#FF4D1C' },
-    { key: 'trotro', label: 'Trotro', icon: Bus, color: '#FF4D1C' },
+  const filters: { key: Filter; label: string; icon: typeof BusFront; color: string }[] = [
+    { key: 'all', label: 'All', icon: LayoutGrid, color: '#FF4D1C' },
+    { key: 'trotro', label: 'Trotro', icon: BusFront, color: '#FF4D1C' },
     { key: 'okada', label: 'Okada', icon: Bike, color: c.orange500 },
     { key: 'popular', label: 'Popular', icon: TrendingUp, color: '#FF4D1C' },
     { key: 'saved', label: 'Saved', icon: Heart, color: c.red500 },
