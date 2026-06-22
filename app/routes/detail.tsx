@@ -11,11 +11,19 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Dimensions,
+  StyleSheet,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight, MapPin, LocateFixed } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+
+const { height: SCREEN_H } = Dimensions.get('window')
+// Branded Mapbox Studio style (shared with TrackingMap); stock night variant
+// after dark so the route view matches premium nav apps (Uber/Bolt) at night.
+const MAP_STYLE_DAY = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
+const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/navigation-night-v1'
 import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
@@ -77,6 +85,14 @@ export default function RouteDetailScreen() {
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [notifyEnabled, setNotifyEnabled] = useState(false)
+  // Real road distance from the Directions response — feeds the floating ETA pill.
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
+  // Animated route "draw" sweep: line-trim-offset end goes 1 (hidden) -> 0 (full).
+  const drawAnim = useRef(new RNAnimated.Value(1)).current
+  const [trimEnd, setTrimEnd] = useState(1)
+  // Day/night map style (Ghana local hours): branded by day, stock nav-night after dark.
+  const isNight = useMemo(() => { const h = new Date().getHours(); return h < 6 || h >= 18 }, [])
+  const mapStyleURL = isNight ? MAP_STYLE_NIGHT : MAP_STYLE_DAY
 
   // Live vehicles on this route — fallback to mock if none
   const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
@@ -141,28 +157,22 @@ export default function RouteDetailScreen() {
   const [pulseRadius, setPulseRadius] = useState(14)
   const [pulseOpacity, setPulseOpacity] = useState(0.4)
 
-  // Smooth camera fly-in
-  useEffect(() => {
+  // Fit the whole corridor with a pitched, cinematic framing — leaves room for
+  // the bottom sheet (paddingBottom) and tilts the camera like premium nav apps.
+  const fitRoute = (duration = 1500) => {
     if (!hasCoords || !cameraRef.current) return
-    // Start zoomed on origin, then fly to fit bounds
-    const timer = setTimeout(() => {
-      cameraRef.current?.setCamera({
-        centerCoordinate: [fromCoord!.lon, fromCoord!.lat],
-        zoomLevel: 14,
-        animationDuration: 800,
-      })
-      // Then fit bounds after zoom-in
-      setTimeout(() => {
-        cameraRef.current?.fitBounds(
-          [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
-          [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-          [80, 80, 350, 80],
-          1200,
-        )
-      }, 1000)
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [hasCoords])
+    // [top, right, bottom, left] — generous bottom leaves room for the sheet.
+    cameraRef.current.fitBounds(
+      [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
+      [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
+      [insets.top + 96, 52, SCREEN_H * 0.44, 52],
+      duration,
+    )
+  }
+
+  // Framing is handled by the Camera's defaultSettings.bounds (correct on first
+  // paint) + onDidFinishLoadingMap → fitRoute, which avoids the cold-mount race
+  // where cameraRef is still null inside a setTimeout.
 
   // Route line — fetch road-following geometry from Mapbox Directions API
   const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
@@ -184,6 +194,17 @@ export default function RouteDetailScreen() {
     return () => { loop.stop(); pulseAnim.removeListener(listener) }
   }, [])
 
+  // Animated route "draw" — reveal the polyline from origin once geometry loads.
+  useEffect(() => {
+    if (!routeLine) return
+    drawAnim.setValue(1)
+    const id = drawAnim.addListener(({ value }) => setTrimEnd(value))
+    RNAnimated.timing(drawAnim, {
+      toValue: 0, duration: 1400, easing: Easing.inOut(Easing.cubic), useNativeDriver: false,
+    }).start()
+    return () => drawAnim.removeListener(id)
+  }, [routeLine])
+
   useEffect(() => {
     if (!fromCoord || !toCoord) return
     const token = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
@@ -192,6 +213,7 @@ export default function RouteDetailScreen() {
     fetch(url)
       .then(r => r.json())
       .then(data => {
+        if (data.routes?.[0]?.distance != null) setRouteDistanceKm(data.routes[0].distance / 1000)
         if (data.routes?.[0]?.geometry) {
           setRouteLine({
             type: 'Feature',
@@ -222,15 +244,6 @@ export default function RouteDetailScreen() {
       })
   }, [fromCoord, toCoord])
 
-  // Markers
-  const markers = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: [
-      fromCoord && { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [fromCoord.lon, fromCoord.lat] }, properties: { label: from, color: '#22c55e' } },
-      toCoord && { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [toCoord.lon, toCoord.lat] }, properties: { label: to, color: '#ef4444' } },
-    ].filter(Boolean) as GeoJSON.Feature[],
-  }), [fromCoord, toCoord, from, to])
-
   const snapPoints = useMemo(() => ['38%', '64%', '88%'], [])
 
 
@@ -260,17 +273,29 @@ export default function RouteDetailScreen() {
       {/* ── Full screen map ── */}
       <Mapbox.MapView
         style={{ flex: 1 }}
-        styleURL="mapbox://styles/mapbox/navigation-day-v1"
+        styleURL={mapStyleURL}
         logoEnabled={false}
         attributionEnabled={false}
-        compassEnabled={false}
+        compassEnabled={true}
+        compassFadeWhenNorth={true}
+        compassPosition={{ top: insets.top + 64, right: 16 }}
         scaleBarEnabled={false}
+        onDidFinishLoadingMap={() => fitRoute(900)}
       >
         <Mapbox.Camera
           ref={cameraRef}
-          defaultSettings={{
+          defaultSettings={hasCoords ? {
+            bounds: {
+              ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
+              sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
+              paddingTop: insets.top + 96,
+              paddingBottom: SCREEN_H * 0.44,
+              paddingLeft: 52,
+              paddingRight: 52,
+            },
+          } : {
             centerCoordinate: [centerLon, centerLat],
-            zoomLevel: hasCoords ? 11 : 12,
+            zoomLevel: 12,
           }}
         />
 
@@ -286,43 +311,49 @@ export default function RouteDetailScreen() {
         >
           <Mapbox.RasterLayer
             id="traffic-layer"
-            style={{ rasterOpacity: 0.6 }}
+            style={{ rasterOpacity: 0.35 }}
           />
         </Mapbox.RasterSource>
 
-        {/* Route line — Waze-style: bright blue core, white casing, soft glow */}
+        {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
+            casing, brand-orange core, revealed with a draw sweep (lineTrimOffset). */}
         {routeLine && (
           <Mapbox.ShapeSource id="route-line" shape={routeLine}>
-            {/* Outer glow */}
+            {/* Soft ground shadow for depth */}
             <Mapbox.LineLayer
               id="route-line-shadow"
               style={{
-                lineColor: '#1FA2FF',
-                lineWidth: 14,
+                lineColor: '#000000',
+                lineWidth: 15,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 0.18,
-                lineBlur: 6,              }}
+                lineOpacity: 0.12,
+                lineBlur: 8,
+              }}
             />
-            {/* White casing */}
+            {/* Near-black casing — the high-contrast outline */}
             <Mapbox.LineLayer
               id="route-line-outline"
               style={{
-                lineColor: '#FFFFFF',
-                lineWidth: 10,
+                lineColor: isNight ? '#000000' : '#11181C',
+                lineWidth: 11,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 1,              }}
+                lineOpacity: 1,
+                lineTrimOffset: [0, trimEnd],
+              }}
             />
-            {/* Bright blue core */}
+            {/* Brand core */}
             <Mapbox.LineLayer
               id="route-line-core"
               style={{
-                lineColor: '#1A8CFF',
+                lineColor: BRAND,
                 lineWidth: 6,
                 lineCap: 'round',
                 lineJoin: 'round',
-                lineOpacity: 1,              }}
+                lineOpacity: 1,
+                lineTrimOffset: [0, trimEnd],
+              }}
             />
           </Mapbox.ShapeSource>
         )}
@@ -345,42 +376,27 @@ export default function RouteDetailScreen() {
           </Mapbox.ShapeSource>
         )}
 
-        {/* Origin + Destination markers */}
-        {hasCoords && (
-          <Mapbox.ShapeSource id="route-markers" shape={markers}>
-            <Mapbox.CircleLayer
-              id="marker-outer"
-              style={{
-                circleRadius: 12,
-                circleColor: '#ffffff',
-                circleStrokeWidth: 3,
-                circleStrokeColor: ['get', 'color'],
-                circlePitchAlignment: 'map',
-              }}
-            />
-            <Mapbox.CircleLayer
-              id="marker-inner"
-              style={{
-                circleRadius: 6,
-                circleColor: ['get', 'color'],
-                circlePitchAlignment: 'map',
-              }}
-            />
-            <Mapbox.SymbolLayer
-              id="marker-labels"
-              style={{
-                textField: ['get', 'label'],
-                textSize: 13,
-                textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                textOffset: [0, 2.2],
-                textAnchor: 'top',
-                textColor: '#000000',
-                textHaloColor: '#ffffff',
-                textHaloWidth: 2,
-                textAllowOverlap: true,
-              }}
-            />
-          </Mapbox.ShapeSource>
+        {/* Origin pin — solid start dot with a label chip */}
+        {fromCoord && (
+          <Mapbox.MarkerView id="origin-pin" coordinate={[fromCoord.lon, fromCoord.lat]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap>
+            <View style={{ alignItems: 'center' }}>
+              <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{from}</Text></View>
+              <View style={mapPinStyles.originDot} />
+            </View>
+          </Mapbox.MarkerView>
+        )}
+
+        {/* Destination pin — teardrop with a MapPin glyph, tip anchored to the point */}
+        {toCoord && (
+          <Mapbox.MarkerView id="dest-pin" coordinate={[toCoord.lon, toCoord.lat]} anchor={{ x: 0.5, y: 1 }} allowOverlap>
+            <View style={{ alignItems: 'center' }}>
+              <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{to}</Text></View>
+              <View style={mapPinStyles.destPin}>
+                <MapPin size={16} color="#fff" strokeWidth={2.6} fill="#fff" />
+              </View>
+              <View style={mapPinStyles.destTip} />
+            </View>
+          </Mapbox.MarkerView>
         )}
 
         {/* Live trotros — crowdsourced from riders in GO Mode (1-2s fresh) */}
@@ -423,6 +439,35 @@ export default function RouteDetailScreen() {
           <X size={22} color="#000" />
         </TouchableOpacity>
       </View>
+
+      {/* ── Floating ETA · distance pill (glanceable trip summary) ── */}
+      {hasCoords && (
+        <View style={{ position: 'absolute', top: insets.top + 10, alignSelf: 'center', zIndex: 10 }}>
+          <View style={mapPinStyles.etaPill}>
+            <Clock size={15} color="#fff" strokeWidth={2.4} />
+            <Text style={mapPinStyles.etaText}>{durationText}</Text>
+            {routeDistanceKm != null && (
+              <>
+                <View style={mapPinStyles.etaDot} />
+                <Text style={mapPinStyles.etaSub}>{routeDistanceKm.toFixed(1)} km</Text>
+              </>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* ── Recenter FAB (re-frames the route after the user pans) ── */}
+      {hasCoords && (
+        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.38 + 16, zIndex: 10 }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { Haptics.selectionAsync(); fitRoute(900) }}
+            style={mapPinStyles.fab}
+          >
+            <LocateFixed size={22} color={BRAND} strokeWidth={2.3} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Draggable Bottom Sheet ── */}
       <BottomSheet
@@ -865,3 +910,46 @@ export default function RouteDetailScreen() {
     </View>
   )
 }
+
+const mapPinStyles = StyleSheet.create({
+  // Label chip floating above each pin
+  chip: {
+    backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    marginBottom: 5, maxWidth: 150,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 5, elevation: 5,
+  },
+  chipText: { fontFamily: font.bold, fontSize: 12, color: '#0A0A0A', letterSpacing: -0.2 },
+  // Origin: solid green start dot, white ring, drop shadow
+  originDot: {
+    width: 18, height: 18, borderRadius: 9, backgroundColor: '#22c55e',
+    borderWidth: 3, borderColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
+  },
+  // Destination: brand teardrop pin (rounded head + tip)
+  destPin: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: BRAND,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2.5, borderColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 7,
+  },
+  destTip: {
+    width: 0, height: 0, marginTop: -3,
+    borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 9,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: BRAND,
+  },
+  // Floating ETA · distance pill
+  etaPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#0A0A0A', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 8,
+  },
+  etaText: { fontFamily: font.bold, fontSize: 14, color: '#fff', letterSpacing: -0.2 },
+  etaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#6B7280' },
+  etaSub: { fontFamily: font.semibold, fontSize: 14, color: '#D1D5DB', letterSpacing: -0.2 },
+  // Recenter FAB
+  fab: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 8, elevation: 7,
+  },
+})
