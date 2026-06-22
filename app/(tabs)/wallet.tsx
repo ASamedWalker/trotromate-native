@@ -12,6 +12,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
 import { cancelBooking } from '@/lib/services/booking'
 import { cacheActivePasses, getCachedPasses } from '@/lib/services/ticketCache'
+import { cacheWallet, getCachedWallet } from '@/lib/services/walletCache'
 import { useLanguage } from '@/lib/i18n'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -30,6 +31,10 @@ export default function WalletScreen() {
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<any[]>([])
   const [passes, setPasses] = useState<ActivePass[]>([])
+  // `hydrated` flips once we have ANY data to show (cache seed or first fetch).
+  // Until then we render a skeleton instead of the blank empty state, so the
+  // wallet never shows "quiet" while it's actually still loading.
+  const [hydrated, setHydrated] = useState(false)
   const hasTransactions = transactions.length > 0
 
   // "GH₵ X added ✓" moment — until the MoMo webhook lands, detect credits by
@@ -57,19 +62,30 @@ export default function WalletScreen() {
         prevBalanceRef.current = next
         setBalance(next)
       }
-      if (data.transactions) setTransactions(data.transactions)
+      const txs = data.transactions ?? null
+      if (txs) setTransactions(txs)
+      // Snapshot balance + transactions so the next open paints instantly.
+      cacheWallet({ balance: Number(data.balance) || 0, transactions: txs ?? [] })
       // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
       const active = normalizeActivePasses(data.passes, Date.now())
       setPasses(active)
       cacheActivePasses(active) // keep a local copy so the ticket QR works offline
     } catch (e) { console.warn("[troski] silent error:", e) }
+    finally { setHydrated(true) }
   }, [user?.id])
 
-  // Seed passes from the offline cache immediately (and when a fetch fails, the
-  // cached tickets stay visible so the QR is always available with no signal).
+  // Seed from the offline caches immediately so the wallet paints real numbers
+  // on mount (passes for the QR; balance + transactions to avoid the blank
+  // empty-state flash). The live fetch then refreshes everything.
   useEffect(() => {
     getCachedPasses().then((cached) => {
       if (cached.length) setPasses((cur) => (cur.length ? cur : cached))
+    })
+    getCachedWallet().then((snap) => {
+      if (!snap) return
+      setBalance((cur) => (cur > 0 ? cur : snap.balance))
+      setTransactions((cur) => (cur.length ? cur : snap.transactions))
+      if (snap.balance > 0 || snap.transactions.length) setHydrated(true)
     })
   }, [])
 
@@ -339,6 +355,15 @@ export default function WalletScreen() {
               </LinearGradient>
             </Animated.View>
           </>
+        ) : (isAuthenticated && !hydrated) ? (
+          /* ── Loading skeleton — shown until the first fetch (or cache) lands,
+                so we never flash the "quiet" empty state while still loading ── */
+          <View style={s.skeletonWrap}>
+            <View style={[s.skelBar, { width: '55%', height: 16 }]} />
+            <View style={[s.skelBar, { width: '85%', height: 12, marginTop: 14 }]} />
+            <View style={[s.skelCard, { marginTop: 28 }]} />
+            <View style={[s.skelCard, { marginTop: 12 }]} />
+          </View>
         ) : (
           /* ── Empty State (Stitch Page 3 — "Your wallet is quiet") ── */
           <Animated.View entering={FadeIn.delay(200).duration(500)} style={s.emptyContainer}>
@@ -384,8 +409,8 @@ export default function WalletScreen() {
           </Animated.View>
         )}
 
-        {/* ── Transactions (empty state) ── */}
-        {!hasTransactions && (
+        {/* ── Transactions (empty state) — only once we know there are none ── */}
+        {!hasTransactions && (!isAuthenticated || hydrated) && (
           <Animated.View entering={FadeInDown.delay(400).duration(400)} style={[s.section, { marginTop: 'auto' }]}>
             <View style={s.txEmptyHeader}>
               <Text style={[s.txEmptyLabel, { color: t.text }]}>RECENT TRANSACTIONS</Text>
@@ -515,6 +540,11 @@ const s = StyleSheet.create({
   txDate: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
   txAmount: { fontSize: 16, fontFamily: font.bold, letterSpacing: 0.5 },
   txStatus: { fontSize: 9, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
+
+  // Loading skeleton
+  skeletonWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  skelBar: { backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 8 },
+  skelCard: { height: 72, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.05)' },
 
   // Empty state
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 20 },
