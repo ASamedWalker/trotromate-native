@@ -20,6 +20,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
 import { font } from '@/lib/theme'
+import { useLanguage } from '@/lib/i18n'
 import { formatGHS } from '@/lib/utils/currency'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLocation } from '@/lib/hooks/useLocation'
@@ -55,9 +56,9 @@ const SERVICES: Service[] = [
 /* ── Quick Actions ── */
 
 const QUICK_ACTIONS = [
-  { id: 'directions', label: 'Where to?', sub: 'Directions', icon: Compass, color: '#1C1917' },
-  { id: 'nearby', label: 'Buses', sub: 'Nearby', icon: BusIcon, color: '#10B981' },
-  { id: 'queue', label: 'Queue', sub: 'Status', icon: Users, color: '#EF4444' },
+  { id: 'directions', labelKey: 'home.whereTo', subKey: 'home.directions', icon: Compass, color: '#1C1917' },
+  { id: 'nearby', labelKey: 'home.buses', subKey: 'home.nearby', icon: BusIcon, color: '#10B981' },
+  { id: 'queue', labelKey: 'home.queue', subKey: 'home.status', icon: Users, color: '#EF4444' },
 ]
 
 
@@ -65,6 +66,7 @@ const QUICK_ACTIONS = [
 
 export default function HomeScreen() {
   const router = useRouter()
+  const { t } = useLanguage()
   const { profile, deviceId } = useApp()
   const { user: authUser, isAuthenticated } = useAuthContext()
 
@@ -138,7 +140,7 @@ export default function HomeScreen() {
               </Pressable>
               <View>
                 <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>
-                  Hello, {firstName}
+                  {t('home.hello')}, {firstName}
                 </Text>
                 <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }} hitSlop={6}>
                   <MapPin size={14} color={BRAND} />
@@ -208,7 +210,7 @@ export default function HomeScreen() {
 
             {/* Top: label + eye toggle */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>Wallet Balance</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>{t('home.walletBalance')}</Text>
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
                 hitSlop={12}
@@ -232,7 +234,7 @@ export default function HomeScreen() {
                   <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' }}>
                     <Plus size={16} color="#fff" strokeWidth={2.6} />
                   </View>
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1c1917' }}>Topup Wallet</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1c1917' }}>{t('home.topupWallet')}</Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
@@ -247,7 +249,7 @@ export default function HomeScreen() {
                     <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
                       <ScanLine size={15} color="#fff" />
                     </View>
-                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Scan To Pay</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{t('home.scanToPay')}</Text>
                   </BlurView>
                 </View>
               </TouchableOpacity>
@@ -273,8 +275,8 @@ export default function HomeScreen() {
                     ...BASE.shadow.card,
                   }}
                 >
-                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{action.label}</Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginBottom: 14 }}>{action.sub}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{t(action.labelKey)}</Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginBottom: 14 }}>{t(action.subKey)}</Text>
                   <View style={{
                     width: 40, height: 40, borderRadius: 20,
                     backgroundColor: action.color,
@@ -293,7 +295,7 @@ export default function HomeScreen() {
         {/* ── Services ── */}
         <View style={{ marginBottom: 28 }}>
           <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5, marginBottom: 16, paddingHorizontal: 24 }}>
-            Services
+            {t('home.services')}
           </Text>
           <ScrollView
             horizontal
