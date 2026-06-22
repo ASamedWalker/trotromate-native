@@ -318,7 +318,7 @@ export default function RouteDetailScreen() {
         {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
             casing, brand-orange core, revealed with a draw sweep (lineTrimOffset). */}
         {routeLine && (
-          <Mapbox.ShapeSource id="route-line" shape={routeLine}>
+          <Mapbox.ShapeSource id="route-line" shape={routeLine} lineMetrics={true}>
             {/* Soft ground shadow for depth */}
             <Mapbox.LineLayer
               id="route-line-shadow"
@@ -331,11 +331,11 @@ export default function RouteDetailScreen() {
                 lineBlur: 8,
               }}
             />
-            {/* Near-black casing — the high-contrast outline */}
+            {/* High-contrast casing — white pops on the dark map, classic nav look */}
             <Mapbox.LineLayer
               id="route-line-outline"
               style={{
-                lineColor: isNight ? '#000000' : '#11181C',
+                lineColor: '#FFFFFF',
                 lineWidth: 11,
                 lineCap: 'round',
                 lineJoin: 'round',
@@ -348,7 +348,7 @@ export default function RouteDetailScreen() {
               id="route-line-core"
               style={{
                 lineColor: BRAND,
-                lineWidth: 6,
+                lineWidth: 6.5,
                 lineCap: 'round',
                 lineJoin: 'round',
                 lineOpacity: 1,
