@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import {
   ArrowLeft, ChevronRight, Ticket, Plus, Check, X,
   ShieldCheck, Star, BadgeCheck, Camera, UserCheck,
@@ -78,12 +78,16 @@ export default function CheckoutScreen() {
     finally { setBalanceLoading(false) }
   }, [API_URL, user?.id])
   useEffect(() => { fetchBalance() }, [fetchBalance])
+  // Re-check the balance when returning to checkout (e.g. after topping up) so
+  // the button flips from "Top up" to "Pay" without a manual reload.
+  useFocusEffect(useCallback(() => { fetchBalance() }, [fetchBalance]))
 
   const payments = [
     { id: 'wallet', label: 'Troski Wallet', sub: walletBalance != null ? formatGHS(walletBalance) : 'Balance unavailable' },
     { id: 'momo', label: 'MTN MoMo', sub: 'Pay with mobile money' },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
+  const shortfall = insufficient ? total - (walletBalance ?? 0) : 0
   // Don't let the user pay from the wallet until we know the balance — avoids a
   // silent overdraw path when the balance fetch is slow or timed out.
   const waitingBalance = payment === 'wallet' && balanceLoading
@@ -249,13 +253,22 @@ export default function CheckoutScreen() {
       {/* ── Pay button ── */}
       <View style={s.payBar}>
         {insufficient ? (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/wallet/fund' as never) }}
-            style={s.payBtn}
-          >
-            <Text style={s.payBtnText}>Top up to pay {formatGHS(total)}</Text>
-          </TouchableOpacity>
+          <>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 8 }}>
+              Wallet balance {formatGHS(walletBalance ?? 0)} · short {formatGHS(shortfall)}
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                // Pre-fill the top-up with the shortfall (rounded up to a clean cedi).
+                router.push({ pathname: '/wallet/fund', params: { amount: String(Math.ceil(shortfall)) } } as never)
+              }}
+              style={s.payBtn}
+            >
+              <Text style={s.payBtnText}>Top up {formatGHS(Math.ceil(shortfall))} to pay</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}

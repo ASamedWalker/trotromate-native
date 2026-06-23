@@ -26,13 +26,17 @@ export default function MomoTopUpScreen() {
   const t = themed(isDark)
   const router = useRouter()
   const { user } = useAuthContext()
-  const { provider: providerParam } = useLocalSearchParams<{ provider?: string }>()
+  const { provider: providerParam, amount: amountParam } = useLocalSearchParams<{ provider?: string; amount?: string }>()
   const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
   // Normalise the stored auth phone to a clean local number (strip +233 / 233 / leading 0)
   const initialPhone = (user?.phone || '').replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
 
-  const [amount, setAmount] = useState<number | null>(null)
-  const [customAmount, setCustomAmount] = useState('')
+  // Pre-fill the amount when a booking shortfall was passed in (selects a preset
+  // chip if it matches, else fills the custom field).
+  const prefill = amountParam ? parseFloat(amountParam) : NaN
+  const validPrefill = isFinite(prefill) && prefill > 0
+  const [amount, setAmount] = useState<number | null>(validPrefill && AMOUNTS.includes(prefill) ? prefill : null)
+  const [customAmount, setCustomAmount] = useState(validPrefill && !AMOUNTS.includes(prefill) ? String(prefill) : '')
   const [phone, setPhone] = useState(initialPhone)
   const [provider, setProvider] = useState<string>(initialProvider)
   const [loading, setLoading] = useState(false)

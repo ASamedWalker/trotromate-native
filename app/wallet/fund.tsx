@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, type Href } from 'expo-router'
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { ArrowLeft, Landmark, Smartphone, CreditCard, Check } from 'lucide-react-native'
 import { font, themed } from '@/lib/theme'
 import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
@@ -32,6 +32,8 @@ export default function TopUpWalletScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const router = useRouter()
+  // A booking checkout can deep-link here with the exact shortfall to pre-fill.
+  const { amount: amountParam } = useLocalSearchParams<{ amount?: string }>()
   const [selected, setSelected] = useState<MethodId>('bank')
 
   const handleProceed = () => {
@@ -43,7 +45,12 @@ export default function TopUpWalletScreen() {
       return
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    router.push(method.route)
+    // Carry the pre-fill amount into the MoMo screen when one was passed.
+    let dest = method.route
+    if (amountParam && typeof dest === 'string' && dest.includes('/wallet/momo')) {
+      dest = `${dest}&amount=${amountParam}` as Href
+    }
+    router.push(dest)
   }
 
   return (
