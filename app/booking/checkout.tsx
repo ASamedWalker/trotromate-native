@@ -36,7 +36,7 @@ const VERIFY_ITEMS = [
 
 export default function CheckoutScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ from?: string; to?: string; route_id?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; route_id?: string; fare?: string }>()
 
   const fromName = params.from || 'Kaneshie Terminal'
   const toName = params.to || 'Kumasi Central'
@@ -44,7 +44,11 @@ export default function CheckoutScreen() {
   // Real fare for this route (crowdsourced avg, else official). Falls back to a
   // placeholder only when no route context was passed.
   const { route } = useRouteDetail(params.route_id || '')
-  const busFare = route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? 25.0
+  // Prefer the fare the user was shown on the route screen (handles transfer
+  // journeys whose total isn't recoverable from leg-0's route_id). Fall back to
+  // the route's crowdsourced/official fare for entry points that pass no fare.
+  const passedFare = params.fare != null && isFinite(parseFloat(params.fare)) ? parseFloat(params.fare) : null
+  const busFare = passedFare ?? route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? 25.0
   // Ghana VAT Act 2025 (Act 1151): public passenger transport is VAT-exempt, so
   // the trotro fare carries no tax (it's the driver's takings). Troski's platform
   // service fee IS a taxable supply → 15% VAT + 2.5% NHIL + 2.5% GETFund (≈20%).
