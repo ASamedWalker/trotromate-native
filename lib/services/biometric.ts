@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { requireOptionalNativeModule } from 'expo-modules-core'
 
 /**
  * Biometric unlock (Face ID / Touch ID / fingerprint) for wallet payments,
@@ -12,6 +13,12 @@ const PREF_KEY = '@troski_biometric_enabled_v1'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function LA(): any | null {
+  // Probe the NATIVE module first — requireOptionalNativeModule returns null
+  // (never throws) when the dev client hasn't been rebuilt with it. Only then is
+  // it safe to require the JS wrapper, which would otherwise throw "Cannot find
+  // native module ExpoLocalAuthentication" and trip a dev redbox that halts the
+  // whole PIN/pay flow.
+  if (!requireOptionalNativeModule('ExpoLocalAuthentication')) return null
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-local-authentication')

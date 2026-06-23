@@ -4,11 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ChevronLeft, WifiOff, ShieldCheck } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
+import { requireOptionalNativeModule } from 'expo-modules-core'
 import { font } from '@/lib/theme'
 
-// Lazy-require so a dev client without the native module (pre-rebuild) doesn't crash.
+// Lazy-require so a dev client without the native module (pre-rebuild) doesn't
+// crash. Probe the native side first (requireOptionalNativeModule never throws)
+// so we never require the JS wrapper when the module is absent — that throw
+// would trip a dev redbox.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function brightnessMod(): any | null {
+  if (!requireOptionalNativeModule('ExpoBrightness')) return null
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-brightness')
