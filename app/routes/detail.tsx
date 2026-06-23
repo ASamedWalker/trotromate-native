@@ -85,6 +85,7 @@ export default function RouteDetailScreen() {
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [sheetIndex, setSheetIndex] = useState(0)
   // Real road distance from the Directions response — feeds the floating ETA pill.
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
   // Animated route "draw" sweep: line-trim-offset end goes 1 (hidden) -> 0 (full).
@@ -456,8 +457,9 @@ export default function RouteDetailScreen() {
         </View>
       )}
 
-      {/* ── Recenter FAB (re-frames the route after the user pans) ── */}
-      {hasCoords && (
+      {/* ── Recenter FAB — sits just above the collapsed sheet; hidden once the
+            sheet is dragged up so it never floats inside the card ── */}
+      {hasCoords && sheetIndex <= 0 && (
         <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.38 + 16, zIndex: 10 }}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -473,6 +475,7 @@ export default function RouteDetailScreen() {
       <BottomSheet
         ref={sheetRef}
         index={0}
+        onChange={setSheetIndex}
         snapPoints={snapPoints}
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4, borderRadius: 2 }}
         backgroundStyle={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
