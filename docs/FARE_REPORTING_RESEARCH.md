@@ -114,9 +114,62 @@ Capture points (reuse existing surfaces):
 Phasing: (1) capture drop-off in reports → (2) segment fare store + GPRTU import →
 (3) app alight-picker pricing. See backlog for the gated build order.
 
-## Open questions for owner
-- Is the boarding point usually always the route origin, or do riders frequently
-  board mid-route? (Determines whether we need full board→alight or just origin→drop.)
-- Source of GPRTU official stage fares — published list, or manual entry per corridor?
-- Stage granularity — price every `route_stop`, or only major fare-change points
-  ("fare stages" are coarser than every bus stop in matatu systems)?
+## 7. Sourcing authoritative fares (owner: can't rely on riders)
+
+Crowdsourcing is a *validation* layer, not the primary source — riders mostly
+don't report. The spine must be **GPRTU official** + **our own collected data**.
+
+### How Ghana fares actually work (changes the strategy)
+- **Fares are set by GPRTU + GRTCC with the Ministry of Transport**, via negotiation
+  triggered when fuel crosses a threshold. Only GPRTU/GRTCC can announce fares.
+- **Adjustments are a single NATIONAL percentage** applied across all routes
+  (−15% May 2025; +20% Jun 2026). HUGE implication: **seed the per-stage baseline
+  ONCE, then re-price by multiplying on each announcement** — no re-survey per change.
+- **Per-route/per-stage fare charts are physically displayed at every lorry
+  station** before new rates take effect. That IS the authoritative per-drop-off
+  data, route by route.
+
+Sources: [GhanaWeb new fares list](https://www.ghanaweb.com/GhanaHomePage/NewsArchive/See-list-of-new-transport-fares-effective-May-24-1984833),
+[GPRTU +20% Jun 2026](https://www.pulse.com.gh/story/gprtu-announces-20percent-transport-fare-increment-effective-june-2-2026053011561567231),
+[how fares are determined (Graphic)](https://www.graphic.com.gh/news/general-news/ghana-news-gprtu-others-to-decide-on-new-transport-fares.html),
+[Ministry of Transport](https://www.mot.gov.gh/10/16/1/232/public-transport-fares-in-ghana-to-drop-by-15-percent).
+
+### Sourcing options (ranked)
+1. **GPRTU/GRTCC partnership (best)** — get the official stage-fare schedule
+   directly; become an authorized digital fare reference. They hold the per-route
+   stage fares; aligns with their "pay only official fares" messaging.
+2. **Station fare charts (best self-collect)** — photograph/transcribe the charts
+   posted at each lorry station (origin + every stage fare). OCR → digitize.
+   This is the Digital Matatus / WhereIsMyTransport field method, fare-focused.
+3. **Trotro Pro driver/mate app (scales self-collect)** — drivers + station branch
+   executives ("bookman"/station master) know and post the stage fares; let them
+   enter/confirm the chart for their route. Controlled, authoritative input channel.
+4. **Enumerators / paid surveyors** — hire fieldworkers to ride/visit stations and
+   log stage fares for priority corridors (seed the high-traffic routes first).
+5. **Media-published approved lists** — outlets publish the approved fare lists on
+   each change; useful cross-check, not route-complete.
+6. **Crowdsourced (validation only)** — drift detection + flagging overcharges.
+
+### Maintenance model (the operational win)
+- Store fares with `effective_date` + `fare_version` + `source` (gprtu/station/driver/
+  crowd) + `is_official`.
+- On a GPRTU announcement, apply the national `% factor` to the baseline → new
+  version, new effective_date. Allow per-route override for exceptions.
+- Show riders: official fare + "effective <date>" + source badge (GPRTU verified).
+
+### Recommended path
+Seed via **station fare charts + GPRTU partnership** for top corridors → maintain
+via the **national % multiplier** → let **Trotro Pro** keep charts current per
+station → **crowdsourcing** flags drift/overcharges. Boarding defaults to route
+origin; support mid-route boarding via the board→alight stage pair.
+
+## Decisions / open questions
+- **Boarding (answered, owner 2026-06-23)**: mostly route origin, but some board
+  mid-route → model the general **board→alight stage pair** (default board = origin).
+- **Primary source (answered)**: NOT crowdsourcing. GPRTU official + our own
+  collected data (station charts / Trotro Pro / enumerators). Crowd = validation.
+- Open: secure GPRTU/GRTCC partnership for the official schedule? (best path)
+- Open: stage granularity — price every `route_stop`, or only the coarser official
+  "fare stages" the charts actually list? (charts are usually coarser than every stop)
+- Open: which corridors to seed first (top-traffic) and via which method (station
+  chart photos vs Trotro Pro vs enumerators)?
