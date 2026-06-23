@@ -43,6 +43,12 @@ steps, and the files to touch.
 - **Build**: fetch the assigned vehicle + driver for the route/booking (`GET /api/buses/{code}` or `/api/routes/{id}/vehicles`); replace the hardcoded detail rows + driver card. Same lookup unblocks scan-to-pay S2/S3.
 - **Files**: `app/booking/checkout.tsx`, `app/scan/confirm.tsx`, backend.
 
+### Multi-leg (transfer) journeys book as a single ticket
+- **Gate**: backend multi-leg booking/ticketing (and Trotro Pro vehicle data per leg).
+- **Why**: when no direct route exists the planner builds a transfer (legA+legB); fare is now correct end-to-end (full journey total), but only `legs[0].route_id` is carried, so the booking mints ONE ticket for leg 0 even though the rider takes 2+ trotros. Detail/checkout label it Madina→Taifa but it's structurally leg-0's route.
+- **Build**: carry all legs to checkout; create a ticket per leg (or a journey with leg tickets); show the transfer hub + per-leg fares in the breakdown.
+- **Files**: `lib/services/route-planner.ts`, `app/routes/detail.tsx`, `app/booking/checkout.tsx`, backend.
+
 ### Booking tax — service-fee model + GRA e-VAT (owner decision)
 - **Done**: VAT-correct breakdown in checkout (Bus Fare VAT-exempt; service fee taxable, 15% VAT + 2.5% NHIL + 2.5% GETFund ≈ 20%, tax-inclusive). See [[trotromate-resume]] VAT note.
 - **Open**: (1) decide service fee — flat GH₵0.25 vs a % of fare; (2) **GRA e-VAT e-invoicing**: taxable invoices must transmit to the GRA VSDC before issue (VAT Act 2025) — backend integration for go-live.
