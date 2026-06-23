@@ -43,6 +43,20 @@ steps, and the files to touch.
 - **Build**: fetch the assigned vehicle + driver for the route/booking (`GET /api/buses/{code}` or `/api/routes/{id}/vehicles`); replace the hardcoded detail rows + driver card. Same lookup unblocks scan-to-pay S2/S3.
 - **Files**: `app/booking/checkout.tsx`, `app/scan/confirm.tsx`, backend.
 
+### Per-drop-off fares along a corridor (GPRTU + crowdsourced) ⭐ owner priority
+- **Model (owner, 2026-06-23)**: fares are charged by **alight/drop-off point**, not one flat corridor fare. A corridor (e.g. 37 Military → Madina) has intermediate drop-offs, each with its own fare from the origin. Two fare sources: **GPRTU official** (union-set) + **crowdsourced** (riders post the fare they paid from their boarding point to their drop-off). Buses charge the same.
+- **Gaps today**:
+  - `route_stops` has ordered stops (name, order, distance-from-origin) but **no fare**.
+  - `routes` are point-pairs so per-drop-off fares exist *as separate rows* (37→Lapaz 7.50, 37→Adenta 15.00) but aren't linked as ordered drop-offs on one corridor.
+  - `fare_reports` store only `route_id + reported_fare` — **drop-off granularity is lost** (the report screen's from/to collapses to a route_id).
+- **Phased build**:
+  1. **Capture drop-off in reports (cheap, do first)**: add `to_stop_id` / alight to `fare_reports`; update `report/fare.tsx` to pick a drop-off; start accumulating real per-stop crowdsourced data now, before GPRTU data arrives.
+  2. **Per-stop fare store**: `route_stops.official_fare` + `avg_reported_fare`, OR a `route_segment_fares(route_id, to_stop_order, official_fare, avg_reported_fare, report_count)` view/table. Fare = origin → drop-off.
+  3. **GPRTU official import**: data-entry/import path for the union's official fare per drop-off ("find out the fares at each drop-off").
+  4. **App**: alight picker on route detail + GO Mode → pick drop-off → show fare-to-stop; checkout charges fare-to-drop-off (replaces flat corridor fare passed today).
+- **Gate**: DB migration (anon can't DDL) + the GPRTU fare data + owner sign-off on schema (route_stops column vs segment table).
+- **Files**: backend migrations, `app/report/fare.tsx`, `lib/services/routes.ts`, `app/routes/detail.tsx`, `app/booking/checkout.tsx`, GO Mode alight picker (`app/trip/[routeId].tsx`).
+
 ### Multi-leg (transfer) journeys book as a single ticket
 - **Gate**: backend multi-leg booking/ticketing (and Trotro Pro vehicle data per leg).
 - **Why**: when no direct route exists the planner builds a transfer (legA+legB); fare is now correct end-to-end (full journey total), but only `legs[0].route_id` is carried, so the booking mints ONE ticket for leg 0 even though the rider takes 2+ trotros. Detail/checkout label it Madina→Taifa but it's structurally leg-0's route.
