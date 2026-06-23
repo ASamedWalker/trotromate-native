@@ -37,6 +37,17 @@ steps, and the files to touch.
 - **Build**: replace static partner-bank list + placeholder account in `wallet/bank-transfer.tsx` with a `GET /api/wallet/virtual-account` fetch.
 - **Files**: `app/wallet/bank-transfer.tsx`, backend.
 
+### Confirm Booking — real bus/driver data (Trotro Pro)
+- **Gate**: owner provides the **Trotro Pro** driver app (drivers register per bus) + its backend.
+- **Why**: `app/booking/checkout.tsx` only has real From/To + Bus Fare. Mock today: bays (Bay 2 / Kejetia Market), Departs "In 5 mins", Duration "2 hr 30 mins", Seats "24 Seater", Bus Type "STC Coach", Bus Code "TRSK 235", driver "Mr John Kwame" + reviews (`DRIVER`/`REVIEWS` consts).
+- **Build**: fetch the assigned vehicle + driver for the route/booking (`GET /api/buses/{code}` or `/api/routes/{id}/vehicles`); replace the hardcoded detail rows + driver card. Same lookup unblocks scan-to-pay S2/S3.
+- **Files**: `app/booking/checkout.tsx`, `app/scan/confirm.tsx`, backend.
+
+### Booking tax — service-fee model + GRA e-VAT (owner decision)
+- **Done**: VAT-correct breakdown in checkout (Bus Fare VAT-exempt; service fee taxable, 15% VAT + 2.5% NHIL + 2.5% GETFund ≈ 20%, tax-inclusive). See [[trotromate-resume]] VAT note.
+- **Open**: (1) decide service fee — flat GH₵0.25 vs a % of fare; (2) **GRA e-VAT e-invoicing**: taxable invoices must transmit to the GRA VSDC before issue (VAT Act 2025) — backend integration for go-live.
+- **Files**: `app/booking/checkout.tsx` (fee model), backend (e-invoicing).
+
 ---
 
 ## 🟠 P1 — Native rebuild required

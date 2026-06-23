@@ -245,10 +245,11 @@ Top of queue (in value order):
    saves with null route); Lines cards + route detail show `★ avg (count)`.
 2. **AutoTroski boarding detection** — one-tap "On this trotro?" prompt
    (Transit AutoGO pattern; 1M+ trips started via their version)
-3. Backend asks (other repo): MoMo confirmation webhook (client banner is
-   ready and fires on refetch today); booking backend (checkout/ticket/driver
-   are mocks built to receive real data); fix off-corridor station geocodes
-   in Supabase (e.g. "Asofan New Station" sits ~3.5km off the road)
+3. Backend asks (other repo): real bus/driver data via the **Trotro Pro** driver
+   app (Confirm Booking + scan still show mock driver/bus — see
+   `docs/DEFERRED_BACKLOG.md`); fix off-corridor station geocodes in Supabase
+   (e.g. "Asofan New Station" sits ~3.5km off the road). [Booking backend
+   (debit/ticket) + MoMo top-up push are DONE.]
 
 Original list (still valid):
 - **Scan to Pay — live camera (FOLLOW-UP)**. UI flow is DONE (`app/scan/`):
@@ -263,9 +264,6 @@ Original list (still valid):
   4. Native rebuild required: `CI=1 npx expo run:ios` (~10-15 min)
   Minor polish: scan-pay success reuses booking receipt "Booking Successful" —
   could parametrize to "Payment Successful" for this flow.
-- Buses Nearby quick action screen
-- Queue Status quick action screen
-- Booking system
 - Apply Uber Base tokens to Lines tab (Wallet, Pulse, Rewards done)
 - **Bus arrival notifications** (route detail timeline bell — currently UI stub).
   Gated on real driver GPS data. Build order:
