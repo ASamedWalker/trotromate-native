@@ -29,6 +29,7 @@ import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
+import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 
@@ -42,6 +43,19 @@ for (const [name, c] of Object.entries(FALLBACK_STATION_COORDS)) {
 
 function getCoord(name: string) {
   return COORDS_LOWER[name.toLowerCase()] || null
+}
+
+// Compact "x ago" for fare-report freshness — builds trust by showing how recent
+// the crowdsourced fare is, the way Transit/Citymapper timestamp their data.
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return d < 7 ? `${d}d ago` : `${Math.floor(d / 7)}w ago`
 }
 
 /* ── Transport options ── */
@@ -97,6 +111,10 @@ export default function RouteDetailScreen() {
 
   // Live vehicles on this route — fallback to mock if none
   const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
+
+  // Full route record (fare stats, stops, GPRTU flag) for the card. Degrades
+  // gracefully to the params when routeId isn't a real route (e.g. deep link).
+  const { route } = useRouteDetail(routeId)
 
   // Crowdsourced live trotros — riders in GO Mode broadcasting on this corridor
   const liveTrips = useLiveTripPositions(routeId || undefined)
@@ -267,6 +285,27 @@ export default function RouteDetailScreen() {
     : `${duration} min`
   const arrivalTime = new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
   const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
+
+  // ── Crowdsourced fare: show an honest avg + range, not a single "fixed" price.
+  // Trotro fares vary, so a range + report count + freshness is the trust signal.
+  const mult = selectedOption.fareMultiplier
+  const fareStats = route?.fare_stats
+  const avgFare = (fareStats?.avg_reported_fare ?? route?.official_fare ?? baseFare) * mult
+  const minFare = fareStats?.min_reported_fare != null ? fareStats.min_reported_fare * mult : null
+  const maxFare = fareStats?.max_reported_fare != null ? fareStats.max_reported_fare * mult : null
+  const reportCount = fareStats?.report_count ?? 0
+  const hasFareRange = reportCount > 0 && minFare != null && maxFare != null && maxFare - minFare > 0.01
+  const fareFresh = fareStats?.last_report_at ? timeAgo(fareStats.last_report_at) : null
+  const gprtuVerified = !!route?.is_gprtu_verified
+  const headlineFare = (reportCount > 0 ? avgFare : baseFare * mult).toFixed(2)
+
+  // Trip shape for the header meta row
+  const stopCount = route?.stops?.length ?? 0
+  const distanceKm = routeDistanceKm ?? route?.distance_km ?? null
+
+  // Live availability — vehicles broadcasting + riders sharing GO Mode on this route
+  const liveRiders = liveTrips.length
+  const liveOnRoute = activeCount + liveRiders
 
   return (
     <View style={{ flex: 1 }}>
@@ -503,6 +542,26 @@ export default function RouteDetailScreen() {
             </View>
           </View>
 
+          {/* Trip-shape meta: mode + distance + stops + GPRTU trust badge */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 100, paddingLeft: 6, paddingRight: 12, paddingVertical: 5 }}>
+              <Image source={selectedOption.image} style={{ width: 18, height: 18 }} resizeMode="contain" />
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#374151' }}>{selectedOption.label}</Text>
+            </View>
+            {distanceKm != null && (
+              <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{distanceKm.toFixed(1)} km</Text></View>
+            )}
+            {stopCount > 0 && (
+              <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{stopCount} stops</Text></View>
+            )}
+            {gprtuVerified && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 5 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#059669' }}>GPRTU</Text>
+              </View>
+            )}
+          </View>
+
           {/* Headline metrics: duration/arrival + fare/mode */}
           <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', alignItems: 'flex-end' }}>
             <View>
@@ -510,18 +569,32 @@ export default function RouteDetailScreen() {
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>arrives {arrivalTime}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{selectedFare}</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{selectedOption.label} fare</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{headlineFare}</Text>
+              {hasFareRange ? (
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                  ₵{minFare!.toFixed(0)}–{maxFare!.toFixed(0)} · {selectedOption.label}
+                </Text>
+              ) : (
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{selectedOption.label} fare</Text>
+              )}
+              {reportCount > 0 && (
+                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#B0B4BB', marginTop: 1 }}>
+                  {reportCount} report{reportCount !== 1 ? 's' : ''}{fareFresh ? ` · ${fareFresh}` : ''}
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Live corridor pill — riders in GO Mode are sharing this route */}
-          {liveTrips.length > 0 && (
+          {/* Live availability — the moving-vehicle reassurance: who's on this
+              route right now (operator vehicles + riders sharing GO Mode). */}
+          {liveOnRoute > 0 && (
             <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(255,77,28,0.1)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND }} />
                 <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>
-                  {liveTrips.length} trotro{liveTrips.length !== 1 ? 's' : ''} live on this route
+                  {activeCount > 0 ? `${activeCount} ${selectedOption.label.toLowerCase()}${activeCount !== 1 ? 's' : ''} live` : `${liveRiders} live`}
+                  {activeCount > 0 && liveRiders > 0 ? ` · ${liveRiders} rider${liveRiders !== 1 ? 's' : ''} en route` : ''}
+                  {activeCount === 0 && liveRiders > 0 ? ' on this route' : ''}
                 </Text>
               </View>
             </View>
@@ -949,6 +1022,9 @@ const mapPinStyles = StyleSheet.create({
   etaText: { fontFamily: font.bold, fontSize: 14, color: '#fff', letterSpacing: -0.2 },
   etaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#6B7280' },
   etaSub: { fontFamily: font.semibold, fontSize: 14, color: '#D1D5DB', letterSpacing: -0.2 },
+  // Header meta chips (distance / stops)
+  metaChip: { backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 },
+  metaChipText: { fontFamily: font.bold, fontSize: 12.5, color: '#374151' },
   // Recenter FAB
   fab: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',
