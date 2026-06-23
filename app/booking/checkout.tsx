@@ -45,8 +45,16 @@ export default function CheckoutScreen() {
   // placeholder only when no route context was passed.
   const { route } = useRouteDetail(params.route_id || '')
   const busFare = route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? 25.0
-  const fare = { bus: busFare, service: 0.25 }
-  const total = fare.bus + fare.service
+  // Ghana VAT Act 2025 (Act 1151): public passenger transport is VAT-exempt, so
+  // the trotro fare carries no tax (it's the driver's takings). Troski's platform
+  // service fee IS a taxable supply → 15% VAT + 2.5% NHIL + 2.5% GETFund (≈20%).
+  // The service fee is tax-INCLUSIVE, so the rider's total is unchanged.
+  const SERVICE_FEE_INCL = 0.25
+  const TAX_RATE = 0.20
+  const serviceBase = SERVICE_FEE_INCL / (1 + TAX_RATE)
+  const serviceTax = SERVICE_FEE_INCL - serviceBase
+  const fare = { bus: busFare, serviceBase, serviceTax, serviceIncl: SERVICE_FEE_INCL }
+  const total = fare.bus + SERVICE_FEE_INCL
 
   const [payment, setPayment] = useState('wallet')
   const [showDriver, setShowDriver] = useState(false)
@@ -197,8 +205,17 @@ export default function CheckoutScreen() {
             <Ticket size={16} color={BRAND} />
             <Text style={[s.linkText, { fontSize: 14 }]}>Use Promo Code</Text>
           </TouchableOpacity>
-          <View style={s.fareRow}><Text style={s.detailLabel}>Bus Fare</Text><Text style={s.fareValue}>{formatGHS(fare.bus)}</Text></View>
-          <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.service)}</Text></View>
+          <View style={s.fareRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={s.detailLabel}>Bus Fare</Text>
+              <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#6B7280' }}>VAT exempt</Text>
+              </View>
+            </View>
+            <Text style={s.fareValue}>{formatGHS(fare.bus)}</Text>
+          </View>
+          <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.serviceBase)}</Text></View>
+          <View style={s.fareRow}><Text style={s.detailLabel}>VAT + Levies (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
           <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{formatGHS(total)}</Text></View>
         </View>
 
