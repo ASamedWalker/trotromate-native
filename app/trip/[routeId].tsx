@@ -88,11 +88,12 @@ function getActiveSchedule(lineCode: string): { schedule: typeof TRAIN_SCHEDULES
 
 export default function TripScreen() {
   const router = useRouter()
-  const { routeId, type, lineId, dataSaver: dataSaverParam } = useLocalSearchParams<{
+  const { routeId, type, lineId, dataSaver: dataSaverParam, alightStopName } = useLocalSearchParams<{
     routeId: string
     type?: string
     lineId?: string
     dataSaver?: string
+    alightStopName?: string
   }>()
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
@@ -208,6 +209,24 @@ export default function TripScreen() {
       stationsWithCoords,
     )
   }, [isTrain, route, allStations])
+
+  // Pre-seed the alight from the booking's chosen drop-off so GO Mode doesn't
+  // re-ask "Where will you alight?" — the rider already picked it at checkout.
+  const alightSeeded = useRef(false)
+  useEffect(() => {
+    if (alightSeeded.current || isTrain || !trotroCorridor) return
+    const name = (alightStopName || '').trim().toLowerCase()
+    if (name) {
+      // Lenient match — GO Mode's corridor (OSM stations) names a stop slightly
+      // differently than route_stops (e.g. "Dome" vs "Dome Station").
+      const idx = trotroCorridor.findIndex((st) => {
+        const n = st.name.toLowerCase()
+        return n === name || n.includes(name) || name.includes(n)
+      })
+      if (idx > 0 && idx < trotroCorridor.length - 1) setSelectedAlightIdx(idx)
+    }
+    alightSeeded.current = true
+  }, [trotroCorridor, isTrain, alightStopName])
 
   // Resolve trip stations — train slices by origin/dest, trotro by alight stop
   const tripStations = useMemo(() => {

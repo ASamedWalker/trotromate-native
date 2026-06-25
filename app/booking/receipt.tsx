@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X } from 'lucide-react-native'
+import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X, Navigation } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
@@ -26,7 +26,7 @@ const TICKET = {
 export default function ReceiptScreen() {
   const router = useRouter()
   const { profile } = useApp()
-  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string; route_id?: string }>()
   const passenger = profile?.display_name || TICKET.passenger
   const [showSafety, setShowSafety] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -183,14 +183,30 @@ export default function ReceiptScreen() {
       </ScrollView>
 
       {/* Bottom actions */}
-      <View style={s.actions}>
-        <TouchableOpacity activeOpacity={0.9} style={s.shareBtn} onPress={shareTrip}>
-          <Share2 size={18} color="#fff" />
-          <Text style={s.shareText}>Share Trip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.85} style={s.safetyBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSafety(true) }}>
-          <Shield size={20} color="#111" />
-        </TouchableOpacity>
+      <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, gap: 10 }}>
+        {/* Keep track of your ride — opens GO Mode already set to your drop-off */}
+        {!!params.route_id && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={s.trackBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              router.push({ pathname: '/trip/[routeId]', params: { routeId: params.route_id!, type: 'trotro', alightStopName: params.to ?? '' } } as any)
+            }}
+          >
+            <Navigation size={18} color="#fff" />
+            <Text style={s.trackText}>Track my ride</Text>
+          </TouchableOpacity>
+        )}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity activeOpacity={0.9} style={s.shareBtn} onPress={shareTrip}>
+            <Share2 size={18} color="#fff" />
+            <Text style={s.shareText}>Share Trip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.85} style={s.safetyBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSafety(true) }}>
+            <Shield size={20} color="#111" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Safety Features sheet */}
@@ -267,6 +283,8 @@ const s = StyleSheet.create({
   metaValue: { fontFamily: font.bold, fontSize: 14, color: '#111', marginTop: 3 },
 
   actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
+  trackBtn: { height: 54, borderRadius: 16, backgroundColor: '#0A0A0A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 4 },
+  trackText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
   shareBtn: { flex: 1, height: 54, borderRadius: 16, backgroundColor: BRAND, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: BRAND, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 3 },
   shareText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
   safetyBtn: { width: 54, height: 54, borderRadius: 16, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 2 },
