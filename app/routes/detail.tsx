@@ -332,9 +332,10 @@ export default function RouteDetailScreen() {
     fetchRouteSegmentFares(routeId).then((rows) => { if (!cancelled) setSegFares(rows) })
     return () => { cancelled = true }
   }, [routeId])
-  const dropoffFare = hasStops
-    ? resolveDropoffFareSync(segFares, stops[0].stop_order, effectiveDropoff, stops, corridorBase).fare * mult
+  const dropoffResult = hasStops
+    ? resolveDropoffFareSync(segFares, stops[0].stop_order, effectiveDropoff, stops, corridorBase)
     : null
+  const dropoffFare = dropoffResult ? dropoffResult.fare * mult : null
 
   // Fare actually shown / charged: drop-off stage fare when available, else corridor.
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
@@ -629,7 +630,19 @@ export default function RouteDetailScreen() {
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{displayFare}</Text>
               {dropoffName ? (
-                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>to {dropoffName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
+                  {dropoffResult?.isOfficial ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                      <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#10B981' }} />
+                      <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: '#059669' }}>official</Text>
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                      <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#9CA3AF' }}>estimate</Text>
+                    </View>
+                  )}
+                </View>
               ) : hasFareRange ? (
                 <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
                   ₵{minFare!.toFixed(0)}–{maxFare!.toFixed(0)} · {selectedOption.label}
