@@ -52,9 +52,11 @@ export default function CheckoutScreen() {
 
   // ── Real-time route signals (no fake "departs in 5 mins") ──
   // Live trotros = operator vehicles broadcasting + riders sharing GO Mode.
-  const { activeCount } = useVehiclePositions(params.route_id || undefined)
+  const { vehicles, activeCount } = useVehiclePositions(params.route_id || undefined)
   const liveRiders = useLiveTripPositions(params.route_id || undefined).length
   const liveTrotros = activeCount + liveRiders
+  // The Troski bus actually serving this route right now (broadcasting via Troski Pro).
+  const liveBus = vehicles.find((v) => !v.isStale) ?? null
   const durationMin = route?.estimated_duration_mins ?? null
   const [traffic, setTraffic] = useState<{ condition: string; etaMin: number | null } | null>(null)
   useEffect(() => {
@@ -257,15 +259,29 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        {/* ── Vehicle & driver — real data arrives with the driver app (Trotro Pro) ── */}
+        {/* ── Vehicle — the real Troski bus serving this route (live via Troski Pro),
+              else honest placeholder until a bus starts its shift ── */}
         <View style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }]}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
-            <Bus size={22} color="#9CA3AF" />
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: liveBus ? 'rgba(34,197,94,0.12)' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+            <Bus size={22} color={liveBus ? '#16A34A' : '#9CA3AF'} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.driverName}>Vehicle assigned at boarding</Text>
-            <Text style={s.driverRole}>Plate &amp; driver shown when you board</Text>
-          </View>
+          {liveBus ? (
+            <>
+              <View style={{ flex: 1 }}>
+                <Text style={s.driverName}>{liveBus.plateNumber}</Text>
+                <Text style={s.driverRole}>Troski bus on this route</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#16A34A' }}>Live</Text>
+              </View>
+            </>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <Text style={s.driverName}>Vehicle assigned at boarding</Text>
+              <Text style={s.driverRole}>Plate shown when a bus starts the route</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Fare breakdown ── */}
