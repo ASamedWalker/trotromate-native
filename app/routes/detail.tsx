@@ -30,7 +30,7 @@ import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
-import { resolveDropoffFare } from '@/lib/services/segment-fares'
+import { fetchRouteSegmentFares, resolveDropoffFareSync, type RouteSegmentFare } from '@/lib/services/segment-fares'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 
@@ -321,15 +321,17 @@ export default function RouteDetailScreen() {
   const [dropoffOrder, setDropoffOrder] = useState<number | null>(null)
   const effectiveDropoff = dropoffOrder ?? lastOrder
   const corridorBase = reportCount > 0 ? (fareStats?.avg_reported_fare ?? baseFare) : baseFare
-  const [dropoffFare, setDropoffFare] = useState<number | null>(null)
+  // Prefetch every segment fare for the route ONCE → drop-off taps resolve instantly.
+  const [segFares, setSegFares] = useState<RouteSegmentFare[]>([])
   useEffect(() => {
-    if (!hasStops || !routeId) { setDropoffFare(null); return }
+    if (!routeId) return
     let cancelled = false
-    resolveDropoffFare({
-      routeId, fromOrder: stops[0].stop_order, toOrder: effectiveDropoff, stops, corridorFare: corridorBase,
-    }).then((r) => { if (!cancelled) setDropoffFare(r.fare * mult) })
+    fetchRouteSegmentFares(routeId).then((rows) => { if (!cancelled) setSegFares(rows) })
     return () => { cancelled = true }
-  }, [routeId, hasStops, effectiveDropoff, corridorBase, mult, stops])
+  }, [routeId])
+  const dropoffFare = hasStops
+    ? resolveDropoffFareSync(segFares, stops[0].stop_order, effectiveDropoff, stops, corridorBase).fare * mult
+    : null
 
   // Fare actually shown / charged: drop-off stage fare when available, else corridor.
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare

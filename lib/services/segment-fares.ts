@@ -28,6 +28,47 @@ interface SegmentFareRow {
   effective_date: string | null
 }
 
+export interface RouteSegmentFare {
+  from_stop_order: number
+  to_stop_order: number
+  official_fare: number | null
+  avg_reported_fare: number | null
+  report_count: number | null
+  is_official: boolean | null
+  effective_date: string | null
+}
+
+/** All stored segment fares for a route — prefetch once so drop-off taps are instant. */
+export async function fetchRouteSegmentFares(routeId: string): Promise<RouteSegmentFare[]> {
+  try {
+    const { data, error } = await supabase
+      .from('segment_fares')
+      .select('from_stop_order, to_stop_order, official_fare, avg_reported_fare, report_count, is_official, effective_date')
+      .eq('route_id', routeId)
+    if (error) return []
+    return (data as RouteSegmentFare[]) ?? []
+  } catch {
+    return []
+  }
+}
+
+/** Resolve a board→alight fare synchronously from a prefetched segment list. */
+export function resolveDropoffFareSync(
+  segments: RouteSegmentFare[], fromOrder: number, toOrder: number,
+  stops: RouteStop[], corridorFare: number,
+): SegmentFare {
+  const row = segments.find((s) => s.from_stop_order === fromOrder && s.to_stop_order === toOrder)
+  if (row?.official_fare != null) {
+    return { fare: Number(row.official_fare), source: 'official', isOfficial: true, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+  }
+  if (row?.avg_reported_fare != null) {
+    return { fare: Number(row.avg_reported_fare), source: 'reported', isOfficial: false, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+  }
+  const interp = interpolateFare(stops, fromOrder, toOrder, corridorFare)
+  if (interp != null) return { fare: interp, source: 'interpolated', isOfficial: false, reportCount: 0 }
+  return { fare: corridorFare, source: 'corridor', isOfficial: false, reportCount: 0 }
+}
+
 /** Exact stored segment fare (board order → alight order). null if none/absent table. */
 export async function fetchSegmentFare(
   routeId: string, fromOrder: number, toOrder: number,
