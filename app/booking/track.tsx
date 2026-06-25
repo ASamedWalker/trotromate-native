@@ -80,6 +80,15 @@ export default function TrackBusScreen() {
   const [dataSaver, setDataSaver] = useState(false)
   const [alertsOn, setAlertsOn] = useState(true)
 
+  // Ensure OS notification permission when the rider opts into alerts (don't rely
+  // on the global push pref, which they may have left off).
+  useEffect(() => {
+    if (!alertsOn) return
+    Notifications.getPermissionsAsync()
+      .then(({ granted }) => { if (!granted) return Notifications.requestPermissionsAsync() })
+      .catch(() => {})
+  }, [alertsOn])
+
   // Proximity alerts — fire a local notification once as the bus crosses 10 min /
   // 5 min / arriving, so the rider can lock their phone and still know when to move.
   const fired = useRef({ t10: false, t5: false, arrive: false })
