@@ -10,10 +10,12 @@
 > Revised remaining order:
 >   - ✅ Step 3: report/fare.tsx board+alight picker — DONE + tested (₵5 report →
 >     fare_report w/ stops + segment_fares(0,3) report_count 0→1, avg 5.00).
->   - Planner stage-awareness (match route_stops, fare-to-destination on card) — NEXT
->   - GO Mode: read the booking's chosen drop-off (unify, don't re-ask)
+>   - ✅ Planner stage-awareness — DONE + tested (Circle→Dome → corridor, ₵5.50,
+>     pre-selects Dome on detail). + fare source badge (official/estimate).
+>   - GO Mode: read the booking's chosen drop-off (unify, don't re-ask) — NEXT
 >   - Optional board picker on detail (mid-route boarders)
->   - Step 5: national %-reprice
+>   - Step 5: national %-reprice — DB fn `reprice_segment_fares()` ready (ops-only,
+>     run on a GPRTU change); app shows effective fare. No app UI needed.
 
 
 Goal: working per-drop-off (stage) fare system using our OWN data + manual seed.
