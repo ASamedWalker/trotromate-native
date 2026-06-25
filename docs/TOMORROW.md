@@ -8,8 +8,9 @@
 > bottom-sheet (only place route.stops load); NO separate picker on Plan a Trip;
 > make search stage-aware instead (planner matches route_stops → pre-seed detail).
 > Revised remaining order:
->   - Step 3: report/fare.tsx board+alight picker (crowd data) — NEXT
->   - Planner stage-awareness (match route_stops, fare-to-destination on card)
+>   - ✅ Step 3: report/fare.tsx board+alight picker — DONE + tested (₵5 report →
+>     fare_report w/ stops + segment_fares(0,3) report_count 0→1, avg 5.00).
+>   - Planner stage-awareness (match route_stops, fare-to-destination on card) — NEXT
 >   - GO Mode: read the booking's chosen drop-off (unify, don't re-ask)
 >   - Optional board picker on detail (mid-route boarders)
 >   - Step 5: national %-reprice
