@@ -13,9 +13,13 @@ import { formatGHS } from '@/lib/utils/currency'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
+import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
+import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
+import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
 import PinModal from '@/components/PinModal'
+import { Bus, Clock, Users as UsersIcon } from 'lucide-react-native'
 
 const BRAND = '#FF4D1C'
 
@@ -44,6 +48,24 @@ export default function CheckoutScreen() {
   // Real fare for this route (crowdsourced avg, else official). Falls back to a
   // placeholder only when no route context was passed.
   const { route } = useRouteDetail(params.route_id || '')
+
+  // ── Real-time route signals (no fake "departs in 5 mins") ──
+  // Live trotros = operator vehicles broadcasting + riders sharing GO Mode.
+  const { activeCount } = useVehiclePositions(params.route_id || undefined)
+  const liveRiders = useLiveTripPositions(params.route_id || undefined).length
+  const liveTrotros = activeCount + liveRiders
+  const durationMin = route?.estimated_duration_mins ?? null
+  const [traffic, setTraffic] = useState<{ condition: string; etaMin: number | null } | null>(null)
+  useEffect(() => {
+    if (!params.route_id) return
+    let cancelled = false
+    fetchRouteTraffic(params.route_id).then((d) => {
+      if (cancelled || !d) return
+      setTraffic({ condition: d.traffic_condition ?? '', etaMin: d.duration_in_traffic_mins })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [params.route_id])
+  const etaMin = traffic?.etaMin ?? durationMin
   // Prefer the fare the user was shown on the route screen (handles transfer
   // journeys whose total isn't recoverable from leg-0's route_id). Fall back to
   // the route's crowdsourced/official fare for entry points that pass no fare.
@@ -160,7 +182,6 @@ export default function CheckoutScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.tinyLabel}>From</Text>
               <Text style={s.placeName}>{fromName}</Text>
-              <Text style={s.placeSub}>Bay 2</Text>
             </View>
             <View style={{ alignItems: 'center', paddingHorizontal: 8 }}>
               <View style={s.dash} />
@@ -172,39 +193,54 @@ export default function CheckoutScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[s.tinyLabel, { textAlign: 'right' }]}>To</Text>
               <Text style={[s.placeName, { textAlign: 'right' }]}>{toName}</Text>
-              <Text style={[s.placeSub, { textAlign: 'right' }]}>Kejetia Market</Text>
             </View>
           </View>
 
           <View style={s.divider} />
 
-          {/* Detail rows */}
-          {[
-            ['Departs', 'In 5 mins'],
-            ['Duration', '2 hr 30 mins'],
-            ['Seats', '24 Seater'],
-            ['Bus Type', 'STC Coach'],
-            ['Bus Code', 'TRSK 235'],
-          ].map(([label, value], i) => (
-            <View key={label} style={[s.detailRow, i === 0 && { paddingTop: 4 }]}>
-              <Text style={s.detailLabel}>{label}</Text>
-              <Text style={s.detailValue}>{value}</Text>
+          {/* Real-time route status — honest signals, no fake countdown/driver */}
+          <View style={[s.detailRow, { paddingTop: 4 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Bus size={16} color="#374151" />
+              <Text style={s.detailLabel}>Live trotros</Text>
             </View>
-          ))}
+            {liveTrotros > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />
+                <Text style={s.detailValue}>{liveTrotros} active now</Text>
+              </View>
+            ) : (
+              <Text style={[s.detailValue, { color: '#9CA3AF' }]}>None sharing live yet</Text>
+            )}
+          </View>
+          <View style={s.detailRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Clock size={16} color="#374151" />
+              <Text style={s.detailLabel}>Est. trip time</Text>
+            </View>
+            <Text style={s.detailValue}>
+              {etaMin != null ? `~${etaMin} min` : '—'}{traffic?.condition ? ` · ${traffic.condition} traffic` : ''}
+            </Text>
+          </View>
+          <View style={s.detailRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <UsersIcon size={16} color="#374151" />
+              <Text style={s.detailLabel}>Departure</Text>
+            </View>
+            <Text style={[s.detailValue, { color: '#6B7280' }]}>Leaves when full</Text>
+          </View>
         </View>
 
-        {/* ── Driver row ── */}
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setShowDriver(true)} style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14 }]}>
-          <InitialsAvatar name={DRIVER.name} size={44} />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.driverName}>{DRIVER.name}</Text>
-            <Text style={s.driverRole}>{DRIVER.role}</Text>
+        {/* ── Vehicle & driver — real data arrives with the driver app (Trotro Pro) ── */}
+        <View style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }]}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+            <Bus size={22} color="#9CA3AF" />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Text style={s.linkText}>Driver Details</Text>
-            <ChevronRight size={16} color={BRAND} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.driverName}>Vehicle assigned at boarding</Text>
+            <Text style={s.driverRole}>Plate &amp; driver shown when you board</Text>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* ── Fare breakdown ── */}
         <Text style={s.sectionTitle}>Fare Breakdown</Text>
