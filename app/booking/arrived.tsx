@@ -1,30 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform,
+  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Image } from 'expo-image'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Check, Star, ChevronRight } from 'lucide-react-native'
+import { Check, Star } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { submitRideRating } from '@/lib/services/ratings'
+import { fetchAssignedVehicle, type AssignedVehicle } from '@/lib/services/fleet'
+import { submitDriverRating } from '@/lib/services/driver-ratings'
 
 const BRAND = '#FF4D1C'
-const DRIVER = { name: 'Mr John Kwame', role: 'Bus Driver', first: 'John' }
 const TAGS = ['On time', 'Friendly', 'Fast', 'Professional']
 const STATS = [['8.4', 'Km', 'Distance'], ['30', 'mins', 'Duration'], ['2', '', 'Stops']]
 
 export default function ArrivedScreen() {
   const router = useRouter()
-  // GO Mode passes the real ride stats; the booking demo path passes none
-  const params = useLocalSearchParams<{ distance?: string; duration?: string; stops?: string; route?: string; routeId?: string }>()
+  // GO Mode passes the real ride stats; the booking path passes from/to + route_id
+  const params = useLocalSearchParams<{ distance?: string; duration?: string; stops?: string; route?: string; routeId?: string; from?: string; to?: string; route_id?: string }>()
   const { deviceId } = useDeviceId()
   const isGoTrip = !!params.duration
+
+  // Booking trips: the real driver to rate (looked up from the route's fleet van).
+  const [driver, setDriver] = useState<AssignedVehicle | null>(null)
+  useEffect(() => {
+    if (isGoTrip) return
+    fetchAssignedVehicle(params.from, params.to).then(setDriver).catch(() => {})
+  }, [isGoTrip, params.from, params.to])
+  const driverFirst = driver?.driverName?.split(' ')[0] ?? 'your driver'
   const stats: [string, string, string][] = isGoTrip
     ? [
         [params.distance && params.distance !== '' ? params.distance : '—', params.distance ? 'Km' : '', 'Distance'],
@@ -34,6 +43,7 @@ export default function ArrivedScreen() {
     : (STATS as [string, string, string][])
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState<string[]>([])
+  const [comment, setComment] = useState('')
 
   const toggleTag = (t: string) => {
     Haptics.selectionAsync()
@@ -48,9 +58,21 @@ export default function ArrivedScreen() {
         rating,
         tags,
         deviceId,
-        routeId: params.routeId || null,
+        routeId: params.routeId || params.route_id || null,
         tripType: isGoTrip ? 'go' : 'booking',
       }).catch(() => {})
+      // Booking trips also rate the DRIVER (with the rider's comment).
+      if (!isGoTrip && driver?.driverId) {
+        const body = [comment.trim(), tags.join(', ')].filter(Boolean).join(comment.trim() ? ' — ' : '')
+        submitDriverRating({
+          driverId: driver.driverId,
+          vanId: driver.vanId,
+          routeLabel: params.from && params.to ? `${params.from} → ${params.to}` : null,
+          deviceId,
+          stars: rating,
+          comment: body || null,
+        }).catch(() => {})
+      }
     }
     router.dismissAll()
   }
@@ -106,25 +128,27 @@ export default function ArrivedScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 16 }}>
 
         {/* Driver — booking flow only; a trotro GO ride has no assigned driver */}
-        {!isGoTrip && (
+        {!isGoTrip && driver?.driverName && (
         <View style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, padding: 14 }]}>
-          <InitialsAvatar name={DRIVER.name} size={44} />
+          {driver.driverPhotoUrl ? (
+            <Image source={{ uri: driver.driverPhotoUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+          ) : (
+            <InitialsAvatar name={driver.driverName} size={44} />
+          )}
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{DRIVER.name}</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>{DRIVER.role}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#6B7280' }}>Driver Details</Text>
-            <ChevronRight size={16} color="#9CA3AF" />
+            <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{driver.driverName}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>Bus Driver · {driver.plate}</Text>
           </View>
         </View>
         )}
 
-        {/* Rate — GO trips rate the ride/line, never an individual mate */}
+        {/* Rate — GO trips rate the ride/line; booking trips rate the driver */}
         <View style={[s.card, { marginTop: 14, padding: 18 }]}>
-          <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>Rate your experience</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>
+            {isGoTrip ? 'Rate your experience' : 'Rate your driver'}
+          </Text>
           <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
-            {isGoTrip ? `How was your ride${params.route ? ` on ${params.route}` : ''}?` : `How was your ride with ${DRIVER.first}?`}
+            {isGoTrip ? `How was your ride${params.route ? ` on ${params.route}` : ''}?` : `How was your ride with ${driverFirst}?`}
           </Text>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 18 }}>
@@ -145,6 +169,20 @@ export default function ArrivedScreen() {
               )
             })}
           </View>
+
+          {!isGoTrip && (
+            <View style={s.commentBox}>
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Add a comment about your driver (optional)"
+                placeholderTextColor="#9CA3AF"
+                style={{ fontFamily: font.regular, fontSize: 14, color: '#111', minHeight: 44 }}
+                multiline
+                maxLength={280}
+              />
+            </View>
+          )}
         </View>
 
         {/* Done */}
@@ -183,6 +221,7 @@ const s = StyleSheet.create({
 
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
 
+  commentBox: { marginTop: 14, backgroundColor: '#F9FAFB', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#F3F4F6' },
   tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: '#F3F4F6' },
   tagOn: { backgroundColor: '#FFF0EB', borderWidth: 1, borderColor: BRAND },
   tagText: { fontFamily: font.semibold, fontSize: 13, color: '#6B7280' },

@@ -18,6 +18,7 @@ import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { fetchQueueStatus, QUEUE_META, type StationQueue } from '@/lib/services/queueStatus'
 import { fetchAssignedVehicle, type AssignedVehicle } from '@/lib/services/fleet'
+import { fetchDriverRatingStats, fetchDriverReviews, fetchDriverRides, type DriverReview } from '@/lib/services/driver-ratings'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
 import PinModal from '@/components/PinModal'
@@ -59,6 +60,19 @@ export default function CheckoutScreen() {
     fetchAssignedVehicle(params.from, params.to).then((a) => { if (!cancelled) setAssigned(a) }).catch(() => {})
     return () => { cancelled = true }
   }, [params.from, params.to])
+  // Driver reputation (real, from passenger ratings + completed shifts)
+  const [driverRating, setDriverRating] = useState<{ avg: number | null; count: number }>({ avg: null, count: 0 })
+  const [driverRides, setDriverRides] = useState<number>(0)
+  const [driverReviews, setDriverReviews] = useState<DriverReview[]>([])
+  useEffect(() => {
+    const id = assigned?.driverId
+    if (!id) return
+    let cancelled = false
+    fetchDriverRatingStats(id).then((s) => { if (!cancelled) setDriverRating({ avg: s.avgRating, count: s.ratingCount }) }).catch(() => {})
+    fetchDriverRides(id).then((n) => { if (!cancelled) setDriverRides(n) }).catch(() => {})
+    fetchDriverReviews(id).then((r) => { if (!cancelled) setDriverReviews(r) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [assigned?.driverId])
   const durationMin = route?.estimated_duration_mins ?? null
   const [traffic, setTraffic] = useState<{ condition: string; etaMin: number | null } | null>(null)
   useEffect(() => {
@@ -410,14 +424,36 @@ export default function CheckoutScreen() {
               <TouchableOpacity onPress={() => setShowDriver(false)} style={s.closeBtn} hitSlop={8}><X size={18} color="#111" /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}>
-              <DriverHeader driver={assigned} onVerify={() => setShowVerify(true)} />
+              <DriverHeader driver={assigned} rides={driverRides} rating={driverRating} onVerify={() => setShowVerify(true)} />
 
-              <Text style={[s.sectionTitle, { marginTop: 24 }]}>Reviews</Text>
-              <View style={{ alignItems: 'center', paddingVertical: 22, gap: 6 }}>
-                <Star size={26} color="#E5E7EB" fill="#E5E7EB" />
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#374151' }}>No reviews yet</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>Rate your driver after the trip — your feedback keeps the fleet accountable.</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 4 }}>
+                <Text style={s.sectionTitle}>Reviews</Text>
+                {driverRating.count > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Star size={14} color="#F5A623" fill="#F5A623" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#111' }}>{driverRating.avg?.toFixed(1)}</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }}>({driverRating.count})</Text>
+                  </View>
+                )}
               </View>
+              {driverReviews.length > 0 ? (
+                driverReviews.map((r, i) => (
+                  <View key={i} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                    <View style={{ flexDirection: 'row', gap: 1, marginBottom: 6 }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star key={n} size={12} color="#F5A623" fill={n <= r.stars ? '#F5A623' : 'transparent'} />
+                      ))}
+                    </View>
+                    <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', lineHeight: 19 }}>{r.comment}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={{ alignItems: 'center', paddingVertical: 22, gap: 6 }}>
+                  <Star size={26} color="#E5E7EB" fill="#E5E7EB" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#374151' }}>No reviews yet</Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>Rate your driver after the trip — your feedback keeps the fleet accountable.</Text>
+                </View>
+              )}
             </ScrollView>
           </SafeAreaView>
         </View>
@@ -431,7 +467,7 @@ export default function CheckoutScreen() {
               <TouchableOpacity onPress={() => setShowVerify(false)} style={s.closeBtn} hitSlop={8}><X size={18} color="#111" /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}>
-              <DriverHeader driver={assigned} onVerify={() => {}} />
+              <DriverHeader driver={assigned} rides={driverRides} rating={driverRating} onVerify={() => {}} />
 
               <View style={{ height: 6, backgroundColor: '#F3F4F6', marginHorizontal: -20, marginVertical: 22 }} />
 
@@ -462,7 +498,7 @@ export default function CheckoutScreen() {
 }
 
 /* ── Shared driver header (real assigned driver — avatar + stats + verification) ── */
-function DriverHeader({ driver, onVerify }: { driver: AssignedVehicle | null; onVerify: () => void }) {
+function DriverHeader({ driver, rides, rating, onVerify }: { driver: AssignedVehicle | null; rides: number; rating: { avg: number | null; count: number }; onVerify: () => void }) {
   const name = driver?.driverName ?? 'Your driver'
   const since = driver?.driverSince ? new Date(driver.driverSince) : null
   const years = since ? Math.floor((Date.now() - since.getTime()) / (365 * 864e5)) : null
@@ -479,9 +515,9 @@ function DriverHeader({ driver, onVerify }: { driver: AssignedVehicle | null; on
 
       <View style={s.statsRow}>
         {[
-          [driver?.plate ?? '—', 'Bus'],
+          [rides > 0 ? String(rides) : '—', 'Rides'],
           [tenure, 'with Troski'],
-          [verified ? '✓' : '—', 'Verified'],
+          [rating.avg != null ? rating.avg.toFixed(1) : 'New', 'Rating'],
         ].map(([n, l], i) => (
           <View key={l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#F3F4F6' }}>
             <Text style={{ fontFamily: font.extrabold, fontSize: 20, color: BRAND }}>{n}</Text>

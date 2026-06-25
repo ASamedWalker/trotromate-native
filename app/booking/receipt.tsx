@@ -151,7 +151,7 @@ export default function ReceiptScreen() {
           <View style={{ alignItems: 'center', paddingTop: 18 }}>
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/booking/arrived' as never) }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/booking/arrived', params: { from: params.from ?? '', to: params.to ?? '', route_id: params.route_id ?? '' } } as any) }}
               style={s.qrFrame}
             >
               <QRCode value={t.ref} size={140} />

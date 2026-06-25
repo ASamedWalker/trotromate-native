@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/client'
 
 export interface AssignedVehicle {
+  vanId: string
+  driverId: string | null
   plate: string
   vehicleType: string | null
   capacity: number | null
@@ -21,19 +23,21 @@ export async function fetchAssignedVehicle(from?: string, to?: string): Promise<
   try {
     const { data, error } = await supabase
       .from('fleet_vans')
-      .select('plate_number, vehicle_type, capacity, fleet_drivers(name, is_on_shift, photo_url, kyc_status, created_at)')
+      .select('id, plate_number, vehicle_type, capacity, fleet_drivers(id, name, is_on_shift, photo_url, kyc_status, created_at)')
       .ilike('route_label', `%${from.trim()}%`)
       .ilike('route_label', `%${to.trim()}%`)
       .eq('is_active', true)
       .limit(1)
     if (error) return null
-    type Drv = { name: string; is_on_shift: boolean; photo_url: string | null; kyc_status: string | null; created_at: string | null }
+    type Drv = { id: string; name: string; is_on_shift: boolean; photo_url: string | null; kyc_status: string | null; created_at: string | null }
     const v = data?.[0] as
-      | { plate_number: string; vehicle_type: string | null; capacity: number | null; fleet_drivers: Drv[] | Drv | null }
+      | { id: string; plate_number: string; vehicle_type: string | null; capacity: number | null; fleet_drivers: Drv[] | Drv | null }
       | undefined
     if (!v) return null
     const d = Array.isArray(v.fleet_drivers) ? v.fleet_drivers[0] : v.fleet_drivers
     return {
+      vanId: v.id,
+      driverId: d?.id ?? null,
       plate: v.plate_number,
       vehicleType: v.vehicle_type,
       capacity: v.capacity,
