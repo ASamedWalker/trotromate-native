@@ -16,6 +16,10 @@ export interface TransferPlan {
   total_duration_mins: number
   transfer_hub?: string
   transfer_wait_mins?: number
+  // Set when the destination is an intermediate drop-off along a corridor — lets
+  // route detail pre-select the alight and price the stage, not the whole corridor.
+  dropoff_stop_order?: number
+  dropoff_stop_name?: string
 }
 
 export async function planRoute(from: string, to: string, transportType?: string): Promise<TransferPlan[]> {
@@ -52,6 +56,62 @@ export async function planRoute(from: string, to: string, transportType?: string
       total_fare: r.official_fare,
       total_duration_mins: r.estimated_duration_mins,
     })
+  }
+
+  // 1b. Stage match — destination is an INTERMEDIATE stop along a corridor.
+  // e.g. "Circle → Dome" where Dome is a stop on the Circle → Taifa route, so no
+  // direct Circle→Dome row exists but the rider can alight there.
+  const { data: stopMatches } = await supabase
+    .from('route_stops')
+    .select('route_id, stop_name, stop_order, is_terminal')
+    .ilike('stop_name', `%${to}%`)
+    .limit(15)
+
+  if (stopMatches?.length) {
+    const routeIds = [...new Set(stopMatches.map((s) => s.route_id))]
+    let stageRoutesQuery = supabase
+      .from('routes')
+      .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
+      .in('id', routeIds)
+    if (transportType) stageRoutesQuery = stageRoutesQuery.eq('transport_type', transportType)
+    const [{ data: stageRoutes }, { data: segFares }, { data: allStops }] = await Promise.all([
+      stageRoutesQuery,
+      supabase.from('segment_fares').select('route_id, to_stop_order, official_fare, avg_reported_fare').in('route_id', routeIds).eq('from_stop_order', 0),
+      supabase.from('route_stops').select('route_id, stop_order, distance_from_origin_km').in('route_id', routeIds),
+    ])
+
+    for (const sm of stopMatches) {
+      if (sm.is_terminal) continue // endpoint already handled by the direct match
+      const r = stageRoutes?.find((x) => x.id === sm.route_id)
+      if (!r) continue
+      if (!r.from_location.toLowerCase().includes(from.toLowerCase())) continue // origin must match
+      if (results.some((p) => p.legs[0]?.route_id === r.id)) continue // already returned as direct
+
+      const seg = segFares?.find((sf) => sf.route_id === sm.route_id && sf.to_stop_order === sm.stop_order)
+      let fare = seg?.official_fare ?? seg?.avg_reported_fare ?? null
+      if (fare == null) {
+        const rs = (allStops ?? []).filter((s) => s.route_id === sm.route_id)
+        const total = Math.max(...rs.map((s) => s.distance_from_origin_km ?? 0))
+        const d = rs.find((s) => s.stop_order === sm.stop_order)?.distance_from_origin_km
+        fare = total && d != null ? Math.round(r.official_fare * (d / total) * 100) / 100 : r.official_fare
+      }
+
+      results.push({
+        type: 'direct',
+        legs: [{
+          route_id: r.id,
+          from: r.from_location,
+          to: sm.stop_name,
+          fare,
+          duration_mins: r.estimated_duration_mins,
+          transport_type: r.transport_type || 'trotro',
+        }],
+        total_fare: fare,
+        total_duration_mins: r.estimated_duration_mins,
+        dropoff_stop_order: sm.stop_order,
+        dropoff_stop_name: sm.stop_name,
+      })
+    }
   }
 
   // 2. Get transfer hubs

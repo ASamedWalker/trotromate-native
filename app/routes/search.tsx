@@ -520,6 +520,7 @@ export default function PlanTripScreen() {
                     transport_type: plan.legs[0]?.transport_type || 'trotro',
                     route_id: plan.legs[0]?.route_id || '',
                     type: plan.type,
+                    dropoff_order: plan.dropoff_stop_order != null ? String(plan.dropoff_stop_order) : '',
                   },
                 } as any)
               }}

@@ -79,7 +79,7 @@ export default function RouteDetailScreen() {
 
   const params = useLocalSearchParams<{
     from: string; to: string; fare: string; duration: string
-    transport_type: string; route_id: string; type: string
+    transport_type: string; route_id: string; type: string; dropoff_order?: string
   }>()
 
   const from = params.from || ''
@@ -318,7 +318,10 @@ export default function RouteDetailScreen() {
   )
   const hasStops = stops.length > 2
   const lastOrder = stops.length ? stops[stops.length - 1].stop_order : 0
-  const [dropoffOrder, setDropoffOrder] = useState<number | null>(null)
+  // Pre-select the alight when search matched an intermediate drop-off stop.
+  const [dropoffOrder, setDropoffOrder] = useState<number | null>(
+    params.dropoff_order ? parseInt(params.dropoff_order) : null,
+  )
   const effectiveDropoff = dropoffOrder ?? lastOrder
   const corridorBase = reportCount > 0 ? (fareStats?.avg_reported_fare ?? baseFare) : baseFare
   // Prefetch every segment fare for the route ONCE → drop-off taps resolve instantly.
