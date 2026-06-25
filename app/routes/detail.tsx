@@ -34,6 +34,7 @@ import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { fetchRouteSegmentFares, resolveDropoffFareSync, type RouteSegmentFare } from '@/lib/services/segment-fares'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated'
 
 const BRAND = '#FF4D1C'
 
@@ -101,7 +102,17 @@ export default function RouteDetailScreen() {
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [notifyEnabled, setNotifyEnabled] = useState(false)
-  const [sheetIndex, setSheetIndex] = useState(0)
+  // Track the sheet's actual top Y (gorhom updates this every frame during drag —
+  // reliable, unlike the onChange index). Drives the map overlays so the close X /
+  // ETA pill hide once the sheet rises into them, and the recenter FAB hides once
+  // the sheet covers it.
+  const sheetPos = useSharedValue(99999)
+  const [overlayHidden, setOverlayHidden] = useState(false)
+  const [fabHidden, setFabHidden] = useState(false)
+  useDerivedValue(() => {
+    runOnJS(setOverlayHidden)(sheetPos.value < insets.top + 96)
+    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * 0.52)
+  }, [insets.top])
   // Real road distance from the Directions response — feeds the floating ETA pill.
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
   // Animated route "draw" sweep: line-trim-offset end goes 1 (hidden) -> 0 (full).
@@ -507,23 +518,25 @@ export default function RouteDetailScreen() {
         )}
       </Mapbox.MapView>
 
-      {/* ── Close button ── */}
-      <View style={{ position: 'absolute', top: insets.top + 8, left: 20, zIndex: 10 }}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          style={{
-            width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
-            justifyContent: 'center', alignItems: 'center',
-            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
-          }}
-        >
-          <X size={22} color="#000" />
-        </TouchableOpacity>
-      </View>
+      {/* ── Close button (map overlay — hides when the sheet rises into it) ── */}
+      {!overlayHidden && (
+        <View style={{ position: 'absolute', top: insets.top + 8, left: 20, zIndex: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            style={{
+              width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+              justifyContent: 'center', alignItems: 'center',
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+            }}
+          >
+            <X size={22} color="#000" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Floating ETA · distance pill (glanceable trip summary) ── */}
-      {hasCoords && (
+      {hasCoords && !overlayHidden && (
         <View style={{ position: 'absolute', top: insets.top + 10, alignSelf: 'center', zIndex: 10 }}>
           <View style={mapPinStyles.etaPill}>
             <Clock size={15} color="#fff" strokeWidth={2.4} />
@@ -540,7 +553,7 @@ export default function RouteDetailScreen() {
 
       {/* ── Recenter FAB — sits just above the collapsed sheet; hidden once the
             sheet is dragged up so it never floats inside the card ── */}
-      {hasCoords && sheetIndex <= 0 && (
+      {hasCoords && !fabHidden && (
         <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.38 + 16, zIndex: 10 }}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -556,8 +569,9 @@ export default function RouteDetailScreen() {
       <BottomSheet
         ref={sheetRef}
         index={0}
-        onChange={setSheetIndex}
+        animatedPosition={sheetPos}
         snapPoints={snapPoints}
+        enableDynamicSizing={false}
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4, borderRadius: 2 }}
         backgroundStyle={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
         style={{
@@ -570,22 +584,22 @@ export default function RouteDetailScreen() {
           {!showVehicles && (
           <>
           {/* Route timeline: origin → destination */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 18 }}>
+          <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ alignItems: 'center' }}>
-                <View style={{ width: 11, height: 11, borderRadius: 6, borderWidth: 2.5, borderColor: '#10B981', backgroundColor: '#fff' }} />
-                <View style={{ width: 2, height: 18, backgroundColor: '#E5E7EB', marginVertical: 3 }} />
-                <View style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: BRAND }} />
+                <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: '#10B981', backgroundColor: '#fff' }} />
+                <View style={{ width: 2, height: 16, backgroundColor: '#E5E7EB', marginVertical: 3 }} />
+                <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: BRAND }} />
               </View>
-              <View style={{ flex: 1, height: 50, justifyContent: 'space-between' }}>
-                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 15, color: '#6B7280' }}>{from}</Text>
-                <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 19, color: '#000', letterSpacing: -0.4 }}>{to}</Text>
+              <View style={{ flex: 1, height: 44, justifyContent: 'space-between' }}>
+                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>{from}</Text>
+                <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 18, color: '#000', letterSpacing: -0.4 }}>{to}</Text>
               </View>
             </View>
           </View>
 
           {/* Trip-shape meta: mode + distance + stops + GPRTU trust badge */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ paddingHorizontal: 24, marginBottom: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 100, paddingLeft: 6, paddingRight: 12, paddingVertical: 5 }}>
               <Image source={selectedOption.image} style={{ width: 18, height: 18 }} resizeMode="contain" />
               <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#374151' }}>{selectedOption.label}</Text>
@@ -607,12 +621,12 @@ export default function RouteDetailScreen() {
           {/* Alight picker — a single field opening a searchable stop list, so it
               scales to corridors with many drop-off points (no chip wall). */}
           {hasStops && (
-            <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151', marginBottom: 8 }}>Where will you alight?</Text>
+            <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#9CA3AF', marginBottom: 7, letterSpacing: 0.2, textTransform: 'uppercase' }}>Where will you alight?</Text>
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => { Haptics.selectionAsync(); setAlightPickerOpen(true) }}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 16, height: 52 }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 16, height: 50 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <MapPin size={16} color={BRAND} />
@@ -624,13 +638,13 @@ export default function RouteDetailScreen() {
           )}
 
           {/* Headline metrics: duration/arrival + fare/mode */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', alignItems: 'flex-end' }}>
+          <View style={{ marginHorizontal: 24, marginBottom: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-end' }}>
             <View>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: '#000', letterSpacing: -1 }}>{durationText}</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>arrives {arrivalTime}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{displayFare}</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>₵{displayFare}</Text>
               {dropoffName ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
