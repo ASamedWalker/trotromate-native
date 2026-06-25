@@ -16,7 +16,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight, MapPin, LocateFixed } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed } from 'lucide-react-native'
+import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
 const { height: SCREEN_H } = Dimensions.get('window')
@@ -326,20 +327,27 @@ export default function RouteDetailScreen() {
   const corridorBase = reportCount > 0 ? (fareStats?.avg_reported_fare ?? baseFare) : baseFare
   // Prefetch every segment fare for the route ONCE → drop-off taps resolve instantly.
   const [segFares, setSegFares] = useState<RouteSegmentFare[]>([])
+  const [segFaresLoaded, setSegFaresLoaded] = useState(false)
   useEffect(() => {
     if (!routeId) return
     let cancelled = false
-    fetchRouteSegmentFares(routeId).then((rows) => { if (!cancelled) setSegFares(rows) })
+    fetchRouteSegmentFares(routeId).then((rows) => { if (!cancelled) { setSegFares(rows); setSegFaresLoaded(true) } })
     return () => { cancelled = true }
   }, [routeId])
   const dropoffResult = hasStops
     ? resolveDropoffFareSync(segFares, stops[0].stop_order, effectiveDropoff, stops, corridorBase)
     : null
-  const dropoffFare = dropoffResult ? dropoffResult.fare * mult : null
+  // Wait for the prefetch before showing a stage fare, so the default doesn't
+  // flash an interpolated "estimate" before the official segment loads.
+  const dropoffFare = dropoffResult && segFaresLoaded ? dropoffResult.fare * mult : null
 
   // Fare actually shown / charged: drop-off stage fare when available, else corridor.
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
   const dropoffName = hasStops ? stops.find((s) => s.stop_order === effectiveDropoff)?.stop_name : undefined
+  const [alightPickerOpen, setAlightPickerOpen] = useState(false)
+  // Fare per stop for the picker rows (Transit-style fare-per-option).
+  const alightFareLabel = (order: number) =>
+    hasStops ? `₵${(resolveDropoffFareSync(segFares, stops[0].stop_order, order, stops, corridorBase).fare * mult).toFixed(2)}` : undefined
 
   return (
     <View style={{ flex: 1 }}>
@@ -596,28 +604,22 @@ export default function RouteDetailScreen() {
             )}
           </View>
 
-          {/* Alight picker — fares are charged by drop-off point along the corridor */}
+          {/* Alight picker — a single field opening a searchable stop list, so it
+              scales to corridors with many drop-off points (no chip wall). */}
           {hasStops && (
             <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
               <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151', marginBottom: 8 }}>Where will you alight?</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {stops.filter((st) => st.stop_order > stops[0].stop_order).map((st) => {
-                  const sel = st.stop_order === effectiveDropoff
-                  return (
-                    <TouchableOpacity
-                      key={st.id}
-                      activeOpacity={0.8}
-                      onPress={() => { Haptics.selectionAsync(); setDropoffOrder(st.stop_order) }}
-                      style={{
-                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
-                        backgroundColor: sel ? BRAND : '#F3F4F6',
-                      }}
-                    >
-                      <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: sel ? '#fff' : '#374151' }}>{st.stop_name}</Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => { Haptics.selectionAsync(); setAlightPickerOpen(true) }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 16, height: 52 }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <MapPin size={16} color={BRAND} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1F2937' }} numberOfLines={1}>{dropoffName}</Text>
+                </View>
+                <ChevronDown size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1072,6 +1074,19 @@ export default function RouteDetailScreen() {
 
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {hasStops && (
+        <StopPickerModal
+          visible={alightPickerOpen}
+          title="Where will you alight?"
+          stops={stops}
+          selectedOrder={effectiveDropoff}
+          minOrder={stops[0].stop_order}
+          fareLabel={alightFareLabel}
+          onSelect={setDropoffOrder}
+          onClose={() => setAlightPickerOpen(false)}
+        />
+      )}
     </View>
   )
 }

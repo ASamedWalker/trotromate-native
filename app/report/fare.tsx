@@ -25,7 +25,9 @@ import {
   Plus,
   Banknote,
   X,
+  ChevronDown,
 } from 'lucide-react-native'
+import StopPickerModal from '@/components/StopPickerModal'
 import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
@@ -66,6 +68,8 @@ export default function FareReportScreen() {
   const hasStops = !!urlRouteId && stops.length > 1
   const [boardOrder, setBoardOrder] = useState<number | null>(null)
   const [alightOrder, setAlightOrder] = useState<number | null>(null)
+  const [boardPickerOpen, setBoardPickerOpen] = useState(false)
+  const [alightPickerOpen, setAlightPickerOpen] = useState(false)
   const board = hasStops ? (stops.find(st => st.stop_order === boardOrder) ?? stops[0]) : null
   const alight = hasStops ? (stops.find(st => st.stop_order === alightOrder) ?? stops[stops.length - 1]) : null
 
@@ -158,38 +162,22 @@ export default function FareReportScreen() {
             {hasStops ? (
               <>
                 <Text style={s.stageLabel}>Boarded at</Text>
-                <View style={s.stageRow}>
-                  {stops.slice(0, -1).map((st) => {
-                    const sel = st.stop_order === board?.stop_order
-                    return (
-                      <TouchableOpacity
-                        key={st.id}
-                        onPress={() => { haptics.light(); setBoardOrder(st.stop_order); if (alightOrder != null && st.stop_order >= alightOrder) setAlightOrder(null) }}
-                        activeOpacity={0.7}
-                        style={[s.stageChip, sel && s.stageChipActive]}
-                      >
-                        <Text style={[s.stageChipText, sel && s.stageChipTextActive]}>{st.stop_name}</Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
+                <TouchableOpacity onPress={() => { haptics.light(); setBoardPickerOpen(true) }} activeOpacity={0.8} style={s.stageField}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <MapPin size={18} color="#815100" />
+                    <Text style={s.stageFieldText} numberOfLines={1}>{board?.stop_name}</Text>
+                  </View>
+                  <ChevronDown size={18} color="#b2acaa" />
+                </TouchableOpacity>
 
                 <Text style={[s.stageLabel, { marginTop: 16 }]}>Got off at</Text>
-                <View style={s.stageRow}>
-                  {stops.filter((st) => st.stop_order > (board?.stop_order ?? 0)).map((st) => {
-                    const sel = st.stop_order === alight?.stop_order
-                    return (
-                      <TouchableOpacity
-                        key={st.id}
-                        onPress={() => { haptics.light(); setAlightOrder(st.stop_order) }}
-                        activeOpacity={0.7}
-                        style={[s.stageChip, sel && s.stageChipActive]}
-                      >
-                        <Text style={[s.stageChipText, sel && s.stageChipTextActive]}>{st.stop_name}</Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
+                <TouchableOpacity onPress={() => { haptics.light(); setAlightPickerOpen(true) }} activeOpacity={0.8} style={s.stageField}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Navigation size={18} color="#22c55e" />
+                    <Text style={s.stageFieldText} numberOfLines={1}>{alight?.stop_name}</Text>
+                  </View>
+                  <ChevronDown size={18} color="#b2acaa" />
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -362,6 +350,29 @@ export default function FareReportScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {hasStops && (
+        <>
+          <StopPickerModal
+            visible={boardPickerOpen}
+            title="Where did you board?"
+            stops={stops}
+            selectedOrder={board?.stop_order ?? null}
+            maxOrder={alight?.stop_order}
+            onSelect={(order) => { setBoardOrder(order); if (alightOrder != null && order >= alightOrder) setAlightOrder(null) }}
+            onClose={() => setBoardPickerOpen(false)}
+          />
+          <StopPickerModal
+            visible={alightPickerOpen}
+            title="Where did you get off?"
+            stops={stops}
+            selectedOrder={alight?.stop_order ?? null}
+            minOrder={board?.stop_order ?? 0}
+            onSelect={setAlightOrder}
+            onClose={() => setAlightPickerOpen(false)}
+          />
+        </>
+      )}
     </SafeAreaView>
   )
 }
@@ -537,6 +548,20 @@ const getStyles = (isDark: boolean) => {
     },
     stageChipTextActive: {
       color: '#fff',
+    },
+    stageField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: 52,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      backgroundColor: surfaceLow,
+    },
+    stageFieldText: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: onSurface,
     },
 
     // Fare
