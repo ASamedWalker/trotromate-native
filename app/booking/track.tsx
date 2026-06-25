@@ -32,7 +32,7 @@ function coordFor(name?: string): { lat: number; lng: number } | null {
  */
 export default function TrackBusScreen() {
   const router = useRouter()
-  const { route_id, to } = useLocalSearchParams<{ route_id?: string; to?: string }>()
+  const { route_id, to, van } = useLocalSearchParams<{ route_id?: string; to?: string; van?: string }>()
   const [bus, setBus] = useState<VehiclePosition | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -51,13 +51,16 @@ export default function TrackBusScreen() {
     return () => { active = false; clearInterval(id) }
   }, [route_id])
 
-  // Instant 10s broadcast for the matched van (overrides the poll position).
-  const rt = useRealtimeVehicle(bus?.vanId ?? null)
+  // Live broadcast (gps:van:{vanId}, ~10s). Subscribe to the matched van, or a
+  // van passed explicitly (e.g. a specific assigned bus). Broadcast wins when fresh.
+  const rt = useRealtimeVehicle(van ?? bus?.vanId ?? null)
 
   const pos = rt.position
     ? { lat: rt.position.lat, lng: rt.position.lng, heading: rt.position.heading }
     : bus ? { lat: bus.latitude, lng: bus.longitude, heading: bus.heading } : null
   const plate = rt.position?.plateNumber ?? bus?.plateNumber ?? null
+  const hasLive = !!rt.position || !!bus
+  const isStale = !rt.position && !!bus && bus.isStale
 
   const dropoff = coordFor(to)
   const distKm = pos && dropoff ? haversineKm(pos.lat, pos.lng, dropoff.lat, dropoff.lng) : null
@@ -90,15 +93,15 @@ export default function TrackBusScreen() {
       />
 
       <View style={s.sheet}>
-        {loading ? (
+        {loading && !hasLive && !van ? (
           <View style={{ alignItems: 'center', paddingVertical: 24 }}>
             <ActivityIndicator color={BRAND} />
             <Text style={s.muted}>Finding your bus…</Text>
           </View>
-        ) : !bus ? (
+        ) : !hasLive ? (
           <View style={{ alignItems: 'center', paddingVertical: 20, gap: 8 }}>
             <View style={s.iconWrap}><Bus size={26} color="#9CA3AF" /></View>
-            <Text style={s.title}>No bus on this route yet</Text>
+            <Text style={s.title}>{van ? 'Connecting to your bus…' : 'No bus on this route yet'}</Text>
             <Text style={[s.muted, { textAlign: 'center' }]}>We'll show your Troski bus live the moment one starts the route.</Text>
           </View>
         ) : (
@@ -107,11 +110,11 @@ export default function TrackBusScreen() {
               <View style={[s.iconWrap, { backgroundColor: 'rgba(34,197,94,0.12)' }]}><Bus size={24} color="#16A34A" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.title}>{plate}</Text>
-                <Text style={s.muted}>{status === 'arriving' ? 'Arriving now' : 'On the way'}{bus.isStale ? ' · last seen a while ago' : ''}</Text>
+                <Text style={s.muted}>{status === 'arriving' ? 'Arriving now' : 'On the way'}{isStale ? ' · last seen a while ago' : ''}</Text>
               </View>
               <View style={s.livePill}>
-                <View style={[s.dot, { backgroundColor: bus.isStale ? '#9CA3AF' : '#22C55E' }]} />
-                <Text style={[s.livePillText, { color: bus.isStale ? '#9CA3AF' : '#16A34A' }]}>{bus.isStale ? 'Stale' : 'Live'}</Text>
+                <View style={[s.dot, { backgroundColor: isStale ? '#9CA3AF' : '#22C55E' }]} />
+                <Text style={[s.livePillText, { color: isStale ? '#9CA3AF' : '#16A34A' }]}>{isStale ? 'Stale' : 'Live'}</Text>
               </View>
             </View>
 
