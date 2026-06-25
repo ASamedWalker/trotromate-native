@@ -30,6 +30,7 @@ import { fetchRouteTraffic } from '@/lib/services/traffic-api'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
+import { resolveDropoffFare } from '@/lib/services/segment-fares'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 
@@ -307,6 +308,33 @@ export default function RouteDetailScreen() {
   const liveRiders = liveTrips.length
   const liveOnRoute = activeCount + liveRiders
 
+  // ── Alight (drop-off) picker: trotro fares are per drop-off. When the corridor
+  // has intermediate stops, let the rider pick where they get off; the displayed
+  // fare becomes the stage fare origin → that stop (segment_fares → interpolated
+  // → flat corridor fallback). Multiplier applied once for okada/pragya.
+  const stops = useMemo(
+    () => [...(route?.stops ?? [])].sort((a, b) => a.stop_order - b.stop_order),
+    [route?.stops],
+  )
+  const hasStops = stops.length > 2
+  const lastOrder = stops.length ? stops[stops.length - 1].stop_order : 0
+  const [dropoffOrder, setDropoffOrder] = useState<number | null>(null)
+  const effectiveDropoff = dropoffOrder ?? lastOrder
+  const corridorBase = reportCount > 0 ? (fareStats?.avg_reported_fare ?? baseFare) : baseFare
+  const [dropoffFare, setDropoffFare] = useState<number | null>(null)
+  useEffect(() => {
+    if (!hasStops || !routeId) { setDropoffFare(null); return }
+    let cancelled = false
+    resolveDropoffFare({
+      routeId, fromOrder: stops[0].stop_order, toOrder: effectiveDropoff, stops, corridorFare: corridorBase,
+    }).then((r) => { if (!cancelled) setDropoffFare(r.fare * mult) })
+    return () => { cancelled = true }
+  }, [routeId, hasStops, effectiveDropoff, corridorBase, mult, stops])
+
+  // Fare actually shown / charged: drop-off stage fare when available, else corridor.
+  const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
+  const dropoffName = hasStops ? stops.find((s) => s.stop_order === effectiveDropoff)?.stop_name : undefined
+
   return (
     <View style={{ flex: 1 }}>
 
@@ -562,6 +590,31 @@ export default function RouteDetailScreen() {
             )}
           </View>
 
+          {/* Alight picker — fares are charged by drop-off point along the corridor */}
+          {hasStops && (
+            <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151', marginBottom: 8 }}>Where will you alight?</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {stops.filter((st) => st.stop_order > stops[0].stop_order).map((st) => {
+                  const sel = st.stop_order === effectiveDropoff
+                  return (
+                    <TouchableOpacity
+                      key={st.id}
+                      activeOpacity={0.8}
+                      onPress={() => { Haptics.selectionAsync(); setDropoffOrder(st.stop_order) }}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
+                        backgroundColor: sel ? BRAND : '#F3F4F6',
+                      }}
+                    >
+                      <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: sel ? '#fff' : '#374151' }}>{st.stop_name}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
+          )}
+
           {/* Headline metrics: duration/arrival + fare/mode */}
           <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', alignItems: 'flex-end' }}>
             <View>
@@ -569,8 +622,10 @@ export default function RouteDetailScreen() {
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>arrives {arrivalTime}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{headlineFare}</Text>
-              {hasFareRange ? (
+              <Text style={{ fontFamily: font.extrabold, fontSize: 28, color: BRAND, letterSpacing: -1 }}>₵{displayFare}</Text>
+              {dropoffName ? (
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>to {dropoffName}</Text>
+              ) : hasFareRange ? (
                 <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
                   ₵{minFare!.toFixed(0)}–{maxFare!.toFixed(0)} · {selectedOption.label}
                 </Text>
@@ -623,9 +678,8 @@ export default function RouteDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 // Start the booking flow: Confirm Booking -> Pay -> Receipt -> Arrived.
-                // Carry the exact fare + duration shown here so checkout matches
-                // (a transfer journey's total isn't recoverable from leg-0's route).
-                router.push({ pathname: '/booking/checkout', params: { from, to, route_id: routeId, fare: headlineFare, duration: String(duration) } } as any)
+                // Carry the exact fare (drop-off aware) + duration so checkout matches.
+                router.push({ pathname: '/booking/checkout', params: { from, to: dropoffName || to, route_id: routeId, fare: displayFare, duration: String(duration) } } as any)
               }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
