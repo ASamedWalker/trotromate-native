@@ -42,13 +42,32 @@ Real crowdsourced + traffic data beats a fabricated ETA.
 4. **Departure honesty** — trotros leave when full; show "N waiting at station"
    instead of a fake countdown.
 
-## What's gated on Trotro Pro (driver app) — later
-- Real per-bus GPS → live position on map after booking.
-- Assigned-vehicle + driver (real plate/photo) on the receipt.
-- Backend geofence push: "your trotro is 5 min away".
-- Live ETA to pickup + to drop-off for the booked passenger.
-(Infra is ready: `useRealtimeVehicle(vanId)` consumes `gps:van:{vanId}`; push tokens
-stored; just needs the driver-side writer.)
+## Phase model (owner, 2026-06-26)
+- **Phase 1 = Troski's OWN buses.** Assigned to routes, reflect live on the app
+  NOW. Real-time bus position is achievable immediately — not gated on third parties.
+- **Later = open to other drivers** (Troski Pro onboarding) to cover more routes.
+
+## Troski Pro is BUILT (driver app at /Users/samed/troski-pro)
+Same Supabase project. A bus on shift:
+- Broadcasts GPS on `gps:van:{vanId}` (event `location`) every 10s fg / 15s bg.
+- Writes `vehicle_positions` via RPC `upsert_vehicle_position` (one live row per van,
+  PostGIS point, is_active). `deactivate_vehicle_position` on End Shift.
+- Boards passengers via `mark_ticket_boarded(trip_code)`.
+Links passenger↔bus by route_id/route_label + plate_number. Tables exist
+(vehicle_positions, fleet_vans, fleet_drivers, driver_shifts, bookings, tickets).
+Passenger consumer exists: `useVehiclePositions`, `useRealtimeVehicle(vanId)`.
+
+### ⚠️ THE GATE — run once in Supabase to unblock the whole fleet
+The 3 RPCs the driver app calls did NOT exist (404). Created in
+`troski-pro/lib/supabase/migrations/001_fleet_position_rpcs.sql` — **owner runs it
+in the Supabase SQL editor.** After that: a Troski bus starts a shift → broadcasts →
+passenger app shows the live bus on the booked route (Confirm Booking already wired).
+
+## Still to build once buses are broadcasting
+- Live bus position on a map after booking (receipt/tracking) via `useRealtimeVehicle`.
+- ETA to pickup + to drop-off (bus position + Mapbox Directions).
+- Backend geofence push: "your bus is 5 min away" (push tokens already stored).
+- Driver photo/real plate on the ticket.
 
 ## Build order
 1. Booking Route Status panel (real signals, kill fake fields) — THIS SESSION.
