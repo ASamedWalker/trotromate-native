@@ -29,6 +29,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import { font } from '@/lib/theme'
 import { useSubmitFareReport } from '@/lib/hooks/useReports'
+import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
@@ -37,7 +38,7 @@ import type { TransportType } from '@/lib/types'
 
 export default function FareReportScreen() {
   const router = useRouter()
-  const { transport_type: urlTransportType, from: urlFrom, to: urlTo } = useLocalSearchParams<{ transport_type?: string; from?: string; to?: string }>()
+  const { transport_type: urlTransportType, from: urlFrom, to: urlTo, route_id: urlRouteId } = useLocalSearchParams<{ transport_type?: string; from?: string; to?: string; route_id?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
@@ -54,6 +55,19 @@ export default function FareReportScreen() {
     urlTransportType === 'okada' ? 'okada' : 'trotro'
   )
   const isOkada = transportType === 'okada'
+
+  // When opened from a route, capture the exact stage (board → alight) so the
+  // report builds per-drop-off fare data, not just a flat corridor fare.
+  const { route } = useRouteDetail(urlRouteId || '')
+  const stops = useMemo(
+    () => [...(route?.stops ?? [])].sort((a, b) => a.stop_order - b.stop_order),
+    [route?.stops],
+  )
+  const hasStops = !!urlRouteId && stops.length > 1
+  const [boardOrder, setBoardOrder] = useState<number | null>(null)
+  const [alightOrder, setAlightOrder] = useState<number | null>(null)
+  const board = hasStops ? (stops.find(st => st.stop_order === boardOrder) ?? stops[0]) : null
+  const alight = hasStops ? (stops.find(st => st.stop_order === alightOrder) ?? stops[stops.length - 1]) : null
 
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [showRegionPicker, setShowRegionPicker] = useState(false)
@@ -72,8 +86,14 @@ export default function FareReportScreen() {
   }
 
   const handleSubmit = async () => {
-    if (!from.trim() || !to.trim() || !fare.trim()) {
+    const submitFrom = hasStops && board ? board.stop_name : from.trim()
+    const submitTo = hasStops && alight ? alight.stop_name : to.trim()
+    if (!submitFrom || !submitTo || !fare.trim()) {
       Alert.alert('Missing Info', 'Please fill in all fields')
+      return
+    }
+    if (hasStops && board && alight && board.stop_order >= alight.stop_order) {
+      Alert.alert('Check your stops', 'Where you got off must be after where you boarded')
       return
     }
 
@@ -83,7 +103,10 @@ export default function FareReportScreen() {
       return
     }
 
-    const { reward, errorMsg } = await submit(from.trim(), to.trim(), fareValue, transportType, activeRegion ?? undefined)
+    const dropoff = hasStops && board && alight
+      ? { routeId: urlRouteId, fromStopId: board.id, toStopId: alight.id, fromOrder: board.stop_order, toOrder: alight.stop_order }
+      : undefined
+    const { reward, errorMsg } = await submit(submitFrom, submitTo, fareValue, transportType, activeRegion ?? undefined, dropoff)
     if (reward) {
       haptics.success()
       await refreshProfile()
@@ -95,7 +118,8 @@ export default function FareReportScreen() {
     }
   }
 
-  const canSubmit = from.trim() && to.trim() && fare.trim() && parseFloat(fare) > 0 && !isSubmitting
+  const locationsReady = hasStops ? !!(board && alight) : !!(from.trim() && to.trim())
+  const canSubmit = locationsReady && fare.trim() && parseFloat(fare) > 0 && !isSubmitting
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
@@ -129,60 +153,100 @@ export default function FareReportScreen() {
 
           {/* Step 1: Location */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Where are you?</Text>
+            <Text style={s.sectionTitle}>{hasStops ? 'Your stage?' : 'Where are you?'}</Text>
 
-            <View style={s.locationCard}>
-              <MapPin size={18} color="#815100" />
-              <TextInput
-                value={from}
-                onChangeText={setFrom}
-                placeholder="From — e.g. Circle"
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
-                style={s.locationInput}
-              />
-            </View>
+            {hasStops ? (
+              <>
+                <Text style={s.stageLabel}>Boarded at</Text>
+                <View style={s.stageRow}>
+                  {stops.slice(0, -1).map((st) => {
+                    const sel = st.stop_order === board?.stop_order
+                    return (
+                      <TouchableOpacity
+                        key={st.id}
+                        onPress={() => { haptics.light(); setBoardOrder(st.stop_order); if (alightOrder != null && st.stop_order >= alightOrder) setAlightOrder(null) }}
+                        activeOpacity={0.7}
+                        style={[s.stageChip, sel && s.stageChipActive]}
+                      >
+                        <Text style={[s.stageChipText, sel && s.stageChipTextActive]}>{st.stop_name}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
 
-            {/* Region chip */}
-            <TouchableOpacity
-              style={[s.regionChip, activeRegion && s.regionChipActive]}
-              onPress={() => setShowRegionPicker(!showRegionPicker)}
-              activeOpacity={0.7}
-            >
-              <Globe size={12} color={activeRegion ? '#22c55e' : '#b2acaa'} />
-              <Text style={[s.regionChipText, activeRegion && s.regionChipTextActive]}>
-                {activeRegionLabel ?? 'Select region'}
-              </Text>
-              {autoRegion && !selectedRegion && (
-                <Text style={s.regionAutoTag}>auto</Text>
-              )}
-            </TouchableOpacity>
-            {showRegionPicker && (
-              <View style={s.regionGrid}>
-                {REGIONS.filter(r => r.key !== 'all').map(r => (
-                  <TouchableOpacity
-                    key={r.key}
-                    style={[s.regionOption, activeRegion === r.key && s.regionOptionActive]}
-                    onPress={() => { setSelectedRegion(r.key); setShowRegionPicker(false) }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[s.regionOptionText, activeRegion === r.key && s.regionOptionTextActive]}>
-                      {r.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                <Text style={[s.stageLabel, { marginTop: 16 }]}>Got off at</Text>
+                <View style={s.stageRow}>
+                  {stops.filter((st) => st.stop_order > (board?.stop_order ?? 0)).map((st) => {
+                    const sel = st.stop_order === alight?.stop_order
+                    return (
+                      <TouchableOpacity
+                        key={st.id}
+                        onPress={() => { haptics.light(); setAlightOrder(st.stop_order) }}
+                        activeOpacity={0.7}
+                        style={[s.stageChip, sel && s.stageChipActive]}
+                      >
+                        <Text style={[s.stageChipText, sel && s.stageChipTextActive]}>{st.stop_name}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={s.locationCard}>
+                  <MapPin size={18} color="#815100" />
+                  <TextInput
+                    value={from}
+                    onChangeText={setFrom}
+                    placeholder="From — e.g. Circle"
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
+                    style={s.locationInput}
+                  />
+                </View>
+
+                {/* Region chip */}
+                <TouchableOpacity
+                  style={[s.regionChip, activeRegion && s.regionChipActive]}
+                  onPress={() => setShowRegionPicker(!showRegionPicker)}
+                  activeOpacity={0.7}
+                >
+                  <Globe size={12} color={activeRegion ? '#22c55e' : '#b2acaa'} />
+                  <Text style={[s.regionChipText, activeRegion && s.regionChipTextActive]}>
+                    {activeRegionLabel ?? 'Select region'}
+                  </Text>
+                  {autoRegion && !selectedRegion && (
+                    <Text style={s.regionAutoTag}>auto</Text>
+                  )}
+                </TouchableOpacity>
+                {showRegionPicker && (
+                  <View style={s.regionGrid}>
+                    {REGIONS.filter(r => r.key !== 'all').map(r => (
+                      <TouchableOpacity
+                        key={r.key}
+                        style={[s.regionOption, activeRegion === r.key && s.regionOptionActive]}
+                        onPress={() => { setSelectedRegion(r.key); setShowRegionPicker(false) }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[s.regionOptionText, activeRegion === r.key && s.regionOptionTextActive]}>
+                          {r.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <View style={s.locationCard}>
+                  <Navigation size={18} color="#22c55e" />
+                  <TextInput
+                    value={to}
+                    onChangeText={setTo}
+                    placeholder="To — e.g. Madina"
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
+                    style={s.locationInput}
+                  />
+                </View>
+              </>
             )}
-
-            <View style={s.locationCard}>
-              <Navigation size={18} color="#22c55e" />
-              <TextInput
-                value={to}
-                onChangeText={setTo}
-                placeholder="To — e.g. Madina"
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
-                style={s.locationInput}
-              />
-            </View>
           </View>
 
           {/* Step 2: Fare Amount */}
@@ -442,6 +506,36 @@ const getStyles = (isDark: boolean) => {
       color: onSurfaceVariant,
     },
     regionOptionTextActive: {
+      color: '#fff',
+    },
+
+    // Stage (board/alight) chips
+    stageLabel: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+      marginBottom: 8,
+    },
+    stageRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    stageChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: surfaceLow,
+    },
+    stageChipActive: {
+      backgroundColor: '#815100',
+    },
+    stageChipText: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+    },
+    stageChipTextActive: {
       color: '#fff',
     },
 

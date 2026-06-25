@@ -49,6 +49,12 @@ export async function submitFareReport(params: {
   deviceId: string
   transportType?: TransportType
   region?: string
+  // Optional per-drop-off context (when reported from a route with stops)
+  routeId?: string | null
+  fromStopId?: string | null
+  toStopId?: string | null
+  fromOrder?: number | null
+  toOrder?: number | null
 }): Promise<{ reportId: string; routeId: string } | null> {
   const from = validateGhanaLocation(params.fromLocation)
   const to = validateGhanaLocation(params.toLocation)
@@ -59,7 +65,9 @@ export async function submitFareReport(params: {
     throw new Error(`Validation failed: from=${!!from}, to=${!!to}, fare=${fare}`)
   }
 
-  const routeId = await findOrCreateRoute(from, to, fare, transport, params.region)
+  // Reported from a route (with a known corridor) → attach to it directly; the
+  // stage is marked by from_stop_id/to_stop_id. Otherwise resolve from free text.
+  const routeId = params.routeId || await findOrCreateRoute(from, to, fare, transport, params.region)
   if (!routeId) {
     throw new Error('Route creation failed')
   }
@@ -73,12 +81,23 @@ export async function submitFareReport(params: {
       // reporter_id is uuid-typed; Postgres accepts the undashed hex deviceId.
       reporter_id: params.deviceId,
       reporter_phone: null,
+      // Per-drop-off: which stage the fare covers (null for free-text reports)
+      from_stop_id: params.fromStopId ?? null,
+      to_stop_id: params.toStopId ?? null,
     })
     .select('id')
     .single()
 
   if (error) {
     throw new Error(`Fare report insert: ${error.message}`)
+  }
+
+  // Fold the report into the per-stage aggregate when we know board+alight orders.
+  if (params.fromOrder != null && params.toOrder != null) {
+    const { error: aggErr } = await supabase.rpc('apply_fare_report_to_segment', {
+      p_route_id: routeId, p_from_order: params.fromOrder, p_to_order: params.toOrder, p_fare: fare,
+    })
+    if (aggErr) console.warn('[fare] segment aggregate failed:', aggErr.message)
   }
 
   // Push notification to all users

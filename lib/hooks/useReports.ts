@@ -9,7 +9,10 @@ export function useSubmitFareReport(deviceId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const submit = useCallback(
-    async (from: string, to: string, fare: number, transportType: TransportType = 'trotro', region?: string): Promise<{ reward: RewardResult | null; errorMsg?: string }> => {
+    async (
+      from: string, to: string, fare: number, transportType: TransportType = 'trotro', region?: string,
+      dropoff?: { routeId?: string | null; fromStopId?: string | null; toStopId?: string | null; fromOrder?: number | null; toOrder?: number | null },
+    ): Promise<{ reward: RewardResult | null; errorMsg?: string }> => {
       if (!deviceId) {
         setError('Device not ready')
         return { reward: null, errorMsg: 'Device not ready' }
@@ -24,6 +27,11 @@ export function useSubmitFareReport(deviceId: string | null) {
           deviceId,
           transportType,
           region,
+          routeId: dropoff?.routeId ?? null,
+          fromStopId: dropoff?.fromStopId ?? null,
+          toStopId: dropoff?.toStopId ?? null,
+          fromOrder: dropoff?.fromOrder ?? null,
+          toOrder: dropoff?.toOrder ?? null,
         })
         if (!result) {
           return { reward: null, errorMsg: 'Report returned empty' }

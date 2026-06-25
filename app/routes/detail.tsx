@@ -642,6 +642,21 @@ export default function RouteDetailScreen() {
             </View>
           </View>
 
+          {/* Report a fare — feeds per-stage crowd data for this corridor */}
+          {hasStops && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                Haptics.selectionAsync()
+                router.push({ pathname: '/report/fare', params: { route_id: routeId, from, to: dropoffName || to, transport_type: selectedTransport } } as any)
+              }}
+              style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            >
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>Paid a different fare? Report it</Text>
+              <ChevronRight size={15} color={BRAND} />
+            </TouchableOpacity>
+          )}
+
           {/* Live availability — the moving-vehicle reassurance: who's on this
               route right now (operator vehicles + riders sharing GO Mode). */}
           {liveOnRoute > 0 && (
