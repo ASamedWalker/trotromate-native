@@ -1,4 +1,10 @@
-# Tomorrow — Per-drop-off fare system (build first, GPRTU partnership later)
+# Per-drop-off fare system (build first, GPRTU partnership later)
+
+> PROGRESS (2026-06-24): Steps 1, 2, 4 DONE + tested live (alight picker →
+> stage fare → checkout, verified Achimota ₵4 / Dome ₵5.50 / Taifa ₵7 on the
+> seeded Circle→Taifa corridor). Migration 052 + 052b/c run. Remaining: Step 3
+> (report drop-off capture) + Step 5 (national %-reprice).
+
 
 Goal: working per-drop-off (stage) fare system using our OWN data + manual seed.
 No GPRTU partnership yet — build + verify everything first, then plug in their
