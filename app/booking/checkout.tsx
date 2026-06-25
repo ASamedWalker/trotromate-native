@@ -25,13 +25,6 @@ import { Bus, Clock, Users as UsersIcon } from 'lucide-react-native'
 
 const BRAND = '#FF4D1C'
 
-/* ── Mock booking (replace with real data when the booking backend lands) ── */
-const DRIVER = { name: 'Mr John Kwame', role: 'Bus Driver', rides: 200, years: 3, rating: 4.5 }
-
-const REVIEWS = [
-  { name: 'vic***a', stars: 5, time: '1 week ago', text: 'One of the best commuting experiences I’ve had in a long time. The driver was patient during heavy traffic, drove responsibly and even helped with directions.' },
-  { name: 'Joe***y', stars: 4, time: '2 weeks ago', text: 'Excellent service overall. The driver was friendly, respectful and very attentive to passengers during the trip. I liked how calm and professional they remained during rush hour traffic.' },
-]
 
 const VERIFY_ITEMS = [
   { Icon: BadgeCheck, title: 'Driver Identification', desc: 'We verify every driver’s identity using valid government-issued identification' },
@@ -280,33 +273,53 @@ export default function CheckoutScreen() {
           const driver = assigned?.driverName ?? null
           const live = !!liveBus
           const onShift = assigned?.isOnShift ?? false
+          const Card: any = driver ? TouchableOpacity : View
           return (
-            <View style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }]}>
-              {driver ? (
+            <Card
+              {...(driver ? { activeOpacity: 0.7, onPress: () => setShowDriver(true) } : {})}
+              style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }]}
+            >
+              {driver && assigned?.driverPhotoUrl ? (
+                <Image source={{ uri: assigned.driverPhotoUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+              ) : driver ? (
                 <InitialsAvatar name={driver} size={44} />
               ) : (
                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: plate ? 'rgba(34,197,94,0.12)' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
                   <Bus size={22} color={plate ? '#16A34A' : '#9CA3AF'} />
                 </View>
               )}
-              {plate ? (
+              {driver ? (
                 <>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.driverName}>{driver ?? plate}</Text>
-                    <Text style={s.driverRole}>{driver ? `Bus Driver · ${plate}` : 'Troski bus on this route'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {live && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />}
+                      <Text style={s.driverName}>{driver}</Text>
+                    </View>
+                    <Text style={s.driverRole}>Bus Driver · {plate}{live ? ' · Live' : onShift ? ' · On shift' : ''}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Text style={s.linkText}>Driver Details</Text>
+                    <ChevronRight size={16} color={BRAND} />
+                  </View>
+                </>
+              ) : plate ? (
+                <>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.driverName}>{plate}</Text>
+                    <Text style={s.driverRole}>Troski bus on this route</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: live ? 'rgba(34,197,94,0.12)' : '#F3F4F6', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 }}>
                     {live && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />}
-                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: live ? '#16A34A' : '#6B7280' }}>{live ? 'Live' : onShift ? 'On shift' : 'Assigned'}</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: live ? '#16A34A' : '#6B7280' }}>{live ? 'Live' : 'Assigned'}</Text>
                   </View>
                 </>
               ) : (
                 <View style={{ flex: 1 }}>
                   <Text style={s.driverName}>Assigning your bus</Text>
-                  <Text style={s.driverRole}>Driver & plate shown shortly</Text>
+                  <Text style={s.driverRole}>Driver &amp; plate shown shortly</Text>
                 </View>
               )}
-            </View>
+            </Card>
           )
         })()}
 
@@ -397,40 +410,13 @@ export default function CheckoutScreen() {
               <TouchableOpacity onPress={() => setShowDriver(false)} style={s.closeBtn} hitSlop={8}><X size={18} color="#111" /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}>
-              <DriverHeader onVerify={() => setShowVerify(true)} />
+              <DriverHeader driver={assigned} onVerify={() => setShowVerify(true)} />
 
-              <Text style={[s.sectionTitle, { marginTop: 24 }]}>Top Reviews</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Star size={15} color="#F5A623" fill="#F5A623" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#111' }}>4.5 Reviews</Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }}>(50 reviews)</Text>
-                </View>
-                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={s.linkText}>View all</Text>
-                  <ChevronRight size={15} color={BRAND} />
-                </TouchableOpacity>
-              </View>
-
-              {REVIEWS.map((r) => (
-                <View key={r.name} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#111' }}>{r.name}</Text>
-                      <View style={{ flexDirection: 'row', gap: 1 }}>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <Star key={n} size={11} color="#F5A623" fill={n <= r.stars ? '#F5A623' : 'transparent'} />
-                        ))}
-                      </View>
-                    </View>
-                    <Text style={{ fontFamily: font.regular, fontSize: 11, color: '#9CA3AF' }}>{r.time}</Text>
-                  </View>
-                  <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', lineHeight: 19, marginTop: 6 }}>{r.text}</Text>
-                </View>
-              ))}
-
-              <View style={s.reviewInput}>
-                <TextInput placeholder="Write a review..." placeholderTextColor="#9CA3AF" style={{ fontFamily: font.regular, fontSize: 14, color: '#111' }} multiline />
+              <Text style={[s.sectionTitle, { marginTop: 24 }]}>Reviews</Text>
+              <View style={{ alignItems: 'center', paddingVertical: 22, gap: 6 }}>
+                <Star size={26} color="#E5E7EB" fill="#E5E7EB" />
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#374151' }}>No reviews yet</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>Rate your driver after the trip — your feedback keeps the fleet accountable.</Text>
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -445,7 +431,7 @@ export default function CheckoutScreen() {
               <TouchableOpacity onPress={() => setShowVerify(false)} style={s.closeBtn} hitSlop={8}><X size={18} color="#111" /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}>
-              <DriverHeader onVerify={() => {}} />
+              <DriverHeader driver={assigned} onVerify={() => {}} />
 
               <View style={{ height: 6, backgroundColor: '#F3F4F6', marginHorizontal: -20, marginVertical: 22 }} />
 
@@ -475,18 +461,27 @@ export default function CheckoutScreen() {
   )
 }
 
-/* ── Shared driver header (avatar + stats + verification row) ── */
-function DriverHeader({ onVerify }: { onVerify: () => void }) {
+/* ── Shared driver header (real assigned driver — avatar + stats + verification) ── */
+function DriverHeader({ driver, onVerify }: { driver: AssignedVehicle | null; onVerify: () => void }) {
+  const name = driver?.driverName ?? 'Your driver'
+  const since = driver?.driverSince ? new Date(driver.driverSince) : null
+  const years = since ? Math.floor((Date.now() - since.getTime()) / (365 * 864e5)) : null
+  const tenure = years != null && years >= 1 ? `${years} yr${years > 1 ? 's' : ''}` : 'New'
+  const verified = driver?.kycVerified ?? false
   return (
     <View style={{ alignItems: 'center' }}>
-      <InitialsAvatar name={DRIVER.name} size={88} fontSize={32} />
-      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', marginTop: 12 }}>{DRIVER.name}</Text>
+      {driver?.driverPhotoUrl ? (
+        <Image source={{ uri: driver.driverPhotoUrl }} style={{ width: 88, height: 88, borderRadius: 44 }} />
+      ) : (
+        <InitialsAvatar name={name} size={88} fontSize={32} />
+      )}
+      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', marginTop: 12 }}>{name}</Text>
 
       <View style={s.statsRow}>
         {[
-          [String(DRIVER.rides), 'Rides'],
-          [`${DRIVER.years} yrs`, 'with Troski'],
-          [String(DRIVER.rating), 'Rating'],
+          [driver?.plate ?? '—', 'Bus'],
+          [tenure, 'with Troski'],
+          [verified ? '✓' : '—', 'Verified'],
         ].map(([n, l], i) => (
           <View key={l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#F3F4F6' }}>
             <Text style={{ fontFamily: font.extrabold, fontSize: 20, color: BRAND }}>{n}</Text>
@@ -496,8 +491,8 @@ function DriverHeader({ onVerify }: { onVerify: () => void }) {
       </View>
 
       <TouchableOpacity activeOpacity={0.7} onPress={onVerify} style={s.verifyRow}>
-        <ShieldCheck size={18} color="#111" />
-        <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14, color: '#111', marginLeft: 10 }}>Verification Completed</Text>
+        <ShieldCheck size={18} color={verified ? '#16A34A' : '#9CA3AF'} />
+        <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14, color: '#111', marginLeft: 10 }}>{verified ? 'Verification Completed' : 'Verification Pending'}</Text>
         <ChevronRight size={18} color="#9CA3AF" />
       </TouchableOpacity>
     </View>
