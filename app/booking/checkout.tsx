@@ -16,6 +16,7 @@ import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
+import { fetchQueueStatus, QUEUE_META, type StationQueue } from '@/lib/services/queueStatus'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
 import PinModal from '@/components/PinModal'
@@ -66,6 +67,22 @@ export default function CheckoutScreen() {
     return () => { cancelled = true }
   }, [params.route_id])
   const etaMin = traffic?.etaMin ?? durationMin
+  // Wait predictability — the #1 pain. Latest crowdsourced queue at the origin.
+  const [originQueue, setOriginQueue] = useState<StationQueue | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    const origin = (params.from || '').trim().toLowerCase()
+    if (!origin) return
+    fetchQueueStatus(Date.now()).then((r) => {
+      if (cancelled) return
+      const match = r.stations.find((st) => {
+        const n = st.stationName.toLowerCase()
+        return n === origin || n.includes(origin) || origin.includes(n)
+      })
+      setOriginQueue(match && !match.isStale ? match : null)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [params.from])
   // Prefer the fare the user was shown on the route screen (handles transfer
   // journeys whose total isn't recoverable from leg-0's route_id). Fall back to
   // the route's crowdsourced/official fare for entry points that pass no fare.
@@ -225,9 +242,18 @@ export default function CheckoutScreen() {
           <View style={s.detailRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <UsersIcon size={16} color="#374151" />
-              <Text style={s.detailLabel}>Departure</Text>
+              <Text style={s.detailLabel}>Queue at {fromName}</Text>
             </View>
-            <Text style={[s.detailValue, { color: '#6B7280' }]}>Leaves when full</Text>
+            {originQueue ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ backgroundColor: QUEUE_META[originQueue.status].bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: QUEUE_META[originQueue.status].color }}>{QUEUE_META[originQueue.status].label}</Text>
+                </View>
+                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#9CA3AF' }}>{originQueue.ageMins}m ago</Text>
+              </View>
+            ) : (
+              <Text style={[s.detailValue, { color: '#9CA3AF', fontSize: 13 }]}>Leaves when full</Text>
+            )}
           </View>
         </View>
 
