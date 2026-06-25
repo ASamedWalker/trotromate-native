@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, useColorScheme } from 'react-native'
+import { View, Text, Image, StyleSheet, useColorScheme } from 'react-native'
 import Mapbox from '@rnmapbox/maps'
 import { font } from '@/lib/theme'
+
+const BUS_ICON = require('@/assets/images/home/bus_icon_bg_removed.png')
 
 const MAP_LIGHT = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
 const MAP_DARK = 'mapbox://styles/mapbox/dark-v11'
@@ -77,26 +79,17 @@ export default function TrackingMap({
         />
         <Mapbox.UserLocation visible />
 
-        {/* Vehicle marker */}
+        {/* Vehicle marker — the actual minibus icon, pointed in its heading */}
         {vehiclePosition && (
-          <Mapbox.ShapeSource
-            id="tracking-vehicle"
-            shape={{
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [vehiclePosition.lng, vehiclePosition.lat] },
-              properties: {},
-            }}
-          >
-            <Mapbox.CircleLayer
-              id="tracking-vehicle-dot"
-              style={{
-                circleRadius: 8,
-                circleColor: statusColors[status],
-                circleStrokeColor: '#FFFFFF',
-                circleStrokeWidth: 3,
-              }}
-            />
-          </Mapbox.ShapeSource>
+          <Mapbox.MarkerView id="tracking-vehicle" coordinate={[vehiclePosition.lng, vehiclePosition.lat]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap>
+            <View style={[styles.busPuck, { borderColor: statusColors[status] }]}>
+              <Image
+                source={BUS_ICON}
+                style={[styles.busImg, vehiclePosition.heading != null ? { transform: [{ rotate: `${vehiclePosition.heading}deg` }] } : null]}
+                resizeMode="contain"
+              />
+            </View>
+          </Mapbox.MarkerView>
         )}
 
         {/* Pickup marker */}
@@ -164,6 +157,12 @@ export default function TrackingMap({
 
 const styles = StyleSheet.create({
   container: { position: 'relative', overflow: 'hidden' },
+  busPuck: {
+    width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2.5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 5, elevation: 6,
+  },
+  busImg: { width: 28, height: 28 },
   etaBadge: {
     position: 'absolute', top: 60, left: 16,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14,
