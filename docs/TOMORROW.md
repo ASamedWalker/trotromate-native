@@ -2,8 +2,17 @@
 
 > PROGRESS (2026-06-24): Steps 1, 2, 4 DONE + tested live (alight picker →
 > stage fare → checkout, verified Achimota ₵4 / Dome ₵5.50 / Taifa ₵7 on the
-> seeded Circle→Taifa corridor). Migration 052 + 052b/c run. Remaining: Step 3
-> (report drop-off capture) + Step 5 (national %-reprice).
+> seeded Circle→Taifa corridor). Migration 052 + 052b/c run.
+>
+> ALIGHT PLACEMENT DECISION → `docs/ALIGHT_UX.md`: keep the picker on the detail
+> bottom-sheet (only place route.stops load); NO separate picker on Plan a Trip;
+> make search stage-aware instead (planner matches route_stops → pre-seed detail).
+> Revised remaining order:
+>   - Step 3: report/fare.tsx board+alight picker (crowd data) — NEXT
+>   - Planner stage-awareness (match route_stops, fare-to-destination on card)
+>   - GO Mode: read the booking's chosen drop-off (unify, don't re-ask)
+>   - Optional board picker on detail (mid-route boarders)
+>   - Step 5: national %-reprice
 
 
 Goal: working per-drop-off (stage) fare system using our OWN data + manual seed.
