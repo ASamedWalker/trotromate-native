@@ -95,3 +95,11 @@ BEGIN
     last_report_at = now(),
     updated_at     = now();
 END $$;
+
+-- ── 6. Grants (app uses the anon key; project runs without RLS) ───────────────
+ALTER TABLE segment_fares DISABLE ROW LEVEL SECURITY;
+ALTER TABLE fare_settings DISABLE ROW LEVEL SECURITY;
+GRANT SELECT ON segment_fares TO anon, authenticated;
+GRANT SELECT ON fare_settings TO anon, authenticated;
+ALTER FUNCTION apply_fare_report_to_segment(uuid, int, int, numeric) SECURITY DEFINER;
+GRANT EXECUTE ON FUNCTION apply_fare_report_to_segment(uuid, int, int, numeric) TO anon, authenticated;
