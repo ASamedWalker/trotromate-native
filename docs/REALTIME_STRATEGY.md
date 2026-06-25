@@ -69,6 +69,31 @@ passenger app shows the live bus on the booked route (Confirm Booking already wi
 - Backend geofence push: "your bus is 5 min away" (push tokens already stored).
 - Driver photo/real plate on the ticket.
 
+## Tracking in two phases (owner, 2026-06-26 — data costs money in Ghana)
+Most riders guard their data bundle, so live-map tracking is opt-in, not default.
+- **Phase 1 — notification-first (data-light, the default for most).** BUILT:
+  the track screen's **Data Saver** drops the map (tiles = the cost) and shows a
+  big live ETA + distance; **proximity alerts** fire a local notification at
+  ~10 min, ~5 min and on arrival ("🚌 Bus ~5 min away · 1.2 km from your stop").
+  Lock the phone, get tapped. Traffic-aware ETA so updates reflect road conditions.
+- **Phase 2 — live map (power users).** BUILT: full live minibus on the map,
+  auto-follow, ETA. The same data, richer view, for those who want it.
+
+## WhatsApp Bot AI (planned — zero-data channel)
+Many Ghanaians live on WhatsApp and pay near-nothing for it. A bot lets a rider
+ask "where's my bus / how far / when" and get the live answer — no app data, no
+app even open.
+- **Flow**: rider messages the Troski WhatsApp number → bot matches their auth
+  phone → finds their active booking → reads `vehicle_positions` for the route →
+  replies "GT-1199-25 is ~5 min / 1.2 km away, light traffic." Can also push
+  proactive "your bus is 5 min away" messages.
+- **Stack (backend, not built)**: WhatsApp Business API (Meta Cloud API) or Twilio
+  → a webhook server → match phone↔booking → query vehicle_positions/traffic →
+  AI/NLU layer (Claude) for free-text Q&A → reply. Proactive alerts via the same
+  geofence rule that drives push.
+- **Why it fits**: lowest-friction, lowest-data real-time channel — exactly the
+  "win them by saving their time AND their data" play. See DEFERRED_BACKLOG.
+
 ## Build order
 1. Booking Route Status panel (real signals, kill fake fields) — THIS SESSION.
 2. Wire live count + queue + traffic into the panel, realtime-subscribed.
