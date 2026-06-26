@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, Image, StyleSheet, useColorScheme } from 'react-native'
 import Mapbox from '@rnmapbox/maps'
 import { font } from '@/lib/theme'
+import { cumulativeDistances, projectToLine, pointAtDistance } from '@/lib/utils/polyline-follow'
 
 const BUS_ICON = require('@/assets/images/home/bus_icon_bg_removed.png')
 
@@ -63,12 +64,50 @@ export default function TrackingMap({
   const [disp, setDisp] = useState<Pos | null>(vehiclePosition)
   const fromRef = useRef<Pos | null>(vehiclePosition)
   const rafRef = useRef<number | null>(null)
+  // Along-line distance (metres) currently shown — used when a corridor exists so
+  // the marker rides the road geometry instead of straight-line tweening.
+  const distRef = useRef<number | null>(null)
+
+  // Precompute the corridor's cumulative distances when it changes.
+  const cum = React.useMemo(
+    () => (routeLine && routeLine.length > 1 ? cumulativeDistances(routeLine) : null),
+    [routeLine],
+  )
 
   useEffect(() => {
-    if (!vehiclePosition) { setDisp(null); fromRef.current = null; return }
+    if (!vehiclePosition) { setDisp(null); fromRef.current = null; distRef.current = null; return }
     const target = vehiclePosition
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+
+    // ── Corridor mode: snap the raw fix onto the road line and glide the marker
+    // ALONG the geometry (following curves), heading from the line's tangent. ──
+    if (routeLine && cum && routeLine.length > 1) {
+      const dTarget = projectToLine(routeLine, cum, [target.lng, target.lat]).dist
+      const dStart = distRef.current
+      // First fix / off-corridor jump → snap onto the line.
+      if (dStart == null || Math.abs(dTarget - dStart) > SNAP_KM * 1000) {
+        distRef.current = dTarget
+        const at = pointAtDistance(routeLine, cum, dTarget)
+        setDisp({ lat: at.coord[1], lng: at.coord[0], heading: at.bearing })
+        fromRef.current = target
+        return
+      }
+      const t0 = Date.now()
+      const step = () => {
+        const t = Math.min(1, (Date.now() - t0) / TWEEN_MS)
+        const d = dStart + (dTarget - dStart) * easeInOut(t)
+        const at = pointAtDistance(routeLine, cum, d)
+        setDisp({ lat: at.coord[1], lng: at.coord[0], heading: at.bearing })
+        if (t < 1) rafRef.current = requestAnimationFrame(step)
+        else { distRef.current = dTarget; fromRef.current = target }
+      }
+      rafRef.current = requestAnimationFrame(step)
+      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+    }
+
+    // ── Fallback (no corridor): straight-line tween between fixes. ──
+    distRef.current = null
     const start = fromRef.current
-    // First fix or a big jump → snap straight there (no fly across the city).
     if (!start || kmBetween(start, target) > SNAP_KM) {
       fromRef.current = target
       setDisp(target)
@@ -76,7 +115,6 @@ export default function TrackingMap({
     }
     const begin = start
     const t0 = Date.now()
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     const step = () => {
       const t = Math.min(1, (Date.now() - t0) / TWEEN_MS)
       const e = easeInOut(t)
@@ -90,7 +128,7 @@ export default function TrackingMap({
     }
     rafRef.current = requestAnimationFrame(step)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [vehiclePosition?.lat, vehiclePosition?.lng, vehiclePosition?.heading])
+  }, [vehiclePosition?.lat, vehiclePosition?.lng, vehiclePosition?.heading, cum])
 
   // Auto-follow the (target) vehicle position.
   useEffect(() => {
