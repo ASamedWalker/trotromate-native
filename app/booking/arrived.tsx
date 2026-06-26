@@ -153,7 +153,7 @@ export default function ArrivedScreen() {
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 18 }}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <TouchableOpacity key={n} onPress={() => { Haptics.selectionAsync(); setRating(n) }} hitSlop={4}>
+              <TouchableOpacity key={n} testID={`rate-star-${n}`} accessibilityLabel={`Rate ${n} star`} onPress={() => { Haptics.selectionAsync(); setRating(n) }} hitSlop={4}>
                 <Star size={34} color={n <= rating ? '#F5A623' : '#D1D5DB'} fill={n <= rating ? '#F5A623' : 'transparent'} />
               </TouchableOpacity>
             ))}
