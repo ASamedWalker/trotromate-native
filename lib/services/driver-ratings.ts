@@ -58,11 +58,11 @@ export interface DriverReview { stars: number; comment: string; created_at: stri
 
 export async function fetchDriverReviews(driverId: string, limit = 10): Promise<DriverReview[]> {
   try {
+    // Read via the driver_reviews view — anon SELECT on the base table is RLS-blocked.
     const { data } = await supabase
-      .from('driver_ratings')
+      .from('driver_reviews')
       .select('stars, comment, created_at')
       .eq('driver_id', driverId)
-      .not('comment', 'is', null)
       .order('created_at', { ascending: false })
       .limit(limit)
     return (data as DriverReview[]) ?? []
