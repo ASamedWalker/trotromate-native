@@ -26,7 +26,7 @@ const TICKET = {
 export default function ReceiptScreen() {
   const router = useRouter()
   const { profile } = useApp()
-  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string; route_id?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string; route_id?: string; van?: string }>()
   const passenger = profile?.display_name || TICKET.passenger
   const [showSafety, setShowSafety] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -184,14 +184,16 @@ export default function ReceiptScreen() {
 
       {/* Bottom actions */}
       <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, gap: 10 }}>
-        {/* Track your bus — live position + ETA toward your stop */}
-        {!!params.route_id && (
+        {/* Track your bus — live position + ETA toward your stop. Pass the assigned
+            van so the passenger locks onto their exact bus's broadcast, not just
+            any trotro on the route. */}
+        {(!!params.route_id || !!params.van) && (
           <TouchableOpacity
             activeOpacity={0.9}
             style={s.trackBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-              router.push({ pathname: '/booking/track', params: { route_id: params.route_id!, to: params.to ?? '' } } as any)
+              router.push({ pathname: '/booking/track', params: { route_id: params.route_id ?? '', to: params.to ?? '', van: params.van ?? '' } } as any)
             }}
           >
             <Navigation size={18} color="#fff" />

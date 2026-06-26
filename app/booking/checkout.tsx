@@ -187,6 +187,7 @@ export default function CheckoutScreen() {
           expires_at: result.ticket.expires_at,
           fare: String(result.ticket.fare),
           route_id: params.route_id ?? '',
+          van: assigned?.vanId ?? '',
         },
       } as any)
     } else if (result.reason === 'insufficient_balance') {
