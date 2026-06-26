@@ -11,14 +11,15 @@ export async function submitDriverRating(p: {
   comment?: string | null
 }): Promise<void> {
   try {
-    await supabase.from('driver_ratings').insert({
-      driver_id: p.driverId,
-      van_id: p.vanId ?? null,
-      route_label: p.routeLabel ?? null,
-      rider_device_id: p.deviceId ?? null,
-      rider_auth_user_id: p.authUserId ?? null,
-      stars: p.stars,
-      comment: p.comment?.trim() || null,
+    // Write via the SECURITY DEFINER RPC (anon can't INSERT the table directly).
+    await supabase.rpc('submit_driver_rating', {
+      p_driver_id: p.driverId,
+      p_van_id: p.vanId ?? null,
+      p_route_label: p.routeLabel ?? null,
+      p_device_id: p.deviceId ?? null,
+      p_auth_user_id: p.authUserId ?? null,
+      p_stars: p.stars,
+      p_comment: p.comment ?? null,
     })
   } catch {
     /* never block the user on a rating write */
