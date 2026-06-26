@@ -125,7 +125,7 @@ export default function ArrivedScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 16 }}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28, paddingTop: 16 }}>
 
         {/* Driver — booking flow only; a trotro GO ride has no assigned driver */}
         {!isGoTrip && driver?.driverName && (
