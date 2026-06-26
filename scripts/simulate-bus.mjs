@@ -3,7 +3,8 @@
 // Ephemeral Realtime broadcast only — NO database writes. For verifying the
 // passenger live-tracking experience without a physical bus on shift.
 //
-//   node scripts/simulate-bus.mjs            # default: Circle → Taifa
+//   node scripts/simulate-bus.mjs                          # default: Circle → Taifa
+//   VAN_ID=<uuid> PLATE=GR-1234-22 ROUTE="Circle → Madina" node scripts/simulate-bus.mjs
 //
 import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
@@ -14,13 +15,13 @@ const env = fs.readFileSync(new URL('../.env', import.meta.url), 'utf8')
 const get = (k) => (env.match(new RegExp(`${k}=(.*)`)) || [])[1]?.trim().replace(/^["']|["']$/g, '')
 const supabase = createClient(get('EXPO_PUBLIC_SUPABASE_URL'), get('EXPO_PUBLIC_SUPABASE_ANON_KEY'))
 
-const VAN_ID = 'SIM-VAN-01'
-const PLATE = 'GT-1199-25'
-const ROUTE_LABEL = 'Circle → Taifa'
-// Path: Circle → Achimota → Dome → Taifa (lng, lat)
-const PATH = [
-  [-0.2133, 5.5696], [-0.2230, 5.6150], [-0.2280, 5.6520], [-0.2330, 5.6800],
-]
+const VAN_ID = process.env.VAN_ID || 'SIM-VAN-01'
+const PLATE = process.env.PLATE || 'GT-1199-25'
+const ROUTE_LABEL = process.env.ROUTE || 'Circle → Taifa'
+// Path (lng, lat). Circle → Madina if that route is requested, else Circle → Taifa.
+const PATH = /madina/i.test(ROUTE_LABEL)
+  ? [[-0.1969, 5.5717], [-0.1870, 5.6080], [-0.1740, 5.6480], [-0.1636, 5.6836]] // Circle → Madina
+  : [[-0.2133, 5.5696], [-0.2230, 5.6150], [-0.2280, 5.6520], [-0.2330, 5.6800]] // Circle → Taifa
 
 // Linear interpolate the path into ~40 steps for smooth movement.
 const steps = []

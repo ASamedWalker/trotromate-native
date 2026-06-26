@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications'
 import TrackingMap from '@/components/TrackingMap'
 import { fetchVehiclePositions, type VehiclePosition } from '@/lib/services/vehicle-positions'
 import { useRealtimeVehicle } from '@/lib/hooks/useRealtimeVehicle'
+import { fetchRoadLine } from '@/lib/services/directions'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { haversineKm } from '@/lib/utils/distance'
 import { font } from '@/lib/theme'
@@ -80,6 +81,22 @@ export default function TrackBusScreen() {
   const [dataSaver, setDataSaver] = useState(false)
   const [alertsOn, setAlertsOn] = useState(true)
 
+  // ── Corridor line — road-following path from the bus to the drop-off, so the
+  // marker rides the actual lane. Refetch only when the bus has moved enough
+  // (>150m) to keep Directions calls sparse. ──
+  const [routeLine, setRouteLine] = useState<[number, number][]>([])
+  const lineFrom = useRef<{ lat: number; lng: number } | null>(null)
+  useEffect(() => {
+    if (dataSaver || !pos || !dropoff) return
+    const moved = !lineFrom.current || haversineKm(lineFrom.current.lat, lineFrom.current.lng, pos.lat, pos.lng) > 0.15
+    if (!moved && routeLine.length) return
+    lineFrom.current = { lat: pos.lat, lng: pos.lng }
+    let active = true
+    fetchRoadLine([pos.lng, pos.lat], [dropoff.lng, dropoff.lat]).then((line) => { if (active) setRouteLine(line) })
+    return () => { active = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos?.lat, pos?.lng, dropoff?.lat, dropoff?.lng, dataSaver])
+
   // Ensure OS notification permission when the rider opts into alerts (don't rely
   // on the global push pref, which they may have left off).
   useEffect(() => {
@@ -138,6 +155,7 @@ export default function TrackBusScreen() {
         <TrackingMap
           vehiclePosition={pos}
           dropoffCoord={dropoff ?? undefined}
+          routeLine={routeLine}
           etaMins={etaMins}
           plateNumber={plate ?? undefined}
           status={status}
