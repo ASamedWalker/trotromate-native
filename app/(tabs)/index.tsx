@@ -51,6 +51,7 @@ const SERVICES: Service[] = [
   { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png') },
   { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), comingSoon: true },
   { id: 'courier', label: 'Courier', image: require('@/assets/images/home/van_bg_removed.png'), comingSoon: true },
+  { id: 'ev', label: 'EV', image: require('@/assets/images/home/ev_bg_removed.png'), comingSoon: true },
 ]
 
 /* ── Quick Actions ── */
