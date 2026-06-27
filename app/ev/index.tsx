@@ -26,6 +26,11 @@ export default function EvScreen() {
   const { location } = useLocation()
   const [result, setResult] = useState<EvFetchResult | null>(null)
   const [selected, setSelected] = useState<EvStation | null>(null)
+  // Ghana's real EV network is battery SWAP (Kofa, 33 Accra stations) more than
+  // plug-in charging, and its riders are e-okada — so lead with a Swap | Charge
+  // toggle. Swap data is operator-held (not in OpenChargeMap), so that tab is an
+  // honest pointer + crowdsource hook until a Kofa partnership/feed lands.
+  const [mode, setMode] = useState<'charge' | 'swap'>('charge')
 
   useEffect(() => {
     let active = true
@@ -34,7 +39,11 @@ export default function EvScreen() {
     return () => { active = false }
   }, [location?.latitude, location?.longitude])
 
-  const stations = result?.ok ? result.stations : []
+  const stations = mode === 'charge' && result?.ok ? result.stations : []
+
+  const openKofa = () => Linking.openURL('https://www.kofa.co/').catch(() => {})
+  const suggestSwap = () =>
+    Linking.openURL('mailto:support@troski.me?subject=Battery%20swap%20station&body=Swap%20station%20name%2C%20location%20(or%20Maps%20link)%2C%20operator%20(Kofa%2FStima%2Fother)%3A').catch(() => {})
 
   const featureCollection = useMemo(() => ({
     type: 'FeatureCollection' as const,
@@ -115,10 +124,25 @@ export default function EvScreen() {
               <Text style={styles.title}>EV Charging</Text>
             </View>
             <Text style={styles.subtitle}>
-              {result?.ok ? `${stations.length} stations · Accra & Ghana` : 'Around Accra & Ghana'}
+              {mode === 'swap' ? 'Battery swap · Accra & Ghana' : result?.ok ? `${stations.length} stations · Accra & Ghana` : 'Around Accra & Ghana'}
             </Text>
           </View>
           <View style={styles.iconBtn} />
+        </View>
+
+        {/* Swap | Charge toggle — swap is Ghana's primary EV network (e-okada) */}
+        <View style={styles.segment}>
+          {(['charge', 'swap'] as const).map((m) => (
+            <TouchableOpacity
+              key={m}
+              style={[styles.segBtn, mode === m && styles.segBtnOn]}
+              onPress={() => { Haptics.selectionAsync(); setSelected(null); setMode(m) }}
+              activeOpacity={0.85}
+            >
+              {m === 'charge' ? <Plug size={14} color={mode === m ? '#fff' : '#374151'} /> : <BatteryCharging size={14} color={mode === m ? '#fff' : '#374151'} />}
+              <Text style={[styles.segText, mode === m && styles.segTextOn]}>{m === 'charge' ? 'Charging' : 'Battery Swap'}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </SafeAreaView>
 
@@ -155,6 +179,24 @@ export default function EvScreen() {
             <Navigation size={18} color="#fff" />
             <Text style={styles.dirText}>Directions</Text>
           </TouchableOpacity>
+        </View>
+      ) : mode === 'swap' ? (
+        // ── Battery Swap — Ghana's primary EV network (Kofa). Operator-held data,
+        // so an honest pointer + crowdsource hook until a feed/partnership lands. ──
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.stateBox}>
+            <BatteryCharging size={30} color={EV_GREEN} />
+            <Text style={styles.stateTitle}>Battery swap — Ghana's EV backbone</Text>
+            <Text style={styles.stateSub}>Most electric okada & delivery riders swap, not plug in. Kofa runs 33 Swap & Go stations in Accra (2-min swaps). Live swap-station data is coming via operator partnerships.</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <TouchableOpacity style={styles.suggestBtn} onPress={openKofa} activeOpacity={0.9}>
+                <Zap size={16} color={EV_GREEN} /><Text style={styles.suggestText}>Kofa network</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.suggestBtn} onPress={suggestSwap} activeOpacity={0.9}>
+                <Mail size={16} color={EV_GREEN} /><Text style={styles.suggestText}>Suggest a station</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       ) : (
         // ── States: loading / onboarding (no key) / empty / list summary ──
@@ -204,6 +246,12 @@ const styles = StyleSheet.create({
   titleWrap: { alignItems: 'center' },
   title: { fontFamily: font.bold, fontSize: 16, color: '#0A0A0A', textShadowColor: 'rgba(255,255,255,0.9)', textShadowRadius: 6 },
   subtitle: { fontFamily: font.semibold, fontSize: 11.5, color: '#374151', textShadowColor: 'rgba(255,255,255,0.9)', textShadowRadius: 6, marginTop: 1 },
+
+  segment: { flexDirection: 'row', gap: 6, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, padding: 4, marginTop: 10, alignSelf: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 4 },
+  segBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9 },
+  segBtnOn: { backgroundColor: EV_GREEN },
+  segText: { fontFamily: font.semibold, fontSize: 13, color: '#374151' },
+  segTextOn: { color: '#fff', fontFamily: font.bold },
 
   sheet: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: '#fff', borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
   evBadge: { width: 44, height: 44, borderRadius: 12, backgroundColor: EV_GREEN, alignItems: 'center', justifyContent: 'center' },
