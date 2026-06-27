@@ -13,11 +13,26 @@ import type {
 
 // Get or create a contributor profile by device ID
 export async function getOrCreateProfile(deviceId: string): Promise<ContributorProfile | null> {
-  let { data: profile, error } = await supabase
-    .from('contributor_profiles')
-    .select('*')
-    .eq('device_id', deviceId)
-    .single()
+  // Guard: never query/create with a missing device id (early-mount race would
+  // otherwise build an `eq.undefined` request and surface a TypeError).
+  if (!deviceId) return null
+
+  // One retry on transient network failure — the profile tab fires several
+  // queries at once on mount and a single fetch can blip in poor connectivity.
+  let profile: ContributorProfile | null = null
+  let error: any = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await supabase
+      .from('contributor_profiles')
+      .select('*')
+      .eq('device_id', deviceId)
+      .single()
+    profile = res.data
+    error = res.error
+    // PGRST116 = no row (expected for new users) — stop and create below.
+    if (!error || error.code === 'PGRST116') break
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 600))
+  }
 
   if (error && error.code === 'PGRST116') {
     const displayName = `Troski Fan #${deviceId.substring(0, 4).toUpperCase()}`
@@ -28,12 +43,14 @@ export async function getOrCreateProfile(deviceId: string): Promise<ContributorP
       .single()
 
     if (createError) {
-      console.error('Error creating profile:', createError)
+      console.warn('Profile create failed (non-fatal):', createError.message)
       return null
     }
     profile = newProfile
   } else if (error) {
-    console.error('Error fetching profile:', error)
+    // Transient/network failure after retry — non-fatal; the UI falls back to
+    // cached/default profile data. Warn (not error) so it doesn't alarm in dev.
+    console.warn('Profile fetch failed after retry (non-fatal):', error.message)
     return null
   }
 
