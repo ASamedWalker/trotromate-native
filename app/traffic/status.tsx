@@ -1,8 +1,10 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { Image } from 'expo-image'
+import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Gauge, ArrowRight } from 'lucide-react-native'
@@ -66,31 +68,57 @@ export default function TrafficStatusScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={BRAND} colors={[BRAND]} />}
       >
-        {/* Header band */}
-        <LinearGradient colors={['#1f2937', '#0b1220']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
-          <SafeAreaView edges={['top']}>
+        {/* Header — Troski station hero photo with a frosted-glass info panel */}
+        <View style={s.hero}>
+          <Image
+            source={require('@/assets/images/traffic_status.png')}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            transition={300}
+          />
+          {/* Scrim so white text stays legible over the photo */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.60)']}
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <SafeAreaView edges={['top']} style={{ flex: 1 }}>
             <View style={s.heroBar}>
-              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtn}>
-                <ChevronLeft size={22} color="#fff" />
+              {/* Glass back button */}
+              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtnClip} activeOpacity={0.85}>
+                <BlurView intensity={30} tint="dark" style={s.backBtn}>
+                  <ChevronLeft size={22} color="#fff" />
+                </BlurView>
               </TouchableOpacity>
             </View>
-            <View style={s.heroText}>
-              <View style={s.liveRow}>
-                <View style={s.liveDot} />
-                <Text style={s.liveText}>LIVE · GOOGLE TRAFFIC</Text>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Frosted-glass info panel */}
+            <View style={s.glassWrap}>
+              <View style={s.glassClip}>
+                <BlurView intensity={40} tint="dark" style={s.glassPanel}>
+                  <View style={s.liveRow}>
+                    <View style={s.liveDot} />
+                    <Text style={s.liveText}>LIVE · GOOGLE TRAFFIC</Text>
+                  </View>
+                  <Text style={s.title}>Traffic Status</Text>
+                  <Text style={s.subtitle}>Across Accra corridors</Text>
+                </BlurView>
               </View>
-              <Text style={s.title}>Traffic Status</Text>
-              <Text style={s.subtitle}>Across Accra corridors</Text>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
 
-        {/* Summary chips */}
+        {/* Frosted-glass summary chips — overlap the hero's bottom edge so the
+            blur picks up the photo (matches the Queue Status screen) */}
         <View style={s.statsRow}>
           {stats.map((st) => (
-            <View key={st.label} style={s.statChip}>
-              <Text style={[s.statNum, { color: st.color }]}>{st.n}</Text>
-              <Text style={s.statLabel}>{st.label}</Text>
+            <View key={st.label} style={s.statCardWrap}>
+              <BlurView intensity={40} tint="light" style={s.statCard}>
+                <Text style={[s.statNum, { color: st.color }]}>{st.n}</Text>
+                <Text style={s.statLabel}>{st.label}</Text>
+              </BlurView>
             </View>
           ))}
         </View>
@@ -156,20 +184,34 @@ export default function TrafficStatusScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAF9' },
 
-  hero: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden', paddingBottom: 22 },
+  hero: { height: 340, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden', backgroundColor: '#1f2937' },
   heroBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6 },
-  heroText: { paddingHorizontal: 24, marginTop: 6 },
+  backBtnClip: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+  backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.18)' },
+
+  // Frosted-glass info panel over the photo
+  glassWrap: { paddingHorizontal: 16, paddingBottom: 30 },
+  glassClip: { borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  glassPanel: {
+    paddingHorizontal: 20, paddingVertical: 18,
+    // iOS: real blur over a faint wash; Android: stronger translucent fallback
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(20,20,22,0.28)' : 'rgba(20,20,22,0.62)',
+  },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
-  liveText: { fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5 },
-  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  title: { fontFamily: font.bold, fontSize: 26, color: '#fff', letterSpacing: -0.5 },
-  subtitle: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  liveText: { fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,0.85)', letterSpacing: 1.5 },
+  title: { fontFamily: font.bold, fontSize: 26, color: '#fff', letterSpacing: -0.5, textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 8 },
+  subtitle: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: -28, marginBottom: 8 },
-  statChip: { flex: 1, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: -36, marginBottom: 8 },
+  statCardWrap: {
+    flex: 1, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
+  },
+  statCard: { paddingVertical: 14, alignItems: 'center', backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.9)' },
   statNum: { fontFamily: font.extrabold, fontSize: 22 },
-  statLabel: { fontFamily: font.medium, fontSize: 11, color: '#6B7280', marginTop: 2 },
+  statLabel: { fontFamily: font.medium, fontSize: 11, color: '#374151', marginTop: 2 },
 
   sectionLabel: { fontFamily: font.bold, fontSize: 13, color: '#6B7280', letterSpacing: 0.3, marginTop: 6, marginBottom: 2 },
   center: { paddingVertical: 60, alignItems: 'center' },
