@@ -29,6 +29,8 @@ import {
   TrendingUp,
   ShieldCheck,
   Star,
+  Map as MapIcon,
+  ChevronRight,
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -249,6 +251,27 @@ export default function RoutesScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Trotro Network Map — the whole Accra trotro network on one map.
+            Accra has never had a public route map; this is it. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => { haptics.light(); router.push('/routes/network' as Href) }}
+          style={s.networkBanner}
+        >
+          <LinearGradient
+            colors={['#FF4D1C', '#FF7A45']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={s.networkBannerGrad}
+          >
+            <View style={s.networkIconWrap}><MapIcon size={20} color="#fff" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.networkTitle}>Trotro Network Map</Text>
+              <Text style={s.networkSub}>Every Accra trotro line on one map</Text>
+            </View>
+            <ChevronRight size={20} color="rgba(255,255,255,0.9)" />
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Filter chips */}
         <ScrollView
@@ -491,6 +514,11 @@ const getStyles = (isDark: boolean) => {
     },
 
     // Filter chips — gradient active, surface inactive
+    networkBanner: { marginTop: 14, borderRadius: 16, overflow: 'hidden', shadowColor: '#FF4D1C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 12, elevation: 5 },
+    networkBannerGrad: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
+    networkIconWrap: { width: 38, height: 38, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+    networkTitle: { fontFamily: font.bold, fontSize: 15.5, color: '#fff', letterSpacing: -0.2 },
+    networkSub: { fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 1 },
     chipScroll: { marginTop: 14 },
     chipRow: {
       flexDirection: 'row' as const,
