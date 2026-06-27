@@ -272,7 +272,11 @@ export default function SettingsScreen() {
               <ChevronRight size={18} color={t.textTertiary} />
             </TouchableOpacity>
             <View style={s.divider} />
-            <TouchableOpacity activeOpacity={0.7} style={s.linkRow}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={s.linkRow}
+              onPress={() => Linking.openURL('mailto:support@troski.me?subject=Troski%20Help%20%26%20Support').catch(() => {})}
+            >
               <HelpCircle size={18} color={t.textSecondary} />
               <Text style={s.linkLabel}>Help & Support</Text>
               <ChevronRight size={18} color={t.textTertiary} />
