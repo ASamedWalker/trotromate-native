@@ -40,6 +40,7 @@ export default function EvScreen() {
   }, [location?.latitude, location?.longitude])
 
   const stations = mode === 'charge' && result?.ok ? result.stations : []
+  const isSample = mode === 'charge' && result?.ok === true && result.sample === true
 
   const openKofa = () => Linking.openURL('https://www.kofa.co/').catch(() => {})
   const suggestSwap = () =>
@@ -144,6 +145,12 @@ export default function EvScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {isSample && (
+          <View style={styles.sampleBanner}>
+            <Text style={styles.sampleText}>Sample spots · add a free OpenChargeMap key for live stations</Text>
+          </View>
+        )}
       </SafeAreaView>
 
       {/* Selected station card */}
@@ -252,6 +259,8 @@ const styles = StyleSheet.create({
   segBtnOn: { backgroundColor: EV_GREEN },
   segText: { fontFamily: font.semibold, fontSize: 13, color: '#374151' },
   segTextOn: { color: '#fff', fontFamily: font.bold },
+  sampleBanner: { alignSelf: 'center', marginTop: 8, backgroundColor: 'rgba(245,158,11,0.95)', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 5 },
+  sampleText: { fontFamily: font.semibold, fontSize: 11, color: '#fff' },
 
   sheet: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: '#fff', borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
   evBadge: { width: 44, height: 44, borderRadius: 12, backgroundColor: EV_GREEN, alignItems: 'center', justifyContent: 'center' },

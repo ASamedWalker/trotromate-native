@@ -33,8 +33,19 @@ export interface EvStation {
 }
 
 export type EvFetchResult =
-  | { ok: true; stations: EvStation[] }
+  | { ok: true; stations: EvStation[]; sample?: boolean }
   | { ok: false; reason: 'no_key' | 'network' | 'empty' }
+
+// Dev-only SAMPLE spots so the map/markers UX is visible before an OpenChargeMap
+// key is wired. Real Accra venues, but clearly flagged sample={true} (the screen
+// shows a "Sample data" banner). NEVER returned in production builds.
+const SAMPLE_STATIONS: EvStation[] = [
+  { id: 'sample-1', name: 'Sample · Accra Mall', lat: 5.6175, lng: -0.1717, address: 'Tetteh Quarshie', town: 'Accra', operator: 'GreenDrive (sample)', access: 'Public', isOperational: true, isPayAtLocation: true, connectors: [{ type: 'Type 2 (AC)', powerKW: 22, status: 'Operational', quantity: 2 }], maxPowerKW: 22, source: 'ocm' },
+  { id: 'sample-2', name: 'Sample · Marina Mall', lat: 5.6045, lng: -0.1719, address: 'Airport City', town: 'Accra', operator: 'GreenDrive (sample)', access: 'Public', isOperational: true, isPayAtLocation: true, connectors: [{ type: 'CCS (DC fast)', powerKW: 60, status: 'Operational', quantity: 1 }], maxPowerKW: 60, source: 'ocm' },
+  { id: 'sample-3', name: 'Sample · Achimota Retail Centre', lat: 5.6190, lng: -0.2230, address: 'Achimota', town: 'Accra', operator: 'Sample operator', access: 'Public', isOperational: true, isPayAtLocation: true, connectors: [{ type: 'Type 2 (AC)', powerKW: 11, status: 'Operational', quantity: 2 }], maxPowerKW: 11, source: 'ocm' },
+  { id: 'sample-4', name: 'Sample · West Hills Mall', lat: 5.5560, lng: -0.3060, address: 'Weija', town: 'Accra', operator: 'Sample operator', access: 'Public', isOperational: false, isPayAtLocation: true, connectors: [{ type: 'Type 2 (AC)', powerKW: 22, status: 'Unknown', quantity: 1 }], maxPowerKW: 22, source: 'ocm' },
+  { id: 'sample-5', name: 'Sample · Stanbic Heights', lat: 5.6055, lng: -0.1740, address: 'Airport City', town: 'Accra', operator: 'Sample operator', access: 'Public', isOperational: true, isPayAtLocation: true, connectors: [{ type: 'CCS (DC fast)', powerKW: 50, status: 'Operational', quantity: 1 }], maxPowerKW: 50, source: 'ocm' },
+]
 
 function normalize(poi: any): EvStation | null {
   const ai = poi?.AddressInfo
@@ -73,7 +84,12 @@ export async function fetchEvStations(opts?: {
   distanceKm?: number
   max?: number
 }): Promise<EvFetchResult> {
-  if (!OCM_KEY) return { ok: false, reason: 'no_key' }
+  // No key: show labelled sample spots in dev so the UX is testable; stay honest
+  // (empty onboarding) in production.
+  if (!OCM_KEY) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) return { ok: true, stations: SAMPLE_STATIONS, sample: true }
+    return { ok: false, reason: 'no_key' }
+  }
   const params = new URLSearchParams({
     output: 'json',
     countrycode: 'GH',
