@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import Mapbox from '@rnmapbox/maps'
-import { X, Zap, Navigation, Plug, BatteryCharging, MapPin, Mail } from 'lucide-react-native'
+import { X, Zap, Navigation, Plug, BatteryCharging, MapPin, Mail, Plus, ThumbsUp, ThumbsDown } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import { useLocation } from '@/lib/hooks/useLocation'
-import { fetchEvStations, type EvStation, type EvFetchResult } from '@/lib/services/ev-charging'
+import { useDeviceId } from '@/lib/hooks/useDeviceId'
+import { fetchEvStations, fetchCommunityStations, confirmEvStation, type EvStation, type EvFetchResult } from '@/lib/services/ev-charging'
 
 const BRAND = '#FF4D1C'
 const EV_GREEN = '#16a34a'
@@ -24,8 +25,11 @@ export default function EvScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { location } = useLocation()
+  const { deviceId } = useDeviceId()
   const [result, setResult] = useState<EvFetchResult | null>(null)
+  const [community, setCommunity] = useState<EvStation[]>([])
   const [selected, setSelected] = useState<EvStation | null>(null)
+  const [confirmed, setConfirmed] = useState<Record<string, 'up' | 'down'>>({})
   // Ghana's real EV network is battery SWAP (Kofa, 33 Accra stations) more than
   // plug-in charging, and its riders are e-okada — so lead with a Swap | Charge
   // toggle. Swap data is operator-held (not in OpenChargeMap), so that tab is an
@@ -36,10 +40,14 @@ export default function EvScreen() {
     let active = true
     fetchEvStations({ lat: location?.latitude, lng: location?.longitude, distanceKm: 80 })
       .then((r) => { if (active) setResult(r) })
+    fetchCommunityStations().then((c) => { if (active) setCommunity(c) })
     return () => { active = false }
   }, [location?.latitude, location?.longitude])
 
-  const stations = mode === 'charge' && result?.ok ? result.stations : []
+  // OCM/sample charge data + community stations of the active kind, merged.
+  const ocmStations = mode === 'charge' && result?.ok ? result.stations : []
+  const communityOfKind = community.filter((s) => s.kind === mode)
+  const stations = [...communityOfKind, ...ocmStations]
   const isSample = mode === 'charge' && result?.ok === true && result.sample === true
 
   const openKofa = () => Linking.openURL('https://www.kofa.co/').catch(() => {})
@@ -125,10 +133,12 @@ export default function EvScreen() {
               <Text style={styles.title}>EV Charging</Text>
             </View>
             <Text style={styles.subtitle}>
-              {mode === 'swap' ? 'Battery swap · Accra & Ghana' : result?.ok ? `${stations.length} stations · Accra & Ghana` : 'Around Accra & Ghana'}
+              {mode === 'swap' ? 'Battery swap · Accra & Ghana' : `${stations.length} stations · Accra & Ghana`}
             </Text>
           </View>
-          <View style={styles.iconBtn} />
+          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.push('/ev/report' as any) }} style={[styles.iconBtn, { backgroundColor: EV_GREEN }]} hitSlop={8}>
+            <Plus size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         {/* Swap | Charge toggle — swap is Ghana's primary EV network (e-okada) */}
@@ -182,10 +192,52 @@ export default function EvScreen() {
             )}
           </View>
 
+          {/* Community reliability — PlugShare-style "is it working?" */}
+          {selected.source === 'community' && (
+            <View style={styles.confirmRow}>
+              <Text style={styles.confirmLabel}>
+                {selected.worksCount ? `${selected.worksCount} confirmed working` : 'Help confirm this station'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, confirmed[selected.id] === 'up' && { backgroundColor: 'rgba(22,163,74,0.14)' }]}
+                  onPress={() => { Haptics.selectionAsync(); confirmEvStation(selected.id, true, deviceId); setConfirmed((p) => ({ ...p, [selected.id]: 'up' })) }}
+                >
+                  <ThumbsUp size={15} color={EV_GREEN} /><Text style={[styles.confirmBtnText, { color: EV_GREEN }]}>Works</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, confirmed[selected.id] === 'down' && { backgroundColor: '#fee2e2' }]}
+                  onPress={() => { Haptics.selectionAsync(); confirmEvStation(selected.id, false, deviceId); setConfirmed((p) => ({ ...p, [selected.id]: 'down' })) }}
+                >
+                  <ThumbsDown size={15} color="#dc2626" /><Text style={[styles.confirmBtnText, { color: '#dc2626' }]}>Down</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <TouchableOpacity style={styles.dirBtn} onPress={() => openDirections(selected)} activeOpacity={0.9}>
             <Navigation size={18} color="#fff" />
             <Text style={styles.dirText}>Directions</Text>
           </TouchableOpacity>
+        </View>
+      ) : stations.length > 0 ? (
+        // ── Merged list (community + OCM/sample) for the active kind ──
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <ScrollView style={{ maxHeight: 230 }} showsVerticalScrollIndicator={false}>
+            <Text style={styles.listLabel}>{mode === 'swap' ? 'Battery swap stations' : 'Nearby charging stations'}</Text>
+            {stations.map((s) => (
+              <TouchableOpacity key={s.id} style={styles.listRow} onPress={() => { Haptics.selectionAsync(); setSelected(s) }}>
+                <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#9CA3AF' : EV_GREEN }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.listTitle} numberOfLines={1}>{s.name}</Text>
+                  <Text style={styles.listSub} numberOfLines={1}>
+                    {[s.maxPowerKW ? `${s.maxPowerKW} kW` : null, s.operator, s.source === 'community' ? 'Community' : s.town].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <Navigation size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       ) : mode === 'swap' ? (
         // ── Battery Swap — Ghana's primary EV network (Kofa). Operator-held data,
@@ -269,6 +321,10 @@ const styles = StyleSheet.create({
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 6, maxWidth: 180 },
   pillText: { fontFamily: font.semibold, fontSize: 12, color: '#374151' },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, backgroundColor: '#F9FAFB', borderRadius: 12, paddingLeft: 12, paddingRight: 8, paddingVertical: 8 },
+  confirmLabel: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#374151' },
+  confirmBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 7 },
+  confirmBtnText: { fontFamily: font.bold, fontSize: 12.5 },
   dirBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: EV_GREEN, height: 50, borderRadius: 14, marginTop: 16 },
   dirText: { fontFamily: font.bold, fontSize: 15.5, color: '#fff' },
 

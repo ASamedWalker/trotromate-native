@@ -183,6 +183,7 @@ function AppInner() {
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
         <Stack.Screen name="ev/index" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="ev/report" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="report/fare" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="report/queue" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="report/incident" options={{ headerShown: false, presentation: 'modal' }} />
