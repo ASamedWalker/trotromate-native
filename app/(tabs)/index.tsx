@@ -51,7 +51,9 @@ const SERVICES: Service[] = [
   { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png') },
   { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), comingSoon: true },
   { id: 'courier', label: 'Courier', image: require('@/assets/images/home/van_bg_removed.png'), comingSoon: true },
-  { id: 'ev', label: 'EV', image: require('@/assets/images/home/ev_bg_removed.png'), route: '/ev' },
+  // EV: built but gated as coming-soon until there's real GH charging data
+  // (set EXPO_PUBLIC_OCM_KEY or run migration 068, then restore route: '/ev').
+  { id: 'ev', label: 'EV', image: require('@/assets/images/home/ev_bg_removed.png'), comingSoon: true },
 ]
 
 /* ── Quick Actions ── */
