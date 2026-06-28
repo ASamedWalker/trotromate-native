@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import Mapbox from '@rnmapbox/maps'
-import { X, Zap, Plug, BatteryCharging, Crosshair, Check } from 'lucide-react-native'
+import { X, Zap, Crosshair, Check } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import * as Location from 'expo-location'
 import { font } from '@/lib/theme'
@@ -25,7 +25,8 @@ export default function EvReportScreen() {
   const cameraRef = useRef<Mapbox.Camera>(null)
 
   const [center, setCenter] = useState<[number, number]>(location ? [location.longitude, location.latitude] : ACCRA)
-  const [kind, setKind] = useState<EvKind>('charge')
+  // Scope (owner): charging stations only for now (truck/swap are future services).
+  const kind: EvKind = 'charge'
   const [name, setName] = useState('')
   const [operator, setOperator] = useState('')
   const [connector, setConnector] = useState<string | null>(null)
@@ -58,8 +59,8 @@ export default function EvReportScreen() {
       lng: center[0],
       lat: center[1],
       operator: operator.trim() || null,
-      connector: kind === 'swap' ? 'Battery swap' : connector,
-      powerKW: kind === 'swap' ? null : powerKW,
+      connector,
+      powerKW,
       access,
       pricing: pricing.trim() || null,
       hasBackup,
@@ -102,7 +103,7 @@ export default function EvReportScreen() {
           <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} style={styles.iconBtn} hitSlop={8}>
             <X size={20} color="#0A0A0A" />
           </TouchableOpacity>
-          <Text style={styles.topTitle}>Add a station</Text>
+          <Text style={styles.topTitle}>Add charging station</Text>
           <TouchableOpacity onPress={recenter} style={styles.iconBtn} hitSlop={8}>
             <Crosshair size={19} color={EV_GREEN} />
           </TouchableOpacity>
@@ -111,16 +112,6 @@ export default function EvReportScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        {/* Kind */}
-        <View style={styles.segment}>
-          {(['charge', 'swap'] as const).map((m) => (
-            <TouchableOpacity key={m} style={[styles.segBtn, kind === m && styles.segBtnOn]} onPress={() => { Haptics.selectionAsync(); setKind(m) }} activeOpacity={0.85}>
-              {m === 'charge' ? <Plug size={15} color={kind === m ? '#fff' : '#374151'} /> : <BatteryCharging size={15} color={kind === m ? '#fff' : '#374151'} />}
-              <Text style={[styles.segText, kind === m && styles.segTextOn]}>{m === 'charge' ? 'Charging' : 'Battery Swap'}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         <Field label="Name *">
           <TextInput value={name} onChangeText={setName} placeholder="e.g. Accra Mall charger" placeholderTextColor="#9CA3AF" style={styles.input} />
         </Field>
@@ -128,24 +119,20 @@ export default function EvReportScreen() {
           <TextInput value={operator} onChangeText={setOperator} placeholder="e.g. GreenDrive, Kofa" placeholderTextColor="#9CA3AF" style={styles.input} />
         </Field>
 
-        {kind === 'charge' && (
-          <>
-            <Field label="Connector">
-              <View style={styles.chipWrap}>
-                {CONNECTORS.filter((c) => c !== 'Battery swap').map((c) => (
-                  <Chip key={c} on={connector === c} onPress={() => setConnector(connector === c ? null : c)}>{c}</Chip>
-                ))}
-              </View>
-            </Field>
-            <Field label="Power (kW)">
-              <View style={styles.chipWrap}>
-                {POWERS.map((p) => (
-                  <Chip key={p} on={powerKW === p} onPress={() => setPowerKW(powerKW === p ? null : p)}>{p} kW</Chip>
-                ))}
-              </View>
-            </Field>
-          </>
-        )}
+        <Field label="Connector">
+          <View style={styles.chipWrap}>
+            {CONNECTORS.filter((c) => c !== 'Battery swap').map((c) => (
+              <Chip key={c} on={connector === c} onPress={() => setConnector(connector === c ? null : c)}>{c}</Chip>
+            ))}
+          </View>
+        </Field>
+        <Field label="Power (kW)">
+          <View style={styles.chipWrap}>
+            {POWERS.map((p) => (
+              <Chip key={p} on={powerKW === p} onPress={() => setPowerKW(powerKW === p ? null : p)}>{p} kW</Chip>
+            ))}
+          </View>
+        </Field>
 
         <Field label="Access">
           <View style={styles.chipWrap}>

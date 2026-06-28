@@ -30,11 +30,6 @@ export default function EvScreen() {
   const [community, setCommunity] = useState<EvStation[]>([])
   const [selected, setSelected] = useState<EvStation | null>(null)
   const [confirmed, setConfirmed] = useState<Record<string, 'up' | 'down'>>({})
-  // Ghana's real EV network is battery SWAP (Kofa, 33 Accra stations) more than
-  // plug-in charging, and its riders are e-okada — so lead with a Swap | Charge
-  // toggle. Swap data is operator-held (not in OpenChargeMap), so that tab is an
-  // honest pointer + crowdsource hook until a Kofa partnership/feed lands.
-  const [mode, setMode] = useState<'charge' | 'swap'>('charge')
 
   useEffect(() => {
     let active = true
@@ -44,15 +39,13 @@ export default function EvScreen() {
     return () => { active = false }
   }, [location?.latitude, location?.longitude])
 
-  // OCM/sample charge data + community stations of the active kind, merged.
-  const ocmStations = mode === 'charge' && result?.ok ? result.stations : []
-  const communityOfKind = community.filter((s) => s.kind === mode)
-  const stations = [...communityOfKind, ...ocmStations]
-  const isSample = mode === 'charge' && result?.ok === true && result.sample === true
-
-  const openKofa = () => Linking.openURL('https://www.kofa.co/').catch(() => {})
-  const suggestSwap = () =>
-    Linking.openURL('mailto:support@troski.me?subject=Battery%20swap%20station&body=Swap%20station%20name%2C%20location%20(or%20Maps%20link)%2C%20operator%20(Kofa%2FStima%2Fother)%3A').catch(() => {})
+  // Scope (owner, for now): simply SHOW charging stations so EV drivers know where
+  // to charge. Charging only — battery swap / truck EV are future services.
+  // Merge community-submitted charging stations with OpenChargeMap/sample.
+  const ocmStations = result?.ok ? result.stations : []
+  const communityCharge = community.filter((s) => s.kind === 'charge')
+  const stations = [...communityCharge, ...ocmStations]
+  const isSample = result?.ok === true && result.sample === true
 
   const featureCollection = useMemo(() => ({
     type: 'FeatureCollection' as const,
@@ -133,27 +126,12 @@ export default function EvScreen() {
               <Text style={styles.title}>EV Charging</Text>
             </View>
             <Text style={styles.subtitle}>
-              {mode === 'swap' ? 'Battery swap · Accra & Ghana' : `${stations.length} stations · Accra & Ghana`}
+              {`${stations.length} charging ${stations.length === 1 ? 'station' : 'stations'} · Accra & Ghana`}
             </Text>
           </View>
           <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.push('/ev/report' as any) }} style={[styles.iconBtn, { backgroundColor: EV_GREEN }]} hitSlop={8}>
             <Plus size={20} color="#fff" />
           </TouchableOpacity>
-        </View>
-
-        {/* Swap | Charge toggle — swap is Ghana's primary EV network (e-okada) */}
-        <View style={styles.segment}>
-          {(['charge', 'swap'] as const).map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.segBtn, mode === m && styles.segBtnOn]}
-              onPress={() => { Haptics.selectionAsync(); setSelected(null); setMode(m) }}
-              activeOpacity={0.85}
-            >
-              {m === 'charge' ? <Plug size={14} color={mode === m ? '#fff' : '#374151'} /> : <BatteryCharging size={14} color={mode === m ? '#fff' : '#374151'} />}
-              <Text style={[styles.segText, mode === m && styles.segTextOn]}>{m === 'charge' ? 'Charging' : 'Battery Swap'}</Text>
-            </TouchableOpacity>
-          ))}
         </View>
 
         {isSample && (
@@ -221,10 +199,10 @@ export default function EvScreen() {
           </TouchableOpacity>
         </View>
       ) : stations.length > 0 ? (
-        // ── Merged list (community + OCM/sample) for the active kind ──
+        // ── Charging stations list (community + OCM/sample) ──
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <ScrollView style={{ maxHeight: 230 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.listLabel}>{mode === 'swap' ? 'Battery swap stations' : 'Nearby charging stations'}</Text>
+            <Text style={styles.listLabel}>Nearby charging stations</Text>
             {stations.map((s) => (
               <TouchableOpacity key={s.id} style={styles.listRow} onPress={() => { Haptics.selectionAsync(); setSelected(s) }}>
                 <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#9CA3AF' : EV_GREEN }]} />
@@ -239,26 +217,8 @@ export default function EvScreen() {
             ))}
           </ScrollView>
         </View>
-      ) : mode === 'swap' ? (
-        // ── Battery Swap — Ghana's primary EV network (Kofa). Operator-held data,
-        // so an honest pointer + crowdsource hook until a feed/partnership lands. ──
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.stateBox}>
-            <BatteryCharging size={30} color={EV_GREEN} />
-            <Text style={styles.stateTitle}>Battery swap — Ghana's EV backbone</Text>
-            <Text style={styles.stateSub}>Most electric okada & delivery riders swap, not plug in. Kofa runs 33 Swap & Go stations in Accra (2-min swaps). Live swap-station data is coming via operator partnerships.</Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-              <TouchableOpacity style={styles.suggestBtn} onPress={openKofa} activeOpacity={0.9}>
-                <Zap size={16} color={EV_GREEN} /><Text style={styles.suggestText}>Kofa network</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.suggestBtn} onPress={suggestSwap} activeOpacity={0.9}>
-                <Mail size={16} color={EV_GREEN} /><Text style={styles.suggestText}>Suggest a station</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
       ) : (
-        // ── States: loading / onboarding (no key) / empty / list summary ──
+        // ── States: loading / onboarding (no key) / empty ──
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           {!result ? (
             <View style={styles.center}><ActivityIndicator color={EV_GREEN} /><Text style={styles.muted}>Finding charging stations…</Text></View>
