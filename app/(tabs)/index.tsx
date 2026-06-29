@@ -119,7 +119,7 @@ export default function HomeScreen() {
   const handleServiceTap = useCallback((svc: Service) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`); return }
-    if (svc.id === 'train') { router.push('/(tabs)/lines' as any); return }
+    if (svc.id === 'train') { router.push('/(tabs)/lines?tab=train' as any); return }
     if (svc.route) router.push(svc.route as any)
   }, [router])
 
@@ -319,8 +319,14 @@ export default function HomeScreen() {
                   alignItems: 'center',
                 }}
               >
-                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8 }} resizeMode="contain" />
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000', textAlign: 'center' }}>{svc.label}</Text>
+                {/* "Soon" badge — honest at a glance for not-yet-live services */}
+                {svc.comingSoon && (
+                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#9CA3AF', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
+                  </View>
+                )}
+                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8, opacity: svc.comingSoon ? 0.45 : 1 }} resizeMode="contain" />
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: svc.comingSoon ? '#9CA3AF' : '#000', textAlign: 'center' }}>{svc.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

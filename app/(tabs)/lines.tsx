@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useLocalSearchParams } from 'expo-router'
 import { c, font, themed } from '@/lib/theme'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -16,7 +17,13 @@ export default function LinesScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const s = useMemo(() => getStyles(isDark), [isDark])
-  const [activeTab, setActiveTab] = useState<LinesTab>('trotro')
+  // `?tab=train` (e.g. from the Home "Train" service tile) opens the Train segment.
+  const params = useLocalSearchParams<{ tab?: string }>()
+  const [activeTab, setActiveTab] = useState<LinesTab>(params.tab === 'train' ? 'train' : 'trotro')
+
+  useEffect(() => {
+    if (params.tab === 'train' || params.tab === 'trotro') setActiveTab(params.tab)
+  }, [params.tab])
 
   const handleTabChange = (tab: LinesTab) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
