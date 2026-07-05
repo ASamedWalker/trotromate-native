@@ -73,11 +73,14 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             key={route.key}
             onPress={onPress}
             style={styles.tab}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: isFocused }}
           >
             <Icon
               size={22}
               strokeWidth={isFocused ? 2.2 : 1.6}
-              color={isFocused ? BRAND : isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'}
+              color={isFocused ? BRAND : isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'}
             />
             <Text
               style={[
@@ -85,7 +88,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 {
                   color: isFocused
                     ? (isDark ? '#fff' : '#1c1917')
-                    : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'),
+                    : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'),
                 },
               ]}
             >
@@ -152,7 +155,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: font.bold,
     letterSpacing: 0.1,
   },

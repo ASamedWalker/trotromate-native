@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   useColorScheme,
   ActivityIndicator,
   RefreshControl,
@@ -59,6 +59,30 @@ export default function NotificationsScreen() {
     setIsRefreshing(false)
   }
 
+  // Group notifications into relative time buckets for easier scanning.
+  const sections = useMemo(() => {
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfWeek = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000)
+
+    const today: typeof notifications = []
+    const thisWeek: typeof notifications = []
+    const earlier: typeof notifications = []
+
+    for (const item of notifications) {
+      const ts = new Date(item.timestamp)
+      if (ts >= startOfToday) today.push(item)
+      else if (ts >= startOfWeek) thisWeek.push(item)
+      else earlier.push(item)
+    }
+
+    return [
+      { title: 'Today', data: today },
+      { title: 'This Week', data: thisWeek },
+      { title: 'Earlier', data: earlier },
+    ].filter((section) => section.data.length > 0)
+  }, [notifications])
+
   const renderItem = ({ item }: { item: (typeof notifications)[0] }) => {
     const config = ICON_MAP[item.type] ?? ICON_MAP.community
     const Icon = config.icon
@@ -72,11 +96,11 @@ export default function NotificationsScreen() {
         activeOpacity={0.7}
         style={[s.card, !item.read && s.cardUnread]}
       >
-        <View style={[s.iconBox, { backgroundColor: `${config.color}20` }]}>
-          <Icon size={20} color={config.color} />
+        <View style={[s.iconBox, { backgroundColor: item.read ? t.textTertiary + '20' : `${config.color}20` }]}>
+          <Icon size={20} color={item.read ? t.textTertiary : config.color} />
         </View>
         <View style={s.cardContent}>
-          <Text style={s.cardTitle}>{item.title}</Text>
+          <Text style={[s.cardTitle, item.read && s.cardTitleRead]}>{item.title}</Text>
           <Text style={s.cardBody} numberOfLines={2}>{item.body}</Text>
           <Text style={s.cardTime}>{timeAgo(item.timestamp)}</Text>
         </View>
@@ -113,12 +137,16 @@ export default function NotificationsScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={notifications}
+        <SectionList
+          sections={sections}
           renderItem={renderItem}
+          renderSectionHeader={({ section }) => (
+            <Text style={s.sectionHeader}>{section.title}</Text>
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -151,6 +179,15 @@ const getStyles = (isDark: boolean) => {
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: t.textSecondary, marginTop: 16 },
     emptySub: { fontSize: 14, color: t.textTertiary, marginTop: 4, textAlign: 'center' },
+    sectionHeader: {
+      fontSize: 13,
+      fontFamily: font.bold,
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginTop: 12,
+      marginBottom: 8,
+    },
     card: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -173,6 +210,7 @@ const getStyles = (isDark: boolean) => {
     },
     cardContent: { flex: 1 },
     cardTitle: { fontSize: 14, fontFamily: font.semibold, color: t.text },
+    cardTitleRead: { color: t.textSecondary, fontFamily: font.medium },
     cardBody: { fontSize: 13, color: t.textSecondary, marginTop: 2, lineHeight: 18 },
     cardTime: { fontSize: 12, color: t.textTertiary, marginTop: 4 },
     unreadDot: {

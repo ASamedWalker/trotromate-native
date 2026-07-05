@@ -87,7 +87,10 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function formatDistance(km: number): string {
+function formatDistance(km: number): string | undefined {
+  // Display clamp: hide implausible distances (bad geocode / stale coords)
+  // instead of showing e.g. "12277.1 km".
+  if (km > 100) return undefined
   if (km < 1) return `${Math.round(km * 1000)} m`
   return `${km.toFixed(1)} km`
 }
@@ -308,6 +311,8 @@ export default function PlanTripScreen() {
             <TouchableOpacity
               onPress={() => router.back()}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
               style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}
             >
               <X size={20} color="#374151" />
@@ -379,7 +384,9 @@ export default function PlanTripScreen() {
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); const f = from; setFrom(to); setTo(f) }}
                 style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginHorizontal: 10 }}
-                hitSlop={6}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel="Swap origin and destination"
               >
                 <ArrowUpDown size={15} color="#374151" strokeWidth={2.5} />
               </TouchableOpacity>
@@ -541,7 +548,12 @@ export default function PlanTripScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#fff' }}>
           <SafeAreaView edges={['top']} style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
-              <TouchableOpacity onPress={() => setAddressModal(null)} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => setAddressModal(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+              >
                 <ArrowLeft size={22} color="#111" />
               </TouchableOpacity>
               <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>

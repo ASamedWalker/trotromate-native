@@ -32,12 +32,22 @@ export default function QueueStatusScreen() {
 
   const result = data ?? { stations: [], total: 0, liveNow: 0, busy: 0, nearFull: 0 }
 
+  // Fresh (non-stale) counts only — a stale "Long" report shouldn't inflate
+  // Busy/Near Full when the rider would see it greyed out below.
+  const freshBusy = result.stations.filter((s) => !s.isStale && s.status === 'moderate').length
+  const freshNearFull = result.stations.filter(
+    (s) => !s.isStale && (s.status === 'long' || s.status === 'very_long'),
+  ).length
+
   const stats = [
     { n: result.liveNow, label: 'Live Now', color: '#16a34a' },
-    { n: result.busy, label: 'Busy', color: '#b45309' },
-    { n: result.nearFull, label: 'Near Full', color: '#dc2626' },
+    { n: freshBusy, label: 'Busy', color: '#b45309' },
+    { n: freshNearFull, label: 'Near Full', color: '#dc2626' },
     { n: result.total, label: 'Total', color: '#111' },
   ]
+
+  // Stale reports sink below fresh ones so the list reads honest at a glance.
+  const sortedStations = [...result.stations].sort((a, b) => Number(a.isStale) - Number(b.isStale))
 
   return (
     <View style={s.container}>
@@ -125,8 +135,13 @@ export default function QueueStatusScreen() {
           </View>
         ) : (
           <View style={{ paddingHorizontal: 20, gap: 12 }}>
-            {result.stations.map((st) => {
+            {sortedStations.map((st) => {
               const meta = QUEUE_META[st.status]
+              // Stale reports lose their saturated status colour — a 6-hour-old
+              // "Very Long" shouldn't read as urgent as a fresh one.
+              const pillBg = st.isStale ? '#F3F4F6' : meta.bg
+              const pillColor = st.isStale ? '#9CA3AF' : meta.color
+              const barColor = st.isStale ? '#D1D5DB' : meta.color
               return (
                 <View key={st.stationName} style={s.card}>
                   <View style={s.cardTop}>
@@ -146,14 +161,14 @@ export default function QueueStatusScreen() {
                         )}
                       </View>
                     </View>
-                    <View style={[s.statusPill, { backgroundColor: meta.bg }]}>
-                      <Text style={[s.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+                    <View style={[s.statusPill, { backgroundColor: pillBg }]}>
+                      <Text style={[s.statusPillText, { color: pillColor }]}>{meta.label}</Text>
                     </View>
                   </View>
 
                   {/* Capacity bar — visual of the reported level */}
                   <View style={s.barTrack}>
-                    <View style={[s.barFill, { width: `${meta.capacity}%`, backgroundColor: meta.color }]} />
+                    <View style={[s.barFill, { width: `${meta.capacity}%`, backgroundColor: barColor }]} />
                   </View>
                 </View>
               )

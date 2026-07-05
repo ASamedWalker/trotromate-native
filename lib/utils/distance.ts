@@ -20,7 +20,10 @@ function toRad(deg: number) {
   return (deg * Math.PI) / 180
 }
 
-export function formatDistance(km: number): string {
+export function formatDistance(km: number): string | null {
+  // Display clamp: distances beyond 100km are implausible for "nearby"
+  // UI (bad geocode / stale coords) — hide instead of showing e.g. "12336 km".
+  if (km > 100) return null
   if (km < 1) return `${Math.round(km * 1000)} m`
   if (km < 10) return `${km.toFixed(1)} km`
   return `${Math.round(km)} km`

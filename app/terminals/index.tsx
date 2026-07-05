@@ -114,7 +114,7 @@ export default function TerminalsScreen() {
                   </View>
 
                   <View style={s.cardRight}>
-                    {t.distanceKm != null && (
+                    {t.distanceKm != null && formatDistance(t.distanceKm) && (
                       <View style={s.distancePill}>
                         <MapPin size={11} color={BRAND} />
                         <Text style={s.distanceText}>{formatDistance(t.distanceKm)}</Text>

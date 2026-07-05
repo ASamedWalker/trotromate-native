@@ -32,6 +32,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
+import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
 
@@ -283,10 +284,16 @@ export default function LineDetailScreen() {
         {/* ─── Hero Section ─────────────────────────────── */}
         <Animated.View entering={FadeIn.duration(500)} style={s.heroCard}>
           <View style={s.heroContent}>
-            {/* Live badge */}
+            {/* Status badge — no live telemetry exists for this line, so this
+                shows genuine report freshness when available, otherwise a
+                neutral "Scheduled Service" label (never a fake "LIVE"). */}
             <View style={s.heroBadge}>
               <View style={s.heroBadgeDot} />
-              <Text style={s.heroBadgeText}>LIVE SERVICE</Text>
+              <Text style={s.heroBadgeText}>
+                {recentReports[0]
+                  ? `UPDATED ${timeAgo(recentReports[0].reported_at).toUpperCase()}`
+                  : 'SCHEDULED SERVICE'}
+              </Text>
             </View>
 
             <Text style={s.heroTitle}>{line.name}</Text>
@@ -332,7 +339,7 @@ export default function LineDetailScreen() {
             {line.official_fare && (
               <View style={s.fareStrip}>
                 <GRDABadge size="small" />
-                <Text style={s.farePrice}>GHS {line.official_fare.toFixed(2)}</Text>
+                <Text style={s.farePrice}>{formatGHS(line.official_fare)}</Text>
                 <View style={{ flex: 1 }} />
                 <Text style={s.fareStations}>{timelineStops.length} stations</Text>
               </View>
@@ -396,7 +403,7 @@ export default function LineDetailScreen() {
                         <Calendar size={12} color={isDark ? '#a8a29e' : '#78716c'} />
                         <Text style={s.schedDays}>{sched.days}</Text>
                         <View style={{ flex: 1 }} />
-                        <Text style={s.schedFare}>₵{sched.fare.toFixed(2)}</Text>
+                        <Text style={s.schedFare}>{formatGHS(sched.fare)}</Text>
                       </View>
                     </View>
                   )}

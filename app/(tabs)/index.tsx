@@ -28,6 +28,19 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 
 const BRAND = '#FF4D1C'
 
+// Approx Ghana bounding box — used only to guard against implausible
+// reverse-geocode results (e.g. simulator default location showing
+// "San Francisco, US"). Does not affect how location is fetched.
+const GHANA_BOUNDS = { minLat: 4.5, maxLat: 11.5, minLng: -3.5, maxLng: 1.5 }
+const GHANA_FALLBACK_LOCATION = 'Accra, GH'
+
+function isWithinGhana(lat: number, lng: number): boolean {
+  return (
+    lat >= GHANA_BOUNDS.minLat && lat <= GHANA_BOUNDS.maxLat &&
+    lng >= GHANA_BOUNDS.minLng && lng <= GHANA_BOUNDS.maxLng
+  )
+}
+
 // Uber Base tokens adapted for Troski
 const BASE = {
   radius: { sm: 8, md: 12, lg: 16, xl: 20, full: 9999 },
@@ -92,6 +105,13 @@ export default function HomeScreen() {
 
   React.useEffect(() => {
     if (!location) return
+    // Display-only guard: outside Ghana's bounds the coords are implausible
+    // (e.g. simulator default location) — skip the raw geocode and show the
+    // fallback instead. Does not change how location is fetched.
+    if (!isWithinGhana(location.latitude, location.longitude)) {
+      setLocationName(GHANA_FALLBACK_LOCATION)
+      return
+    }
     const fetchName = async () => {
       try {
         const res = await fetch(
@@ -102,8 +122,13 @@ export default function HomeScreen() {
           const place = data.features[0].text
           const country = data.features[0].context?.find((ctx: any) => ctx.id?.startsWith('country'))?.short_code?.toUpperCase() || 'GH'
           setLocationName(`${place}, ${country}`)
+        } else {
+          setLocationName(GHANA_FALLBACK_LOCATION)
         }
-      } catch (e) { console.warn("[troski] silent error:", e) }
+      } catch (e) {
+        console.warn("[troski] silent error:", e)
+        setLocationName(GHANA_FALLBACK_LOCATION)
+      }
     }
     fetchName()
   }, [location?.latitude, location?.longitude])
@@ -156,6 +181,8 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => router.push('/(tabs)/activity' as any)}
               hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
               style={{
                 width: 44, height: 44, borderRadius: 22,
                 backgroundColor: '#F3F4F6',
@@ -212,6 +239,8 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
                 hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={balanceVisible ? 'Hide balance' : 'Show balance'}
                 style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
               >
                 {balanceVisible ? <Eye size={18} color="#fff" /> : <EyeOff size={18} color="#fff" />}

@@ -33,6 +33,7 @@ import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
+import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
 import type { TrainLineWithStats } from '@/lib/types'
 
@@ -191,10 +192,10 @@ function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles
 
 // ─── Line metadata for editorial cards ───────────────────
 
-const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColor: string; badgeBg: string; gradientFrom: string; gradientTo: string }> = {
+const LINE_META: Record<string, { subtitle: string; fareRange: number; badgeColor: string; badgeBg: string; gradientFrom: string; gradientTo: string }> = {
   TMA: {
     subtitle: 'Suburban Commuter',
-    fareRange: '₵15',
+    fareRange: 15,
     badgeColor: '#0e7490',
     badgeBg: '#ecfeff',
     gradientFrom: '#06b6d4',
@@ -202,7 +203,7 @@ const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColo
   },
   TMP: {
     subtitle: 'Inter-Regional',
-    fareRange: '₵40',
+    fareRange: 40,
     badgeColor: '#92400e',
     badgeBg: '#fffbeb',
     gradientFrom: '#f59e0b',
@@ -210,7 +211,7 @@ const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColo
   },
   STK: {
     subtitle: 'Western Line Commuter',
-    fareRange: '₵10',
+    fareRange: 10,
     badgeColor: '#065f46',
     badgeBg: '#ecfdf5',
     gradientFrom: '#10b981',
@@ -220,7 +221,7 @@ const LINE_META: Record<string, { subtitle: string; fareRange: string; badgeColo
 
 const DEFAULT_LINE_META = {
   subtitle: 'Rail Service',
-  fareRange: '—',
+  fareRange: null as number | null,
   badgeColor: '#0e7490',
   badgeBg: '#ecfeff',
   gradientFrom: '#06b6d4',
@@ -333,7 +334,9 @@ export default function TrainLinesScreen() {
             <View style={s.lineStatsRow}>
               <View style={s.lineStat}>
                 <Text style={s.lineStatLabel}>OFFICIAL FARE</Text>
-                <Text style={s.lineStatValue}>{meta.fareRange}</Text>
+                <Text style={s.lineStatValue}>
+                  {meta.fareRange != null ? formatGHS(meta.fareRange) : '—'}
+                </Text>
               </View>
               <View style={s.lineStatDivider} />
               <View style={s.lineStat}>
@@ -461,9 +464,12 @@ export default function TrainLinesScreen() {
 
           {/* Top row */}
           <View style={s.boardTopRow}>
-            <View style={s.liveBadge}>
-              <View style={s.liveDot} />
-              <Text style={s.liveText}>LIVE</Text>
+            {/* No live GPS/telemetry feed exists for trains yet — schedules
+                are static, so the board always shows a neutral SCHEDULE chip
+                instead of a fake LIVE one. */}
+            <View style={s.scheduleBadge}>
+              <View style={s.scheduleDot} />
+              <Text style={s.scheduleText}>SCHEDULE</Text>
             </View>
             <View style={{ flex: 1 }} />
             <Text style={s.boardLabel}>
@@ -529,9 +535,9 @@ export default function TrainLinesScreen() {
                   Departs {departure.departTime}
                   {departure.tomorrow ? ' tomorrow' : ''}
                 </Text>
-                <View style={s.onTimeBadge}>
-                  <View style={[s.statusDot, { backgroundColor: '#22c55e' }]} />
-                  <Text style={s.onTimeText}>On Time</Text>
+                <View style={s.scheduledBadge}>
+                  <View style={[s.statusDot, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
+                  <Text style={s.scheduledText}>Scheduled</Text>
                 </View>
               </View>
 
@@ -662,7 +668,7 @@ export default function TrainLinesScreen() {
                 <Text style={s.stripText}>{departure.lineCode}</Text>
                 <View style={s.stripDot} />
                 <Text style={s.stripText}>
-                  GH₵{departure.schedule.fare.toFixed(2)}
+                  {formatGHS(departure.schedule.fare)}
                 </Text>
               </>
             )}
@@ -811,25 +817,25 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       marginBottom: 20,
     },
-    liveBadge: {
+    scheduleBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: 'rgba(34,197,94,0.15)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 8,
       gap: 5,
     },
-    liveDot: {
+    scheduleDot: {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: '#22c55e',
+      backgroundColor: 'rgba(255,255,255,0.4)',
     },
-    liveText: {
+    scheduleText: {
       fontSize: 10,
       fontFamily: font.bold,
-      color: '#22c55e',
+      color: 'rgba(255,255,255,0.5)',
       letterSpacing: 1,
     },
     boardLabel: {
@@ -925,19 +931,19 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.regular,
       color: 'rgba(255,255,255,0.4)',
     },
-    onTimeBadge: {
+    scheduledBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: 'rgba(34,197,94,0.15)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 8,
       gap: 5,
     },
-    onTimeText: {
+    scheduledText: {
       fontSize: 11,
       fontFamily: font.semibold,
-      color: '#22c55e',
+      color: 'rgba(255,255,255,0.5)',
     },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
 

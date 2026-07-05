@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
-import { Navigation, Users, Clock, MapPin, Bus } from 'lucide-react-native'
+import { Navigation, Users, Clock, MapPin, Bus, Plus } from 'lucide-react-native'
+import { useRouter, type Href } from 'expo-router'
 import { c, themed, font } from '@/lib/theme'
 import type { NearbyStop } from '@/lib/utils/nearby-stops'
 import type { TransportStopType } from '@/lib/types/transport'
@@ -65,6 +66,7 @@ interface StationCardProps {
 }
 
 export function StationCard({ station, distanceKm, isSelected, onPress, isDark, nearbyStops }: StationCardProps) {
+  const router = useRouter()
   const t = themed(isDark)
   const stat = station.queue_stats?.[0]
   const queueStatus = stat?.current_status as QueueStatus | undefined
@@ -107,7 +109,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
             {station.location}
           </Text>
         </View>
-        {distanceKm !== null && (
+        {distanceKm !== null && formatDistance(distanceKm) != null && (
           <Text style={[styles.distance, { color: t.textSecondary }]}>
             {formatDistance(distanceKm)}
           </Text>
@@ -140,9 +142,19 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
           </Text>
         </View>
       ) : (
-        <Text style={[styles.noReports, { color: t.textTertiary }]}>
-          No reports yet
-        </Text>
+        <View style={styles.noReportsRow}>
+          <Text style={[styles.noReports, { color: t.textTertiary }]}>
+            No reports yet
+          </Text>
+          <TouchableOpacity
+            style={styles.reportCta}
+            onPress={() => router.push('/report/queue' as Href)}
+            activeOpacity={0.7}
+          >
+            <Plus size={11} color={c.amber500} />
+            <Text style={styles.reportCtaText}>Report (+pts)</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Footer: reports + navigate */}
@@ -167,7 +179,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
           onPress={() => openDirections(station._lat, station._lng, stationLabel(station.name))}
           activeOpacity={0.7}
         >
-          <Navigation size={14} color={c.white} />
+          <Navigation size={14} color={c.stone900} />
           <Text style={styles.navText}>Navigate</Text>
         </TouchableOpacity>
       </View>
@@ -251,10 +263,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: font.regular,
   },
+  noReportsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
   noReports: {
     fontSize: 12,
     fontFamily: font.regular,
-    marginTop: 6,
+  },
+  reportCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  reportCtaText: {
+    fontSize: 11,
+    fontFamily: font.semibold,
+    color: c.amber500,
   },
   footerRow: {
     flexDirection: 'row',
@@ -288,7 +315,7 @@ const styles = StyleSheet.create({
   navText: {
     fontSize: 12,
     fontFamily: font.semibold,
-    color: c.white,
+    color: c.stone900,
   },
   nearbySection: {
     borderTopWidth: 1,

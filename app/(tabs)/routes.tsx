@@ -96,6 +96,21 @@ export default function RoutesScreen() {
       )
     }
 
+    // No user-location plumbing on this screen — use a cheap static heuristic
+    // instead: commuter-fare corridors (<= GH₵30) surface above intercity
+    // corridors (e.g. Accra→Tamale GH₵240), stable within each group.
+    const COMMUTER_FARE_CEILING = 30
+    const fareOf = (r: RouteWithStats) => r.fare_stats?.avg_reported_fare ?? r.official_fare
+    result = result
+      .map((r, index) => ({ r, index }))
+      .sort((a, b) => {
+        const aCommuter = fareOf(a.r) <= COMMUTER_FARE_CEILING
+        const bCommuter = fareOf(b.r) <= COMMUTER_FARE_CEILING
+        if (aCommuter !== bCommuter) return aCommuter ? -1 : 1
+        return a.index - b.index
+      })
+      .map(({ r }) => r)
+
     return result
   }, [routes, activeFilter, searchQuery, favorites])
 
@@ -144,6 +159,7 @@ export default function RoutesScreen() {
     const isOkada = item.transport_type === 'okada'
     const accent = lineColorFor(item.id)
     const confidence = fareConfidence(item.fare_stats)
+    const hasFareReports = (item.fare_stats?.report_count ?? 0) > 0
 
     return (
       <TouchableOpacity
@@ -171,8 +187,8 @@ export default function RoutesScreen() {
               </Text>
             </View>
             <View style={s.fareWrap}>
-              <Text style={[s.fareAmount, { color: accent }]}>
-                GH₵ {displayFare.toFixed(2)}
+              <Text style={[s.fareAmount, { color: hasFareReports ? t.text : t.textSecondary }]}>
+                {hasFareReports ? '' : 'Est. '}GH₵ {displayFare.toFixed(2)}
               </Text>
               <Text style={s.fareLabel}>Per Seat</Text>
             </View>

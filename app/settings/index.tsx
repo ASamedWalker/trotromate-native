@@ -8,7 +8,8 @@ import {
   Alert,
   useColorScheme,
   StyleSheet,
- Linking , Appearance } from 'react-native'
+  Linking,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLanguage } from '@/lib/i18n'
 import { useRouter, type Href } from 'expo-router'
@@ -19,9 +20,6 @@ import {
   Shield,
   HelpCircle,
   Trash2,
-  Sun,
-  Moon,
-  Smartphone,
   Camera,
   Globe,
   Megaphone,
@@ -32,7 +30,7 @@ import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { usePreferences, type ThemeMode } from '@/lib/hooks/usePreferences'
+import { usePreferences } from '@/lib/hooks/usePreferences'
 import { LEVELS } from '@/lib/constants/rewards'
 import InitialsAvatar from '@/components/InitialsAvatar'
 
@@ -47,17 +45,6 @@ export default function SettingsScreen() {
   const { profile, deviceId } = useApp()
   const { prefs, updatePref } = usePreferences()
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
-
-  const themeOptions: { key: ThemeMode; label: string; icon: typeof Sun }[] = [
-    { key: 'system', label: 'System', icon: Smartphone },
-    { key: 'light', label: 'Light', icon: Sun },
-    { key: 'dark', label: 'Dark', icon: Moon },
-  ]
-
-  const handleThemeChange = (_mode: ThemeMode) => {
-    // Dark mode disabled — always light until properly tested
-    Appearance.setColorScheme('light')
-  }
 
   const handleClearData = () => {
     Alert.alert(
@@ -126,30 +113,6 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={18} color={t.textTertiary} />
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Appearance */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Appearance</Text>
-          <View style={s.card}>
-            <View style={s.themeRow}>
-              {themeOptions.map((opt) => {
-                const Icon = opt.icon
-                const active = prefs.theme === opt.key
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    onPress={() => handleThemeChange(opt.key)}
-                    activeOpacity={0.7}
-                    style={[s.themeOption, active && s.themeOptionActive]}
-                  >
-                    <Icon size={18} color={active ? c.amber500 : t.textSecondary} />
-                    <Text style={[s.themeLabel, active && s.themeLabelActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
           </View>
         </View>
 
@@ -371,33 +334,6 @@ const getStyles = (isDark: boolean) => {
       padding: 16,
     },
     linkLabel: { fontSize: 15, fontFamily: font.medium, color: t.text, marginLeft: 14, flex: 1 },
-    themeRow: {
-      flexDirection: 'row',
-      padding: 8,
-      gap: 8,
-    },
-    themeOption: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 12,
-      borderRadius: 14,
-      backgroundColor: isDark ? c.stone900 : c.stone50,
-      gap: 6,
-    },
-    themeOptionActive: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
-      borderWidth: 1.5,
-      borderColor: c.amber500,
-    },
-    themeLabel: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: t.textSecondary,
-    },
-    themeLabelActive: {
-      color: c.amber500,
-      fontFamily: font.semibold,
-    },
     divider: {
       height: 1,
       backgroundColor: isDark ? c.stone800 : c.stone100,

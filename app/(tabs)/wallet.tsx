@@ -164,7 +164,12 @@ export default function WalletScreen() {
       {/* Header */}
       <View style={s.header}>
         <Text style={[s.headerTitle, { color: t.text }]}>{tr('wallet.title')}</Text>
-        <TouchableOpacity onPress={toggleBalance} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity
+          onPress={toggleBalance}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={balanceVisible ? 'Hide balance' : 'Show balance'}
+        >
           {balanceVisible
             ? <Eye size={22} color={isDark ? '#78716c' : '#a8a29e'} />
             : <EyeOff size={22} color={isDark ? '#78716c' : '#a8a29e'} />

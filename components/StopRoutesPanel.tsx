@@ -44,7 +44,7 @@ export function StopRoutesPanel({ stop, onClose }: Props) {
             <Text style={s.stopName} numberOfLines={1}>
               {stop.name.charAt(0).toUpperCase() + stop.name.slice(1)}
             </Text>
-            {stop.distanceKm != null && (
+            {stop.distanceKm != null && formatDistance(stop.distanceKm) != null && (
               <Text style={s.distanceText}>
                 {formatDistance(stop.distanceKm)} away
               </Text>
@@ -172,7 +172,7 @@ export function StopRoutesPanel({ stop, onClose }: Props) {
                 )}
 
                 {/* Distance */}
-                {route.distance_km != null && route.distance_km > 0 && (
+                {route.distance_km != null && route.distance_km > 0 && formatDistance(route.distance_km) != null && (
                   <View style={s.metaChip}>
                     <Text style={s.metaText}>
                       {formatDistance(route.distance_km)}
