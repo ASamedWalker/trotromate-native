@@ -127,7 +127,7 @@ export default function TrafficStatusScreen() {
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
         ) : corridors.length === 0 ? (
           <View style={s.empty}>
-            <Gauge size={36} color="#9CA3AF" />
+            <Gauge size={36} color="#6B7280" />
             <Text style={s.emptyTitle}>Traffic data unavailable</Text>
             <Text style={s.emptySub}>Live corridor conditions could not be loaded right now. Pull to retry.</Text>
           </View>
@@ -143,7 +143,7 @@ export default function TrafficStatusScreen() {
                   <View style={s.cardTop}>
                     <View style={s.routeRow}>
                       <Text style={s.routeName} numberOfLines={1}>{r.from_location}</Text>
-                      <ArrowRight size={14} color="#9CA3AF" />
+                      <ArrowRight size={14} color="#6B7280" />
                       <Text style={s.routeName} numberOfLines={1}>{r.to_location}</Text>
                     </View>
                     <View style={[s.condPill, { backgroundColor: meta.bg }]}>
@@ -217,7 +217,7 @@ const s = StyleSheet.create({
   center: { paddingVertical: 60, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40, gap: 8 },
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
-  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -228,6 +228,6 @@ const s = StyleSheet.create({
   barTrack: { height: 8, borderRadius: 4, backgroundColor: '#F3F4F6', marginTop: 14, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  metaText: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  metaText: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#D1D5DB' },
 })

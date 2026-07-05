@@ -113,7 +113,7 @@ const s = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6', gap: 16 },
-  rowLabel: { fontFamily: font.medium, fontSize: 14, color: '#9CA3AF' },
+  rowLabel: { fontFamily: font.medium, fontSize: 14, color: '#6B7280' },
   rowValue: { fontFamily: font.semibold, fontSize: 14, color: '#111', flexShrink: 1, textAlign: 'right' },
 
   sectionLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.5, marginTop: 24, marginBottom: 8, textTransform: 'uppercase' },
@@ -121,5 +121,5 @@ const s = StyleSheet.create({
   refText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: '#374151' },
   copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   copyText: { fontFamily: font.bold, fontSize: 13, color: BRAND },
-  help: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 12, lineHeight: 18 },
+  help: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 12, lineHeight: 18 },
 })

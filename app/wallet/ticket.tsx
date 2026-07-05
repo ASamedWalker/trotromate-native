@@ -114,7 +114,7 @@ export default function TicketScreen() {
           </View>
 
           <View style={s.offlineRow}>
-            <WifiOff size={14} color="#9CA3AF" />
+            <WifiOff size={14} color="#6B7280" />
             <Text style={s.offlineText}>Works offline — show this even with no signal</Text>
           </View>
           <View style={s.verifiedRow}>
@@ -135,7 +135,7 @@ const s = StyleSheet.create({
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 8 },
   noneTitle: { fontFamily: font.bold, fontSize: 18, color: '#111' },
-  noneSub: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', textAlign: 'center' },
+  noneSub: { fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center' },
 
   body: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, gap: 24 },
   routeRow: { alignItems: 'center' },
@@ -145,12 +145,12 @@ const s = StyleSheet.create({
 
   metaRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 8, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   metaItem: { flex: 1, alignItems: 'center', gap: 4 },
-  metaLabel: { fontFamily: font.bold, fontSize: 10, color: '#9CA3AF', letterSpacing: 1 },
+  metaLabel: { fontFamily: font.bold, fontSize: 10, color: '#6B7280', letterSpacing: 1 },
   metaValue: { fontFamily: font.bold, fontSize: 14, color: '#111' },
   metaDivider: { width: 1, height: 28, backgroundColor: '#F3F4F6' },
 
   offlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  offlineText: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  offlineText: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -16 },
   verifiedText: { fontFamily: font.semibold, fontSize: 12, color: '#16a34a' },
 })

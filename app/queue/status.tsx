@@ -129,7 +129,7 @@ export default function QueueStatusScreen() {
           </View>
         ) : result.stations.length === 0 ? (
           <View style={s.empty}>
-            <Bus size={36} color="#9CA3AF" />
+            <Bus size={36} color="#6B7280" />
             <Text style={s.emptyTitle}>No queue reports yet</Text>
             <Text style={s.emptySub}>Be the first to report a queue at your station.</Text>
           </View>
@@ -140,7 +140,7 @@ export default function QueueStatusScreen() {
               // Stale reports lose their saturated status colour — a 6-hour-old
               // "Very Long" shouldn't read as urgent as a fresh one.
               const pillBg = st.isStale ? '#F3F4F6' : meta.bg
-              const pillColor = st.isStale ? '#9CA3AF' : meta.color
+              const pillColor = st.isStale ? '#6B7280' : meta.color
               const barColor = st.isStale ? '#D1D5DB' : meta.color
               return (
                 <View key={st.stationName} style={s.card}>
@@ -148,14 +148,14 @@ export default function QueueStatusScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={s.stationName} numberOfLines={1}>{st.stationName}</Text>
                       <View style={s.metaRow}>
-                        <Clock size={12} color="#9CA3AF" />
+                        <Clock size={12} color="#6B7280" />
                         <Text style={[s.metaText, st.isStale && { color: '#dc2626' }]}>
                           {st.isStale ? `Stale · ${ageLabel(st)}` : ageLabel(st)}
                         </Text>
                         {st.vehicleCount != null && (
                           <>
                             <View style={s.dot} />
-                            <Bus size={12} color="#9CA3AF" />
+                            <Bus size={12} color="#6B7280" />
                             <Text style={s.metaText}>{st.vehicleCount} in yard</Text>
                           </>
                         )}
@@ -220,13 +220,13 @@ const s = StyleSheet.create({
   center: { paddingVertical: 60, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40, gap: 8 },
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
-  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   stationName: { fontFamily: font.bold, fontSize: 16, color: '#111' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  metaText: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  metaText: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#D1D5DB', marginHorizontal: 2 },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 },
   statusPillText: { fontFamily: font.bold, fontSize: 12 },

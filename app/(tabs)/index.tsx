@@ -282,7 +282,7 @@ export default function HomeScreen() {
                   </BlurView>
                 </View>
                 {/* "Soon" badge — same coming-soon treatment used for not-yet-live services */}
-                <View style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#9CA3AF', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <View style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#6B7280', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
                   <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
                 </View>
               </TouchableOpacity>
@@ -309,7 +309,7 @@ export default function HomeScreen() {
                   }}
                 >
                   <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{t(action.labelKey)}</Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginBottom: 14 }}>{t(action.subKey)}</Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginBottom: 14 }}>{t(action.subKey)}</Text>
                   <View style={{
                     width: 40, height: 40, borderRadius: 20,
                     backgroundColor: action.color,
@@ -351,12 +351,12 @@ export default function HomeScreen() {
               >
                 {/* "Soon" badge — honest at a glance for not-yet-live services */}
                 {svc.comingSoon && (
-                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#9CA3AF', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#6B7280', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
                     <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
                   </View>
                 )}
                 <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8, opacity: svc.comingSoon ? 0.45 : 1 }} resizeMode="contain" />
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: svc.comingSoon ? '#9CA3AF' : '#000', textAlign: 'center' }}>{svc.label}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: svc.comingSoon ? '#6B7280' : '#000', textAlign: 'center' }}>{svc.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

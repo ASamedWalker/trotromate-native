@@ -55,12 +55,12 @@ export default function TerminalsScreen() {
 
       {/* Search */}
       <View style={s.searchBar}>
-        <Search size={18} color="#9CA3AF" />
+        <Search size={18} color="#6B7280" />
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Where would you like to go?"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#6B7280"
           style={s.searchInput}
         />
       </View>
@@ -82,7 +82,7 @@ export default function TerminalsScreen() {
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
-            <Bus size={36} color="#9CA3AF" />
+            <Bus size={36} color="#6B7280" />
             <Text style={s.emptyTitle}>{query ? 'No terminals match' : 'No terminals yet'}</Text>
             <Text style={s.emptySub}>{query ? 'Try a different name.' : 'Terminals appear here as routes are mapped.'}</Text>
           </View>
@@ -137,7 +137,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
   title: { fontFamily: font.bold, fontSize: 22, color: '#111', letterSpacing: -0.5 },
-  subtitle: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 1 },
+  subtitle: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 1 },
 
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginBottom: 8, paddingHorizontal: 14, height: 48, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
   searchInput: { flex: 1, fontFamily: font.regular, fontSize: 15, color: '#111' },
@@ -150,12 +150,12 @@ const s = StyleSheet.create({
   center: { paddingVertical: 60, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40, gap: 8 },
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
-  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 
   card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   terminalName: { fontFamily: font.bold, fontSize: 16, color: '#111' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  metaText: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  metaText: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   queueAge: { fontFamily: font.regular, fontSize: 11, color: '#B0B0B0', marginTop: 3 },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#D1D5DB' },
   cardRight: { alignItems: 'flex-end', gap: 8 },

@@ -28,7 +28,7 @@ ALL screens must follow these tokens:
 | Body text | 16px regular |
 | Labels | 14px medium |
 | Primary text | #000000 |
-| Secondary text | #9CA3AF |
+| Secondary text | #6B7280 |
 | Background | #FAFAF9 |
 | Cards | #FFFFFF |
 | Brand accent | #FF4D1C (orange) |

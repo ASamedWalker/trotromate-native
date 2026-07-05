@@ -622,7 +622,7 @@ export default function RouteDetailScreen() {
               scales to corridors with many drop-off points (no chip wall). */}
           {hasStops && (
             <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#9CA3AF', marginBottom: 7, letterSpacing: 0.2, textTransform: 'uppercase' }}>Where will you alight?</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#6B7280', marginBottom: 7, letterSpacing: 0.2, textTransform: 'uppercase' }}>Where will you alight?</Text>
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => { Haptics.selectionAsync(); setAlightPickerOpen(true) }}
@@ -632,7 +632,7 @@ export default function RouteDetailScreen() {
                   <MapPin size={16} color={BRAND} />
                   <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1F2937' }} numberOfLines={1}>{dropoffName}</Text>
                 </View>
-                <ChevronDown size={18} color="#9CA3AF" />
+                <ChevronDown size={18} color="#6B7280" />
               </TouchableOpacity>
             </View>
           )}
@@ -641,7 +641,7 @@ export default function RouteDetailScreen() {
           <View style={{ marginHorizontal: 24, marginBottom: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-start' }}>
             <View>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>arrives {arrivalTime}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>arrives {arrivalTime}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>₵{displayFare}</Text>
@@ -655,7 +655,7 @@ export default function RouteDetailScreen() {
                     </View>
                   ) : (
                     <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
-                      <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#9CA3AF' }}>estimate</Text>
+                      <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#6B7280' }}>estimate</Text>
                     </View>
                   )}
                 </View>
@@ -664,7 +664,7 @@ export default function RouteDetailScreen() {
                   ₵{minFare!.toFixed(0)}–{maxFare!.toFixed(0)} · {selectedOption.label}
                 </Text>
               ) : (
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{selectedOption.label} fare</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{selectedOption.label} fare</Text>
               )}
               {reportCount > 0 && (
                 <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#B0B4BB', marginTop: 1 }}>
@@ -795,7 +795,7 @@ export default function RouteDetailScreen() {
                     {!loadingTraffic && (trafficCondition === 'heavy' || trafficCondition === 'severe') && <AlertTriangle size={14} color={trafficCondition === 'severe' ? '#dc2626' : '#ea580c'} />}
                     <Text style={{
                       fontFamily: font.bold, fontSize: 13,
-                      color: loadingTraffic ? '#9CA3AF'
+                      color: loadingTraffic ? '#6B7280'
                         : !trafficCondition || trafficCondition === 'light' ? '#059669'
                         : trafficCondition === 'moderate' ? '#d97706'
                         : trafficCondition === 'heavy' ? '#ea580c' : '#dc2626',
@@ -826,7 +826,7 @@ export default function RouteDetailScreen() {
               </View>
 
               {/* Timestamp */}
-              <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' }}>
+              <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280' }}>
                 {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
               </Text>
             </View>
@@ -854,12 +854,12 @@ export default function RouteDetailScreen() {
                 backgroundColor: '#F3F4F6', borderRadius: 12,
                 paddingHorizontal: 14, height: 44, marginBottom: 16,
               }}>
-                <Search size={18} color="#9CA3AF" />
+                <Search size={18} color="#6B7280" />
                 <TextInput
                   value={vehicleSearch}
                   onChangeText={setVehicleSearch}
                   placeholder="Search by bus code..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
                 />
               </View>
@@ -868,7 +868,7 @@ export default function RouteDetailScreen() {
               {loadingVehicles ? (
                 <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                   <ActivityIndicator size="small" color={BRAND} />
-                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>Finding buses on route...</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginTop: 8 }}>Finding buses on route...</Text>
                 </View>
               ) : (() => {
                 const filtered = vehicles.filter(v =>
@@ -889,7 +889,7 @@ export default function RouteDetailScreen() {
                       }}>
                         {/* ETA headline + Live */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: v.isStale ? '#9CA3AF' : '#000', letterSpacing: -0.4 }}>
+                          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: v.isStale ? '#6B7280' : '#000', letterSpacing: -0.4 }}>
                             {v.isStale ? 'Offline' : etaMins != null ? (etaMins <= 2 ? 'Arriving now' : `Arriving in ${etaMins} min`) : 'At a stop'}
                           </Text>
                           {!v.isStale && (
@@ -901,7 +901,7 @@ export default function RouteDetailScreen() {
                         </View>
 
                         {/* Friendly status */}
-                        <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 3 }}>
+                        <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 3 }}>
                           {v.isStale ? 'Last seen a moment ago' : v.speed && v.speed > 0 ? 'On the way' : 'Waiting at a stop'}
                         </Text>
 
@@ -918,7 +918,7 @@ export default function RouteDetailScreen() {
                           <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14, color: '#111' }} numberOfLines={1}>
                             {v.plateNumber}
                             {'driver' in v && (v as any).driver ? (
-                              <Text style={{ fontFamily: font.regular, color: '#9CA3AF' }}>{`   ·   ${(v as any).driver}`}</Text>
+                              <Text style={{ fontFamily: font.regular, color: '#6B7280' }}>{`   ·   ${(v as any).driver}`}</Text>
                             ) : null}
                           </Text>
                           <ChevronRight size={18} color="#D1D5DB" />
@@ -929,7 +929,7 @@ export default function RouteDetailScreen() {
                 ) : (
                   <View style={{ padding: 24, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
                     <Bus size={32} color="#D1D5DB" />
-                    <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#9CA3AF', marginTop: 10 }}>
+                    <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#6B7280', marginTop: 10 }}>
                       {vehicleSearch ? `No buses matching "${vehicleSearch}"` : 'No buses currently on this route'}
                     </Text>
                     <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>Check back shortly</Text>
@@ -1020,7 +1020,7 @@ export default function RouteDetailScreen() {
                             backgroundColor: stop.passed || isFinal ? BRAND : '#E5E7EB',
                             justifyContent: 'center', alignItems: 'center',
                           }}>
-                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed || isFinal ? '#fff' : '#9CA3AF' }}>
+                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed || isFinal ? '#fff' : '#6B7280' }}>
                               {stop.letter}
                             </Text>
                           </View>
@@ -1047,7 +1047,7 @@ export default function RouteDetailScreen() {
                             <Text numberOfLines={1} style={{
                               fontFamily: isCurrent || isFinal ? font.extrabold : font.bold,
                               fontSize: isCurrent ? 16 : 15,
-                              color: stop.passed || isCurrent || isFinal ? '#000' : '#9CA3AF',
+                              color: stop.passed || isCurrent || isFinal ? '#000' : '#6B7280',
                             }}>
                               {stop.name}
                             </Text>
@@ -1060,7 +1060,7 @@ export default function RouteDetailScreen() {
                           <Text style={{
                             fontFamily: font.bold,
                             fontSize: 13,
-                            color: isFinal ? BRAND : isCurrent ? '#22c55e' : stop.passed ? '#9CA3AF' : '#6B7280',
+                            color: isFinal ? BRAND : isCurrent ? '#22c55e' : stop.passed ? '#6B7280' : '#6B7280',
                           }}>
                             {stop.passed ? `${stop.minsAgo} min ago` : isCurrent ? 'Here now' : `in ${stop.etaMin} min`}
                           </Text>

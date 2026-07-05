@@ -113,7 +113,7 @@ export default function ReceiptScreen() {
           {/* Top: passenger + code */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{passenger}</Text>
-            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#9CA3AF', letterSpacing: 1 }}>{t.code}</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#6B7280', letterSpacing: 1 }}>{t.code}</Text>
           </View>
 
           {/* From — To */}
@@ -158,7 +158,7 @@ export default function ReceiptScreen() {
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: copied ? '#16A34A' : '#6B7280', letterSpacing: 0.5 }}>
                 {copied ? 'Copied!' : t.ref}
               </Text>
-              {copied ? <Check size={13} color="#16A34A" /> : <Copy size={13} color="#9CA3AF" />}
+              {copied ? <Check size={13} color="#16A34A" /> : <Copy size={13} color="#6B7280" />}
             </TouchableOpacity>
           </View>
 
@@ -214,7 +214,7 @@ export default function ReceiptScreen() {
           <TouchableOpacity activeOpacity={1} style={s.safetySheet}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>Safety Features</Text>
-              <TouchableOpacity onPress={() => setShowSafety(false)} hitSlop={8}><X size={18} color="#9CA3AF" /></TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowSafety(false)} hitSlop={8}><X size={18} color="#6B7280" /></TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
               <TouchableOpacity
@@ -258,7 +258,7 @@ const s = StyleSheet.create({
   closeTop: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   checkCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: GREEN, justifyContent: 'center', alignItems: 'center' },
   title: { fontFamily: font.bold, fontSize: 20, color: '#111', marginTop: 18 },
-  subtitle: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 4 },
+  subtitle: { fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginTop: 4 },
 
   // Shadow lives on the wrapper: iOS drops shadows on views with overflow:hidden,
   // and the ticket needs overflow:hidden so the perforation notches punch through
@@ -267,7 +267,7 @@ const s = StyleSheet.create({
   qrFrame: { padding: 12, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1.5, borderColor: '#E5E7EB' },
   refPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 7 },
   bigCode: { fontFamily: font.extrabold, fontSize: 30, color: '#111', letterSpacing: -0.5 },
-  codeName: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 },
+  codeName: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 2 },
   // Journey motif between the station codes — rail, sleepers, rail (per Figma)
   trackLine: { alignSelf: 'stretch', height: 2.5, borderRadius: 2, backgroundColor: '#E5E7EB' },
   trackDash: { width: 9, height: 7, borderRadius: 1.5, backgroundColor: '#4B5563' },
@@ -278,7 +278,7 @@ const s = StyleSheet.create({
 
   metaStrip: { flexDirection: 'row', backgroundColor: '#FAFAF9', borderRadius: 14, marginHorizontal: 16, marginTop: 18, paddingVertical: 12 },
 
-  metaLabel: { fontFamily: font.medium, fontSize: 11, color: '#9CA3AF' },
+  metaLabel: { fontFamily: font.medium, fontSize: 11, color: '#6B7280' },
   metaValue: { fontFamily: font.bold, fontSize: 14, color: '#111', marginTop: 3 },
 
   actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },

@@ -162,7 +162,7 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.backdrop}>
         <View style={s.sheet}>
-          <TouchableOpacity onPress={onClose} hitSlop={10} style={s.close}><X size={20} color="#9CA3AF" /></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} hitSlop={10} style={s.close}><X size={20} color="#6B7280" /></TouchableOpacity>
           <View style={s.badge}>{offerBio ? <ScanFace size={24} color={BRAND} /> : <ShieldCheck size={24} color={BRAND} />}</View>
           <Text style={s.title}>{offerBio ? `Enable ${bioLabel}?` : title}</Text>
           <Text style={s.hint}>{offerBio ? `Pay faster — unlock with ${bioLabel} instead of your PIN.` : hint}</Text>
@@ -222,7 +222,7 @@ const s = StyleSheet.create({
   close: { position: 'absolute', top: 16, right: 16, padding: 4 },
   badge: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#FFF0EB', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   title: { fontFamily: font.bold, fontSize: 20, color: '#111', marginTop: 14 },
-  hint: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 4, textAlign: 'center' },
+  hint: { fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginTop: 4, textAlign: 'center' },
 
   dots: { flexDirection: 'row', gap: 16, marginTop: 24, marginBottom: 8 },
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: '#D1D5DB' },
@@ -234,7 +234,7 @@ const s = StyleSheet.create({
   offerPrimary: { height: 54, borderRadius: 16, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   offerPrimaryText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
   offerSkip: { height: 48, alignItems: 'center', justifyContent: 'center' },
-  offerSkipText: { fontFamily: font.semibold, fontSize: 15, color: '#9CA3AF' },
+  offerSkipText: { fontFamily: font.semibold, fontSize: 15, color: '#6B7280' },
 
   pad: { width: 300, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 20, rowGap: 12 },
   key: { width: 90, height: 64, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },

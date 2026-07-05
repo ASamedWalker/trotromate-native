@@ -261,7 +261,7 @@ export default function TrackingMap({
             {status === 'arrived' ? 'Now' : `${etaMins} min`}
           </Text>
           {plateNumber && (
-            <Text style={[styles.etaPlate, { color: isDark ? '#A8A29E' : '#9CA3AF' }]}>{plateNumber}</Text>
+            <Text style={[styles.etaPlate, { color: isDark ? '#A8A29E' : '#6B7280' }]}>{plateNumber}</Text>
           )}
         </View>
       )}

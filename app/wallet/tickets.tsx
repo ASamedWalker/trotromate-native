@@ -86,7 +86,7 @@ export default function MyTicketsScreen() {
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
         ) : tickets.length === 0 ? (
           <View style={s.empty}>
-            <Ticket size={36} color="#9CA3AF" />
+            <Ticket size={36} color="#6B7280" />
             <Text style={s.emptyTitle}>No tickets yet</Text>
             <Text style={s.emptySub}>Book a trip and your tickets show up here.</Text>
           </View>
@@ -121,12 +121,12 @@ const s = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   route: { fontFamily: font.bold, fontSize: 15, color: '#111' },
-  meta: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 3 },
+  meta: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 3 },
   pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
   pillText: { fontFamily: font.bold, fontSize: 11 },
 
   center: { paddingVertical: 70, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 70, paddingHorizontal: 40, gap: 8 },
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
-  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 })

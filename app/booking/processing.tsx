@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   coinText: { fontFamily: font.extrabold, fontSize: 13, color: '#fff' },
   bus: { width: 132, height: BUS_H },
   title: { fontFamily: font.bold, fontSize: 18, color: '#111' },
-  sub: { fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 4 },
+  sub: { fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginTop: 4 },
 })

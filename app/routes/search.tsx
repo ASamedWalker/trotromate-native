@@ -363,7 +363,7 @@ export default function PlanTripScreen() {
               <TextInput
                 ref={fromRef}
                 placeholder="From where?"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={from}
                 onChangeText={setFrom}
                 onFocus={() => setActiveInput('from')}
@@ -373,7 +373,7 @@ export default function PlanTripScreen() {
               />
               {from.length > 0 && (
                 <TouchableOpacity onPress={() => setFrom('')} hitSlop={8}>
-                  <X size={16} color="#9CA3AF" />
+                  <X size={16} color="#6B7280" />
                 </TouchableOpacity>
               )}
             </View>
@@ -402,7 +402,7 @@ export default function PlanTripScreen() {
               <TextInput
                 ref={toRef}
                 placeholder="To where?"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 value={to}
                 onChangeText={setTo}
                 onFocus={() => setActiveInput('to')}
@@ -411,7 +411,7 @@ export default function PlanTripScreen() {
               />
               {to.length > 0 && (
                 <TouchableOpacity onPress={() => setTo('')} hitSlop={8}>
-                  <X size={16} color="#9CA3AF" />
+                  <X size={16} color="#6B7280" />
                 </TouchableOpacity>
               )}
             </View>
@@ -439,7 +439,7 @@ export default function PlanTripScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000' }}>{sc.label}</Text>
-                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }} numberOfLines={1}>{sc.value || sc.placeholder}</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280' }} numberOfLines={1}>{sc.value || sc.placeholder}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -454,7 +454,7 @@ export default function PlanTripScreen() {
                   <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>+ New Place</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 16 }}>No saved places</Text>
+              <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 16 }}>No saved places</Text>
             </View>
           )}
         </View>
@@ -464,7 +464,7 @@ export default function PlanTripScreen() {
           {/* ── Smart Suggestions (real stations) ── */}
           {!showingResults && (
             <View style={{ paddingHorizontal: 24 }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#9CA3AF', marginBottom: 10 }}>
+              <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginBottom: 10 }}>
                 {(activeInput === 'from' ? from : to).length > 0 ? 'Results' : 'Nearby stations'}
               </Text>
               {suggestions.map((station, i) => (
@@ -497,7 +497,7 @@ export default function PlanTripScreen() {
 
               {suggestions.length === 0 && (activeInput === 'from' ? from : to).length > 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#9CA3AF' }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#6B7280' }}>
                     No stations found
                   </Text>
                 </View>
@@ -568,7 +568,7 @@ export default function PlanTripScreen() {
                 <TextInput
                   style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#111', padding: 0 }}
                   placeholder="Search address"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   value={addressInput}
                   onChangeText={searchAddress}
                   autoFocus
@@ -582,11 +582,11 @@ export default function PlanTripScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}
                 >
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                    <MapPin size={14} color="#9CA3AF" />
+                    <MapPin size={14} color="#6B7280" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#111' }}>{s.text}</Text>
-                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }} numberOfLines={1}>{s.place_name}</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280' }} numberOfLines={1}>{s.place_name}</Text>
                   </View>
                 </TouchableOpacity>
               ))}

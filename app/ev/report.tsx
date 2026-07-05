@@ -113,10 +113,10 @@ export default function EvReportScreen() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Field label="Name *">
-          <TextInput value={name} onChangeText={setName} placeholder="e.g. Accra Mall charger" placeholderTextColor="#9CA3AF" style={styles.input} />
+          <TextInput value={name} onChangeText={setName} placeholder="e.g. Accra Mall charger" placeholderTextColor="#6B7280" style={styles.input} />
         </Field>
         <Field label="Operator (optional)">
-          <TextInput value={operator} onChangeText={setOperator} placeholder="e.g. GreenDrive, Kofa" placeholderTextColor="#9CA3AF" style={styles.input} />
+          <TextInput value={operator} onChangeText={setOperator} placeholder="e.g. GreenDrive, Kofa" placeholderTextColor="#6B7280" style={styles.input} />
         </Field>
 
         <Field label="Connector">
@@ -151,10 +151,10 @@ export default function EvReportScreen() {
         </View>
 
         <Field label="Pricing (optional)">
-          <TextInput value={pricing} onChangeText={setPricing} placeholder="e.g. GH₵ 2.50 / kWh, or per swap" placeholderTextColor="#9CA3AF" style={styles.input} />
+          <TextInput value={pricing} onChangeText={setPricing} placeholder="e.g. GH₵ 2.50 / kWh, or per swap" placeholderTextColor="#6B7280" style={styles.input} />
         </Field>
         <Field label="Notes (optional)">
-          <TextInput value={notes} onChangeText={setNotes} placeholder="Landmark, opening hours, anything useful" placeholderTextColor="#9CA3AF" style={[styles.input, { minHeight: 64 }]} multiline maxLength={280} />
+          <TextInput value={notes} onChangeText={setNotes} placeholder="Landmark, opening hours, anything useful" placeholderTextColor="#6B7280" style={[styles.input, { minHeight: 64 }]} multiline maxLength={280} />
         </Field>
 
         <TouchableOpacity style={[styles.submit, submitting && { opacity: 0.6 }]} onPress={submit} activeOpacity={0.9} disabled={submitting}>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   segTextOn: { color: '#fff', fontFamily: font.bold },
 
   fieldLabel: { fontFamily: font.bold, fontSize: 13.5, color: '#111' },
-  fieldHint: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  fieldHint: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
   input: { backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 8, fontFamily: font.medium, fontSize: 15, color: '#111', borderWidth: 1, borderColor: '#F0F0F0' },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 100, backgroundColor: '#F3F4F6' },

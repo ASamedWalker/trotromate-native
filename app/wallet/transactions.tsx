@@ -104,7 +104,7 @@ export default function TransactionsScreen() {
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
         ) : txs.length === 0 ? (
           <View style={s.empty}>
-            <Clock size={36} color="#9CA3AF" />
+            <Clock size={36} color="#6B7280" />
             <Text style={s.emptyTitle}>No transactions yet</Text>
             <Text style={s.emptySub}>Top up your wallet or book a trip to see activity here.</Text>
           </View>
@@ -121,7 +121,7 @@ export default function TransactionsScreen() {
                   const title = tx.description || (credit ? 'MoMo Top-up' : 'Payment')
                   const time = new Date(tx.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })
                   const statusSuffix = failed ? ' · Failed' : pending ? ' · Pending' : ''
-                  const iconColor = failed ? '#9CA3AF' : credit ? '#16a34a' : BRAND
+                  const iconColor = failed ? '#6B7280' : credit ? '#16a34a' : BRAND
                   return (
                     <TouchableOpacity
                       key={tx.id}
@@ -144,13 +144,13 @@ export default function TransactionsScreen() {
                         {credit ? <ArrowDownLeft size={18} color={iconColor} /> : <ArrowUpRight size={18} color={iconColor} />}
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[s.txTitle, failed && { color: '#9CA3AF' }]} numberOfLines={1}>{title}</Text>
+                        <Text style={[s.txTitle, failed && { color: '#6B7280' }]} numberOfLines={1}>{title}</Text>
                         <Text style={[s.txTime, failed && { color: '#EF4444' }]}>{time}{statusSuffix}</Text>
                       </View>
                       <Text style={[
                         s.amount,
                         { color: credit ? '#16a34a' : '#111' },
-                        muted && { color: '#9CA3AF' },
+                        muted && { color: '#6B7280' },
                         failed && { textDecorationLine: 'line-through' },
                       ]}>
                         {credit ? '+' : '-'}{formatGHS(Number(tx.amount))}
@@ -183,7 +183,7 @@ const s = StyleSheet.create({
   center: { paddingVertical: 70, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 70, paddingHorizontal: 40, gap: 8 },
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
-  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 
   groupLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.5, marginLeft: 24, marginBottom: 8, textTransform: 'uppercase' },
   card: { backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
@@ -191,7 +191,7 @@ const s = StyleSheet.create({
   rowBorder: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   txTitle: { fontFamily: font.semibold, fontSize: 14, color: '#111' },
-  txTime: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  txTime: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 },
   amount: { fontFamily: font.bold, fontSize: 15 },
-  note: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 20 },
+  note: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', textAlign: 'center', marginTop: 20 },
 })

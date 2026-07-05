@@ -265,7 +265,7 @@ function CoinGauge({
         <Text style={{ fontFamily: font.displayHeavy, fontSize: 40, color: isDark ? '#fff' : '#1c1917', letterSpacing: 0, marginTop: 4 }}>
           {shown.toLocaleString()}
         </Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF', marginTop: 4 }}>
+        <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginTop: 4 }}>
           Troski Coin
         </Text>
       </View>
@@ -777,7 +777,7 @@ export default function RewardsScreen() {
                   </View>
                   <View style={[s.summaryCard, { marginLeft: 6 }]}>
                     <Text style={s.summaryLabel}>Redeemed</Text>
-                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF') }]}>
+                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.5)' : '#6B7280') }]}>
                       {derived.redeemed > 0 ? `-${derived.redeemed}` : '0'}
                     </Text>
                   </View>
@@ -923,7 +923,7 @@ function Stat({ label, value, isDark, onPress }: { label: string; value: string;
   const body = (
     <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
       <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: isDark ? '#fff' : '#1c1917' }}>{value}</Text>
-      <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>{label}</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280' }}>{label}</Text>
     </View>
   )
   if (onPress) return <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.6} onPress={onPress}>{body}</TouchableOpacity>
@@ -940,7 +940,7 @@ function histTime(iso: string): string {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   const surface = isDark ? '#1c1c1e' : '#ffffff'
-  const subText = isDark ? 'rgba(255,255,255,0.55)' : '#9CA3AF'
+  const subText = isDark ? 'rgba(255,255,255,0.55)' : '#6B7280'
   const border = isDark ? 'rgba(255,255,255,0.07)' : '#F1ECEA'
 
   return StyleSheet.create({

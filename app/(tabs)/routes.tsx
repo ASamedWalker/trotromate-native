@@ -160,6 +160,8 @@ export default function RoutesScreen() {
     const accent = lineColorFor(item.id)
     const confidence = fareConfidence(item.fare_stats)
     const hasFareReports = (item.fare_stats?.report_count ?? 0) > 0
+    // GPRTU-verified official fares are authoritative — never label them estimates
+    const fareTrusted = hasFareReports || (item.is_gprtu_verified && item.official_fare != null)
 
     return (
       <TouchableOpacity
@@ -187,10 +189,24 @@ export default function RoutesScreen() {
               </Text>
             </View>
             <View style={s.fareWrap}>
-              <Text style={[s.fareAmount, { color: hasFareReports ? t.text : t.textSecondary }]}>
-                {hasFareReports ? '' : 'Est. '}GH₵ {displayFare.toFixed(2)}
+              <Text style={[s.fareAmount, { color: fareTrusted ? t.text : t.textSecondary }]}>
+                {fareTrusted ? '' : 'Est. '}GH₵ {displayFare.toFixed(2)}
               </Text>
               <Text style={s.fareLabel}>Per Seat</Text>
+              {!hasFareReports && (
+                <TouchableOpacity
+                  style={s.reportFareCta}
+                  onPress={() => router.push({
+                    pathname: '/report/fare',
+                    params: { route_id: item.id, from: item.from_location, to: item.to_location, transport_type: item.transport_type },
+                  } as Href)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Plus size={11} color={c.amber500} />
+                  <Text style={s.reportFareCtaText}>Report fare (+pts)</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -611,6 +627,17 @@ const getStyles = (isDark: boolean) => {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       marginTop: 2,
+    },
+    reportFareCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      marginTop: 6,
+    },
+    reportFareCtaText: {
+      fontSize: 11,
+      fontFamily: font.semibold,
+      color: c.amber500,
     },
 
     // Meta row (last element in the card now that View Details is gone)

@@ -373,7 +373,7 @@ export default function LineDetailScreen() {
                       </View>
                       <ChevronDown
                         size={18}
-                        color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
+                        color={isDark ? 'rgba(255,255,255,0.3)' : '#6b7280'}
                         style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
                       />
                     </View>

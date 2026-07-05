@@ -68,10 +68,10 @@ export default function BankTransferScreen() {
             borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E5E3',
           }]}
         >
-          <Text style={[s.dropdownText, { color: bank ? t.text : '#9CA3AF', fontFamily: bank ? font.semibold : font.regular }]}>
+          <Text style={[s.dropdownText, { color: bank ? t.text : '#6B7280', fontFamily: bank ? font.semibold : font.regular }]}>
             {bank ? bank.name : 'Select Bank'}
           </Text>
-          <ChevronDown size={20} color="#9CA3AF" />
+          <ChevronDown size={20} color="#6B7280" />
         </TouchableOpacity>
 
         {/* Account details (after a bank is chosen) */}
@@ -167,7 +167,7 @@ const s = StyleSheet.create({
 
   accountCard: { borderRadius: 16, borderWidth: 1, padding: 18, marginTop: 16, gap: 14 },
   accountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  accountLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 1.5, color: '#9CA3AF', marginBottom: 6 },
+  accountLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 1.5, color: '#6B7280', marginBottom: 6 },
   accountNumber: { fontSize: 22, fontFamily: font.extrabold, letterSpacing: 1 },
   copyBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND,

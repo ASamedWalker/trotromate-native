@@ -249,7 +249,7 @@ export default function CheckoutScreen() {
                 <Text style={s.detailValue}>{liveTrotros} active now</Text>
               </View>
             ) : (
-              <Text style={[s.detailValue, { color: '#9CA3AF' }]}>None sharing live yet</Text>
+              <Text style={[s.detailValue, { color: '#6B7280' }]}>None sharing live yet</Text>
             )}
           </View>
           <View style={s.detailRow}>
@@ -271,10 +271,10 @@ export default function CheckoutScreen() {
                 <View style={{ backgroundColor: QUEUE_META[originQueue.status].bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
                   <Text style={{ fontFamily: font.bold, fontSize: 12, color: QUEUE_META[originQueue.status].color }}>{QUEUE_META[originQueue.status].label}</Text>
                 </View>
-                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#9CA3AF' }}>{originQueue.ageMins}m ago</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#6B7280' }}>{originQueue.ageMins}m ago</Text>
               </View>
             ) : (
-              <Text style={[s.detailValue, { color: '#9CA3AF', fontSize: 13 }]}>Leaves when full</Text>
+              <Text style={[s.detailValue, { color: '#6B7280', fontSize: 13 }]}>Leaves when full</Text>
             )}
           </View>
         </View>
@@ -300,7 +300,7 @@ export default function CheckoutScreen() {
                 <InitialsAvatar name={driver} size={44} />
               ) : (
                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: plate ? 'rgba(34,197,94,0.12)' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
-                  <Bus size={22} color={plate ? '#16A34A' : '#9CA3AF'} />
+                  <Bus size={22} color={plate ? '#16A34A' : '#6B7280'} />
                 </View>
               )}
               {driver ? (
@@ -390,7 +390,7 @@ export default function CheckoutScreen() {
       <View style={s.payBar}>
         {insufficient ? (
           <>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 8 }}>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
               Wallet balance {formatGHS(walletBalance ?? 0)} · short {formatGHS(shortfall)}
             </Text>
             <TouchableOpacity
@@ -433,7 +433,7 @@ export default function CheckoutScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Star size={14} color="#F5A623" fill="#F5A623" />
                     <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#111' }}>{driverRating.avg?.toFixed(1)}</Text>
-                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF' }}>({driverRating.count})</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280' }}>({driverRating.count})</Text>
                   </View>
                 )}
               </View>
@@ -452,7 +452,7 @@ export default function CheckoutScreen() {
                 <View style={{ alignItems: 'center', paddingVertical: 22, gap: 6 }}>
                   <Star size={26} color="#E5E7EB" fill="#E5E7EB" />
                   <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#374151' }}>No reviews yet</Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>Rate your driver after the trip — your feedback keeps the fleet accountable.</Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' }}>Rate your driver after the trip — your feedback keeps the fleet accountable.</Text>
                 </View>
               )}
             </ScrollView>
@@ -522,15 +522,15 @@ function DriverHeader({ driver, rides, rating, onVerify }: { driver: AssignedVeh
         ].map(([n, l], i) => (
           <View key={l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#F3F4F6' }}>
             <Text style={{ fontFamily: font.extrabold, fontSize: 20, color: BRAND }}>{n}</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{l}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 }}>{l}</Text>
           </View>
         ))}
       </View>
 
       <TouchableOpacity activeOpacity={0.7} onPress={onVerify} style={s.verifyRow}>
-        <ShieldCheck size={18} color={verified ? '#16A34A' : '#9CA3AF'} />
+        <ShieldCheck size={18} color={verified ? '#16A34A' : '#6B7280'} />
         <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14, color: '#111', marginLeft: 10 }}>{verified ? 'Verification Completed' : 'Verification Pending'}</Text>
-        <ChevronRight size={18} color="#9CA3AF" />
+        <ChevronRight size={18} color="#6B7280" />
       </TouchableOpacity>
     </View>
   )
@@ -543,9 +543,9 @@ const s = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F1F1F0' },
 
-  tinyLabel: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  tinyLabel: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   placeName: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 2 },
-  placeSub: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  placeSub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
   dash: { width: 1.5, height: 10, backgroundColor: '#E5E7EB' },
   busBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF0EB', justifyContent: 'center', alignItems: 'center', marginVertical: 4 },
 
@@ -555,7 +555,7 @@ const s = StyleSheet.create({
   detailValue: { fontFamily: font.bold, fontSize: 14, color: '#111' },
 
   driverName: { fontFamily: font.bold, fontSize: 15, color: '#111' },
-  driverRole: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  driverRole: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
   linkText: { fontFamily: font.bold, fontSize: 13, color: BRAND },
 
   sectionTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 20, marginBottom: 10 },
@@ -567,7 +567,7 @@ const s = StyleSheet.create({
   addBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
   payIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   payLabel: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-  paySub: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  paySub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
   radioOn: { backgroundColor: BRAND, borderColor: BRAND },
 

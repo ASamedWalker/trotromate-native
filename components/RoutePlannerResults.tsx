@@ -46,7 +46,7 @@ export function RoutePlannerResults({
     return (
       <View style={{ alignItems: 'center', paddingVertical: 32, gap: 10 }}>
         <ActivityIndicator size="small" color={BRAND} />
-        <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#9CA3AF' }}>Finding routes...</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Finding routes...</Text>
       </View>
     )
   }
@@ -55,7 +55,7 @@ export function RoutePlannerResults({
     return (
       <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
         <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 4 }}>No routes found</Text>
-        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>
+        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
           Try different locations or check your spelling
         </Text>
       </View>
@@ -110,8 +110,8 @@ export function RoutePlannerResults({
                 )}
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Clock size={12} color="#9CA3AF" />
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' }}>
+                <Clock size={12} color="#6B7280" />
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
                   {etaMins} min away · {plan.total_duration_mins} min ride
                 </Text>
               </View>
@@ -149,8 +149,8 @@ export function RoutePlannerResults({
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 3 }}>Walk</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Clock size={12} color="#9CA3AF" />
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' }}>
+              <Clock size={12} color="#6B7280" />
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
                 ~{walkingEstimate.duration_mins} min · {walkingEstimate.distance_km.toFixed(1)} km
               </Text>
             </View>

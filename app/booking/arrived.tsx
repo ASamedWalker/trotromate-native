@@ -140,7 +140,7 @@ export default function ArrivedScreen() {
           )}
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{driver.driverName}</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>Bus Driver · {driver.plate}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 }}>Bus Driver · {driver.plate}</Text>
           </View>
         </View>
         )}
@@ -150,7 +150,7 @@ export default function ArrivedScreen() {
           <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>
             {isGoTrip ? 'Rate your experience' : 'Rate your driver'}
           </Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+          <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
             {isGoTrip ? `How was your ride${params.route ? ` on ${params.route}` : ''}?` : `How was your ride with ${driverFirst}?`}
           </Text>
 
@@ -179,7 +179,7 @@ export default function ArrivedScreen() {
                 value={comment}
                 onChangeText={setComment}
                 placeholder="Add a comment about your driver (optional)"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#6B7280"
                 style={{ fontFamily: font.regular, fontSize: 14, color: '#111', minHeight: 44 }}
                 multiline
                 maxLength={280}

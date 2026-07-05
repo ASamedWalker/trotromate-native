@@ -152,7 +152,7 @@ export default function EvScreen() {
                 {[selected.operator, selected.town].filter(Boolean).join(' · ') || selected.address || 'Charging station'}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setSelected(null)} hitSlop={8}><X size={18} color="#9CA3AF" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setSelected(null)} hitSlop={8}><X size={18} color="#6B7280" /></TouchableOpacity>
           </View>
 
           <View style={styles.pillRow}>
@@ -205,14 +205,14 @@ export default function EvScreen() {
             <Text style={styles.listLabel}>Nearby charging stations</Text>
             {stations.map((s) => (
               <TouchableOpacity key={s.id} style={styles.listRow} onPress={() => { Haptics.selectionAsync(); setSelected(s) }}>
-                <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#9CA3AF' : EV_GREEN }]} />
+                <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#6B7280' : EV_GREEN }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.listTitle} numberOfLines={1}>{s.name}</Text>
                   <Text style={styles.listSub} numberOfLines={1}>
                     {[s.maxPowerKW ? `${s.maxPowerKW} kW` : null, s.operator, s.source === 'community' ? 'Community' : s.town].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
-                <Navigation size={16} color="#9CA3AF" />
+                <Navigation size={16} color="#6B7280" />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -227,12 +227,12 @@ export default function EvScreen() {
               <Text style={styles.listLabel}>Nearby charging stations</Text>
               {stations.map((s) => (
                 <TouchableOpacity key={s.id} style={styles.listRow} onPress={() => { Haptics.selectionAsync(); setSelected(s) }}>
-                  <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#9CA3AF' : EV_GREEN }]} />
+                  <View style={[styles.evDot, { backgroundColor: s.isOperational === false ? '#6B7280' : EV_GREEN }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listTitle} numberOfLines={1}>{s.name}</Text>
                     <Text style={styles.listSub} numberOfLines={1}>{[s.maxPowerKW ? `${s.maxPowerKW} kW` : null, s.operator, s.town].filter(Boolean).join(' · ')}</Text>
                   </View>
-                  <Navigation size={16} color="#9CA3AF" />
+                  <Navigation size={16} color="#6B7280" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   sheet: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: '#fff', borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
   evBadge: { width: 44, height: 44, borderRadius: 12, backgroundColor: EV_GREEN, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontFamily: font.bold, fontSize: 16, color: '#0A0A0A', letterSpacing: -0.3 },
-  cardSub: { fontFamily: font.medium, fontSize: 12.5, color: '#9CA3AF', marginTop: 2 },
+  cardSub: { fontFamily: font.medium, fontSize: 12.5, color: '#6B7280', marginTop: 2 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 6, maxWidth: 180 },
   pillText: { fontFamily: font.semibold, fontSize: 12, color: '#374151' },
@@ -289,16 +289,16 @@ const styles = StyleSheet.create({
   dirText: { fontFamily: font.bold, fontSize: 15.5, color: '#fff' },
 
   center: { alignItems: 'center', paddingVertical: 18, gap: 8 },
-  muted: { fontFamily: font.medium, fontSize: 13, color: '#9CA3AF' },
+  muted: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
   listLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.3, marginBottom: 8, textTransform: 'uppercase' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
   evDot: { width: 10, height: 10, borderRadius: 5 },
   listTitle: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-  listSub: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  listSub: { fontFamily: font.medium, fontSize: 12, color: '#6B7280', marginTop: 1 },
 
   stateBox: { alignItems: 'center', paddingVertical: 14, gap: 8 },
   stateTitle: { fontFamily: font.bold, fontSize: 16, color: '#0A0A0A', marginTop: 4, textAlign: 'center' },
-  stateSub: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 },
+  stateSub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 },
   suggestBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8, backgroundColor: 'rgba(22,163,74,0.10)', borderRadius: 100, paddingHorizontal: 16, paddingVertical: 10 },
   suggestText: { fontFamily: font.bold, fontSize: 14, color: EV_GREEN },
 })

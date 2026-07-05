@@ -793,7 +793,7 @@ export default function TripScreen() {
               value={fareInput}
               onChangeText={setFareInput}
               placeholder="0.00"
-              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+              placeholderTextColor="#6B7280"
               keyboardType="decimal-pad"
               autoFocus
             />

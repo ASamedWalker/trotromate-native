@@ -177,7 +177,7 @@ export default function TrackBusScreen() {
           </View>
         ) : !hasLive ? (
           <View style={{ alignItems: 'center', paddingVertical: 20, gap: 8 }}>
-            <View style={s.iconWrap}><Bus size={26} color="#9CA3AF" /></View>
+            <View style={s.iconWrap}><Bus size={26} color="#6B7280" /></View>
             <Text style={s.title}>{van ? 'Connecting to your bus…' : 'No bus on this route yet'}</Text>
             <Text style={[s.muted, { textAlign: 'center' }]}>We'll show your Troski bus live the moment one starts the route.</Text>
           </View>
@@ -192,8 +192,8 @@ export default function TrackBusScreen() {
                 <Text style={s.muted}>{status === 'arriving' ? 'Arriving now' : 'On the way'}{isStale ? ' · last seen a while ago' : ''}</Text>
               </View>
               <View style={s.livePill}>
-                <View style={[s.dot, { backgroundColor: isStale ? '#9CA3AF' : '#22C55E' }]} />
-                <Text style={[s.livePillText, { color: isStale ? '#9CA3AF' : '#16A34A' }]}>{isStale ? 'Stale' : 'Live'}</Text>
+                <View style={[s.dot, { backgroundColor: isStale ? '#6B7280' : '#22C55E' }]} />
+                <Text style={[s.livePillText, { color: isStale ? '#6B7280' : '#16A34A' }]}>{isStale ? 'Stale' : 'Live'}</Text>
               </View>
             </View>
 
@@ -232,7 +232,7 @@ const s = StyleSheet.create({
   sheet: { flex: 1, paddingHorizontal: 20, paddingTop: 18, gap: 16 },
   iconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: font.bold, fontSize: 18, color: '#0A0A0A', letterSpacing: -0.3 },
-  muted: { fontFamily: font.medium, fontSize: 13, color: '#9CA3AF', marginTop: 2 },
+  muted: { fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 },
   livePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(34,197,94,0.10)', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 },
   livePillText: { fontFamily: font.bold, fontSize: 12 },
   dot: { width: 7, height: 7, borderRadius: 4 },
@@ -240,9 +240,9 @@ const s = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, height: 32, backgroundColor: '#E5E7EB' },
   statVal: { fontFamily: font.extrabold, fontSize: 22, color: '#0A0A0A', letterSpacing: -0.5 },
-  statLabel: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  statLabel: { fontFamily: font.medium, fontSize: 12, color: '#6B7280', marginTop: 2 },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
-  hint: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF', textAlign: 'center', lineHeight: 17 },
+  hint: { fontFamily: font.medium, fontSize: 12, color: '#6B7280', textAlign: 'center', lineHeight: 17 },
   saverChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100, backgroundColor: '#F3F4F6' },
   saverText: { fontFamily: font.bold, fontSize: 12, color: '#6B7280' },
   saverHero: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 8 },

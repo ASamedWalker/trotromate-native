@@ -45,7 +45,7 @@ export default function ScanConfirmScreen() {
               <Text style={s.stop}>Kaneshie Terminal</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Route size={14} color="#9CA3AF" />
+              <Route size={14} color="#6B7280" />
               <Text style={s.duration}>2hr, 10mins</Text>
             </View>
           </View>
@@ -109,7 +109,7 @@ const s = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2.5, backgroundColor: '#fff' },
   connector: { width: 2, height: 20, backgroundColor: '#E5E7EB', marginVertical: 2 },
   stop: { fontFamily: font.semibold, fontSize: 14, color: '#111' },
-  duration: { fontFamily: font.medium, fontSize: 12, color: '#9CA3AF' },
+  duration: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
   divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
   rowLabel: { fontFamily: font.medium, fontSize: 14, color: '#6B7280' },
@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   sectionTitle: { fontFamily: font.semibold, fontSize: 14, color: '#374151', marginBottom: 10, paddingHorizontal: 2 },
   payIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   payLabel: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-  paySub: { fontFamily: font.regular, fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  paySub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
   radioOn: { backgroundColor: BRAND, borderColor: BRAND },
 

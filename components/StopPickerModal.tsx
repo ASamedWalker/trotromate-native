@@ -54,12 +54,12 @@ export default function StopPickerModal({
         </View>
 
         <View style={s.searchWrap}>
-          <Search size={16} color="#9CA3AF" />
+          <Search size={16} color="#6B7280" />
           <TextInput
             value={q}
             onChangeText={setQ}
             placeholder="Search stops"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#6B7280"
             style={s.searchInput}
             autoCorrect={false}
           />
@@ -111,6 +111,6 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, fontFamily: font.medium, fontSize: 15, color: '#0A0A0A', padding: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   rowName: { fontFamily: font.bold, fontSize: 15, color: '#1F2937' },
-  rowSub: { fontFamily: font.medium, fontSize: 12.5, color: '#9CA3AF', marginTop: 1 },
-  empty: { fontFamily: font.medium, fontSize: 14, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
+  rowSub: { fontFamily: font.medium, fontSize: 12.5, color: '#6B7280', marginTop: 1 },
+  empty: { fontFamily: font.medium, fontSize: 14, color: '#6B7280', textAlign: 'center', paddingVertical: 24 },
 })

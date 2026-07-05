@@ -15,6 +15,7 @@ export const c = {
   stone400: '#a8a29e',
   stone500: '#78716c',
   stone600: '#57534e',
+  slate500: '#6b7280',
   stone700: '#44403c',
   stone800: '#292524',
   stone900: '#1c1917',

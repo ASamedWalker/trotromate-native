@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   bl: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 14 },
   br: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 14 },
 
-  hint: { fontFamily: font.regular, fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, marginTop: 24, paddingHorizontal: 20 },
+  hint: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 19, marginTop: 24, paddingHorizontal: 20 },
   orManually: { fontFamily: font.bold, fontSize: 14, color: '#374151', marginTop: 26 },
 
   codeCard: { alignSelf: 'stretch', backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#F1F1F0' },

@@ -249,7 +249,7 @@ export default function WalletScreen() {
               <View style={s.myTicketsIcon}><QrCode size={18} color="#FF4D1C" /></View>
               <Text style={s.myTicketsText}>{tr('wallet.myTickets')}</Text>
               <View style={{ flex: 1 }} />
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color="#6B7280" />
             </TouchableOpacity>
 
             {/* Active Pass — real tickets from the wallet backend; hidden when

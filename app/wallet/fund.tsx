@@ -135,7 +135,7 @@ const s = StyleSheet.create({
   },
   iconTile: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   rowLabel: { fontSize: 15, fontFamily: font.semibold },
-  soon: { fontSize: 11, fontFamily: font.medium, color: '#9CA3AF', marginTop: 2 },
+  soon: { fontSize: 11, fontFamily: font.medium, color: '#6B7280', marginTop: 2 },
   radio: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 2,
     justifyContent: 'center', alignItems: 'center',
