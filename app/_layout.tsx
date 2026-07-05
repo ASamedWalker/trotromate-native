@@ -40,6 +40,7 @@ import AppErrorBoundary from '@/components/AppErrorBoundary'
 import { useAppUpdate } from '@/lib/hooks/useAppUpdate'
 import StoreUpdateModal from '@/components/StoreUpdateModal'
 import OtaUpdateBanner from '@/components/OtaUpdateBanner'
+import OfflineBanner from '@/components/OfflineBanner'
 
 import Mapbox from '@rnmapbox/maps'
 import '../global.css'
@@ -174,6 +175,7 @@ function AppInner() {
   return (
     <ThemeProvider value={isDark ? TrotroDarkTheme : TrotroLightTheme}>
       <OnboardingRedirect action={onboardingAction} onDone={() => setOnboardingAction(null)} />
+      <OfflineBanner />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />

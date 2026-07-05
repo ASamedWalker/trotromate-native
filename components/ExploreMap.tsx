@@ -28,7 +28,6 @@ import HappeningNow from '@/components/HappeningNow'
 import { SmartCommuteCard } from '@/components/SmartCommuteCard'
 // NearbyLines, ServiceModePills removed — replaced by Live Trotros + Train tab
 import ReportFAB from '@/components/ReportFAB'
-import OfflineBanner from '@/components/OfflineBanner'
 import InitialsAvatar from '@/components/InitialsAvatar'
 // ServiceModePills removed — Train has its own tab
 import { UnifiedSearch } from '@/components/UnifiedSearch'
@@ -489,8 +488,6 @@ export default function HomeScreen() {
 
   return (
     <View style={s.container}>
-      <OfflineBanner />
-
       {/* ── Full-bleed map — placeholder covers GL surface until style loads ── */}
       {mountMap && <Mapbox.MapView
         style={StyleSheet.absoluteFillObject}

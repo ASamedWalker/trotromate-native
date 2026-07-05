@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { View, Text, useColorScheme, StyleSheet } from 'react-native'
+import { Text, useColorScheme, StyleSheet } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { WifiOff, CloudUpload } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -15,21 +16,21 @@ export default function OfflineBanner() {
 
   if (!isOnline) {
     return (
-      <View style={s.offlineBanner}>
+      <SafeAreaView edges={['top']} style={s.offlineBanner}>
         <WifiOff size={14} color={c.white} />
         <Text style={s.bannerText}>
           You're offline{pendingReports > 0 ? ` · ${pendingReports} pending` : ''}
         </Text>
-      </View>
+      </SafeAreaView>
     )
   }
 
   // Online but has pending reports (syncing)
   return (
-    <View style={s.syncBanner}>
+    <SafeAreaView edges={['top']} style={s.syncBanner}>
       <CloudUpload size={14} color={c.white} />
       <Text style={s.bannerText}>Syncing {pendingReports} report{pendingReports !== 1 ? 's' : ''}...</Text>
-    </View>
+    </SafeAreaView>
   )
 }
 

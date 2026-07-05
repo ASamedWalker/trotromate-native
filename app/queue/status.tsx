@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { ChevronLeft, Plus, Bus, Clock, Gauge } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import Skeleton from '@/components/Skeleton'
 import { timeAgo } from '@/lib/utils/time'
 import { fetchQueueStatus, QUEUE_META, type StationQueue } from '@/lib/services/queueStatus'
 
@@ -102,7 +103,20 @@ export default function QueueStatusScreen() {
         </View>
 
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator color={BRAND} /></View>
+          <View style={{ paddingHorizontal: 20, gap: 12 }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={s.card}>
+                <View style={s.cardTop}>
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <Skeleton width="60%" height={16} />
+                    <Skeleton width="40%" height={12} />
+                  </View>
+                  <Skeleton width={70} height={26} borderRadius={100} />
+                </View>
+                <Skeleton width="100%" height={8} borderRadius={4} style={{ marginTop: 14 }} />
+              </View>
+            ))}
+          </View>
         ) : result.stations.length === 0 ? (
           <View style={s.empty}>
             <Bus size={36} color="#9CA3AF" />

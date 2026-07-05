@@ -15,6 +15,7 @@ import { cancelBooking } from '@/lib/services/booking'
 import { cacheActivePasses, getCachedPasses } from '@/lib/services/ticketCache'
 import { cacheWallet, getCachedWallet } from '@/lib/services/walletCache'
 import { useLanguage } from '@/lib/i18n'
+import { SkeletonActivityItem } from '@/components/Skeleton'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
@@ -313,7 +314,13 @@ export default function WalletScreen() {
                   <Text style={s.viewAll} onPress={() => router.push('/wallet/transactions' as Href)}>SEE ALL</Text>
                 )}
               </View>
-              {transactions.slice(0, 5).map((tx: any, i: number) => {
+              {!hydrated ? (
+                [0, 1, 2, 3].map((i) => (
+                  <Animated.View key={`tx-skeleton-${i}`} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
+                    <SkeletonActivityItem isDark={isDark} />
+                  </Animated.View>
+                ))
+              ) : transactions.slice(0, 5).map((tx: any, i: number) => {
                 const isTopup = tx.type === 'topup'
                 const credit = tx.type === 'topup' || tx.type === 'refund'
                 const icon = isTopup ? 'account-balance' as const : tx.type === 'refund' ? 'undo' as const : 'commute' as const
