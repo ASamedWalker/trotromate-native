@@ -12,10 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
-  MapPin, ChevronRight, ChevronDown,
+  MapPin, ChevronDown,
   Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
   ScanLine, Plus,
-  House, Briefcase,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
@@ -164,10 +163,6 @@ export default function HomeScreen() {
               }}
             >
               <Bell size={22} color="#374151" />
-              <View style={{
-                position: 'absolute', top: 10, right: 10,
-                width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND,
-              }} />
             </Pressable>
           </View>
         </View>
@@ -241,7 +236,9 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/scan' as never) }}
+                // Scan-to-pay is a non-functional mock (accepts any PIN, no real debit) —
+                // gated coming-soon like the other not-yet-live services below.
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'Scan to Pay is coming soon!') }}
                 activeOpacity={0.8}
                 style={{ flex: 1 }}
               >
@@ -254,6 +251,10 @@ export default function HomeScreen() {
                     </View>
                     <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{t('home.scanToPay')}</Text>
                   </BlurView>
+                </View>
+                {/* "Soon" badge — same coming-soon treatment used for not-yet-live services */}
+                <View style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#9CA3AF', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -330,47 +331,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
-
-        {/* ── My Routes ── */}
-        <View style={{ paddingHorizontal: 24, marginBottom: 28 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>My Routes</Text>
-            <Pressable onPress={() => router.push('/routes/search' as any)}>
-              <Text style={{ fontFamily: font.bold, fontSize: 16, color: BRAND }}>Add</Text>
-            </Pressable>
-          </View>
-
-          <View style={{
-            backgroundColor: '#FFFFFF', borderRadius: BASE.radius.lg, overflow: 'hidden',
-            ...BASE.shadow.card,
-          }}>
-            <Pressable
-              style={{ flexDirection: 'row', alignItems: 'center', padding: 18, gap: 16 }}
-              onPress={() => router.push('/routes/search' as any)}
-            >
-              <House size={26} color="#000" strokeWidth={2.5} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>Home</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 2 }}>Tap to set</Text>
-              </View>
-              <ChevronRight size={20} color="#9CA3AF" />
-            </Pressable>
-
-            <View style={{ height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 18 }} />
-
-            <Pressable
-              style={{ flexDirection: 'row', alignItems: 'center', padding: 18, gap: 16 }}
-              onPress={() => router.push('/routes/search' as any)}
-            >
-              <Briefcase size={26} color="#000" strokeWidth={2.5} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>Work</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#9CA3AF', marginTop: 2 }}>Tap to set</Text>
-              </View>
-              <ChevronRight size={20} color="#9CA3AF" />
-            </Pressable>
-          </View>
         </View>
 
         <View style={{ height: 120 }} />

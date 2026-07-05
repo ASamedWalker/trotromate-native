@@ -18,7 +18,6 @@ import { submitDriverRating } from '@/lib/services/driver-ratings'
 
 const BRAND = '#FF4D1C'
 const TAGS = ['On time', 'Friendly', 'Fast', 'Professional']
-const STATS = [['8.4', 'Km', 'Distance'], ['30', 'mins', 'Duration'], ['2', '', 'Stops']]
 
 export default function ArrivedScreen() {
   const router = useRouter()
@@ -34,13 +33,15 @@ export default function ArrivedScreen() {
     fetchAssignedVehicle(params.from, params.to).then(setDriver).catch(() => {})
   }, [isGoTrip, params.from, params.to])
   const driverFirst = driver?.driverName?.split(' ')[0] ?? 'your driver'
-  const stats: [string, string, string][] = isGoTrip
+  // GO trips pass real ride stats; the booking flow has no distance/duration/stop
+  // data to show, so the stats row is simply omitted for those arrivals.
+  const stats: [string, string, string][] | null = isGoTrip
     ? [
         [params.distance && params.distance !== '' ? params.distance : '—', params.distance ? 'Km' : '', 'Distance'],
         [params.duration!, 'mins', 'Duration'],
         [params.stops ?? '0', '', 'Stops'],
       ]
-    : (STATS as [string, string, string][])
+    : null
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState<string[]>([])
   const [comment, setComment] = useState('')
@@ -107,16 +108,18 @@ export default function ArrivedScreen() {
               <Text style={s.arrivedSub}>Safe trip completed</Text>
             </View>
 
-            <View style={s.statsRow}>
-              {stats.map(([n, unit, label], i) => (
-                <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: 'rgba(0,0,0,0.06)' }}>
-                  <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: BRAND }}>
-                    {n}{unit ? <Text style={{ fontSize: 13, color: BRAND }}> {unit}</Text> : null}
-                  </Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 }}>{label}</Text>
-                </View>
-              ))}
-            </View>
+            {stats && (
+              <View style={s.statsRow}>
+                {stats.map(([n, unit, label], i) => (
+                  <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: 'rgba(0,0,0,0.06)' }}>
+                    <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: BRAND }}>
+                      {n}{unit ? <Text style={{ fontSize: 13, color: BRAND }}> {unit}</Text> : null}
+                    </Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 }}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </BlurView>
         </View>
         {/* Check badge straddles the glass edge — outside the clip so it isn't cut */}

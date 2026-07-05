@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Linking } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame } from 'lucide-react-native'
+import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame, Megaphone } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -31,6 +31,7 @@ export default function ProfileScreen() {
 
   const menuItems: { icon: typeof Bell; label: string; onPress: () => void; badge?: number }[] = [
     { icon: Bell, label: 'Notifications', onPress: () => router.navigate('/activity' as Href), badge: unreadCount },
+    { icon: Megaphone, label: 'Contribute / Report', onPress: () => router.push('/report' as Href) },
     { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as Href) },
     { icon: Shield, label: 'Privacy', onPress: () => router.push('/privacy' as Href) },
     { icon: HelpCircle, label: 'Help & Support', onPress: () => Linking.openURL('mailto:support@troski.me?subject=Troski%20Help%20%26%20Support').catch(() => {}) },

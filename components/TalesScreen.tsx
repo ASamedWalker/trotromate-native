@@ -423,15 +423,16 @@ export function TalesScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Report', style: 'destructive', onPress: async () => {
         try {
-          await supabase.from('content_reports').upsert({
+          const { error } = await supabase.from('content_reports').upsert({
             reporter_device_id: deviceId,
             content_type: 'tale',
             content_id: postId,
             reason: 'inappropriate',
           }, { onConflict: 'reporter_device_id,content_type,content_id' })
+          if (error) throw error
           Alert.alert('Reported', 'Thanks for helping keep Troski Pulse safe.')
         } catch {
-          Alert.alert('Reported', 'Thanks for helping keep Troski Pulse safe.')
+          Alert.alert('Error', 'Could not submit report. Check your connection and try again.')
         }
       }},
     ])

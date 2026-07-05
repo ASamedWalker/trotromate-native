@@ -21,7 +21,7 @@ const METHODS: {
   route: Href | null
   soon?: boolean
 }[] = [
-  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: '/wallet/bank-transfer' as Href },
+  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: null, soon: true },
   { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, network: 'mtn', route: '/wallet/momo?provider=mtn' as Href },
   { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, network: 'atl', route: '/wallet/momo?provider=atl' as Href },
   { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, network: 'tgo', route: '/wallet/momo?provider=tgo' as Href },
@@ -34,14 +34,14 @@ export default function TopUpWalletScreen() {
   const router = useRouter()
   // A booking checkout can deep-link here with the exact shortfall to pre-fill.
   const { amount: amountParam } = useLocalSearchParams<{ amount?: string }>()
-  const [selected, setSelected] = useState<MethodId>('bank')
+  const [selected, setSelected] = useState<MethodId>('mtn')
 
   const handleProceed = () => {
     const method = METHODS.find((m) => m.id === selected)
     if (!method) return
     if (method.soon || !method.route) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
-      Alert.alert('Coming soon', 'Debit card top-up is on the way. Use Bank Transfer or MTN MoMo for now.')
+      Alert.alert('Coming soon', 'This top-up method is on the way. Use MTN MoMo, AirtelTigo Money, or Telecel Cash for now.')
       return
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)

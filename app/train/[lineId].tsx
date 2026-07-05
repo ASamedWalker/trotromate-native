@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Image } from 'expo-image'
 import {
   TrainFront,
   Clock,
@@ -58,13 +57,6 @@ const REPORT_CONFIG: Record<string, { Icon: typeof Clock; label: string; color: 
   delay: { Icon: Timer, label: 'Delay Report', color: '#ef4444' },
 }
 
-const HERO_IMAGES: Record<string, string> = {
-  TMA: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80',
-  TMP: 'https://images.unsplash.com/photo-1532105956626-9569c03602f6?w=800&q=80',
-  STK: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&q=80',
-}
-const FALLBACK_HERO = 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80'
-
 const LINE_META: Record<string, { heroTitle: string; heroDesc: string }> = {
   TMA: {
     heroTitle: 'Tema – Accra',
@@ -98,7 +90,6 @@ export default function LineDetailScreen() {
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null)
 
   const meta = LINE_META[line?.code ?? ''] ?? DEFAULT_LINE_META
-  const heroImage = HERO_IMAGES[line?.code ?? ''] ?? FALLBACK_HERO
 
   // Timeline stops — driven by the schedule itself so the timeline, the times,
   // and the official timetable below all agree. The train_stations table and
@@ -141,10 +132,11 @@ export default function LineDetailScreen() {
       const isLast = index === timelineStops.length - 1
       const displayTime = stop.displayTime
 
-      // Status badge logic
-      let statusLabel = 'On Time'
-      let statusBg = isDark ? 'rgba(34,197,94,0.15)' : '#dcfce7'
-      let statusColor = isDark ? '#4ade80' : '#15803d'
+      // Status badge logic — no live per-stop tracking exists, so the default
+      // is a neutral "Scheduled" rather than a fabricated "On Time".
+      let statusLabel = 'Scheduled'
+      let statusBg = isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'
+      let statusColor = isDark ? 'rgba(255,255,255,0.5)' : '#4b5563'
 
       // If there's delay data, show it on relevant stations
       if (liveStats?.avgDelay && index > 0 && index < timelineStops.length - 1) {
@@ -301,16 +293,17 @@ export default function LineDetailScreen() {
             <Text style={s.heroDesc}>{meta.heroDesc}</Text>
           </View>
 
-          {/* Train image */}
+          {/* Train icon — no real photography for GRDA lines, so a brand
+              gradient block with the train icon replaces the old stock photo */}
           <View style={s.heroImageWrap}>
-            <Image
-              source={{ uri: heroImage }}
+            <LinearGradient
+              colors={['#0891b2', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={s.heroImage}
-              contentFit="cover"
-              cachePolicy="disk"
-              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-              transition={300}
-            />
+            >
+              <TrainFront size={40} color="rgba(255,255,255,0.85)" />
+            </LinearGradient>
           </View>
         </Animated.View>
 
@@ -600,6 +593,8 @@ const getStyles = (isDark: boolean) => {
     heroImage: {
       width: '100%',
       height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
 
     // ── Section Wrap ──

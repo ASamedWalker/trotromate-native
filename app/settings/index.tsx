@@ -15,7 +15,6 @@ import { useRouter, type Href } from 'expo-router'
 import {
   ChevronRight,
   Bell,
-  Eye,
   FileText,
   Shield,
   HelpCircle,
@@ -71,10 +70,10 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.multiRemove([
-              '@troski_preferences',
+              '@troski_preferences_v2',
               'activity_dismissed_ids',
-              '@troski_favorites',
-              '@troski_onboarding_done',
+              'troski-favorite-routes',
+              'troski_onboarding_complete',
             ])
             Alert.alert('Done', 'Local data cleared.')
           },
@@ -225,26 +224,6 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={18} color={t.textTertiary} />
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Privacy */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Privacy</Text>
-          <View style={s.card}>
-            <View style={s.settingRow}>
-              <Eye size={18} color={t.textSecondary} />
-              <View style={s.settingInfo}>
-                <Text style={s.settingLabel}>Profile Visibility</Text>
-                <Text style={s.settingDesc}>Show your name on the leaderboard</Text>
-              </View>
-              <Switch
-                value={prefs.profileVisibility}
-                onValueChange={(v) => updatePref('profileVisibility', v)}
-                trackColor={{ false: isDark ? c.stone700 : c.stone300, true: c.amber500 }}
-                thumbColor={c.white}
-              />
-            </View>
           </View>
         </View>
 

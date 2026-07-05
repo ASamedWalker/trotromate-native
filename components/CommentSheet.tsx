@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   View,
   Text,
@@ -40,6 +40,20 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
   const [text, setText] = useState('')
   const [replyTarget, setReplyTarget] = useState<TaleComment | null>(null)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
+
+  // Reset draft state on close and whenever the target post changes, so a
+  // stale replyTarget can't attach a reply to the wrong parent post.
+  useEffect(() => {
+    if (!visible) {
+      setText('')
+      setReplyTarget(null)
+    }
+  }, [visible])
+
+  useEffect(() => {
+    setText('')
+    setReplyTarget(null)
+  }, [postId])
 
   const handleSend = async () => {
     if (!text.trim()) return

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   Animated,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
@@ -73,6 +74,7 @@ const ROUTE_DESTINATIONS: Record<string, { lat: number; lng: number; name: strin
 /* ── Constants ─────────────────────────────────────── */
 
 const ACCRA_CENTER: [number, number] = [-0.187, 5.6037]
+const LIVE_VEHICLE_FARE = 8
 
 // Pre-compute train station names for map layer filtering
 const TRAIN_STATION_NAMES = new Set(
@@ -1254,7 +1256,7 @@ export default function HomeScreen() {
               <Text style={s.vehicleCardStatValue}>{vehicleDist}</Text>
             </View>
           </View>
-          <TouchableOpacity style={[s.vehicleCardCTA, buyingTicket && { opacity: 0.6 }]} activeOpacity={0.8} disabled={buyingTicket} onPress={() => {
+          <TouchableOpacity style={[s.vehicleCardCTA, buyingTicket && { opacity: 0.6 }]} activeOpacity={0.8} disabled={buyingTicket} onPress={async () => {
             if (!selectedVehicle || buyingTicket) return
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
@@ -1263,39 +1265,51 @@ export default function HomeScreen() {
               return
             }
 
-            // Optimistic — navigate immediately, purchase in background
-            setBuyingTicket(true)
             const routeLabel = selectedVehicle.routeLabel || 'Trotro Ride'
             const plate = selectedVehicle.plateNumber
-            const fare = 8
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-            const part = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-            const tripCode = `TRO-${part(4)}-${part(4)}`
-            const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-
-            // Navigate to PAID screen instantly
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-            setSelectedVehicle(null)
-            setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
-            setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
-            router.push({
-              pathname: '/ticket/paid',
-              params: { route: routeLabel, plate, fare: String(fare), tripCode, expiresAt },
-            } as any)
-
-            // Purchase in background
             const userId = authUser.id
             const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-            fetch(`${API_URL}/api/tickets/purchase`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ auth_user_id: userId, route_label: routeLabel, van_plate: plate, fare }),
-            }).then(r => r.json()).then(data => {
+
+            setBuyingTicket(true)
+            try {
+              const res = await fetch(`${API_URL}/api/tickets/purchase`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth_user_id: userId, route_label: routeLabel, van_plate: plate, fare: LIVE_VEHICLE_FARE }),
+              })
+              const data = await res.json()
+              const serverTripCode = data?.ticket?.trip_code ?? data?.trip_code
+
+              if (data?.success && serverTripCode) {
+                const expiresAt = data?.ticket?.expires_at ?? data?.expires_at ?? ''
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                setSelectedVehicle(null)
+                setRouteLineGeoJSON({ type: 'FeatureCollection', features: [] })
+                setDestMarkerGeoJSON({ type: 'FeatureCollection', features: [] })
+                router.push({
+                  pathname: '/ticket/paid',
+                  params: { route: routeLabel, plate, fare: String(LIVE_VEHICLE_FARE), tripCode: serverTripCode, expiresAt },
+                } as any)
+              } else if (data?.success) {
+                // Debit may have gone through but the response had no trip code —
+                // don't claim the user wasn't charged; point them at their tickets.
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                Alert.alert(
+                  'Ticket not confirmed',
+                  'Payment may have been taken but the ticket could not be confirmed. Check My Tickets — if it is missing, contact support before retrying.'
+                )
+              } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+                Alert.alert('Purchase failed', data?.error || 'Could not buy ticket. You were not charged if the debit failed.')
+              }
+            } catch {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+              Alert.alert('Purchase failed', 'Could not buy ticket. You were not charged if the debit failed.')
+            } finally {
               setBuyingTicket(false)
-              if (!data.success) console.warn('[buy-ticket] Background purchase failed:', data.error)
-            }).catch(() => { setBuyingTicket(false) })
+            }
           }}>
-            <Text style={s.vehicleCardCTAText}>{buyingTicket ? '⏳ Processing...' : '🎫 Buy Ticket · GH₵ 8.00'}</Text>
+            <Text style={s.vehicleCardCTAText}>{buyingTicket ? '⏳ Processing...' : `🎫 Buy Ticket · GH₵ ${LIVE_VEHICLE_FARE.toFixed(2)}`}</Text>
           </TouchableOpacity>
         </View>
       )}

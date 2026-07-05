@@ -291,7 +291,7 @@ export default function UpdatesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <ReanimatedAnimated.View entering={FadeInDown.duration(300)} style={s.header}>
-        <Text style={s.headerTitle}>Pulse</Text>
+        <Text style={s.headerTitle}>Activity</Text>
         {isNotifSegment && unreadCount > 0 ? (
           <TouchableOpacity activeOpacity={0.7} onPress={markAllRead}>
             <Text style={s.markRead}>Mark all read</Text>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { fetchRecentActivity, type ActivityItem } from '@/lib/services/activity'
+import { fetchRecentActivity, PAGE_SIZE, type ActivityItem } from '@/lib/services/activity'
 
 const DISMISSED_KEY = 'activity_dismissed_ids'
 
@@ -46,7 +46,7 @@ export function useActivity() {
       const filtered = filterDismissed(initialData)
       setItems(filtered)
       itemsRef.current = filtered
-      const more = initialData.length >= 20
+      const more = initialData.length >= PAGE_SIZE
       setHasMore(more)
       hasMoreRef.current = more
     }
@@ -59,7 +59,7 @@ export function useActivity() {
       const filtered = filterDismissed(data)
       setItems(filtered)
       itemsRef.current = filtered
-      const more = data.length >= 20
+      const more = data.length >= PAGE_SIZE
       setHasMore(more)
       hasMoreRef.current = more
       queryClient.setQueryData(['activity'], data)
@@ -82,9 +82,9 @@ export function useActivity() {
     loadingMoreRef.current = true
     setIsLoadingMore(true)
     try {
-      const data = await fetchRecentActivity(20, oldest)
+      const data = await fetchRecentActivity(PAGE_SIZE, oldest)
       const filtered = filterDismissed(data)
-      if (data.length < 20) {
+      if (data.length < PAGE_SIZE) {
         setHasMore(false)
         hasMoreRef.current = false
       }

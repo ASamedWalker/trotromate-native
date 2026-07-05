@@ -20,7 +20,7 @@ const TICKET = {
   fromCode: 'KSH', fromName: 'Kaneshie',
   toCode: 'KSI', toName: 'Kumsasi',
   ref: 'TRSK205-KSH-KSI',
-  fare: 'GH₵ 25.25', departure: '10 mins', duration: '4 hr 30 mins',
+  fare: 'GH₵ 25.25',
 }
 
 export default function ReceiptScreen() {
@@ -42,8 +42,6 @@ export default function ReceiptScreen() {
     fromCode: params.from ? code3(params.from) : TICKET.fromCode,
     toCode: params.to ? code3(params.to) : TICKET.toCode,
     fare: params.fare ? `GH₵ ${parseFloat(params.fare).toFixed(2)}` : TICKET.fare,
-    departure: TICKET.departure,
-    duration: TICKET.duration,
   }
 
   const copyRef = async () => {
@@ -81,7 +79,7 @@ export default function ReceiptScreen() {
     try {
       await Share.share({
         title: 'My Troski Trip',
-        message: `🚌 My Troski trip\n${t.fromName} → ${t.toName}\nTicket: ${t.ref}\nFare ${t.fare} · Departs in ${t.departure}\n\nBook yours on Troski.`,
+        message: `🚌 My Troski trip\n${t.fromName} → ${t.toName}\nTicket: ${t.ref}\nFare ${t.fare}\n\nBook yours on Troski.`,
       })
     } catch {
       // dismissed / unavailable — no-op
@@ -164,12 +162,11 @@ export default function ReceiptScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Fare / departure / duration */}
+          {/* Fare / trip code — only fields we actually know for a real booking */}
           <View style={s.metaStrip}>
             {[
               ['Fare Paid', t.fare],
-              ['Departure', t.departure],
-              ['Duration', t.duration],
+              ['Trip Code', t.code],
             ].map(([label, value], i) => (
               <View key={label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: '#EFEFEF' }}>
                 <Text style={s.metaLabel}>{label}</Text>

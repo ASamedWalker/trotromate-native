@@ -25,7 +25,7 @@ export interface ActivityItem {
   meta?: string
 }
 
-const PAGE_SIZE = 10
+export const PAGE_SIZE = 10
 
 export async function fetchRecentActivity(
   limit = PAGE_SIZE,

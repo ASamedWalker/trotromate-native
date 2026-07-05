@@ -563,7 +563,7 @@ export async function fetchAllBadges(): Promise<Badge[]> {
 // Fetch points history for a contributor
 export async function fetchPointsHistory(
   deviceId: string,
-  limit = 20
+  limit = 200
 ): Promise<PointsHistoryEntry[]> {
   const profile = await getOrCreateProfile(deviceId)
   if (!profile) return []

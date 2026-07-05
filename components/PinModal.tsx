@@ -3,7 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated } from 'react
 import { Delete, ShieldCheck, X } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
-import { hasWalletPin, setWalletPin, verifyWalletPin } from '@/lib/services/walletPin'
+import { hasWalletPin, setWalletPin, verifyWalletPin, getPinLockoutMs } from '@/lib/services/walletPin'
 import {
   getBiometricCapability, biometricLabel, isBiometricEnabled, setBiometricEnabled,
   authenticateBiometric,
@@ -11,7 +11,6 @@ import {
 import { ScanFace } from 'lucide-react-native'
 
 const BRAND = '#FF4D1C'
-const MAX_ATTEMPTS = 5
 
 interface Props {
   visible: boolean
@@ -33,7 +32,6 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
   const [entry, setEntry] = useState('')
   const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState('')
-  const [attempts, setAttempts] = useState(0)
   const [bioLabel, setBioLabel] = useState('Biometrics')
   const [bioOn, setBioOn] = useState(false) // enabled + usable on verify
   const [offerBio, setOfferBio] = useState(false) // post-create enrolment prompt
@@ -42,9 +40,15 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
   // Decide create-vs-verify each time it opens; auto-prompt biometric on verify.
   useEffect(() => {
     if (!visible) return
-    setEntry(''); setFirstPin(''); setError(''); setAttempts(0); setOfferBio(false)
+    setEntry(''); setFirstPin(''); setError(''); setOfferBio(false)
     setPhase('loading')
     ;(async () => {
+      const lockedForMs = await getPinLockoutMs()
+      if (lockedForMs > 0) {
+        setPhase('locked')
+        setError(`Too many attempts. Try again in ${Math.ceil(lockedForMs / 1000)}s.`)
+        return
+      }
       const has = await hasWalletPin()
       const cap = await getBiometricCapability()
       setBioLabel(biometricLabel(cap.type))
@@ -55,6 +59,20 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
       if (has && usable) tryBiometric()
     })()
   }, [visible]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // While locked, poll the guard every second and unlock the UI once it expires.
+  useEffect(() => {
+    if (phase !== 'locked') return
+    const interval = setInterval(async () => {
+      const lockedForMs = await getPinLockoutMs()
+      if (lockedForMs <= 0) {
+        setError(''); setPhase('verify')
+      } else {
+        setError(`Too many attempts. Try again in ${Math.ceil(lockedForMs / 1000)}s.`)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [phase])
 
   const tryBiometric = useCallback(async () => {
     const ok = await authenticateBiometric(subtitle || 'Authorise payment')
@@ -93,18 +111,21 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
       return
     }
     if (phase === 'verify') {
-      const ok = await verifyWalletPin(pin)
+      const { ok, lockedForMs, attemptsLeft } = await verifyWalletPin(pin)
       if (ok) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         onSuccess()
       } else {
-        const n = attempts + 1
-        setAttempts(n); setEntry(''); doShake()
-        if (n >= MAX_ATTEMPTS) { setPhase('locked'); setError('Too many attempts. Try again later.') }
-        else setError(`Wrong PIN. ${MAX_ATTEMPTS - n} attempt${MAX_ATTEMPTS - n === 1 ? '' : 's'} left.`)
+        setEntry(''); doShake()
+        if (lockedForMs > 0) {
+          setPhase('locked')
+          setError(`Too many attempts. Try again in ${Math.ceil(lockedForMs / 1000)}s.`)
+        } else {
+          setError(`Wrong PIN. ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} left.`)
+        }
       }
     }
-  }, [phase, firstPin, attempts, onSuccess, doShake])
+  }, [phase, firstPin, onSuccess, doShake])
 
   // Auto-submit when 4 digits entered — guarded so it fires once per entry
   // (the submit callback's identity changes across phases, which would

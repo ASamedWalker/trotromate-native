@@ -35,7 +35,7 @@ export default function PrivacyScreen() {
 
           <Text style={s.sectionTitle}>2. Information We Collect</Text>
           <Text style={s.body}>
-            <Text style={s.bold}>Device Identifier:</Text> We generate a random anonymous ID stored on your device. We do not collect your name, phone number, email, or any personally identifiable information unless you voluntarily set a display name.
+            <Text style={s.bold}>Account &amp; Profile:</Text> To create an account, we collect your phone number and verify it via a one-time password (OTP). We also collect optional profile information you provide, such as your name, email, city, and gender. We generate a device identifier stored on your device to support anonymous crowdsourced contributions.
           </Text>
           <Text style={s.body}>
             <Text style={s.bold}>Reports:</Text> When you submit fare reports, queue reports, incident reports, or train reports, we store the report data along with your device ID and approximate location (station/route name, not GPS coordinates).
@@ -45,6 +45,12 @@ export default function PrivacyScreen() {
           </Text>
           <Text style={s.body}>
             <Text style={s.bold}>Usage Data:</Text> We collect basic analytics about app usage (screens visited, features used) to improve the app experience.
+          </Text>
+          <Text style={s.body}>
+            <Text style={s.bold}>Wallet &amp; Bookings:</Text> If you top up your wallet or make a booking, we store the transaction data (amount, method, date) needed to process and reconcile it.
+          </Text>
+          <Text style={s.body}>
+            <Text style={s.bold}>Device Data:</Text> We collect basic device information (device model, OS version, push notification token) to support app functionality and notifications.
           </Text>
 
           <Text style={s.sectionTitle}>3. How We Use Your Information</Text>
@@ -93,7 +99,7 @@ export default function PrivacyScreen() {
           <Text style={s.sectionTitle}>10. Contact Us</Text>
           <Text style={s.body}>
             For questions about this Privacy Policy or to exercise your data rights:{'\n\n'}
-            Email: privacy@troski.app{'\n'}
+            Email: support@troski.me{'\n'}
             Location: Accra, Ghana
           </Text>
 

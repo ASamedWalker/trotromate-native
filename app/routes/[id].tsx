@@ -14,7 +14,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy, Heart } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
@@ -35,6 +35,7 @@ import { useTrafficInfo } from '@/lib/hooks/useTraffic'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { RouteStopsTimeline } from '@/components/RouteStopsTimeline'
+import { useFavorites } from '@/lib/hooks/useFavorites'
 // GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 
@@ -53,6 +54,7 @@ export default function RouteDetailScreen() {
 
   const router = useRouter()
   const haptics = useHaptics()
+  const { isFavorite, toggleFavorite } = useFavorites()
   const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
   const [showGprtuInfo, setShowGprtuInfo] = useState(false)
 
@@ -98,11 +100,28 @@ export default function RouteDetailScreen() {
   const regionKey = detectRegion(route.from_location)
   const hero = REGION_HEROES.find(h => h.key === regionKey)
 
+  const favorited = isFavorite(id!)
+
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Floating back button */}
       <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 52, left: 16, zIndex: 20 }}>
         <GlassBackButton isDark={true} />
+      </View>
+
+      {/* Floating favorite button — powers the "Saved" filter on the routes tab */}
+      <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 52, right: 16, zIndex: 20 }}>
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light()
+            toggleFavorite({ id: id!, from: route.from_location, to: route.to_location })
+          }}
+          activeOpacity={0.6}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={s.favoriteBtn}
+        >
+          <Heart size={20} color={favorited ? '#EF4444' : '#fafaf9'} fill={favorited ? '#EF4444' : 'transparent'} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -536,6 +555,22 @@ const getStyles = (isDark: boolean) => {
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
+
+    favoriteBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: 'rgba(28,25,23,0.75)',
+      borderWidth: 0.5,
+      borderColor: 'rgba(0,0,0,0.08)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 4,
+    },
 
     // ── Hero — tall cinematic ──
     heroSection: {

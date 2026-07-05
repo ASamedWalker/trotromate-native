@@ -40,7 +40,7 @@ export default function TermsScreen() {
 
           <Text style={s.sectionTitle}>3. User Accounts</Text>
           <Text style={s.body}>
-            Troski uses device-based anonymous accounts. No registration, email, or phone number is required. Your contributions are linked to an anonymous device identifier. If you set a display name, it will be visible on leaderboards and in Trotro Tales.
+            To use Troski, you create an account with your phone number, verified by a one-time password (OTP). During registration we also collect basic profile information such as your name, email, city, and gender. Your wallet balance and bookings are tied to this account. If you set a display name, it will be visible on leaderboards and in Trotro Tales.
           </Text>
 
           <Text style={s.sectionTitle}>4. Community Guidelines</Text>

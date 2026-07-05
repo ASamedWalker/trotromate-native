@@ -27,6 +27,7 @@ export default function EditNameScreen() {
 
   const { profile, deviceId } = useApp()
   const [name, setName] = useState(profile?.display_name ?? '')
+  const [touched, setTouched] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
@@ -65,7 +66,10 @@ export default function EditNameScreen() {
         <Text style={s.label}>Display Name</Text>
         <TextInput
           value={name}
-          onChangeText={setName}
+          onChangeText={(text) => {
+            setName(text)
+            setTouched(true)
+          }}
           placeholder="Enter your name"
           placeholderTextColor={t.textTertiary}
           style={s.input}
@@ -73,6 +77,12 @@ export default function EditNameScreen() {
           autoFocus
         />
         <Text style={s.hint}>This is how you appear on the leaderboard and in Trotro Tales.</Text>
+        {touched && name.trim().length === 0 && (
+          <Text style={s.error}>Name cannot be empty.</Text>
+        )}
+        {touched && name.trim().length > 0 && name.trim().length < 2 && (
+          <Text style={s.error}>Name must be at least 2 characters.</Text>
+        )}
 
         <TouchableOpacity
           onPress={handleSave}
@@ -124,6 +134,12 @@ const getStyles = (isDark: boolean) => {
     hint: {
       fontSize: 13,
       color: t.textTertiary,
+      marginTop: 8,
+      lineHeight: 18,
+    },
+    error: {
+      fontSize: 13,
+      color: c.red500,
       marginTop: 8,
       lineHeight: 18,
     },

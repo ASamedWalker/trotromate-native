@@ -7,10 +7,11 @@ import {
   TextInput,
   Modal,
   Linking,
+  Alert,
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import { AlertTriangle, Shield } from 'lucide-react-native'
+import { AlertTriangle, Shield, PhoneCall } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { getEmergencyContact, saveEmergencyContact } from '@/lib/services/safety'
@@ -56,7 +57,18 @@ export function SOSButton({ from, to }: { from?: string; to?: string }) {
       : `SOS! I need help. I'm on a trotro and need assistance. Please check on me.`
 
     const phoneClean = contact.contact_phone.replace(/\D/g, '')
-    Linking.openURL(`https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`)
+    Linking.openURL(`https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`).catch(() => {
+      Alert.alert(
+        'WhatsApp Not Available',
+        `Could not open WhatsApp. Call ${contact.contact_phone} directly or dial 112 for emergency services.`
+      )
+    })
+  }
+
+  function handleCallEmergencyServices() {
+    Linking.openURL('tel:112').catch(() => {
+      Alert.alert('Unable to Call', 'Please dial 112 manually for emergency services.')
+    })
   }
 
   return (
@@ -110,6 +122,11 @@ export function SOSButton({ from, to }: { from?: string; to?: string }) {
                 <Text style={s.saveText}>{saving ? 'Saving...' : 'Save Contact'}</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity onPress={handleCallEmergencyServices} style={s.callBtn}>
+              <PhoneCall size={16} color="#ef4444" />
+              <Text style={s.callText}>Call 112 (Emergency Services)</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -198,5 +215,18 @@ const getStyles = (isDark: boolean) => {
     },
     saveBtnDisabled: { opacity: 0.5 },
     saveText: { fontSize: 14, fontFamily: font.semibold, color: '#fff' },
+
+    callBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      marginTop: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.2)',
+    },
+    callText: { fontSize: 14, fontFamily: font.semibold, color: '#ef4444' },
   })
 }

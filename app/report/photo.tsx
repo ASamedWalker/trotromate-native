@@ -25,7 +25,8 @@ import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useSubmitTale } from '@/lib/hooks/useTales'
 import type { TaleMediaType } from '@/lib/types'
 
-const MAX_IMAGES = 10
+// Must match MAX_IMAGES in lib/services/tales.ts — the service rejects submissions above this.
+const MAX_IMAGES = 5
 const MAX_VIDEO_DURATION = 60 // seconds
 
 const LOCATIONS = [
