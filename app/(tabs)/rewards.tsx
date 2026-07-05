@@ -15,7 +15,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path, Line } from 'react-native-svg'
 import ConfettiCannon from 'react-native-confetti-cannon'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -64,6 +64,7 @@ import {
   getNextLevel,
 } from '@/lib/constants/rewards'
 import type { PointsHistoryEntry, LevelSlug } from '@/lib/types'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 /* ── Constants ──────────────────────────────────────── */
 
@@ -345,6 +346,7 @@ export default function RewardsScreen() {
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const insets = useSafeAreaInsets()
   const { deviceId, refreshProfile } = useApp()
 
   const { profile, badges: earnedBadges, rank, isLoading, refetch: refetchProfile } = useProfile(deviceId)
@@ -556,7 +558,7 @@ export default function RewardsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 110 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} colors={[BRAND]} />}
       >

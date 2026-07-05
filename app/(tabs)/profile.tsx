@@ -7,11 +7,12 @@ import {
   useColorScheme,
   StyleSheet,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Linking } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
 import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame, Megaphone } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -27,6 +28,7 @@ export default function ProfileScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { profile, deviceId } = useApp()
   const { unreadCount } = useNotifications(deviceId)
+  const insets = useSafeAreaInsets()
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
 
   const menuItems: { icon: typeof Bell; label: string; onPress: () => void; badge?: number }[] = [
@@ -39,7 +41,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={s.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
+      >
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={s.headerTitle}>Profile</Text>
@@ -192,7 +198,6 @@ export default function ProfileScreen() {
           <Text style={s.footerText}>Troski Technologies</Text>
           <Text style={s.footerSub}>Accra, Ghana</Text>
         </Animated.View>
-        <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>
   )

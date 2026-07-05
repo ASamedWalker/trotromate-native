@@ -6,13 +6,14 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { TrendingUp, Users, AlertTriangle, Camera, TrainFront } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 const REPORT_TYPES = [
   {
@@ -78,10 +79,15 @@ export default function ReportScreen() {
   const isDark = colorScheme === 'dark'
   const s = styles(isDark)
   const { profile } = useApp()
+  const insets = useSafeAreaInsets()
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
+      >
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.headerTitle, { textAlign: 'center' }]}>Contribute</Text>
           <Text style={[s.headerSub, { textAlign: 'center' }]}>Help fellow commuters and earn points</Text>
@@ -149,7 +155,6 @@ export default function ReportScreen() {
             </View>
           </View>
         </Animated.View>
-        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   )

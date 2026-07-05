@@ -57,6 +57,13 @@ export default function QueueStatusScreen() {
             colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)']}
             style={StyleSheet.absoluteFillObject}
           />
+          {/* Top scrim — keeps the back chevron + subtitle readable over the
+              busy photo, independent of ambient glare */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.55)', 'transparent']}
+            style={s.heroTopScrim}
+            pointerEvents="none"
+          />
           <SafeAreaView edges={['top']}>
             <View style={s.heroBar}>
               <TouchableOpacity
@@ -161,6 +168,7 @@ const s = StyleSheet.create({
 
   // ── Hero ──
   hero: { height: 230, backgroundColor: '#1c1917', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  heroTopScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 80 },
   heroBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6 },
   heroText: { paddingHorizontal: 24, marginTop: 8 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },

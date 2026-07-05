@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import { font, themed } from '@/lib/theme'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { normalizeActivePasses, formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
@@ -21,6 +22,7 @@ export default function WalletScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const { t: tr } = useLanguage()
+  const insets = useSafeAreaInsets()
   const [balanceVisible, setBalanceVisible] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
@@ -171,7 +173,7 @@ export default function WalletScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF4D1C" colors={["#FF4D1C"]} />
         }
@@ -428,7 +430,6 @@ export default function WalletScreen() {
           </Animated.View>
         )}
 
-        <View style={{ height: 120 }} />
       </ScrollView>
     </SafeAreaView>
   )

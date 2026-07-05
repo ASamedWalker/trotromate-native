@@ -11,7 +11,7 @@ import {
   type DimensionValue,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SkeletonTrainCard } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { useRouter } from 'expo-router'
@@ -234,6 +234,7 @@ export default function TrainLinesScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const insets = useSafeAreaInsets()
 
   const { lines, isLoading, refetch } = useTrainLines()
   const { isSet, toggle } = useDepartureReminders()
@@ -426,7 +427,7 @@ export default function TrainLinesScreen() {
         colors={['#0891b2', '#1e40af']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={s.headerBar}
+        style={[s.headerBar, { paddingTop: insets.top + 12 }]}
       >
         <View style={s.headerLogo}>
           <ShieldCheck size={18} color="#fff" />

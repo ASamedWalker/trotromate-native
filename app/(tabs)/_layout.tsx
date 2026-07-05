@@ -12,6 +12,13 @@ import { useLanguage } from '@/lib/i18n'
 
 const BRAND = '#FF4D1C'
 
+// Floating pill tab bar's total footprint (bar paddingVertical 20 + tab
+// paddingVertical 12 + icon 22 + gap 4 + label ~14 ≈ 72px) plus breathing
+// room above the pill. Screens should add this (+ insets.bottom, which the
+// bar's own `bottom` offset already accounts for separately) as bottom
+// clearance so content never sits under the floating bar.
+export const TAB_BAR_CLEARANCE = 96
+
 const TAB_ICONS: Record<string, typeof Home> = {
   index: Home,
   lines: Route,
