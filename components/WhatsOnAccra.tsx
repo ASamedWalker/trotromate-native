@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native'
+import React, { useCallback, useState, useEffect } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, Alert, ImageBackground } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -7,9 +7,12 @@ import {
   Clapperboard, Music, Beer, PartyPopper, Mic2, Navigation, ChevronRight,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { useApp } from '@/lib/contexts/AppContext'
 import {
   ACCRA_MOVIES, ACCRA_EVENTS, type CityEvent, type MovieListing,
 } from '@/lib/constants/accra-events'
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
 const CATEGORY_META: Record<CityEvent['category'], { icon: any; color: string; bg: string }> = {
   concert: { icon: Music, color: '#C026D3', bg: '#FDF4FF' },
@@ -27,6 +30,7 @@ const CARD_SHADOW = {
 } as const
 
 function formatEventDate(iso: string): { day: string; month: string } {
+  if (!iso) return { day: '•', month: '' }
   const d = new Date(`${iso}T12:00:00`)
   return {
     day: String(d.getDate()),
@@ -34,9 +38,67 @@ function formatEventDate(iso: string): { day: string; month: string } {
   }
 }
 
-/** Ad-slot click logging — replaced by a real impressions/clicks API later */
-function trackPlacement(placementId: string) {
-  if (__DEV__) console.log('[troski] ad_placement_click', placementId)
+/** API row → client shape; tolerant of missing fields */
+interface ApiRow {
+  kind: 'movie' | 'event'
+  id: string
+  placement_id: string
+  title: string
+  category: string
+  venue: string
+  venue_stop: string
+  rating?: string | null
+  event_date?: string | null
+  event_time?: string | null
+  price_from?: number | null
+  poster_url?: string | null
+  gradient_from?: string | null
+  gradient_to?: string | null
+  sponsored?: boolean
+}
+
+const DEFAULT_GRADIENT: [string, string] = ['#475569', '#020617']
+const EVENT_CATEGORIES: CityEvent['category'][] = ['concert', 'bar', 'festival', 'comedy']
+
+function toMovie(r: ApiRow): MovieListing & { posterUrl?: string } {
+  return {
+    id: r.id,
+    placementId: r.placement_id,
+    title: r.title,
+    genre: r.category,
+    rating: r.rating || '',
+    cinema: r.venue,
+    venueStop: r.venue_stop,
+    gradient: r.gradient_from && r.gradient_to ? [r.gradient_from, r.gradient_to] : DEFAULT_GRADIENT,
+    sponsored: Boolean(r.sponsored),
+    posterUrl: r.poster_url || undefined,
+  }
+}
+
+function toEvent(r: ApiRow): CityEvent {
+  return {
+    id: r.id,
+    placementId: r.placement_id,
+    title: r.title,
+    category: EVENT_CATEGORIES.includes(r.category as CityEvent['category'])
+      ? (r.category as CityEvent['category'])
+      : 'concert',
+    venue: r.venue,
+    venueStop: r.venue_stop,
+    date: r.event_date || '',
+    time: r.event_time || '',
+    priceFrom: r.price_from ?? undefined,
+    sponsored: Boolean(r.sponsored),
+  }
+}
+
+/** Fire-and-forget ad click tracking */
+function trackPlacement(placementId: string, deviceId?: string) {
+  fetch(`${API_URL}/api/events/track`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ placement_id: placementId, metric: 'click', device_id: deviceId }),
+  }).catch(() => {})
 }
 
 function SponsoredBadge({ light = false }: { light?: boolean }) {
@@ -58,12 +120,26 @@ function SponsoredBadge({ light = false }: { light?: boolean }) {
 
 export default function WhatsOnAccra() {
   const router = useRouter()
+  const { deviceId } = useApp()
+  const [movies, setMovies] = useState<(MovieListing & { posterUrl?: string })[]>(ACCRA_MOVIES)
+  const [events, setEvents] = useState<CityEvent[]>(ACCRA_EVENTS)
+
+  // Live listings from the backend; bundled seed stays as the offline fallback
+  useEffect(() => {
+    fetch(`${API_URL}/api/events`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.movies?.length > 0) setMovies(data.movies.map(toMovie))
+        if (data.events?.length > 0) setEvents(data.events.map(toEvent))
+      })
+      .catch(() => {})
+  }, [])
 
   const goToVenue = useCallback((venueStop: string, placementId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    trackPlacement(placementId)
+    trackPlacement(placementId, deviceId || undefined)
     router.push(`/routes/search?to=${encodeURIComponent(venueStop)}` as any)
-  }, [router])
+  }, [router, deviceId])
 
   return (
     <View style={{ marginBottom: 28 }}>
@@ -86,22 +162,9 @@ export default function WhatsOnAccra() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
       >
-        {ACCRA_MOVIES.map((movie: MovieListing) => (
-          <TouchableOpacity
-            key={movie.id}
-            activeOpacity={0.8}
-            onPress={() => goToVenue(movie.venueStop, movie.placementId)}
-            style={{ width: 128 }}
-          >
-            <LinearGradient
-              colors={movie.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                width: 128, height: 192, borderRadius: 16, padding: 12,
-                justifyContent: 'space-between', overflow: 'hidden',
-              }}
-            >
+        {movies.map((movie) => {
+          const overlay = (
+            <>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Clapperboard size={16} color="rgba(255,255,255,0.8)" />
                 {movie.sponsored && <SponsoredBadge light />}
@@ -111,10 +174,36 @@ export default function WhatsOnAccra() {
                   {movie.title}
                 </Text>
                 <Text style={{ fontFamily: font.medium, fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
-                  {movie.genre} · {movie.rating}
+                  {movie.genre}{movie.rating ? ` · ${movie.rating}` : ''}
                 </Text>
               </View>
-            </LinearGradient>
+            </>
+          )
+          const posterStyle = {
+            width: 128, height: 192, borderRadius: 16, padding: 12,
+            justifyContent: 'space-between' as const, overflow: 'hidden' as const,
+          }
+          return (
+          <TouchableOpacity
+            key={movie.id}
+            activeOpacity={0.8}
+            onPress={() => goToVenue(movie.venueStop, movie.placementId)}
+            style={{ width: 128 }}
+          >
+            {movie.posterUrl ? (
+              <ImageBackground source={{ uri: movie.posterUrl }} style={posterStyle} imageStyle={{ borderRadius: 16 }}>
+                {overlay}
+              </ImageBackground>
+            ) : (
+              <LinearGradient
+                colors={movie.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={posterStyle}
+              >
+                {overlay}
+              </LinearGradient>
+            )}
             <Text
               style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', marginTop: 6 }}
               numberOfLines={1}
@@ -122,12 +211,13 @@ export default function WhatsOnAccra() {
               {movie.cinema}
             </Text>
           </TouchableOpacity>
-        ))}
+          )
+        })}
       </ScrollView>
 
       {/* ── Events list ── */}
       <View style={{ paddingHorizontal: 24, marginTop: 16, gap: 12 }}>
-        {ACCRA_EVENTS.map((event) => {
+        {events.map((event) => {
           const meta = CATEGORY_META[event.category]
           const Icon = meta.icon
           const { day, month } = formatEventDate(event.date)
