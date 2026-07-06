@@ -45,6 +45,7 @@ interface ApiRow {
   placement_id: string
   title: string
   category: string
+  description?: string | null
   venue: string
   venue_stop: string
   rating?: string | null
@@ -67,6 +68,7 @@ function toMovie(r: ApiRow): MovieListing & { posterUrl?: string } {
     title: r.title,
     genre: r.category,
     rating: r.rating || '',
+    description: r.description || undefined,
     cinema: r.venue,
     venueStop: r.venue_stop,
     gradient: r.gradient_from && r.gradient_to ? [r.gradient_from, r.gradient_to] : DEFAULT_GRADIENT,
@@ -85,6 +87,7 @@ function toEvent(r: ApiRow): CityEvent {
       : 'concert',
     venue: r.venue,
     venueStop: r.venue_stop,
+    description: r.description || undefined,
     date: r.event_date || '',
     time: r.event_time || '',
     priceFrom: r.price_from ?? undefined,
@@ -135,10 +138,30 @@ export default function WhatsOnAccra() {
       .catch(() => {})
   }, [])
 
-  const goToVenue = useCallback((venueStop: string, placementId: string) => {
+  // Card tap opens the detail screen (the pitch); the consumer decides there.
+  // Tap = the tracked ad click.
+  const openMovie = useCallback((movie: MovieListing & { posterUrl?: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    trackPlacement(placementId, deviceId || undefined)
-    router.push(`/routes/search?to=${encodeURIComponent(venueStop)}` as any)
+    trackPlacement(movie.placementId, deviceId || undefined)
+    const item = {
+      kind: 'movie', placementId: movie.placementId, title: movie.title,
+      category: movie.genre, description: movie.description, venue: movie.cinema,
+      venueStop: movie.venueStop, rating: movie.rating, posterUrl: movie.posterUrl,
+      gradient: movie.gradient, sponsored: movie.sponsored,
+    }
+    router.push(`/event/${movie.placementId}?item=${encodeURIComponent(JSON.stringify(item))}` as any)
+  }, [router, deviceId])
+
+  const openEvent = useCallback((event: CityEvent) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    trackPlacement(event.placementId, deviceId || undefined)
+    const item = {
+      kind: 'event', placementId: event.placementId, title: event.title,
+      category: event.category, description: event.description, venue: event.venue,
+      venueStop: event.venueStop, date: event.date, time: event.time,
+      priceFrom: event.priceFrom, sponsored: event.sponsored,
+    }
+    router.push(`/event/${event.placementId}?item=${encodeURIComponent(JSON.stringify(item))}` as any)
   }, [router, deviceId])
 
   return (
@@ -187,7 +210,7 @@ export default function WhatsOnAccra() {
           <TouchableOpacity
             key={movie.id}
             activeOpacity={0.8}
-            onPress={() => goToVenue(movie.venueStop, movie.placementId)}
+            onPress={() => openMovie(movie)}
             style={{ width: 128 }}
           >
             {movie.posterUrl ? (
@@ -225,7 +248,7 @@ export default function WhatsOnAccra() {
             <TouchableOpacity
               key={event.id}
               activeOpacity={0.8}
-              onPress={() => goToVenue(event.venueStop, event.placementId)}
+              onPress={() => openEvent(event)}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 12,
                 backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,

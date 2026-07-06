@@ -184,6 +184,7 @@ function AppInner() {
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[routeId]" options={{ headerShown: false }} />
+        <Stack.Screen name="event/[placementId]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="ev/index" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="ev/report" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="report/fare" options={{ headerShown: false, presentation: 'modal' }} />

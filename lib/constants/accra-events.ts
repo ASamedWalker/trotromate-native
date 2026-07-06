@@ -16,6 +16,7 @@ export type MovieListing = {
   title: string
   genre: string
   rating: string
+  description?: string
   cinema: string
   venueStop: string
   /** Poster gradient placeholder until real poster assets/URLs land */
@@ -30,6 +31,7 @@ export type CityEvent = {
   category: 'concert' | 'bar' | 'festival' | 'comedy'
   venue: string
   venueStop: string
+  description?: string
   /** ISO date (Ghana time) */
   date: string
   time: string
@@ -42,6 +44,7 @@ export const ACCRA_MOVIES: MovieListing[] = [
     id: 'mv-1',
     placementId: 'home_movies_1',
     title: 'The Burial of Kojo II',
+    description: 'The long-awaited sequel to Ghana\'s most celebrated film. A haunting family story told across Accra and the Western Region — festival favourite, made in Ghana.',
     genre: 'Drama',
     rating: 'PG-13',
     cinema: 'Silverbird, Accra Mall',
@@ -53,6 +56,7 @@ export const ACCRA_MOVIES: MovieListing[] = [
     id: 'mv-2',
     placementId: 'home_movies_2',
     title: 'Azonto Nights',
+    description: 'A crew of Osu friends bet everything on one dance competition. Non-stop laughs, an azonto soundtrack you\'ll hum all week, and pure Accra energy.',
     genre: 'Comedy',
     rating: '15',
     cinema: 'Silverbird, West Hills Mall',
@@ -64,6 +68,7 @@ export const ACCRA_MOVIES: MovieListing[] = [
     id: 'mv-3',
     placementId: 'home_movies_3',
     title: 'Osu at Midnight',
+    description: 'When the lights go out on Oxford Street, a taxi driver picks up the wrong passenger. A tense one-night thriller shot entirely in Accra after dark.',
     genre: 'Thriller',
     rating: '18',
     cinema: 'Global Cinemas, Weija',
@@ -75,6 +80,7 @@ export const ACCRA_MOVIES: MovieListing[] = [
     id: 'mv-4',
     placementId: 'home_movies_4',
     title: 'Kotoka Express',
+    description: 'A heist crew has 90 minutes to cross Accra before a flight leaves Kotoka. High-speed action through streets you ride every day.',
     genre: 'Action',
     rating: 'PG-13',
     cinema: 'Silverbird, Accra Mall',
@@ -89,6 +95,7 @@ export const ACCRA_EVENTS: CityEvent[] = [
     id: 'ev-1',
     placementId: 'home_events_1',
     title: 'Afrobeats Live: Sarkodie & Friends',
+    description: 'Sarkodie headlines a full night of afrobeats with surprise guest artists. Gates open 6 PM, food and drink vendors on site. Tickets at the gate or online.',
     category: 'concert',
     venue: 'Grand Arena, AICC',
     venueStop: 'Accra Central',
@@ -101,6 +108,7 @@ export const ACCRA_EVENTS: CityEvent[] = [
     id: 'ev-2',
     placementId: 'home_events_2',
     title: 'Jazz & Palm Wine Fridays',
+    description: 'Live highlife and jazz every Friday with Accra\'s best session musicians. Palm wine cocktails, small chops, no cover before 8 PM.',
     category: 'bar',
     venue: '+233 Jazz Bar, Ring Road',
     venueStop: 'Circle',
@@ -112,6 +120,7 @@ export const ACCRA_EVENTS: CityEvent[] = [
     id: 'ev-3',
     placementId: 'home_events_3',
     title: 'Osu Night Market Festival',
+    description: 'Oxford Street closes to cars for one night: street food from 50+ vendors, live DJs, craft stalls and games. Free entry, family friendly.',
     category: 'festival',
     venue: 'Oxford Street, Osu',
     venueStop: 'Osu',
@@ -123,6 +132,7 @@ export const ACCRA_EVENTS: CityEvent[] = [
     id: 'ev-4',
     placementId: 'home_events_4',
     title: 'Comedy Bar: Laugh Chest',
+    description: 'Ghana\'s top stand-up night returns — five comedians, one stage, zero mercy. Doors 6:30 PM, show 7 PM sharp. Early bird tickets from GH₵80.',
     category: 'comedy',
     venue: 'Alliance Française, Airport',
     venueStop: 'Airport',
