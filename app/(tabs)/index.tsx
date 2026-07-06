@@ -25,6 +25,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import WhatsOnAccra from '@/components/WhatsOnAccra'
 
 const BRAND = '#FF4D1C'
 
@@ -361,6 +362,9 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
         </View>
+
+        {/* ── What's On in Accra (events + ad placements) ── */}
+        <WhatsOnAccra />
 
         <View style={{ height: 120 }} />
       </ScrollView>
