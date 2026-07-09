@@ -25,7 +25,7 @@ export function useTrainLines() {
 }
 
 export function useTrainLineDetail(lineId: string) {
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['trainLine', lineId],
     queryFn: () => fetchTrainLineDetail(lineId),
     enabled: !!lineId,
@@ -36,7 +36,7 @@ export function useTrainLineDetail(lineId: string) {
   const stations: TrainStation[] = data?.stations ?? []
   const recentReports: TrainReportWithNames[] = data?.recentReports ?? []
 
-  return { line, stations, recentReports, isLoading, error: null, refetch }
+  return { line, stations, recentReports, isLoading, isError, refetch }
 }
 
 export function useSubmitTrainReport(deviceId: string | null) {

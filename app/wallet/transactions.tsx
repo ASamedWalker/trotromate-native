@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { LoadErrorState, StaleDataBanner } from '@/components/StateViews'
 
 const BRAND = '#FF4D1C'
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -45,27 +46,40 @@ export default function TransactionsScreen() {
   const [hasMore, setHasMore] = useState(false)
   const offsetRef = useRef(0)
 
+  const [loadFailed, setLoadFailed] = useState(false)
+
   const fetchPage = useCallback(async (offset: number) => {
-    if (!user?.id) return { rows: [] as Tx[], more: false }
+    if (!user?.id) return { rows: [] as Tx[], more: false, failed: false }
     try {
       const res = await fetch(`${API_URL}/api/wallet/transactions?auth_user_id=${user.id}&limit=${PAGE}&offset=${offset}`)
       const data = await res.json()
-      return { rows: (Array.isArray(data.transactions) ? data.transactions : []) as Tx[], more: !!data.hasMore }
+      return { rows: (Array.isArray(data.transactions) ? data.transactions : []) as Tx[], more: !!data.hasMore, failed: false }
     } catch {
-      return { rows: [] as Tx[], more: false }
+      // failed ≠ empty — the screen must not claim "No transactions yet" (UX-14)
+      return { rows: [] as Tx[], more: false, failed: true }
     }
   }, [user?.id])
 
   const load = useCallback(async () => {
-    const { rows, more } = await fetchPage(0)
+    const { rows, more, failed } = await fetchPage(0)
     offsetRef.current = PAGE
-    setTxs(rows); setHasMore(more); setLoading(false); setRefreshing(false)
+    if (failed) setLoadFailed(true)
+    else { setTxs(rows); setLoadFailed(false) }
+    setHasMore(more); setLoading(false); setRefreshing(false)
   }, [fetchPage])
 
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false)
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
-    const { rows, more } = await fetchPage(offsetRef.current)
+    const { rows, more, failed } = await fetchPage(offsetRef.current)
+    if (failed) {
+      // Don't advance the offset or end the list — a failed page must stay
+      // retryable, not read as "that's all your activity" (UX-14)
+      setLoadMoreFailed(true); setLoadingMore(false)
+      return
+    }
+    setLoadMoreFailed(false)
     offsetRef.current += PAGE
     setTxs((cur) => [...cur, ...rows]); setHasMore(more); setLoadingMore(false)
   }, [fetchPage, loadingMore, hasMore])
@@ -100,8 +114,13 @@ export default function TransactionsScreen() {
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={BRAND} colors={[BRAND]} />}
       >
+        {!loading && loadFailed && txs.length > 0 && (
+          <StaleDataBanner message="Couldn't refresh — showing earlier transactions." onRetry={() => load()} />
+        )}
         {loading ? (
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
+        ) : loadFailed && txs.length === 0 ? (
+          <LoadErrorState message="Couldn't load your transactions. Check your connection." onRetry={() => { setLoading(true); load() }} />
         ) : txs.length === 0 ? (
           <View style={s.empty}>
             <Clock size={36} color="#6B7280" />
@@ -165,6 +184,13 @@ export default function TransactionsScreen() {
 
         {loadingMore && (
           <View style={{ paddingVertical: 20 }}><ActivityIndicator color={BRAND} /></View>
+        )}
+        {loadMoreFailed && !loadingMore && (
+          <TouchableOpacity onPress={loadMore} style={{ paddingVertical: 16, alignItems: 'center' }} accessibilityRole="button">
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#B45309' }}>
+              Couldn&apos;t load more — tap to retry
+            </Text>
+          </TouchableOpacity>
         )}
         {!loading && !hasMore && txs.length > 0 && (
           <Text style={s.note}>That’s all your activity.</Text>

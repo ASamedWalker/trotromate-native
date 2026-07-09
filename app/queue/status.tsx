@@ -13,6 +13,7 @@ import { font } from '@/lib/theme'
 import Skeleton from '@/components/Skeleton'
 import { timeAgo } from '@/lib/utils/time'
 import { fetchQueueStatus, QUEUE_META, type StationQueue } from '@/lib/services/queueStatus'
+import { LoadErrorState } from '@/components/StateViews'
 
 const BRAND = '#FF4D1C'
 
@@ -24,7 +25,7 @@ function ageLabel(s: StationQueue): string {
 export default function QueueStatusScreen() {
   const router = useRouter()
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['queueStatus'],
     queryFn: () => fetchQueueStatus(Date.now()),
     staleTime: 60_000,
@@ -127,6 +128,8 @@ export default function QueueStatusScreen() {
               </View>
             ))}
           </View>
+        ) : isError && result.stations.length === 0 ? (
+          <LoadErrorState message="Couldn't load queue reports. Check your connection." onRetry={() => refetch()} />
         ) : result.stations.length === 0 ? (
           <View style={s.empty}>
             <Bus size={36} color="#6B7280" />

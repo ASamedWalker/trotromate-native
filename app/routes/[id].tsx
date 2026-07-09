@@ -38,6 +38,7 @@ import { RouteStopsTimeline } from '@/components/RouteStopsTimeline'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 // GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
+import { LoadErrorState } from '@/components/StateViews'
 
 const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
   light: { light: '#059669', dark: '#34d399' },
@@ -58,7 +59,7 @@ export default function RouteDetailScreen() {
   const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
   const [showGprtuInfo, setShowGprtuInfo] = useState(false)
 
-  const { route, recentReports, isLoading, error } = useRouteDetail(id!)
+  const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
   const { data: traffic } = useTrafficInfo(id)
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
   const { data: champions = [] } = useQuery({
@@ -77,7 +78,20 @@ export default function RouteDetailScreen() {
     )
   }
 
-  if (error || !route) {
+  // Load failure ≠ nonexistent route — offline users were told the route
+  // "doesn't exist" (UX-14). Gated on !route: react-query keeps data on a
+  // failed background refetch, and loaded data must stay visible.
+  if (isError && !route) {
+    return (
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <LoadErrorState message="Couldn't load this route. Check your connection." onRetry={() => refetch()} />
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (!route) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>

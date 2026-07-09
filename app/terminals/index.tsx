@@ -13,6 +13,7 @@ import { formatDistance } from '@/lib/utils/distance'
 import { timeAgo } from '@/lib/utils/time'
 import { fetchTerminals, type Terminal } from '@/lib/services/terminals'
 import { QUEUE_META } from '@/lib/services/queueStatus'
+import { LoadErrorState } from '@/components/StateViews'
 
 const BRAND = '#FF4D1C'
 
@@ -21,7 +22,7 @@ export default function TerminalsScreen() {
   const { location, isPermissionGranted, requestPermission } = useLocation()
   const [query, setQuery] = useState('')
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['terminals', location?.latitude ?? null, location?.longitude ?? null],
     queryFn: () => fetchTerminals(location ? { latitude: location.latitude, longitude: location.longitude } : null, Date.now()),
     staleTime: 60_000,
@@ -79,7 +80,12 @@ export default function TerminalsScreen() {
         )}
 
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator color={BRAND} /></View>
+          <View style={s.center}>
+            <ActivityIndicator color={BRAND} />
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 10 }}>Loading terminals…</Text>
+          </View>
+        ) : isError && filtered.length === 0 && !query ? (
+          <LoadErrorState message="Couldn't load terminals. Check your connection." onRetry={() => refetch()} />
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
             <Bus size={36} color="#6B7280" />

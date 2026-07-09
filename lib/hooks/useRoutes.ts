@@ -55,7 +55,7 @@ export function usePopularRoutes() {
 }
 
 export function useRouteDetail(routeId: string) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['route', routeId],
     queryFn: () => fetchRouteById(routeId),
     enabled: !!routeId,
@@ -64,7 +64,8 @@ export function useRouteDetail(routeId: string) {
   const route: RouteWithStats | null = data?.route ?? null
   const recentReports: FareReport[] = data?.recentReports ?? []
 
-  return { route, recentReports, isLoading, error: null }
+  // isError lets screens distinguish "couldn't load" from "route doesn't exist" (UX-14)
+  return { route, recentReports, isLoading, isError, refetch }
 }
 
 export function useFareTrend(routeId: string) {

@@ -35,6 +35,7 @@ import { timeAgo } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
+import { LoadErrorState } from '@/components/StateViews'
 
 // ─── Constants ──────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export default function LineDetailScreen() {
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
 
-  const { line, stations, recentReports, isLoading, refetch } = useTrainLineDetail(lineId!)
+  const { line, stations, recentReports, isLoading, isError, refetch } = useTrainLineDetail(lineId!)
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null)
 
   const meta = LINE_META[line?.code ?? ''] ?? DEFAULT_LINE_META
@@ -236,6 +237,18 @@ export default function LineDetailScreen() {
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={s.centered}>
           <ActivityIndicator size="large" color="#0891b2" />
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Load failure ≠ nonexistent line (UX-14). !line gate: a failed background
+  // refetch keeps prior data — never hide a loaded line behind an error.
+  if (isError && !line) {
+    return (
+      <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <LoadErrorState message="Couldn't load this line. Check your connection." onRetry={() => refetch()} />
         </View>
       </SafeAreaView>
     )

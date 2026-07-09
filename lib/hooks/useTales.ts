@@ -16,7 +16,7 @@ export function useTalesFeed(deviceId: string | null) {
   const [reactionSummaries, setReactionSummaries] = useState<Map<string, Record<string, number>>>(new Map())
 
   // Initial fetch with TanStack Query caching
-  const { data: initialData, isLoading } = useQuery({
+  const { data: initialData, isLoading, isError, refetch } = useQuery({
     queryKey: ['tales', deviceId],
     queryFn: () => fetchTales({ deviceId }),
   })
@@ -180,6 +180,9 @@ export function useTalesFeed(deviceId: string | null) {
   return {
     posts: displayPosts,
     isLoading,
+    // Feed had NO error state — a failed fetch looked like an empty community (UX-14)
+    isError,
+    retry: refetch,
     isRefreshing,
     hasMore: !!nextCursor,
     userReactions,

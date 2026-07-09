@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import WhatsOnAccra from '@/components/WhatsOnAccra'
+import { getCachedWallet } from '@/lib/services/walletCache'
 
 const BRAND = '#FF4D1C'
 
@@ -88,6 +89,14 @@ export default function HomeScreen() {
 
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [balanceVisible, setBalanceVisible] = useState(true)
+  const [balanceFailed, setBalanceFailed] = useState(false)
+  // Seed from the wallet cache so a fetch failure never renders a funded
+  // wallet as GH₵ 0.00 (UX-13; same cache the Wallet tab uses).
+  useEffect(() => {
+    getCachedWallet().then((snap) => {
+      if (snap) setWalletBalance((prev) => prev ?? snap.balance)
+    })
+  }, [])
   // Refetch on focus (not just mount) so the balance reflects a top-up or
   // booking debit the moment the user returns Home.
   useFocusEffect(
@@ -96,8 +105,10 @@ export default function HomeScreen() {
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
       fetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
         .then(r => r.json())
-        .then(data => { if (data.balance != null) setWalletBalance(data.balance) })
-        .catch(() => {})
+        .then(data => {
+          if (data.balance != null) { setWalletBalance(data.balance); setBalanceFailed(false) }
+        })
+        .catch(() => setBalanceFailed(true))
     }, [authUser?.id]),
   )
 
@@ -136,10 +147,10 @@ export default function HomeScreen() {
 
   const displayName = profile?.display_name || 'Commuter'
   const firstName = displayName.split(' ')[0]
-  const balance = walletBalance ?? 0
-  const formattedBalance = balanceVisible
-    ? formatGHS(balance)
-    : '******'
+  // null = never loaded and no cache: show a dash, never a fake GH₵ 0.00 (UX-13)
+  const formattedBalance = !balanceVisible
+    ? '******'
+    : walletBalance != null ? formatGHS(walletBalance) : 'GH₵ —'
 
   const handleServiceTap = useCallback((svc: Service) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -249,7 +260,12 @@ export default function HomeScreen() {
             </View>
 
             {/* Balance */}
-            <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5, marginTop: 14, marginBottom: 22 }}>{formattedBalance}</Text>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5, marginTop: 14, marginBottom: balanceFailed ? 6 : 22 }}>{formattedBalance}</Text>
+            {balanceFailed && (
+              <Text style={{ fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
+                Couldn&apos;t update — {walletBalance != null ? 'showing last known balance' : 'check your connection'}
+              </Text>
+            )}
 
             {/* Actions */}
             <View style={{ flexDirection: 'row', gap: 12 }}>

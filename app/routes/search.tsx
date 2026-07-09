@@ -118,15 +118,20 @@ export default function PlanTripScreen() {
   const [addressModal, setAddressModal] = useState<'home' | 'work' | null>(null)
   const [addressInput, setAddressInput] = useState('')
   const [addressSuggestions, setAddressSuggestions] = useState<{ text: string; place_name: string }[]>([])
+  const [addressSearchFailed, setAddressSearchFailed] = useState(false)
 
   const searchAddress = (query: string) => {
     setAddressInput(query)
-    if (query.length < 3) { setAddressSuggestions([]); return }
+    if (query.length < 3) { setAddressSuggestions([]); setAddressSearchFailed(false); return }
     const proximity = location ? `&proximity=${location.longitude},${location.latitude}` : ''
     fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?country=gh&limit=5&types=address,poi,locality,place,neighborhood${proximity}&access_token=${MAPBOX_TOKEN}`)
       .then(r => r.json())
-      .then(data => { if (data.features) setAddressSuggestions(data.features.map((f: { text: string; place_name: string }) => ({ text: f.text, place_name: f.place_name }))) })
-      .catch(() => {})
+      .then(data => {
+        setAddressSearchFailed(false)
+        if (data.features) setAddressSuggestions(data.features.map((f: { text: string; place_name: string }) => ({ text: f.text, place_name: f.place_name })))
+      })
+      // Failure must not look like "no results" (UX-14)
+      .catch(() => setAddressSearchFailed(true))
   }
 
   const saveAddress = (label: 'Home' | 'Work', addr: string) => {
@@ -590,6 +595,12 @@ export default function PlanTripScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
+
+              {addressSearchFailed && addressInput.trim().length >= 3 && (
+                <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 10 }}>
+                  Couldn&apos;t search places — check your connection. You can still save what you typed.
+                </Text>
+              )}
 
               {addressInput.trim().length > 0 && addressSuggestions.length === 0 && (
                 <TouchableOpacity

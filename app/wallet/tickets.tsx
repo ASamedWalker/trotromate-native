@@ -10,6 +10,7 @@ import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { fetchMyTickets, type MyTicket } from '@/lib/services/tickets'
+import { LoadErrorState, StaleDataBanner } from '@/components/StateViews'
 
 const BRAND = '#FF4D1C'
 
@@ -26,11 +27,15 @@ export default function MyTicketsScreen() {
   const [tickets, setTickets] = useState<MyTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const load = useCallback(async () => {
     if (!user?.id) { setLoading(false); return }
     const data = await fetchMyTickets(user.id)
-    setTickets(data); setLoading(false); setRefreshing(false)
+    // null = fetch failed — never render "No tickets yet" over an error (UX-14)
+    if (data == null) setLoadFailed(true)
+    else { setTickets(data); setLoadFailed(false) }
+    setLoading(false); setRefreshing(false)
   }, [user?.id])
 
   useFocusEffect(useCallback(() => { load() }, [load]))
@@ -82,8 +87,13 @@ export default function MyTicketsScreen() {
         contentContainerStyle={{ paddingBottom: 28, paddingHorizontal: 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={BRAND} colors={[BRAND]} />}
       >
+        {!loading && loadFailed && tickets.length > 0 && (
+          <StaleDataBanner message="Couldn't refresh — showing earlier tickets." onRetry={() => load()} />
+        )}
         {loading ? (
           <View style={s.center}><ActivityIndicator color={BRAND} /></View>
+        ) : loadFailed && tickets.length === 0 ? (
+          <LoadErrorState message="Couldn't load your tickets. Check your connection." onRetry={() => { setLoading(true); load() }} />
         ) : tickets.length === 0 ? (
           <View style={s.empty}>
             <Ticket size={36} color="#6B7280" />

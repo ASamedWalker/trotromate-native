@@ -46,6 +46,7 @@ import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
 import { LEVELS } from '@/lib/constants/rewards'
 import type { TalePost } from '@/lib/types'
+import { LoadErrorState } from '@/components/StateViews'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
@@ -395,7 +396,7 @@ export function TalesScreen() {
 
   const { deviceId, profile } = useApp()
   const {
-    posts, isLoading, isRefreshing, hasMore,
+    posts, isLoading, isError, retry, isRefreshing, hasMore,
     userReactions, reactionSummaries,
     refresh, loadMore, toggleReaction, deletePost,
   } = useTalesFeed(deviceId)
@@ -491,6 +492,10 @@ export function TalesScreen() {
           <SkeletonTaleCard isDark={isDark} />
           <SkeletonTaleCard isDark={isDark} />
           <SkeletonTaleCard isDark={isDark} />
+        </View>
+      ) : isError && posts.length === 0 ? (
+        <View style={s.centered}>
+          <LoadErrorState message="Couldn't load the feed. Check your connection." onRetry={() => retry()} />
         </View>
       ) : posts.length === 0 ? (
         <View style={s.centered}>

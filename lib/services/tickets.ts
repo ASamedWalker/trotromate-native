@@ -35,13 +35,16 @@ export interface MyTicket {
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
 /** All of a user's tickets (every status), newest first. */
-export async function fetchMyTickets(authUserId: string): Promise<MyTicket[]> {
+// null = network/parse failure — callers must show an error, not "No tickets yet" (UX-14)
+export async function fetchMyTickets(authUserId: string): Promise<MyTicket[] | null> {
   try {
     const res = await fetch(`${API_URL}/api/tickets/list?auth_user_id=${authUserId}`)
     const data = await res.json().catch(() => null)
-    return Array.isArray(data?.tickets) ? data.tickets : []
+    // Missing `tickets` key (error payloads etc.) is a failure, not an empty list
+    if (data == null || !Array.isArray(data.tickets)) return null
+    return data.tickets
   } catch {
-    return []
+    return null
   }
 }
 
