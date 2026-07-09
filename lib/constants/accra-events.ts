@@ -1,14 +1,17 @@
 /**
- * Seed data for the "What's On in Accra" home section (events + ad slots).
+ * Bundled fallback for the "What's On in Accra" home section (events + ad slots).
  *
- * First iteration of the advertising surface that will fund day-to-day ops.
- * Static/curated for now; the shape maps 1:1 to a future Supabase table +
- * admin CRUD so the UI won't change when it goes live:
- *  - `sponsored` marks paid placements (rendered with a "Sponsored" badge)
- *  - `placementId` is the ad-slot identifier for impression/click logging
- *  - `venueStop` maps the venue to a trotro destination so every ad
- *    deep-links into trip planning ("route me there")
+ * HONESTY RULES (this seed once shipped invented movies/concerts — never again):
+ *  - Every listing below is REAL, verified against live sources on 2026-07-09
+ *    (Silverbird Accra Mall week of Jul 3–9 via viewGhana; events via allevents.in).
+ *  - Nothing is marked `sponsored` — nobody has paid for placement yet.
+ *  - The seed SELF-EXPIRES: movies hide after SEED_VALID_UNTIL, events hide
+ *    after their date. Live data from /api/events (admin-managed) replaces
+ *    this whenever available; the section renders nothing rather than stale.
  */
+
+/** Movie seed is trustworthy for roughly one cinema programming week. */
+export const SEED_VALID_UNTIL = '2026-07-16'
 
 export type MovieListing = {
   id: string
@@ -39,106 +42,95 @@ export type CityEvent = {
   sponsored: boolean
 }
 
+// Verified: Silverbird Accra Mall "now showing" week of Jul 3–9 2026
+// (viewghana.com/movies-showing-at-silverbird-cinema-accra-mall, updated Jul 3).
 export const ACCRA_MOVIES: MovieListing[] = [
   {
-    id: 'mv-1',
-    placementId: 'home_movies_1',
-    title: 'The Burial of Kojo II',
-    description: 'The long-awaited sequel to Ghana\'s most celebrated film. A haunting family story told across Accra and the Western Region — festival favourite, made in Ghana.',
-    genre: 'Drama',
-    rating: 'PG-13',
+    id: 'mv-supergirl',
+    placementId: 'home_movies_supergirl',
+    title: 'SuperGirl',
+    genre: 'Action · Sci-Fi',
+    rating: '12A',
+    description: 'Now showing at Silverbird, Accra Mall (2D/3D/4DX screens). Confirm showtimes at silverbirdcinemas.com — they change weekly.',
     cinema: 'Silverbird, Accra Mall',
-    venueStop: 'Accra Mall',
-    gradient: ['#7C3AED', '#312E81'],
-    sponsored: true,
+    venueStop: 'Tetteh Quarshie',
+    gradient: ['#1D4ED8', '#312E81'],
+    sponsored: false,
   },
   {
-    id: 'mv-2',
-    placementId: 'home_movies_2',
-    title: 'Azonto Nights',
-    description: 'A crew of Osu friends bet everything on one dance competition. Non-stop laughs, an azonto soundtrack you\'ll hum all week, and pure Accra energy.',
-    genre: 'Comedy',
+    id: 'mv-toystory5',
+    placementId: 'home_movies_toystory5',
+    title: 'Toy Story 5',
+    genre: 'Animation',
+    rating: 'PG',
+    description: 'Pixar\'s latest — family screening at Silverbird, Accra Mall. Confirm showtimes at silverbirdcinemas.com.',
+    cinema: 'Silverbird, Accra Mall',
+    venueStop: 'Tetteh Quarshie',
+    gradient: ['#0891B2', '#164E63'],
+    sponsored: false,
+  },
+  {
+    id: 'mv-remi-nneoma',
+    placementId: 'home_movies_remi_nneoma',
+    title: 'Remi & Nneoma',
+    genre: 'Nollywood · Drama',
     rating: '15',
-    cinema: 'Silverbird, West Hills Mall',
-    venueStop: 'West Hills Mall',
-    gradient: ['#F59E0B', '#B91C1C'],
-    sponsored: false,
-  },
-  {
-    id: 'mv-3',
-    placementId: 'home_movies_3',
-    title: 'Osu at Midnight',
-    description: 'When the lights go out on Oxford Street, a taxi driver picks up the wrong passenger. A tense one-night thriller shot entirely in Accra after dark.',
-    genre: 'Thriller',
-    rating: '18',
-    cinema: 'Global Cinemas, Weija',
-    venueStop: 'Weija',
-    gradient: ['#475569', '#020617'],
-    sponsored: false,
-  },
-  {
-    id: 'mv-4',
-    placementId: 'home_movies_4',
-    title: 'Kotoka Express',
-    description: 'A heist crew has 90 minutes to cross Accra before a flight leaves Kotoka. High-speed action through streets you ride every day.',
-    genre: 'Action',
-    rating: 'PG-13',
+    description: 'Nollywood drama now showing at Silverbird, Accra Mall. Confirm showtimes at silverbirdcinemas.com.',
     cinema: 'Silverbird, Accra Mall',
-    venueStop: 'Accra Mall',
-    gradient: ['#059669', '#134E4A'],
+    venueStop: 'Tetteh Quarshie',
+    gradient: ['#B45309', '#7C2D12'],
+    sponsored: false,
+  },
+  {
+    id: 'mv-prada2',
+    placementId: 'home_movies_prada2',
+    title: 'The Devil Wears Prada 2',
+    genre: 'Comedy · Drama',
+    rating: '12A',
+    description: 'Now showing at Silverbird, Accra Mall. Confirm showtimes at silverbirdcinemas.com.',
+    cinema: 'Silverbird, Accra Mall',
+    venueStop: 'Tetteh Quarshie',
+    gradient: ['#BE185D', '#500724'],
     sponsored: false,
   },
 ]
 
+// Verified: allevents.in/accra listings retrieved 2026-07-09.
 export const ACCRA_EVENTS: CityEvent[] = [
   {
-    id: 'ev-1',
-    placementId: 'home_events_1',
-    title: 'Afrobeats Live: Sarkodie & Friends',
-    description: 'Sarkodie headlines a full night of afrobeats with surprise guest artists. Gates open 6 PM, food and drink vendors on site. Tickets at the gate or online.',
-    category: 'concert',
-    venue: 'Grand Arena, AICC',
-    venueStop: 'Accra Central',
-    date: '2026-07-11',
-    time: '8:00 PM',
-    priceFrom: 150,
-    sponsored: true,
-  },
-  {
-    id: 'ev-2',
-    placementId: 'home_events_2',
-    title: 'Jazz & Palm Wine Fridays',
-    description: 'Live highlife and jazz every Friday with Accra\'s best session musicians. Palm wine cocktails, small chops, no cover before 8 PM.',
+    id: 'ev-tech-mixer',
+    placementId: 'home_events_tech_mixer',
+    title: 'Accra Tech Mixer & Social',
     category: 'bar',
-    venue: '+233 Jazz Bar, Ring Road',
-    venueStop: 'Circle',
-    date: '2026-07-10',
-    time: '7:30 PM',
-    sponsored: false,
-  },
-  {
-    id: 'ev-3',
-    placementId: 'home_events_3',
-    title: 'Osu Night Market Festival',
-    description: 'Oxford Street closes to cars for one night: street food from 50+ vendors, live DJs, craft stalls and games. Free entry, family friendly.',
-    category: 'festival',
-    venue: 'Oxford Street, Osu',
+    venue: 'The Honeysuckle Pub, Osu',
     venueStop: 'Osu',
-    date: '2026-07-18',
-    time: '5:00 PM',
+    description: 'Tech, AI and data meetup — casual networking over drinks at The Honeysuckle Pub & Restaurant, Osu.',
+    date: '2026-07-10',
+    time: '7:00 PM',
     sponsored: false,
   },
   {
-    id: 'ev-4',
-    placementId: 'home_events_4',
-    title: 'Comedy Bar: Laugh Chest',
-    description: 'Ghana\'s top stand-up night returns — five comedians, one stage, zero mercy. Doors 6:30 PM, show 7 PM sharp. Early bird tickets from GH₵80.',
-    category: 'comedy',
-    venue: 'Alliance Française, Airport',
-    venueStop: 'Airport',
-    date: '2026-07-12',
-    time: '7:00 PM',
-    priceFrom: 80,
+    id: 'ev-night-of-hymns',
+    placementId: 'home_events_night_of_hymns',
+    title: 'Night of Hymns',
+    category: 'concert',
+    venue: 'Queen of Peace Catholic Church, Madina',
+    venueStop: 'Madina',
+    description: 'An evening of choral hymns at Madina Queen of Peace Catholic Church.',
+    date: '2026-07-11',
+    time: '4:00 PM',
+    sponsored: false,
+  },
+  {
+    id: 'ev-prayer-summit',
+    placementId: 'home_events_prayer_summit',
+    title: 'Global Prayer Works Summit',
+    category: 'festival',
+    venue: 'Action Chapel International, Spintex',
+    venueStop: 'Spintex',
+    description: '2026 Global Prayer Works Summit hosted at Action Chapel International.',
+    date: '2026-07-15',
+    time: '9:00 AM',
     sponsored: false,
   },
 ]

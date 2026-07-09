@@ -9,7 +9,7 @@ import {
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import {
-  ACCRA_MOVIES, ACCRA_EVENTS, type CityEvent, type MovieListing,
+  ACCRA_MOVIES, ACCRA_EVENTS, SEED_VALID_UNTIL, type CityEvent, type MovieListing,
 } from '@/lib/constants/accra-events'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -124,9 +124,14 @@ function SponsoredBadge({ light = false }: { light?: boolean }) {
 export default function WhatsOnAccra() {
   const router = useRouter()
   const { deviceId } = useApp()
-  // Bundled seed is a fallback — never show events whose date has passed (UX-34)
-  const freshSeedEvents = ACCRA_EVENTS.filter((e) => !e.date || e.date >= new Date().toISOString().slice(0, 10))
-  const [movies, setMovies] = useState<(MovieListing & { posterUrl?: string })[]>(ACCRA_MOVIES)
+  // Bundled seed is a fallback of REAL verified listings — but it decays.
+  // Events hide after their date (UX-34); movies hide after the verified
+  // programming week (SEED_VALID_UNTIL). Stale seed renders as nothing, never
+  // as fake-fresh content. Live /api/events data replaces it when available.
+  const today = new Date().toISOString().slice(0, 10)
+  const seedMoviesValid = today <= SEED_VALID_UNTIL
+  const freshSeedEvents = ACCRA_EVENTS.filter((e) => !e.date || e.date >= today)
+  const [movies, setMovies] = useState<(MovieListing & { posterUrl?: string })[]>(seedMoviesValid ? ACCRA_MOVIES : [])
   const [events, setEvents] = useState<CityEvent[]>(freshSeedEvents)
 
   // Live listings from the backend; bundled seed stays as the offline fallback
@@ -165,6 +170,9 @@ export default function WhatsOnAccra() {
     }
     router.push(`/event/${event.placementId}?item=${encodeURIComponent(JSON.stringify(item))}` as any)
   }, [router, deviceId])
+
+  // Nothing current to show → show nothing. An empty section beats a stale one.
+  if (movies.length === 0 && events.length === 0) return null
 
   return (
     <View style={{ marginBottom: 28 }}>
