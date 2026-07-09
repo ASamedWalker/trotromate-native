@@ -104,6 +104,21 @@ function trackPlacement(placementId: string, deviceId?: string) {
   }).catch(() => {})
 }
 
+// Impressions: one batched event per placement per app session, sent when the
+// section renders with listings. Session-level dedupe keeps counts honest —
+// advertisers see "sessions that saw the ad", not re-render noise.
+const impressedThisSession = new Set<string>()
+function trackImpressions(placementIds: string[], deviceId?: string) {
+  const fresh = placementIds.filter((p) => !impressedThisSession.has(p))
+  if (fresh.length === 0) return
+  fresh.forEach((p) => impressedThisSession.add(p))
+  fetch(`${API_URL}/api/events/track`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ placement_ids: fresh, metric: 'impression', device_id: deviceId }),
+  }).catch(() => {})
+}
+
 function SponsoredBadge({ light = false }: { light?: boolean }) {
   return (
     <View
@@ -144,6 +159,12 @@ export default function WhatsOnAccra() {
       })
       .catch(() => {})
   }, [])
+
+  // Record impressions once the rendered set settles (advertiser reporting)
+  useEffect(() => {
+    const ids = [...movies, ...events].map((x) => x.placementId)
+    if (ids.length > 0) trackImpressions(ids, deviceId || undefined)
+  }, [movies, events, deviceId])
 
   // Card tap opens the detail screen (the pitch); the consumer decides there.
   // Tap = the tracked ad click.
