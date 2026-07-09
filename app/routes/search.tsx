@@ -147,9 +147,14 @@ export default function PlanTripScreen() {
     }
   }
 
-  // Reverse-geocode the user's current location for the "Current location" row
+  // Reverse-geocode the user's current location for the "Current location" row.
+  // Same implausible-coords guard as Home: outside Ghana's bounds (e.g. the
+  // simulator's San Francisco default) show the fallback, never the raw geocode.
   useEffect(() => {
     if (!location) return
+    const inGhana = location.latitude >= 4.5 && location.latitude <= 11.5
+      && location.longitude >= -3.5 && location.longitude <= 1.5
+    if (!inGhana) { setLocationName('Accra, GH'); return }
     fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?types=place,locality&limit=1&access_token=${MAPBOX_TOKEN}`)
       .then(r => r.json())
       .then(data => {
