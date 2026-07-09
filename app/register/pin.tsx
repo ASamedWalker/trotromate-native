@@ -7,10 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
+import { setWalletPin } from '@/lib/services/walletPin'
 
 const BRAND = '#FF4D1C'
 const PIN_LENGTH = 4
-const PIN_STORAGE_KEY = 'troski_user_pin'
+// Legacy plaintext location — cleaned up on save (UX-08). The PIN now lives
+// in SecureStore via lib/services/walletPin (same store the wallet verifies).
+const LEGACY_PIN_KEY = 'troski_user_pin'
 
 export default function CreatePIN() {
   const insets = useSafeAreaInsets()
@@ -46,7 +49,9 @@ export default function CreatePIN() {
       if (digits.length === PIN_LENGTH) {
         if (digits === pin) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-          AsyncStorage.setItem(PIN_STORAGE_KEY, digits).then(() => {
+          // SecureStore (hardware-backed), not AsyncStorage plaintext (UX-08).
+          setWalletPin(digits).then(() => {
+            AsyncStorage.removeItem(LEGACY_PIN_KEY).catch(() => {})
             router.push('/register/survey' as any)
           })
         } else {

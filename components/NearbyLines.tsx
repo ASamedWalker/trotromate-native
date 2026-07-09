@@ -294,11 +294,11 @@ export function NearbyLines({
             <View style={s.cardBody}>
               {/* Left: time box */}
               <View style={[s.timeBox, { backgroundColor: isDark ? 'rgba(34,211,238,0.1)' : 'rgba(34,211,238,0.08)' }]}>
-                <HeroText size={20} weight="black" style={[s.timeBoxNumber, { color: isLive ? '#22c55e' : accentColor }]}>
+                <HeroText size={20} weight="black" style={[s.timeBoxNumber, { color: accentColor }]}>
                   {line.timeNumber === '--' ? '--' : line.timeNumber}
                 </HeroText>
                 {line.timeUnit !== '' && line.liveTag !== 'done' && (
-                  <Text style={[s.timeBoxUnit, { color: isLive ? '#22c55e' : accentColor }]}>
+                  <Text style={[s.timeBoxUnit, { color: accentColor }]}>
                     {line.liveTag === 'scheduled' ? 'DEP' : 'MIN'}
                   </Text>
                 )}
@@ -309,10 +309,10 @@ export function NearbyLines({
                 <Text style={s.destLabel}>To {line.to}</Text>
                 <Text style={s.routeName} numberOfLines={1}>{line.from} - {line.to}</Text>
                 <View style={s.badgeRow}>
+                  {/* Schedule-derived, not telemetry — no green LIVE pill (UX-09) */}
                   {isLive && (
-                    <View style={s.liveBadge}>
-                      <View style={s.liveDot} />
-                      <Text style={s.liveText}>LIVE</Text>
+                    <View style={[s.liveBadge, { backgroundColor: 'rgba(107,114,128,0.1)' }]}>
+                      <Text style={[s.liveText, { color: '#6B7280' }]}>IN TRANSIT · SCHEDULED</Text>
                     </View>
                   )}
                   <Text style={[s.railLabel, { color: accentColor }]}>Rail Link</Text>

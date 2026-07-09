@@ -227,13 +227,8 @@ export default function WalletScreen() {
               </View>
             )}
 
-            {/* Live sync badge — only when not funded */}
-            {!isAuthenticated && (
-              <View style={s.liveSyncBadge}>
-                <View style={s.liveSyncDot} />
-                <Text style={s.liveSyncText}>LIVE SYNC READY</Text>
-              </View>
-            )}
+            {/* "LIVE SYNC READY" badge removed (UX audit): decorative fiction —
+                it indicated nothing real. */}
           </View>
         </Animated.View>
 
@@ -355,24 +350,9 @@ export default function WalletScreen() {
               })}
             </Animated.View>
 
-            {/* ── Promo Banner — "Go Cashless, Get 5% Back" ── */}
-            <Animated.View entering={FadeInDown.delay(320).duration(400)} style={s.section}>
-              <LinearGradient
-                colors={isDark ? ['#1c1917', '#292524'] : ['#292524', '#1c1917']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={s.promoCard}
-              >
-                <View style={s.promoOverlay} />
-                <View style={s.promoContent}>
-                  <View style={s.promoTagWrap}>
-                    <Text style={s.promoTag}>SPECIAL OFFER</Text>
-                  </View>
-                  <Text style={s.promoTitle}>Go Cashless, Get 5% Back</Text>
-                  <Text style={s.promoSub}>On all trotro rides this month.</Text>
-                </View>
-              </LinearGradient>
-            </Animated.View>
+            {/* Promo banner removed (UX-04): "Get 5% Back" had no backing promo
+                system — an unfulfillable money promise. Reinstate only when a
+                real promo engine credits it. */}
           </>
         ) : (isAuthenticated && !hydrated) ? (
           /* ── Loading skeleton — shown until the first fetch (or cache) lands,
@@ -433,7 +413,6 @@ export default function WalletScreen() {
           <Animated.View entering={FadeInDown.delay(400).duration(400)} style={[s.section, { marginTop: 'auto' }]}>
             <View style={s.txEmptyHeader}>
               <Text style={[s.txEmptyLabel, { color: t.text }]}>RECENT TRANSACTIONS</Text>
-              <Text style={s.txEmptyViewAll}>VIEW ALL</Text>
             </View>
             <View style={[s.txEmptyBox, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
               <MaterialIcons name="history" size={28} color={isDark ? '#44403c' : '#d6d3d1'} />

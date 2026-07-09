@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import {
-  ArrowLeft, ChevronRight, Ticket, Plus, Check, X,
+  ArrowLeft, ChevronRight, Check, X,
   ShieldCheck, Star, BadgeCheck, Camera, UserCheck,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
@@ -38,11 +38,12 @@ export default function CheckoutScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ from?: string; to?: string; route_id?: string; fare?: string }>()
 
-  const fromName = params.from || 'Kaneshie Terminal'
-  const toName = params.to || 'Kumasi Central'
+  // A booking needs real route context — no placeholder names, ever (UX-02).
+  const hasRouteContext = !!params.from && !!params.to
+  const fromName = params.from || ''
+  const toName = params.to || ''
 
-  // Real fare for this route (crowdsourced avg, else official). Falls back to a
-  // placeholder only when no route context was passed.
+  // Real fare for this route (crowdsourced avg, else official).
   const { route } = useRouteDetail(params.route_id || '')
 
   // ── Real-time route signals (no fake "departs in 5 mins") ──
@@ -105,7 +106,10 @@ export default function CheckoutScreen() {
   // journeys whose total isn't recoverable from leg-0's route_id). Fall back to
   // the route's crowdsourced/official fare for entry points that pass no fare.
   const passedFare = params.fare != null && isFinite(parseFloat(params.fare)) ? parseFloat(params.fare) : null
-  const busFare = passedFare ?? route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? 25.0
+  // No hardcoded fallback fare — if we don't know the fare, we don't charge one (UX-02).
+  const knownFare = passedFare ?? route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? null
+  const fareKnown = knownFare != null
+  const busFare = knownFare ?? 0
   // Ghana VAT Act 2025 (Act 1151): public passenger transport is VAT-exempt, so
   // the trotro fare carries no tax (it's the driver's takings). Troski's platform
   // service fee IS a taxable supply → 15% VAT + 2.5% NHIL + 2.5% GETFund (≈20%).
@@ -143,20 +147,22 @@ export default function CheckoutScreen() {
   // the button flips from "Top up" to "Pay" without a manual reload.
   useFocusEffect(useCallback(() => { fetchBalance() }, [fetchBalance]))
 
+  // Wallet is the only wired payment method. MoMo was listed here before but
+  // silently charged the wallet regardless — removed until actually wired (UX-15).
   const payments = [
-    { id: 'wallet', label: 'Troski Wallet', sub: walletBalance != null ? formatGHS(walletBalance) : 'Balance unavailable' },
-    { id: 'momo', label: 'MTN MoMo', sub: 'Pay with mobile money' },
+    { id: 'wallet', label: 'Troski Wallet', sub: balanceLoading ? 'Checking balance…' : walletBalance != null ? formatGHS(walletBalance) : "Couldn't load balance — tap to retry" },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
   const shortfall = insufficient ? total - (walletBalance ?? 0) : 0
   // Don't let the user pay from the wallet until we know the balance — avoids a
-  // silent overdraw path when the balance fetch is slow or timed out.
+  // silent overdraw path when the balance fetch is slow, timed out, or failed.
   const waitingBalance = payment === 'wallet' && balanceLoading
+  const balanceUnknown = payment === 'wallet' && !balanceLoading && walletBalance == null
 
   // Pay → require the wallet PIN, then book. PIN protects spending if the phone
   // is unlocked by someone else.
   const payNow = () => {
-    if (!user?.id || booking) return
+    if (!user?.id || booking || !fareKnown || balanceUnknown) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setPinVisible(true)
   }
@@ -198,6 +204,25 @@ export default function CheckoutScreen() {
     } else {
       Alert.alert('Booking failed', result.message || 'Could not complete the booking. Please try again.')
     }
+  }
+
+  // Opened without route context (deep link / stale entry) — honest dead-end
+  // instead of booking placeholder places at a placeholder fare (UX-02).
+  if (!hasRouteContext) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>Route details missing</Text>
+        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+          Pick a route first, then book from its page.
+        </Text>
+        <TouchableOpacity
+          onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)' as never) }}
+          style={{ marginTop: 20, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, backgroundColor: BRAND }}
+        >
+          <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -341,10 +366,6 @@ export default function CheckoutScreen() {
         {/* ── Fare breakdown ── */}
         <Text style={s.sectionTitle}>Fare Breakdown</Text>
         <View style={s.card}>
-          <TouchableOpacity activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 12 }}>
-            <Ticket size={16} color={BRAND} />
-            <Text style={[s.linkText, { fontSize: 14 }]}>Use Promo Code</Text>
-          </TouchableOpacity>
           <View style={s.fareRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={s.detailLabel}>Bus Fare</Text>
@@ -352,17 +373,21 @@ export default function CheckoutScreen() {
                 <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#6B7280' }}>VAT exempt</Text>
               </View>
             </View>
-            <Text style={s.fareValue}>{formatGHS(fare.bus)}</Text>
+            <Text style={s.fareValue}>{fareKnown ? formatGHS(fare.bus) : '—'}</Text>
           </View>
           <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.serviceBase)}</Text></View>
           <View style={s.fareRow}><Text style={s.detailLabel}>VAT + Levies (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
-          <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{formatGHS(total)}</Text></View>
+          <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{fareKnown ? formatGHS(total) : '—'}</Text></View>
+          {!fareKnown && (
+            <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
+              We couldn&apos;t load the fare for this route. Go back and reopen the route to book.
+            </Text>
+          )}
         </View>
 
         {/* ── Payment method ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 10 }}>
           <Text style={[s.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>Payment Method</Text>
-          <TouchableOpacity style={s.addBtn} hitSlop={8}><Plus size={16} color="#111" /></TouchableOpacity>
         </View>
         <View style={s.card}>
           {payments.map((p, i) => {
@@ -371,7 +396,12 @@ export default function CheckoutScreen() {
               <TouchableOpacity
                 key={p.id}
                 activeOpacity={0.7}
-                onPress={() => { Haptics.selectionAsync(); setPayment(p.id) }}
+                onPress={() => {
+                  Haptics.selectionAsync()
+                  setPayment(p.id)
+                  // Failed balance fetch → tapping the row retries (UX-02 followup)
+                  if (p.id === 'wallet' && balanceUnknown) { setBalanceLoading(true); fetchBalance() }
+                }}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
               >
                 <View style={s.payIcon}><Text style={{ fontSize: 18 }}>{p.id === 'wallet' ? '👛' : '🏦'}</Text></View>
@@ -408,11 +438,17 @@ export default function CheckoutScreen() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}
-            disabled={booking || waitingBalance}
+            disabled={booking || waitingBalance || !fareKnown || balanceUnknown}
             onPress={payNow}
-            style={[s.payBtn, (booking || waitingBalance) && { opacity: 0.6 }]}
+            style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown) && { opacity: 0.6 }]}
           >
-            <Text style={s.payBtnText}>{booking ? 'Processing…' : waitingBalance ? 'Checking balance…' : `Pay ${formatGHS(total)}`}</Text>
+            <Text style={s.payBtnText}>
+              {booking ? 'Processing…'
+                : !fareKnown ? 'Fare unavailable'
+                : waitingBalance ? 'Checking balance…'
+                : balanceUnknown ? 'Balance unavailable'
+                : `Pay ${formatGHS(total)}`}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -564,7 +600,6 @@ const s = StyleSheet.create({
   totalLabel: { fontFamily: font.bold, fontSize: 15, color: '#111' },
   totalValue: { fontFamily: font.extrabold, fontSize: 16, color: '#111' },
 
-  addBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
   payIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   payLabel: { fontFamily: font.bold, fontSize: 14, color: '#111' },
   paySub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },

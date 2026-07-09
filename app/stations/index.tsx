@@ -41,8 +41,19 @@ const QUEUE_SEVERITY: Record<string, number> = {
   very_long: 4,
 }
 
+// Queue reports decay fast — anything older than this renders neutral, never
+// as a live-looking colored dot (UX-12; matches queue/status.tsx gating).
+const QUEUE_FRESH_MS = 2 * 60 * 60 * 1000
+
+function freshQueueStat(station: StationWithQueue) {
+  const stat = station.queue_stats?.[0]
+  if (!stat?.current_status || !stat.last_report_at) return null
+  if (Date.now() - new Date(stat.last_report_at).getTime() > QUEUE_FRESH_MS) return null
+  return stat
+}
+
 function getStationColor(station: StationWithQueue): string {
-  const queueStatus = station.queue_stats?.[0]?.current_status as QueueStatus | undefined
+  const queueStatus = freshQueueStat(station)?.current_status as QueueStatus | undefined
   return queueStatus ? QUEUE_COLORS[queueStatus] : TROSKI_ORANGE
 }
 
@@ -116,13 +127,12 @@ export default function StationsScreen() {
   // Best pick: station with shortest queue, or top major station if no queue data
   const bestPick = useMemo(() => {
     if (!stationsWithCoords.length) return null
-    const withReports = stationsWithCoords.filter(
-      (st) => st.queue_stats?.[0]?.current_status,
-    )
+    // Only FRESH reports qualify — a stale "short queue" is not a best pick (UX-12)
+    const withReports = stationsWithCoords.filter((st) => freshQueueStat(st))
     if (withReports.length) {
       withReports.sort((a, b) => {
-        const aSev = QUEUE_SEVERITY[a.queue_stats![0].current_status] ?? 99
-        const bSev = QUEUE_SEVERITY[b.queue_stats![0].current_status] ?? 99
+        const aSev = QUEUE_SEVERITY[freshQueueStat(a)!.current_status] ?? 99
+        const bSev = QUEUE_SEVERITY[freshQueueStat(b)!.current_status] ?? 99
         return aSev - bSev
       })
       return withReports[0]

@@ -352,7 +352,7 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
             {/* Time label */}
             {result.timeLabel !== '' && (
               <Text style={[s.timeLabel, { color: t.textSecondary }]}>
-                {result.liveTag === 'live' && '\u25CF '}
+                {/* No live-dot: timing is schedule-derived, not telemetry (UX-09) */}
                 {result.timeLabel}
               </Text>
             )}

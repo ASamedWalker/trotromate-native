@@ -602,11 +602,13 @@ export default function TrainLinesScreen() {
               </View>
 
               <View style={s.transitDetails}>
+                {/* Position is schedule math, not telemetry — no green live dot,
+                    hedged wording (UX-10) */}
                 <View style={s.transitRow}>
-                  <View style={s.transitLiveDot} />
                   <Text style={s.transitText}>
-                    At{' '}
+                    Should be near{' '}
                     <Text style={s.transitHighlight}>{departure.currentStation}</Text>
+                    {' '}(per schedule)
                   </Text>
                 </View>
                 {departure.nextStation && (

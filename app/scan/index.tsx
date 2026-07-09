@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import ComingSoonScreen from '@/components/ComingSoonScreen'
 
 const BRAND = '#FF4D1C'
 
@@ -27,6 +28,17 @@ export default function ScanPayScreen() {
   const [manual, setManual] = useState(false)
   const [busCode, setBusCode] = useState('')
   const canContinue = busCode.trim().length >= 3
+
+  // Scan-to-pay has no camera and no real payment backend yet. The mock flow
+  // is dev-only; production users get an honest dead-end (UX-01).
+  if (!__DEV__) {
+    return (
+      <ComingSoonScreen
+        title="Scan to Pay is coming soon"
+        message="We're building QR payments with real bus codes. Until then, book and pay from a route page."
+      />
+    )
+  }
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#fff' }}>

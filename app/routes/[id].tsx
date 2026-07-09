@@ -173,7 +173,10 @@ export default function RouteDetailScreen() {
             <View style={s.heroFareRow}>
               <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
               <Text style={s.heroFareLabel}>
-                {route.is_gprtu_verified ? 'official fare' : 'reported fare'}
+                {/* Label by the number actually shown: crowd average vs official (UX-18) */}
+                {route.fare_stats?.avg_reported_fare != null
+                  ? 'reported fare'
+                  : route.is_gprtu_verified ? 'official fare' : 'official fare (unverified)'}
               </Text>
             </View>
 
@@ -414,11 +417,13 @@ export default function RouteDetailScreen() {
           <SOSButton from={route.from_location} to={route.to_location} />
         </View>
 
-        {/* ─── GPRTU Bulletins ──────────────────────────── */}
+        {/* ─── Rider Tips — static app guidance. Was branded "GPRTU Bulletins",
+             which read as a live official union feed it never was (UX-18).
+             Restore that name only if a real GPRTU data channel exists. ─── */}
         <View style={s.bulletinSection}>
           <View style={s.bulletinHeader}>
             <ShieldCheck size={18} color="#15803d" />
-            <Text style={s.bulletinTitle}>GPRTU Bulletins</Text>
+            <Text style={s.bulletinTitle}>Rider Tips</Text>
           </View>
 
           <View style={[s.bulletinCard, { borderLeftColor: '#15803d' }]}>

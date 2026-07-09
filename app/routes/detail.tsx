@@ -16,7 +16,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Users, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed } from 'lucide-react-native'
 import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
@@ -140,28 +140,9 @@ export default function RouteDetailScreen() {
     })),
   }), [liveTrips])
 
-  const MOCK_VEHICLES: Record<string, { vanId: string; plateNumber: string; routeLabel: string; speed: number; driver: string }[]> = {
-    trotro: [
-      { vanId: 'm1', plateNumber: 'GR-4582-24', routeLabel: `${from} → ${to}`, speed: 32, driver: 'Kwame Asante' },
-      { vanId: 'm2', plateNumber: 'GN-1190-23', routeLabel: `${from} → ${to}`, speed: 0, driver: 'Yaw Mensah' },
-      { vanId: 'm3', plateNumber: 'GT-7823-24', routeLabel: `${from} → ${to}`, speed: 45, driver: 'Kofi Boateng' },
-    ],
-    okada: [
-      { vanId: 'm4', plateNumber: 'M-2891-24', routeLabel: `${from} → ${to}`, speed: 28, driver: 'Abass Ibrahim' },
-      { vanId: 'm5', plateNumber: 'M-0456-23', routeLabel: `${from} → ${to}`, speed: 35, driver: 'Issah Mohammed' },
-    ],
-    pragya: [
-      { vanId: 'm6', plateNumber: 'P-1122-24', routeLabel: `${from} → ${to}`, speed: 18, driver: 'Emmanuel Tetteh' },
-      { vanId: 'm7', plateNumber: 'P-3344-23', routeLabel: `${from} → ${to}`, speed: 22, driver: 'Samuel Adjei' },
-    ],
-  }
-
-  const vehicles = liveVehicles.length > 0
-    ? liveVehicles
-    : (MOCK_VEHICLES[selectedTransport] || []).map(m => ({
-        ...m, routeId: routeId, latitude: 0, longitude: 0, heading: null,
-        updatedAt: new Date().toISOString(), isStale: false,
-      }))
+  // Only real broadcasting vehicles — fabricated plates/drivers with fake
+  // "Live" pills made riders wait for buses that didn't exist (UX-05).
+  const vehicles = liveVehicles
 
   // Fetch traffic
   useEffect(() => {
@@ -279,19 +260,9 @@ export default function RouteDetailScreen() {
   const snapPoints = useMemo(() => ['38%', '64%', '88%'], [])
 
 
-  // Mock stops for timeline — will be replaced by route_stops from DB
-  const mockStops = useMemo(() => [
-    { name: from, letter: from.charAt(0).toUpperCase(), minsAgo: 30, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
-    { name: 'Nkrumah Ave', letter: 'N', minsAgo: 20, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
-    { name: 'Kwame Rd', letter: 'K', minsAgo: 15, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
-    { name: 'Station Junction', letter: 'S', minsAgo: 10, etaMin: null as number | null, passed: true, isCurrent: false, isFinal: false },
-    { name: 'Market Square', letter: 'M', minsAgo: null as number | null, etaMin: null as number | null, passed: false, isCurrent: true, isFinal: false },
-    { name: 'Ring Road', letter: 'R', minsAgo: null as number | null, etaMin: 4 as number | null, passed: false, isCurrent: false, isFinal: false },
-    { name: to, letter: to.charAt(0).toUpperCase(), minsAgo: null as number | null, etaMin: 9 as number | null, passed: false, isCurrent: false, isFinal: true },
-  ], [from, to])
-
-  const currentStopName = mockStops.find(s => s.isCurrent)?.name ?? ''
-  const destEta = mockStops[mockStops.length - 1].etaMin ?? 0
+  // Fabricated stop timeline removed (UX-06): it rendered "Now at Market
+  // Square · updates live" from hardcoded data that never updated. Sheet 3
+  // shows an honest placeholder until real route_stops + positions exist.
 
   const durationText = duration >= 60
     ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
@@ -744,37 +715,10 @@ export default function RouteDetailScreen() {
               backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18,
               gap: 16,
             }}>
-              {/* Header */}
+              {/* Header — no "Live" pill: this card has no realtime channel.
+                  Fake busyness ("Not busy 20%", no data source) removed (UX-06). */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#6B7280', letterSpacing: 3, textTransform: 'uppercase' }}>Real-Time Pulse</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-                  <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#22c55e' }}>Live</Text>
-                </View>
-              </View>
-
-              {/* Station Busyness — Users icon + label + bar graph */}
-              <View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Station Busyness</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Users size={16} color="#059669" />
-                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#059669' }}>Not busy</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
-                      {[1, 2, 3, 4].map((bar) => (
-                        <View key={bar} style={{
-                          width: 6, height: 8 + bar * 3, borderRadius: 3,
-                          backgroundColor: bar <= 1 ? '#10b981' : '#E5E7EB',
-                        }} />
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Busyness bar */}
-                <View style={{ height: 10, borderRadius: 5, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
-                  <View style={{ height: 10, borderRadius: 5, width: '20%', backgroundColor: '#22c55e' }} />
-                </View>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#6B7280', letterSpacing: 3, textTransform: 'uppercase' }}>Route Conditions</Text>
               </View>
 
               {/* Traffic Condition — badge pill */}
@@ -784,24 +728,26 @@ export default function RouteDetailScreen() {
                   <View style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-                    backgroundColor: loadingTraffic ? '#F3F4F6'
-                      : !trafficCondition || trafficCondition === 'light' ? 'rgba(16,185,129,0.1)'
+                    // null after load = fetch failed/no data — neutral, never green (UX-11)
+                    backgroundColor: loadingTraffic || !trafficCondition ? '#F3F4F6'
+                      : trafficCondition === 'light' ? 'rgba(16,185,129,0.1)'
                       : trafficCondition === 'moderate' ? 'rgba(245,158,11,0.1)'
                       : trafficCondition === 'heavy' ? 'rgba(249,115,22,0.1)'
                       : 'rgba(239,68,68,0.1)',
                   }}>
-                    {!loadingTraffic && (!trafficCondition || trafficCondition === 'light') && <Zap size={14} color="#059669" />}
+                    {!loadingTraffic && trafficCondition === 'light' && <Zap size={14} color="#059669" />}
                     {!loadingTraffic && trafficCondition === 'moderate' && <Clock size={14} color="#d97706" />}
                     {!loadingTraffic && (trafficCondition === 'heavy' || trafficCondition === 'severe') && <AlertTriangle size={14} color={trafficCondition === 'severe' ? '#dc2626' : '#ea580c'} />}
                     <Text style={{
                       fontFamily: font.bold, fontSize: 13,
-                      color: loadingTraffic ? '#6B7280'
-                        : !trafficCondition || trafficCondition === 'light' ? '#059669'
+                      color: loadingTraffic || !trafficCondition ? '#6B7280'
+                        : trafficCondition === 'light' ? '#059669'
                         : trafficCondition === 'moderate' ? '#d97706'
                         : trafficCondition === 'heavy' ? '#ea580c' : '#dc2626',
                     }}>
                       {loadingTraffic ? 'Checking...'
-                        : !trafficCondition || trafficCondition === 'light' ? 'Light'
+                        : !trafficCondition ? 'Unavailable'
+                        : trafficCondition === 'light' ? 'Light'
                         : trafficCondition === 'moderate' ? 'Moderate'
                         : trafficCondition === 'heavy' ? 'Heavy' : 'Severe'}
                       {trafficDelay > 0 ? ` +${trafficDelay}m` : ''}
@@ -813,22 +759,17 @@ export default function RouteDetailScreen() {
                 <View style={{ height: 10, borderRadius: 5, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
                   <View style={{
                     height: 10, borderRadius: 5,
-                    width: loadingTraffic ? '30%'
-                      : !trafficCondition || trafficCondition === 'light' ? '25%'
+                    width: loadingTraffic || !trafficCondition ? '0%'
+                      : trafficCondition === 'light' ? '25%'
                       : trafficCondition === 'moderate' ? '55%'
                       : trafficCondition === 'heavy' ? '80%' : '95%',
-                    backgroundColor: loadingTraffic ? '#D1D5DB'
-                      : !trafficCondition || trafficCondition === 'light' ? '#22c55e'
+                    backgroundColor: loadingTraffic || !trafficCondition ? '#D1D5DB'
+                      : trafficCondition === 'light' ? '#22c55e'
                       : trafficCondition === 'moderate' ? '#F59E0B'
                       : trafficCondition === 'heavy' ? '#EF4444' : '#DC2626',
                   }} />
                 </View>
               </View>
-
-              {/* Timestamp */}
-              <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280' }}>
-                {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-              </Text>
             </View>
           </View>
 
@@ -981,94 +922,17 @@ export default function RouteDetailScreen() {
               </TouchableOpacity>
 
               {/* ETA headline — live, updates as real driver data arrives */}
-              <View style={{ paddingHorizontal: 24, marginBottom: 18 }}>
-                <Text style={{ fontFamily: font.extrabold, fontSize: 22, color: '#000', letterSpacing: -0.6 }}>
-                  Arrives in ~{destEta} min
+              {/* Honest placeholder — the old fabricated stop timeline claimed
+                  "Now at Market Square · updates live" from hardcoded data (UX-06).
+                  Stop-by-stop tracking returns when route_stops + live positions land. */}
+              <View style={{ marginHorizontal: 24, padding: 20, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
+                <Bus size={28} color="#D1D5DB" />
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151', marginTop: 10, textAlign: 'center' }}>
+                  Stop-by-stop tracking coming soon
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                    Now at {currentStopName} · updates live
-                  </Text>
-                </View>
-              </View>
-
-              {/* Timeline */}
-              <View style={{ paddingHorizontal: 24 }}>
-                {mockStops.map((stop, i) => {
-                  const isLast = i === mockStops.length - 1
-                  const isCurrent = 'isCurrent' in stop && stop.isCurrent
-                  const isFinal = 'isFinal' in stop && stop.isFinal
-
-                  return (
-                    <View key={i} style={{ flexDirection: 'row', minHeight: isLast ? 40 : 52 }}>
-                      {/* Timeline column — dot + line */}
-                      <View style={{ width: 32, alignItems: 'center' }}>
-                        {/* Dot or bus icon */}
-                        {isCurrent ? (
-                          <View style={{
-                            width: 28, height: 28, borderRadius: 14,
-                            backgroundColor: BRAND,
-                            justifyContent: 'center', alignItems: 'center',
-                            shadowColor: BRAND, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4,
-                          }}>
-                            <Bus size={14} color="#fff" />
-                          </View>
-                        ) : (
-                          <View style={{
-                            width: 28, height: 28, borderRadius: 14,
-                            backgroundColor: stop.passed || isFinal ? BRAND : '#E5E7EB',
-                            justifyContent: 'center', alignItems: 'center',
-                          }}>
-                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: stop.passed || isFinal ? '#fff' : '#6B7280' }}>
-                              {stop.letter}
-                            </Text>
-                          </View>
-                        )}
-                        {/* Vertical line */}
-                        {!isLast && (
-                          <View style={{
-                            width: 3, flex: 1,
-                            backgroundColor: stop.passed ? BRAND : '#E5E7EB',
-                            marginVertical: 2,
-                            borderRadius: 1.5,
-                          }} />
-                        )}
-                      </View>
-
-                      {/* Stop info */}
-                      <View style={{
-                        flex: 1, marginLeft: 14,
-                        paddingBottom: isLast ? 0 : 16,
-                        justifyContent: 'center',
-                      }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                            <Text numberOfLines={1} style={{
-                              fontFamily: isCurrent || isFinal ? font.extrabold : font.bold,
-                              fontSize: isCurrent ? 16 : 15,
-                              color: stop.passed || isCurrent || isFinal ? '#000' : '#6B7280',
-                            }}>
-                              {stop.name}
-                            </Text>
-                            {isFinal && (
-                              <View style={{ backgroundColor: '#FFF0EB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
-                                <Text style={{ fontFamily: font.bold, fontSize: 10, color: BRAND }}>Your stop</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={{
-                            fontFamily: font.bold,
-                            fontSize: 13,
-                            color: isFinal ? BRAND : isCurrent ? '#22c55e' : stop.passed ? '#6B7280' : '#6B7280',
-                          }}>
-                            {stop.passed ? `${stop.minsAgo} min ago` : isCurrent ? 'Here now' : `in ${stop.etaMin} min`}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  )
-                })}
+                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 4, textAlign: 'center' }}>
+                  This bus is broadcasting its live position — follow it on the map above.
+                </Text>
               </View>
 
               {/* Notify banner */}

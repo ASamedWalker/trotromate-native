@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { font, themed } from '@/lib/theme'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import ComingSoonScreen from '@/components/ComingSoonScreen'
 
 const BRAND = '#FF4D1C'
 const BRAND_TINT = '#FFF0EB'
@@ -26,7 +27,22 @@ const BANKS: { name: string; account: string }[] = [
 
 const ACCOUNT_NAME = 'TROSKI TECHNOLOGIES'
 
+// The account numbers below are FAKE placeholders. A user must never be able
+// to copy one and send real money to it — production gets a dead-end until
+// Paystack virtual accounts exist (UX-03).
 export default function BankTransferScreen() {
+  if (!__DEV__) {
+    return (
+      <ComingSoonScreen
+        title="Bank transfer is coming soon"
+        message="We're setting up dedicated Troski accounts with partner banks. Until then, top up with Mobile Money."
+      />
+    )
+  }
+  return <BankTransferInner />
+}
+
+function BankTransferInner() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const router = useRouter()

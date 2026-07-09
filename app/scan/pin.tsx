@@ -5,11 +5,26 @@ import { useRouter } from 'expo-router'
 import { Delete } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import ComingSoonScreen from '@/components/ComingSoonScreen'
 
 const BRAND = '#FF4D1C'
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del']
 
+// Dev-only mock flow — production users get an honest dead-end (UX-01).
 export default function WalletPinScreen() {
+  if (!__DEV__) {
+    return (
+      <ComingSoonScreen
+        title="Scan to Pay is coming soon"
+        message="QR payments aren't live yet. Book and pay from a route page instead."
+      />
+    )
+  }
+  return <WalletPinScreenInner />
+}
+
+function WalletPinScreenInner() {
+
   const router = useRouter()
   const [pin, setPin] = useState('')
 

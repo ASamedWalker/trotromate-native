@@ -92,15 +92,16 @@ export default function WalletTopUpAnimation({
               <WalletIcon size={56} color="#fff" strokeWidth={2} />
             </Animated.View>
 
-            {/* Success check */}
+            {/* Pending badge — the money has NOT landed yet (no webhook); a green
+                check here read as "paid" before the user even approved (UX-19) */}
             {state === 'success' && (
-              <Animated.View style={[s.checkBadge, { transform: [{ scale: check }] }]}>
+              <Animated.View style={[s.checkBadge, { backgroundColor: '#F59E0B', transform: [{ scale: check }] }]}>
                 <Check size={18} color="#fff" strokeWidth={3.5} />
               </Animated.View>
             )}
           </View>
 
-          <Text style={s.title}>{state === 'success' ? 'Almost there!' : 'Sending MoMo request…'}</Text>
+          <Text style={s.title}>{state === 'success' ? 'Approve on your phone' : 'Sending MoMo request…'}</Text>
           <Text style={s.message}>{message}</Text>
 
           {state === 'success' ? (

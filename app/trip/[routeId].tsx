@@ -486,21 +486,21 @@ export default function TripScreen() {
   // Prevents camera jumping to another country when testing remotely
   const isNearRoute = useMemo(() => {
     if (!progress || !tripStations || tripStations.length === 0) return false
-    const near = progress.distanceToDestinationKm < 50 || progress.distanceToNearestKm < 50
-    console.log('[GO Mode]', { near, distDest: progress.distanceToDestinationKm, distNearest: progress.distanceToNearestKm })
-    return near
+    return progress.distanceToDestinationKm < 50 || progress.distanceToNearestKm < 50
   }, [progress, tripStations])
   const shouldFollowUser = isActive && isNearRoute
 
-  // Schedule-aware simulated progress for remote testing
-  // Pauses at each station for the scheduled dwell time, moves between stations
+  // Schedule-aware simulated progress — DEV-ONLY remote-testing aid. In
+  // production a rider far from the route must never see fabricated movement
+  // or earn points from a fake trip (UX-07).
+  const simulationAllowed = __DEV__
   const [simProgress, setSimProgress] = useState(0)
   const isNearRouteRef = useRef(isNearRoute)
   isNearRouteRef.current = isNearRoute
   const simDwellUntilRef = useRef(0) // timestamp when dwell ends
 
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive || !simulationAllowed) return
     const stationCount = tripStations?.length ?? 0
     if (stationCount < 2) return
 
@@ -555,8 +555,8 @@ export default function TripScreen() {
     }
   }, [tripState])
 
-  // Auto-end trip on arrival — from real GPS or simulation reaching 100%
-  const shouldAutoEnd = tripState === 'arrived' || (!isNearRoute && simProgress >= 100)
+  // Auto-end trip on arrival — real GPS always; simulation only in dev builds
+  const shouldAutoEnd = tripState === 'arrived' || (simulationAllowed && !isNearRoute && simProgress >= 100)
 
   useEffect(() => {
     // NOT gated on isActive: 'arrived' (which makes isActive false) is exactly
@@ -574,10 +574,11 @@ export default function TripScreen() {
     }
   }, [shouldAutoEnd, tripState, deviceId, endTrip, showFarePrompt, completedTrip])
 
-  // Effective progress: real GPS when near, simulated when far
+  // Effective progress: real GPS when near; simulated only in dev builds.
+  // In production, far from route = 0% + honest "tracking paused" banner.
   const effectiveProgress = isNearRoute
     ? (progress?.progressPercent ?? 0)
-    : simProgress
+    : simulationAllowed ? simProgress : 0
 
   // Simulated station statuses for remote testing (derive from effectiveProgress)
   const effectiveStationStatuses = useMemo(() => {
@@ -999,6 +1000,21 @@ export default function TripScreen() {
         <View style={s.speedBadge}>
           <HeroText size={20} style={s.speedValue}>{speedKmh}</HeroText>
           <Text style={s.speedUnit}>km/h</Text>
+        </View>
+      )}
+
+      {/* Honest state: too far from the route for GPS tracking (prod builds
+          used to silently simulate here — UX-07) */}
+      {isActive && !isNearRoute && !simulationAllowed && (
+        <View style={{
+          position: 'absolute', top: 110, left: 20, right: 20, zIndex: 10,
+          backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          borderWidth: 1, borderColor: 'rgba(180,83,9,0.2)',
+        }}>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#B45309', flex: 1 }}>
+            You&apos;re far from this route — live tracking is paused until you&apos;re on it.
+          </Text>
         </View>
       )}
 

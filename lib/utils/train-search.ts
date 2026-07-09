@@ -93,7 +93,8 @@ export function getTrainLines(): NearbyLine[] {
           from: first.station,
           to: last.station,
           fare: sch.fare,
-          timeNumber: 'LIVE',
+          // Schedule wall-clock math, NOT telemetry — never present as "LIVE" (UX-09)
+          timeNumber: 'NOW',
           timeUnit: '',
           liveTag: 'live',
           lineName: lineId.toUpperCase(),
@@ -189,7 +190,7 @@ export function searchTrainSchedules(query: string): TrainSearchResult[] {
 
         if (nowMins >= departMins && nowMins <= arriveMins) {
           bestStatus = 'live'
-          bestTimeLabel = 'In transit now'
+          bestTimeLabel = 'In transit (scheduled)'
           break
         } else if (nowMins < departMins) {
           const minsLeft = departMins - nowMins

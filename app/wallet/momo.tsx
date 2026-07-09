@@ -67,7 +67,8 @@ export default function MomoTopUpScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
-    setAnim({ state: 'loading', message: `Adding GH₵ ${effectiveAmount.toFixed(2)} to your wallet` })
+    // Request, not result — nothing has landed yet (UX-19)
+    setAnim({ state: 'loading', message: `Requesting GH₵ ${effectiveAmount.toFixed(2)} top-up…` })
 
     try {
       const res = await fetch(`${API_URL}/api/wallet/topup`, {

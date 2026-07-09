@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, Route, Check } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import ComingSoonScreen from '@/components/ComingSoonScreen'
 
 const BRAND = '#FF4D1C'
 
@@ -13,7 +14,21 @@ const PAYMENTS = [
   { id: 'momo', label: 'MTN MoMo', sub: '***** 2096', emoji: '🏦' },
 ]
 
+// Dev-only mock flow — production users get an honest dead-end (UX-01).
 export default function ScanConfirmScreen() {
+  if (!__DEV__) {
+    return (
+      <ComingSoonScreen
+        title="Scan to Pay is coming soon"
+        message="QR payments aren't live yet. Book and pay from a route page instead."
+      />
+    )
+  }
+  return <ScanConfirmScreenInner />
+}
+
+function ScanConfirmScreenInner() {
+
   const router = useRouter()
   const params = useLocalSearchParams<{ code?: string }>()
   const busCode = params.code || 'TRSK 235'

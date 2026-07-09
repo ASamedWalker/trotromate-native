@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { Check, Share2, Shield, Copy, Headphones, Users, AlertTriangle, X, Navigation } from 'lucide-react-native'
+import { Check, Share2, Shield, Copy, AlertTriangle, X, Navigation } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
@@ -14,34 +14,26 @@ import { useApp } from '@/lib/contexts/AppContext'
 const BRAND = '#FF4D1C'
 const GREEN = '#22C55E'
 
-const TICKET = {
-  passenger: 'Victor Mensah',
-  code: 'TRSK 205',
-  fromCode: 'KSH', fromName: 'Kaneshie',
-  toCode: 'KSI', toName: 'Kumsasi',
-  ref: 'TRSK205-KSH-KSI',
-  fare: 'GH₵ 25.25',
-}
-
 export default function ReceiptScreen() {
   const router = useRouter()
   const { profile } = useApp()
   const params = useLocalSearchParams<{ from?: string; to?: string; trip_code?: string; fare?: string; route_id?: string; van?: string }>()
-  const passenger = profile?.display_name || TICKET.passenger
+  const passenger = profile?.display_name || 'Passenger'
   const [showSafety, setShowSafety] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Real ticket from the booking flow; falls back to the demo TICKET when this
-  // screen is opened without a booking (e.g. direct deep link).
+  // A receipt only exists for a real booking. Opened without one (e.g. a
+  // direct deep link) we show an honest not-found state — never demo data.
+  const hasTicket = !!params.trip_code
   const code3 = (s?: string) => (s || '').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()
   const t = {
-    code: params.trip_code || TICKET.code,
-    ref: params.trip_code || TICKET.ref,
-    fromName: params.from || TICKET.fromName,
-    toName: params.to || TICKET.toName,
-    fromCode: params.from ? code3(params.from) : TICKET.fromCode,
-    toCode: params.to ? code3(params.to) : TICKET.toCode,
-    fare: params.fare ? `GH₵ ${parseFloat(params.fare).toFixed(2)}` : TICKET.fare,
+    code: params.trip_code || '',
+    ref: params.trip_code || '',
+    fromName: params.from || '—',
+    toName: params.to || '—',
+    fromCode: code3(params.from),
+    toCode: code3(params.to),
+    fare: params.fare ? `GH₵ ${parseFloat(params.fare).toFixed(2)}` : '—',
   }
 
   const copyRef = async () => {
@@ -86,6 +78,23 @@ export default function ReceiptScreen() {
     }
   }
 
+  if (!hasTicket) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>No ticket found</Text>
+        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+          This receipt is only available right after a booking. Your tickets live in Wallet → My Tickets.
+        </Text>
+        <TouchableOpacity
+          onPress={() => { if (router.canDismiss()) router.dismissAll(); else router.replace('/(tabs)' as never) }}
+          style={{ marginTop: 20, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, backgroundColor: BRAND }}
+        >
+          <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Home</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
       {/* Close — back to home */}
@@ -104,7 +113,7 @@ export default function ReceiptScreen() {
             </Animated.View>
           </View>
           <Animated.Text style={[s.title, { opacity: textOpacity }]}>Booking Successful</Animated.Text>
-          <Animated.Text style={[s.subtitle, { opacity: textOpacity }]}>Payment confirmed show QR to conductor</Animated.Text>
+          <Animated.Text style={[s.subtitle, { opacity: textOpacity }]}>Payment confirmed — show QR to conductor</Animated.Text>
         </View>
 
         {/* Ticket — floats on a soft shadow like the Figma boarding pass */}
@@ -145,15 +154,11 @@ export default function ReceiptScreen() {
             <View style={[s.notch, { right: -10 }]} />
           </View>
 
-          {/* QR — tap simulates the conductor scan -> trip -> arrival */}
+          {/* QR — static; the conductor scans it. No hidden tap behavior. */}
           <View style={{ alignItems: 'center', paddingTop: 18 }}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/booking/arrived', params: { from: params.from ?? '', to: params.to ?? '', route_id: params.route_id ?? '' } } as any) }}
-              style={s.qrFrame}
-            >
+            <View style={s.qrFrame} accessibilityLabel={`Ticket QR code, ${t.fromName} to ${t.toName}, ${t.fare}`}>
               <QRCode value={t.ref} size={140} />
-            </TouchableOpacity>
+            </View>
             <TouchableOpacity onPress={copyRef} style={s.refPill}>
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: copied ? '#16A34A' : '#6B7280', letterSpacing: 0.5 }}>
                 {copied ? 'Copied!' : t.ref}
@@ -216,24 +221,6 @@ export default function ReceiptScreen() {
               <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#111' }}>Safety Features</Text>
               <TouchableOpacity onPress={() => setShowSafety(false)} hitSlop={8}><X size={18} color="#6B7280" /></TouchableOpacity>
             </View>
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={s.safetyCard}
-                onPress={() => { Haptics.selectionAsync(); Alert.alert('Customer Support', 'In-app support chat is coming soon. For urgent help use Call 112.') }}
-              >
-                <Headphones size={22} color="#111" />
-                <Text style={s.safetyCardText}>Customer Support</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={s.safetyCard}
-                onPress={() => { Haptics.selectionAsync(); Alert.alert('Emergency Contact', 'Add a trusted contact in Settings to alert them with one tap. Coming soon.') }}
-              >
-                <Users size={22} color="#111" />
-                <Text style={s.safetyCardText}>Emergency Contact</Text>
-              </TouchableOpacity>
-            </View>
             <TouchableOpacity
               activeOpacity={0.9}
               style={s.callBtn}
@@ -290,8 +277,6 @@ const s = StyleSheet.create({
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   safetySheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 36 },
-  safetyCard: { flex: 1, height: 92, borderRadius: 16, backgroundColor: '#F7F7F6', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  safetyCardText: { fontFamily: font.semibold, fontSize: 13, color: '#111' },
   callBtn: { height: 54, borderRadius: 16, backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   callText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
 })
