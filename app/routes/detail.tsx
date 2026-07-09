@@ -32,9 +32,11 @@ import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { fetchRouteSegmentFares, resolveDropoffFareSync, type RouteSegmentFare } from '@/lib/services/segment-fares'
+import { formatGHS } from '@/lib/utils/currency'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 const BRAND = '#FF4D1C'
 
@@ -108,6 +110,8 @@ export default function RouteDetailScreen() {
   // the sheet covers it.
   const sheetPos = useSharedValue(99999)
   const [overlayHidden, setOverlayHidden] = useState(false)
+  // Data Saver — skips the traffic raster tiles (UX-32)
+  const [dataSaver, setDataSaver] = useState(false)
   const [fabHidden, setFabHidden] = useState(false)
   useDerivedValue(() => {
     runOnJS(setOverlayHidden)(sheetPos.value < insets.top + 96)
@@ -220,7 +224,7 @@ export default function RouteDetailScreen() {
 
   useEffect(() => {
     if (!fromCoord || !toCoord) return
-    const token = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+    const token = MAPBOX_TOKEN
     const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoord.lon},${fromCoord.lat};${toCoord.lon},${toCoord.lat}?geometries=geojson&overview=full&access_token=${token}`
 
     fetch(url)
@@ -329,7 +333,7 @@ export default function RouteDetailScreen() {
   const [alightPickerOpen, setAlightPickerOpen] = useState(false)
   // Fare per stop for the picker rows (Transit-style fare-per-option).
   const alightFareLabel = (order: number) =>
-    hasStops ? `₵${(resolveDropoffFareSync(segFares, stops[0].stop_order, order, stops, corridorBase).fare * mult).toFixed(2)}` : undefined
+    hasStops ? formatGHS(resolveDropoffFareSync(segFares, stops[0].stop_order, order, stops, corridorBase).fare * mult) : undefined
 
   return (
     <View style={{ flex: 1 }}>
@@ -367,17 +371,20 @@ export default function RouteDetailScreen() {
             FillExtrusionLayer here referenced a "composite" source that the
             custom style doesn't have, which errored on every load. */}
 
-        {/* Traffic layer overlay */}
-        <Mapbox.RasterSource
-          id="traffic-source"
-          tileUrlTemplates={['https://api.mapbox.com/v4/mapbox.mapbox-traffic-v1/{z}/{x}/{y}.png?access_token=pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg']}
-          tileSize={256}
-        >
-          <Mapbox.RasterLayer
-            id="traffic-layer"
-            style={{ rasterOpacity: 0.35 }}
-          />
-        </Mapbox.RasterSource>
+        {/* Traffic layer overlay — skipped in Saver mode; raster tiles are the
+            biggest data cost on this screen (UX-32) */}
+        {!dataSaver && (
+          <Mapbox.RasterSource
+            id="traffic-source"
+            tileUrlTemplates={[`https://api.mapbox.com/v4/mapbox.mapbox-traffic-v1/{z}/{x}/{y}.png?access_token=${MAPBOX_TOKEN}`]}
+            tileSize={256}
+          >
+            <Mapbox.RasterLayer
+              id="traffic-layer"
+              style={{ rasterOpacity: 0.35 }}
+            />
+          </Mapbox.RasterSource>
+        )}
 
         {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
             casing, brand-orange core, revealed with a draw sweep (lineTrimOffset). */}
@@ -495,6 +502,8 @@ export default function RouteDetailScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Close map"
             style={{
               width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
               justifyContent: 'center', alignItems: 'center',
@@ -502,6 +511,28 @@ export default function RouteDetailScreen() {
             }}
           >
             <X size={22} color="#000" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Saver chip — same data-cost pattern as GO Mode (UX-32) ── */}
+      {!overlayHidden && (
+        <View style={{ position: 'absolute', top: insets.top + 12, right: 20, zIndex: 10 }}>
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); setDataSaver(v => !v) }}
+            activeOpacity={0.8}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={dataSaver ? 'Data saver on' : 'Data saver off'}
+            style={{
+              paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+              backgroundColor: dataSaver ? BRAND : '#fff',
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+            }}
+          >
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: dataSaver ? '#fff' : '#374151' }}>
+              {dataSaver ? 'Saver ON' : 'Saver'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -615,7 +646,7 @@ export default function RouteDetailScreen() {
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>arrives {arrivalTime}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>₵{displayFare}</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{formatGHS(Number(displayFare))}</Text>
               {dropoffName ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
@@ -632,10 +663,13 @@ export default function RouteDetailScreen() {
                 </View>
               ) : hasFareRange ? (
                 <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                  ₵{minFare!.toFixed(0)}–{maxFare!.toFixed(0)} · {selectedOption.label}
+                  {formatGHS(minFare!)}–{formatGHS(maxFare!)} · {selectedOption.label}
                 </Text>
               ) : (
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{selectedOption.label} fare</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                  {/* okada/pragya fares are ×-multiplier estimates from trotro data — say so (UX-37) */}
+                  {selectedOption.fareMultiplier !== 1 ? `${selectedOption.label} fare (estimate)` : `${selectedOption.label} fare`}
+                </Text>
               )}
               {reportCount > 0 && (
                 <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#B0B4BB', marginTop: 1 }}>

@@ -45,6 +45,8 @@ export default function LinesScreen() {
               style={[s.segmentBtn, activeTab === tab && s.segmentBtnActive]}
               onPress={() => handleTabChange(tab)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activeTab === tab }}
             >
               <Text style={[s.segmentText, activeTab === tab && s.segmentTextActive]}>
                 {tab === 'trotro' ? 'Trotro Routes' : 'Train'}
@@ -101,7 +103,7 @@ const getStyles = (isDark: boolean) => {
     segmentText: {
       fontSize: 14,
       fontFamily: font.semibold,
-      color: isDark ? '#78716c' : '#a8a29e',
+      color: isDark ? '#78716c' : '#6B7280',
     },
     segmentTextActive: {
       color: isDark ? '#fafaf9' : '#1c1917',

@@ -16,10 +16,10 @@ import * as Location from 'expo-location'
 import * as Haptics from 'expo-haptics'
 import { c, themed, font } from '@/lib/theme'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 // Public Mapbox token — same one used in app/_layout.tsx
-const MAPBOX_TOKEN =
-  'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+// token now centralized (UX-38)
 
 // Accra center — fallback when no GPS available
 const ACCRA_CENTER: [number, number] = [-0.186964, 5.603717]

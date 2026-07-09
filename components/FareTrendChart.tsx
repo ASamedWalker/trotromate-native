@@ -13,6 +13,7 @@ import {
 import Svg, { Path, Line, Circle, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { TrendingUp, BarChart3, Share2 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
+import { formatGHS } from '@/lib/utils/currency'
 
 export interface FareTrendPoint {
   day: string
@@ -240,7 +241,7 @@ export function FareTrendChart({
     const latestAvg = data?.[data.length - 1]?.avg_fare
     const name = routeName || 'this route'
     const message = latestAvg != null
-      ? `Trotro fares on ${name}: ₵${latestAvg.toFixed(2)} avg (Official: ₵${officialFare.toFixed(2)}) based on ${totalReports} community reports. Track real fares on Troski! https://troski.app`
+      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg (Official: ${formatGHS(officialFare)}) based on ${totalReports} community reports. Track real fares on Troski! https://troski.app`
       : `Track real trotro fares on Troski! https://troski.app`
     try {
       await Share.share({ message, title: 'Troski Fare Trend' })
@@ -383,9 +384,9 @@ export function FareTrendChart({
               <Text style={s.tooltipDate}>
                 {formatDay(selectedPoint.day)}
               </Text>
-              <Text style={s.tooltipFare}>₵{safeNum(selectedPoint.avg_fare).toFixed(2)}</Text>
+              <Text style={s.tooltipFare}>{formatGHS(safeNum(selectedPoint.avg_fare))}</Text>
               <Text style={s.tooltipRange}>
-                Range: ₵{safeNum(selectedPoint.min_fare).toFixed(2)} – ₵{safeNum(selectedPoint.max_fare).toFixed(2)}
+                Range: {formatGHS(safeNum(selectedPoint.min_fare))} – {formatGHS(safeNum(selectedPoint.max_fare))}
               </Text>
               <Text style={s.tooltipReports}>{selectedPoint.report_count ?? 0} reports</Text>
             </View>

@@ -84,6 +84,8 @@ export default function TopUpWalletScreen() {
                     backgroundColor: isDark ? '#1c1917' : '#ffffff',
                     borderColor: active ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F1F0'),
                   }]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
                 >
                   {m.network ? (
                     <NetworkLogo id={m.network} width={44} height={44} />

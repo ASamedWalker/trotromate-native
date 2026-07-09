@@ -34,6 +34,7 @@ import {
   type DriverTrip,
   type DriverStats,
 } from '@/lib/services/driver'
+import { formatGHS } from '@/lib/utils/currency'
 
 export default function DriverDashboardScreen() {
   const router = useRouter()
@@ -238,7 +239,7 @@ export default function DriverDashboardScreen() {
                   <Banknote size={14} color="#22c55e" />
                   <Text style={s.statLabel}>Earnings</Text>
                 </View>
-                <Text style={s.statValue}>₵{(stats?.total_earnings ?? 0).toFixed(2)}</Text>
+                <Text style={s.statValue}>{formatGHS(stats?.total_earnings ?? 0)}</Text>
               </View>
               <View style={[s.statCard, s.statCardDefault]}>
                 <View style={s.statHeader}>
@@ -252,7 +253,7 @@ export default function DriverDashboardScreen() {
                   <TrendingUp size={14} color="#8b5cf6" />
                   <Text style={s.statLabel}>Avg Fare</Text>
                 </View>
-                <Text style={s.statValue}>₵{(stats?.avg_fare ?? 0).toFixed(2)}</Text>
+                <Text style={s.statValue}>{formatGHS(stats?.avg_fare ?? 0)}</Text>
               </View>
             </View>
 
@@ -285,7 +286,7 @@ export default function DriverDashboardScreen() {
                         {trip.passengers} pax · {new Date(trip.departed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
-                    <Text style={s.tripFare}>₵{trip.fare_collected.toFixed(2)}</Text>
+                    <Text style={s.tripFare}>{formatGHS(trip.fare_collected)}</Text>
                   </View>
                 ))
               ) : (
@@ -358,7 +359,7 @@ export default function DriverDashboardScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Fare (₵)</Text>
+                <Text style={s.fieldLabel}>Fare (GH₵)</Text>
                 <TextInput
                   placeholder="0.00"
                   placeholderTextColor={t.textSecondary}

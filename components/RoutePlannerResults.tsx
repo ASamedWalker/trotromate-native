@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native'
 import { Clock, Footprints, ChevronRight } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { formatGHS } from '@/lib/utils/currency'
 import type { TransferPlan } from '@/lib/services/route-planner'
 
 const BRAND = '#FF4D1C'
@@ -119,7 +120,7 @@ export function RoutePlannerResults({
 
             {/* Fare */}
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>₵{plan.total_fare.toFixed(2)}</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>{formatGHS(plan.total_fare)}</Text>
             </View>
 
             <ChevronRight size={18} color="#D1D5DB" />

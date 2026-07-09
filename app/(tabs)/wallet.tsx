@@ -218,7 +218,13 @@ export default function WalletScreen() {
             {/* Add Money — fund the wallet to pay for bookings */}
             {isAuthenticated && (
               <View style={s.balanceCardBtns}>
-                <TouchableOpacity style={s.balanceCardBtnPrimary} activeOpacity={0.85} onPress={() => router.push('/wallet/fund' as Href)}>
+                <TouchableOpacity
+                  style={s.balanceCardBtnPrimary}
+                  activeOpacity={0.85}
+                  onPress={() => router.push('/wallet/fund' as Href)}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr('wallet.addMoney')}
+                >
                   <View style={s.balanceCardBtnAmber}>
                     <MaterialIcons name="add" size={18} color="#fff" />
                     <Text style={s.balanceCardBtnPrimaryText}>{tr('wallet.addMoney')}</Text>
@@ -240,6 +246,8 @@ export default function WalletScreen() {
               activeOpacity={0.7}
               onPress={() => { Haptics.selectionAsync(); router.push('/wallet/tickets' as Href) }}
               style={s.myTicketsRow}
+              accessibilityRole="button"
+              accessibilityLabel={tr('wallet.myTickets')}
             >
               <View style={s.myTicketsIcon}><QrCode size={18} color="#FF4D1C" /></View>
               <Text style={s.myTicketsText}>{tr('wallet.myTickets')}</Text>
@@ -260,6 +268,8 @@ export default function WalletScreen() {
                   <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={() => { Haptics.selectionAsync(); router.push({ pathname: '/wallet/ticket', params: { trip_code: pass.trip_code } } as Href) }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Active pass, ${pass.route_label}`}
                   >
                   <LinearGradient
                     colors={['#FF4D1C', '#D63A12']}
@@ -299,6 +309,9 @@ export default function WalletScreen() {
                     disabled={cancelling}
                     onPress={() => confirmCancel(pass)}
                     style={s.cancelPass}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel booking and refund"
+                    accessibilityState={{ disabled: cancelling }}
                   >
                     <Text style={s.cancelPassText}>{cancelling ? 'Cancelling…' : 'Cancel booking & refund'}</Text>
                   </TouchableOpacity>
@@ -332,7 +345,7 @@ export default function WalletScreen() {
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 return (
                 <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
-                  <View style={[s.txRow, glass]}>
+                  <View style={[s.txRow, glass]} accessible accessibilityLabel={`${tx.type} ${formatGHS(Number(tx.amount))}`}>
                     <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : '#f5f5f4' }]}>
                       <MaterialIcons name={icon} size={20} color="#FF4D1C" />
                     </View>
@@ -456,11 +469,11 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,77,28,0.2)',
   },
   comingSoonText: {
-    fontSize: 10, fontFamily: font.bold, color: '#FF4D1C',
+    fontSize: 11, fontFamily: font.bold, color: '#FF4D1C',
     letterSpacing: 2,
   },
   balanceLabelText: {
-    fontSize: 10, fontFamily: font.bold, color: '#78716c',
+    fontSize: 11, fontFamily: font.bold, color: '#78716c',
     letterSpacing: 3, marginBottom: 8,
   },
   balanceCardBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
@@ -494,13 +507,13 @@ const s = StyleSheet.create({
     borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
   },
   liveSyncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF4D1C' },
-  liveSyncText: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
+  liveSyncText: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
 
   // Quick actions
 
   // Section
   sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
-  viewAll: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
+  viewAll: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
   passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
 
   // Active Pass
@@ -508,16 +521,16 @@ const s = StyleSheet.create({
   passTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   passLiveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   passLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  passLiveText: { fontSize: 10, fontFamily: font.bold, color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
+  passLiveText: { fontSize: 11, fontFamily: font.bold, color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
   passRoute: { fontSize: 22, fontFamily: font.extrabold, color: '#fff', letterSpacing: -0.5 },
   passBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  passFieldLabel: { fontSize: 10, fontFamily: font.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginBottom: 4 },
+  passFieldLabel: { fontSize: 11, fontFamily: font.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginBottom: 4 },
   passFieldValue: { fontSize: 15, fontFamily: font.bold, color: '#fff' },
   passTripsLeft: {
     backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 14, paddingVertical: 6,
     borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  passTripsText: { fontSize: 10, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
+  passTripsText: { fontSize: 11, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
   passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
   cancelPass: { alignSelf: 'center', marginTop: 12, paddingVertical: 6, paddingHorizontal: 12 },
   cancelPassText: { fontFamily: font.semibold, fontSize: 13, color: '#EF4444' },
@@ -534,9 +547,9 @@ const s = StyleSheet.create({
   txIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   txInfo: { flex: 1 },
   txLabel: { fontSize: 15, fontFamily: font.bold },
-  txDate: { fontSize: 10, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
+  txDate: { fontSize: 11, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
   txAmount: { fontSize: 16, fontFamily: font.bold, letterSpacing: 0.5 },
-  txStatus: { fontSize: 9, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
+  txStatus: { fontSize: 11, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
 
   // Loading skeleton
   skeletonWrap: { paddingHorizontal: 24, paddingTop: 24 },
@@ -585,13 +598,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 16,
   },
-  txEmptyLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 2 },
-  txEmptyViewAll: { fontSize: 10, fontFamily: font.bold, color: '#57534e', letterSpacing: 1 },
+  txEmptyLabel: { fontSize: 11, fontFamily: font.bold, letterSpacing: 2 },
+  txEmptyViewAll: { fontSize: 11, fontFamily: font.bold, color: '#57534e', letterSpacing: 1 },
   txEmptyBox: {
     borderWidth: 2, borderStyle: 'dashed', borderRadius: 16,
     paddingVertical: 28, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  txEmptyText: { fontSize: 10, fontFamily: font.bold, color: '#57534e', letterSpacing: 3 },
+  txEmptyText: { fontSize: 11, fontFamily: font.bold, color: '#57534e', letterSpacing: 3 },
 
   // Promo banner
   promoCard: { borderRadius: 16, padding: 20, minHeight: 140, justifyContent: 'center', overflow: 'hidden' },
@@ -601,7 +614,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,77,28,0.2)', paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 4, alignSelf: 'flex-start', marginBottom: 4,
   },
-  promoTag: { fontSize: 10, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
+  promoTag: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
   promoTitle: { fontSize: 20, fontFamily: font.bold, color: '#ffffff', lineHeight: 26 },
-  promoSub: { fontSize: 10, fontFamily: font.bold, color: '#a8a29e', letterSpacing: 0.5 },
+  promoSub: { fontSize: 11, fontFamily: font.bold, color: '#a8a29e', letterSpacing: 0.5 },
 })

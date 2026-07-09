@@ -170,7 +170,7 @@ export default function EventDetailScreen() {
           ) : null}
 
           {item.sponsored && (
-            <Text style={{ fontFamily: font.regular, fontSize: 11, color: '#9CA3AF', marginTop: 20 }}>
+            <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 20 }}>
               This is a paid placement. Troski shows sponsored listings to keep the app free.
             </Text>
           )}
@@ -212,7 +212,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
         <Icon size={17} color={BRAND} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: font.medium, fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+        <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.4 }}>
           {label}
         </Text>
         <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000', marginTop: 1 }}>{value}</Text>

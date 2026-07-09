@@ -15,7 +15,7 @@ interface Props {
   minOrder?: number
   /** Only stops BEFORE this order are selectable (board must be before alight). */
   maxOrder?: number
-  /** Optional fare label per stop_order, e.g. "₵5.50". */
+  /** Optional fare label per stop_order, e.g. "GH₵ 5.50". */
   fareLabel?: (order: number) => string | undefined
   onSelect: (order: number) => void
   onClose: () => void

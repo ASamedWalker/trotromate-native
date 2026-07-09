@@ -87,7 +87,7 @@ export default function TicketScreen() {
             <Text style={s.route} numberOfLines={1}>{pass.route_label}</Text>
           </View>
 
-          <View style={s.qrCard}>
+          <View style={s.qrCard} accessible accessibilityLabel="Ticket QR code">
             <QRCode value={pass.trip_code} size={240} />
             <Text style={s.code}>{pass.trip_code}</Text>
           </View>

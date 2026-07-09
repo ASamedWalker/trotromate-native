@@ -229,7 +229,7 @@ export default function CheckoutScreen() {
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={8}>
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={22} color="#111" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Confirm Booking</Text>
@@ -403,6 +403,8 @@ export default function CheckoutScreen() {
                   if (p.id === 'wallet' && balanceUnknown) { setBalanceLoading(true); fetchBalance() }
                 }}
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: sel }}
               >
                 <View style={s.payIcon}><Text style={{ fontSize: 18 }}>{p.id === 'wallet' ? '👛' : '🏦'}</Text></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
@@ -441,6 +443,9 @@ export default function CheckoutScreen() {
             disabled={booking || waitingBalance || !fareKnown || balanceUnknown}
             onPress={payNow}
             style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown) && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Pay ${formatGHS(total)}`}
+            accessibilityState={{ disabled: booking || waitingBalance || !fareKnown || balanceUnknown }}
           >
             <Text style={s.payBtnText}>
               {booking ? 'Processing…'

@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
 import { setWalletPin } from '@/lib/services/walletPin'
+import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
 const PIN_LENGTH = 4
@@ -140,12 +141,12 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
   stepBadge: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  stepText: { fontSize: 12, fontWeight: '700', color: BRAND },
+  stepText: { fontSize: 12, fontFamily: font.bold, color: BRAND },
 
   titleWrap: { paddingHorizontal: 24, paddingTop: 16 },
-  title: { fontSize: 26, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 32 },
-  subtitle: { fontSize: 14, fontWeight: '400', color: '#888', marginTop: 8 },
-  error: { fontSize: 13, fontWeight: '600', color: '#EF4444', marginTop: 8 },
+  title: { fontSize: 26, fontFamily: font.bold, color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
+  subtitle: { fontSize: 14, fontFamily: font.regular, color: '#888', marginTop: 8 },
+  error: { fontSize: 13, fontFamily: font.semibold, color: '#EF4444', marginTop: 8 },
 
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 40 },
   dot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#E0E0E0', backgroundColor: '#fff' },
@@ -155,5 +156,5 @@ const s = StyleSheet.create({
 
   ctaWrap: { paddingHorizontal: 24, paddingTop: 16 },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
 })

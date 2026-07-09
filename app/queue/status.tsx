@@ -82,6 +82,8 @@ export default function QueueStatusScreen() {
                 onPress={() => { Haptics.selectionAsync(); router.back() }}
                 hitSlop={12}
                 style={s.backBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
               >
                 <ChevronLeft size={22} color="#fff" />
               </TouchableOpacity>

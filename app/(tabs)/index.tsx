@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
-  MapPin, ChevronDown,
+  MapPin,
   Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
   ScanLine, Plus,
 } from 'lucide-react-native'
@@ -27,6 +27,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import WhatsOnAccra from '@/components/WhatsOnAccra'
 import { getCachedWallet } from '@/lib/services/walletCache'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 const BRAND = '#FF4D1C'
 
@@ -127,7 +128,7 @@ export default function HomeScreen() {
     const fetchName = async () => {
       try {
         const res = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?types=place,locality&limit=1&access_token=pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg`
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?types=place,locality&limit=1&access_token=${MAPBOX_TOKEN}`
         )
         const data = await res.json()
         if (data.features?.[0]) {
@@ -174,20 +175,25 @@ export default function HomeScreen() {
         <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <Pressable onPress={() => router.push('/settings' as Href)} hitSlop={8}>
+              <Pressable
+                onPress={() => router.push('/settings' as Href)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Open settings"
+              >
                 <InitialsAvatar name={displayName} deviceId={deviceId || ''} size={48} />
               </Pressable>
               <View>
                 <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>
                   {t('home.hello')}, {firstName}
                 </Text>
-                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }} hitSlop={6}>
+                {/* Static label — was a dead Pressable with a chevron affordance (UX-26) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <MapPin size={14} color={BRAND} />
                   <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }} numberOfLines={1}>
                     {locationName}
                   </Text>
-                  <ChevronDown size={14} color="#6B7280" />
-                </Pressable>
+                </View>
               </View>
             </View>
             <Pressable
@@ -312,11 +318,14 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {QUICK_ACTIONS.map((action) => {
               const Icon = action.icon
+              const actionLabel = t(action.labelKey)
               return (
                 <TouchableOpacity
                   key={action.id}
                   onPress={() => handleQuickAction(action.id)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={actionLabel}
                   style={{
                     flex: 1,
                     backgroundColor: '#FFFFFF',
@@ -325,7 +334,7 @@ export default function HomeScreen() {
                     ...BASE.shadow.card,
                   }}
                 >
-                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{t(action.labelKey)}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{actionLabel}</Text>
                   <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginBottom: 14 }}>{t(action.subKey)}</Text>
                   <View style={{
                     width: 40, height: 40, borderRadius: 20,
@@ -357,6 +366,8 @@ export default function HomeScreen() {
                 key={svc.id}
                 onPress={() => handleServiceTap(svc)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={svc.label}
                 style={{
                   width: 100,
                   backgroundColor: '#F3F4F6',

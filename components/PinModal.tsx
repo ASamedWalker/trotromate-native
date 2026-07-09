@@ -162,7 +162,7 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.backdrop}>
         <View style={s.sheet}>
-          <TouchableOpacity onPress={onClose} hitSlop={10} style={s.close}><X size={20} color="#6B7280" /></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} hitSlop={10} style={s.close} accessibilityRole="button" accessibilityLabel="Close"><X size={20} color="#6B7280" /></TouchableOpacity>
           <View style={s.badge}>{offerBio ? <ScanFace size={24} color={BRAND} /> : <ShieldCheck size={24} color={BRAND} />}</View>
           <Text style={s.title}>{offerBio ? `Enable ${bioLabel}?` : title}</Text>
           <Text style={s.hint}>{offerBio ? `Pay faster — unlock with ${bioLabel} instead of your PIN.` : hint}</Text>
@@ -181,7 +181,7 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
             </View>
           ) : (
             <>
-              <Animated.View style={[s.dots, { transform: [{ translateX: shake }] }]}>
+              <Animated.View style={[s.dots, { transform: [{ translateX: shake }] }]} accessible accessibilityLabel="PIN entry">
                 {[0, 1, 2, 3].map((i) => (
                   <View key={i} style={[s.dot, i < entry.length && s.dotFilled, !!error && s.dotError]} />
                 ))}
@@ -191,19 +191,19 @@ export default function PinModal({ visible, onClose, onSuccess, subtitle }: Prop
               {phase !== 'locked' && (
                 <View style={s.pad}>
                   {['1','2','3','4','5','6','7','8','9'].map((d) => (
-                    <TouchableOpacity key={d} style={s.key} onPress={() => press(d)} activeOpacity={0.6}>
+                    <TouchableOpacity key={d} style={s.key} onPress={() => press(d)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={d}>
                       <Text style={s.keyText}>{d}</Text>
                     </TouchableOpacity>
                   ))}
                   {phase === 'verify' && bioOn ? (
-                    <TouchableOpacity style={s.key} onPress={tryBiometric} activeOpacity={0.6}>
+                    <TouchableOpacity style={s.key} onPress={tryBiometric} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={bioLabel}>
                       <ScanFace size={26} color={BRAND} />
                     </TouchableOpacity>
                   ) : <View style={s.key} />}
-                  <TouchableOpacity style={s.key} onPress={() => press('0')} activeOpacity={0.6}>
+                  <TouchableOpacity style={s.key} onPress={() => press('0')} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="0">
                     <Text style={s.keyText}>0</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.key} onPress={back} activeOpacity={0.6}>
+                  <TouchableOpacity style={s.key} onPress={back} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="delete">
                     <Delete size={24} color="#111" />
                   </TouchableOpacity>
                 </View>

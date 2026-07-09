@@ -22,10 +22,11 @@ import { RoutePlannerResults, type WalkingEstimate } from '@/components/RoutePla
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 const BRAND = '#FF4D1C'
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+// token now centralized (UX-38)
 
 /* ── Services ── */
 
@@ -104,6 +105,7 @@ export default function PlanTripScreen() {
   const params = useLocalSearchParams<{
     from?: string; to?: string
     picked_target?: 'from' | 'to'; picked_label?: string
+    picked_lat?: string; picked_lng?: string
   }>()
 
   const fromRef = useRef<TextInput>(null)
@@ -187,15 +189,30 @@ export default function PlanTripScreen() {
   const transportTypeParam = transportMode === 'all' || transportMode === 'walk' ? undefined : transportMode
   const { plans, isLoading } = useRoutePlanner(searchFrom, searchTo, transportTypeParam)
 
-  // Handle pick-location return
+  // Handle pick-location return. A dropped pin rarely matches a station name,
+  // so snap to the nearest known station within 3km — otherwise the planner
+  // could never match the label and results dead-ended (UX-22).
   useEffect(() => {
     if (!params.picked_target || !params.picked_label) return
-    if (params.picked_target === 'from') setFrom(params.picked_label)
-    else setTo(params.picked_label)
-    router.setParams({ picked_target: undefined, picked_label: undefined })
+    let label = params.picked_label
+    const lat = parseFloat(params.picked_lat ?? '')
+    const lng = parseFloat(params.picked_lng ?? '')
+    if (isFinite(lat) && isFinite(lng) && !FALLBACK_STATION_COORDS[label]) {
+      let best: { name: string; d: number } | null = null
+      for (const [name, c] of Object.entries(FALLBACK_STATION_COORDS)) {
+        const d = haversineKm(lat, lng, c.latitude, c.longitude)
+        if (!best || d < best.d) best = { name, d }
+      }
+      if (best && best.d <= 3) label = best.name
+    }
+    if (params.picked_target === 'from') setFrom(label)
+    else setTo(label)
+    router.setParams({ picked_target: undefined, picked_label: undefined, picked_lat: undefined, picked_lng: undefined })
   }, [params.picked_target, params.picked_label])
 
-  // Auto-search when both fields filled — 1.2s debounce
+  // Auto-search when both fields filled — 400ms debounce (was 1.2s of dead
+  // time on the app's core job; typing pauses shorter than that read as
+  // "nothing happened" — UX-22)
   const canSearch = from.trim().length > 1 && to.trim().length > 1
   useEffect(() => {
     if (canSearch && !hasSearched) {
@@ -204,7 +221,7 @@ export default function PlanTripScreen() {
         setSearchTo(to.trim())
         setHasSearched(true)
         setSelectedPlanIndex(null)
-      }, 1200)
+      }, 400)
       return () => clearTimeout(t)
     }
   }, [from, to, canSearch])
@@ -495,7 +512,7 @@ export default function PlanTripScreen() {
                     <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>{station.name}</Text>
                   </View>
                   {station.distance && (
-                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#D1D5DB' }}>{station.distance}</Text>
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>{station.distance}</Text>
                   )}
                 </TouchableOpacity>
               ))}

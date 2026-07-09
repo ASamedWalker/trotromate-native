@@ -14,8 +14,11 @@ export function SortTabs({ activeTab, onChangeTab, isDark }: SortTabsProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
+      {/* "Major" not "Nearest" — the sort is major-first/alphabetical; a
+          "Nearest" label without location use was a dishonest control (UX-26).
+          Rename back when real distance sorting ships. */}
       <Tab
-        label="Nearest"
+        label="Major"
         active={activeTab === 'nearest'}
         onPress={() => onChangeTab('nearest')}
       />
@@ -34,6 +37,9 @@ function Tab({ label, active, onPress }: { label: string; active: boolean; onPre
       style={[styles.tab, active && styles.tabActive]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
     >
       <Text style={[styles.tabText, active && styles.tabTextActive]}>
         {label}

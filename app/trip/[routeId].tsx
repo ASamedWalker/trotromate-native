@@ -803,10 +803,11 @@ export default function TripScreen() {
           <TouchableOpacity
             onPress={handleSubmitFare}
             activeOpacity={0.8}
-            style={s.fareSubmitBtn}
+            disabled={!fareInput}
+            style={[s.fareSubmitBtn, !fareInput && { opacity: 0.5 }]}
           >
             <Text style={s.fareSubmitText}>
-              {fareInput ? `Submit Fare (+${TRIP_POINTS.completed + TRIP_POINTS.fare_bonus} pts)` : 'Skip'}
+              {`Submit Fare (+${TRIP_POINTS.completed + TRIP_POINTS.fare_bonus} pts)`}
             </Text>
           </TouchableOpacity>
 
@@ -1109,7 +1110,7 @@ export default function TripScreen() {
                     {line?.name ?? routeLabel} • ETA {
                       (() => {
                         const destTime = activeSchedule?.stopMap.get((dest?.name ?? '').toLowerCase())
-                        return destTime?.arrive ?? estimateETA(effectiveDistToDest, 'train')
+                        return destTime?.arrive ?? estimateETA(effectiveDistToDest, isTrain ? 'train' : 'trotro')
                       })()
                     }
                   </Text>

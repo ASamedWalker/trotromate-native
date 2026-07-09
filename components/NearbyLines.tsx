@@ -9,6 +9,7 @@ import { haversineKm } from '@/lib/utils/distance'
 import { getWaitEstimate, type StationWithQueue, type QueueStatus } from '@/lib/services/stations'
 import { getTrainLines, TRANSPORT_COLORS, type NearbyLine } from '@/lib/utils/train-search'
 import type { RouteWithStats } from '@/lib/types'
+import { formatGHS } from '@/lib/utils/currency'
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
   empty: '#22c55e',
@@ -264,10 +265,13 @@ export function NearbyLines({
                 </View>
               </View>
 
-              {/* Right: fare + chevron */}
+              {/* Right: fare (the headline answer) + source + chevron */}
               <View style={s.cardRight}>
                 {line.fare != null && (
-                  <Text style={s.fareText}>GH₵ {line.fare.toFixed(2)}</Text>
+                  <>
+                    <Text style={s.fareText}>{formatGHS(line.fare)}</Text>
+                    <Text style={s.fareSourceText}>{line.isVerified ? 'official' : 'official (unverified)'}</Text>
+                  </>
                 )}
                 <ChevronRight size={18} color={t.textTertiary} />
               </View>
@@ -322,7 +326,7 @@ export function NearbyLines({
               {/* Right: fare + chevron */}
               <View style={s.cardRight}>
                 {line.fare != null && (
-                  <Text style={s.fareText}>GH₵ {line.fare.toFixed(2)}</Text>
+                  <Text style={s.fareText}>{formatGHS(line.fare)}</Text>
                 )}
                 <ChevronRight size={18} color={t.textTertiary} />
               </View>
@@ -522,10 +526,19 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'flex-end',
       gap: 4,
     },
+    // Fare is the commuter's #1 question — it must be the loudest element on
+    // the card, not 11px microtext (UX-21).
     fareText: {
-      fontSize: 11,
-      fontFamily: font.bold,
+      fontSize: 17,
+      fontFamily: font.extrabold,
+      color: t.text,
+      letterSpacing: -0.3,
+    },
+    fareSourceText: {
+      fontSize: 10,
+      fontFamily: font.medium,
       color: t.textSecondary,
+      marginTop: 1,
     },
 
     // Rail label

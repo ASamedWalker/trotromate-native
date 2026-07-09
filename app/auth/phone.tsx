@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
 
@@ -116,26 +117,26 @@ const s = StyleSheet.create({
   // Brand hero
   brandWrap: { alignItems: 'center', paddingTop: 40, paddingBottom: 8 },
   heroImage: { width: 140, height: 140, marginBottom: 16 },
-  brandName: { fontSize: 32, fontWeight: '800', color: '#0A0A0A', letterSpacing: -1.2 },
-  brandSub: { fontSize: 14, fontWeight: '400', color: '#888', marginTop: 4 },
+  brandName: { fontSize: 32, fontFamily: font.extrabold, color: '#0A0A0A', letterSpacing: -1.2 },
+  brandSub: { fontSize: 14, fontFamily: font.regular, color: '#888', marginTop: 4 },
 
   // Fields
   fields: { paddingHorizontal: 24, marginTop: 28, gap: 10 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333' },
+  label: { fontSize: 14, fontFamily: font.semibold, color: '#333' },
   inputWrap: { height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   inputWrapActive: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
-  prefix: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', marginRight: 8 },
-  input: { flex: 1, fontSize: 16, fontWeight: '500', color: '#0A0A0A', paddingVertical: 0 },
+  prefix: { fontSize: 16, fontFamily: font.semibold, color: '#0A0A0A', marginRight: 8 },
+  input: { flex: 1, fontSize: 16, fontFamily: font.medium, color: '#0A0A0A', paddingVertical: 0 },
 
   // CTA section
   ctaSection: { paddingHorizontal: 24, marginTop: 24, gap: 12 },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
 
   helperText: { fontSize: 13, color: '#9A9A9A', textAlign: 'center', marginTop: 4, paddingHorizontal: 12 },
 
   // Footer
   footer: { paddingHorizontal: 24, paddingTop: 8 },
   footerText: { textAlign: 'center', fontSize: 14, color: '#888' },
-  footerLink: { color: BRAND, fontWeight: '600' },
+  footerLink: { color: BRAND, fontFamily: font.semibold },
 })

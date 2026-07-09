@@ -33,6 +33,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { fetchTrainLineDetail } from '@/lib/services/train'
+import { formatGHS } from '@/lib/utils/currency'
 import type { TrainStation, TrainLine } from '@/lib/types'
 
 const SKY = '#0ea5e9'
@@ -245,7 +246,7 @@ export default function TrainReportScreen() {
                             <>
                               <View style={s.lineDotSep} />
                               <Text style={[s.lineMeta, { color: line.color, fontFamily: font.semibold }]}>
-                                ₵{line.official_fare.toFixed(2)}
+                                {formatGHS(line.official_fare)}
                               </Text>
                             </>
                           )}

@@ -1,4 +1,4 @@
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 export type LngLat = [number, number]
 

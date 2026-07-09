@@ -8,6 +8,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import StepIndicator from '@/components/StepIndicator'
 import * as Haptics from 'expo-haptics'
+import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
 
@@ -129,24 +130,24 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
   stepBadge: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  stepText: { fontSize: 12, fontWeight: '700', color: BRAND },
+  stepText: { fontSize: 12, fontFamily: font.bold, color: BRAND },
 
   // Title
   titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
-  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
+  title: { fontSize: 28, fontFamily: font.bold, color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 37 },
+  subtitle: { fontSize: 15, fontFamily: font.regular, color: '#888', marginTop: 10, lineHeight: 22 },
 
   // Fields
   fields: { paddingHorizontal: 24, marginTop: 32, gap: 24 },
   fieldGroup: { gap: 10 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333' },
+  label: { fontSize: 14, fontFamily: font.semibold, color: '#333' },
   inputWrap: { height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   inputWrapActive: { borderColor: BRAND, backgroundColor: '#fff' },
-  prefix: { fontSize: 16, fontWeight: '600', color: '#0A0A0A', marginRight: 8 },
-  input: { flex: 1, fontSize: 16, fontWeight: '500', color: '#0A0A0A', paddingVertical: 0 },
+  prefix: { fontSize: 16, fontFamily: font.semibold, color: '#0A0A0A', marginRight: 8 },
+  input: { flex: 1, fontSize: 16, fontFamily: font.medium, color: '#0A0A0A', paddingVertical: 0 },
 
   // CTA
   ctaWrap: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: '#fff' },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
 })

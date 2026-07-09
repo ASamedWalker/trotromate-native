@@ -75,7 +75,7 @@ export default function MyTicketsScreen() {
   return (
     <SafeAreaView edges={['top']} style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
           <ChevronLeft size={22} color="#111" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>My Tickets</Text>

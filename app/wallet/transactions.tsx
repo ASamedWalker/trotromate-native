@@ -97,7 +97,7 @@ export default function TransactionsScreen() {
   return (
     <SafeAreaView edges={['top']} style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtn}>
+        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
           <ChevronLeft size={22} color="#111" />
         </TouchableOpacity>
         <Text style={s.title}>Transactions</Text>

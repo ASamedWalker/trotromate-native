@@ -8,6 +8,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import StepIndicator from '@/components/StepIndicator'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
 const OTP_LENGTH = 6
@@ -88,7 +89,7 @@ export default function VerifyOTP() {
         <Text style={s.title}>Confirm your{'\n'}phone number</Text>
         <Text style={s.subtitle}>
           Enter the 6-digit code sent to{' '}
-          <Text style={{ fontWeight: '700', color: '#0A0A0A' }}>{fullPhone}</Text>
+          <Text style={{ fontFamily: font.bold, color: '#0A0A0A' }}>{fullPhone}</Text>
         </Text>
         <Pressable onPress={() => router.back()}>
           <Text style={s.changeLink}>Change number?</Text>
@@ -109,6 +110,8 @@ export default function VerifyOTP() {
             maxLength={1}
             selectTextOnFocus
             autoFocus={i === 0}
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
           />
         ))}
       </Animated.View>
@@ -118,7 +121,7 @@ export default function VerifyOTP() {
         <Text style={s.resendText}>Didn't receive code? </Text>
         {timer > 0 ? (
           <Text style={s.resendTimer}>
-            Resend code in <Text style={{ color: BRAND, fontWeight: '600' }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
+            Resend code in <Text style={{ color: BRAND, fontFamily: font.semibold }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
           </Text>
         ) : (
           <Pressable onPress={async () => { await signInWithPhone(phone || ''); setTimer(60) }}>
@@ -157,20 +160,20 @@ const s = StyleSheet.create({
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
 
   titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 34 },
-  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10, lineHeight: 22 },
-  changeLink: { fontSize: 14, fontWeight: '600', color: BRAND, marginTop: 8 },
+  title: { fontSize: 28, fontFamily: font.bold, color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 37 },
+  subtitle: { fontSize: 15, fontFamily: font.regular, color: '#888', marginTop: 10, lineHeight: 22 },
+  changeLink: { fontSize: 14, fontFamily: font.semibold, color: BRAND, marginTop: 8 },
 
   otpRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 32 },
-  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontWeight: '700', color: '#0A0A0A' },
+  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontFamily: font.bold, color: '#0A0A0A' },
   otpCellFilled: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
 
   resendRow: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 13, color: '#888' },
   resendTimer: { fontSize: 13, color: '#888' },
-  resendLink: { fontSize: 13, fontWeight: '700', color: BRAND },
+  resendLink: { fontSize: 13, fontFamily: font.bold, color: BRAND },
 
   ctaWrap: { paddingHorizontal: 24, paddingTop: 12 },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
 })

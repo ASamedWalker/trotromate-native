@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { font } from '@/lib/theme'
 
 const { width, height: SCREEN_H } = Dimensions.get('window')
 const BRAND = '#FF4D1C'
@@ -125,6 +126,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     onComplete('login')
   }, [onComplete])
 
+  // Guest path (UX-20): fares/routes/queues work on deviceId alone — the app
+  // must answer "what's my fare?" before ever asking for a phone number.
+  // Auth is deferred to the first money/social action.
+  const exploreAsGuest = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    onComplete()
+  }, [onComplete])
+
   const renderSlide = useCallback(({ item }: { item: Slide }) => (
     <SlideContent item={item} />
   ), [])
@@ -140,7 +149,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       {/* Skip button — top right (hidden on last slide) */}
       {!isLastSlide && (
         <Animated.View entering={FadeIn.delay(500).duration(300)} style={[s.skipWrap, { top: insets.top + 14 }]}>
-          <Pressable onPress={skip} hitSlop={12}>
+          <Pressable onPress={skip} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip">
             <Text style={s.skipText}>Skip</Text>
           </Pressable>
         </Animated.View>
@@ -194,8 +203,19 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <Text style={s.loginLink} onPress={login}>Login</Text>
             </Text>
 
+            {/* Guest path — no account needed for fares/routes/queues */}
+            <Pressable onPress={exploreAsGuest} hitSlop={8} accessibilityRole="button" accessibilityLabel="Explore without an account">
+              <Text style={s.guestLink}>Explore fares without an account</Text>
+            </Pressable>
+
             {/* Consent — active clickwrap checkbox (enforceable; gates the CTA) */}
-            <Pressable onPress={() => setAgreed(v => !v)} style={s.consentRow} hitSlop={6}>
+            <Pressable
+              onPress={() => setAgreed(v => !v)}
+              style={s.consentRow}
+              hitSlop={6}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreed }}
+            >
               <View style={[s.checkbox, agreed && s.checkboxOn]}>
                 {agreed && <Text style={s.checkboxTick}>✓</Text>}
               </View>
@@ -237,7 +257,7 @@ const s = StyleSheet.create({
   },
   skipText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: font.medium,
     color: '#999',
     letterSpacing: 0.1,
   },
@@ -270,16 +290,16 @@ const s = StyleSheet.create({
   },
   headline: {
     fontSize: 30,
-    fontWeight: '700',
+    fontFamily: font.bold,
     color: '#0A0A0A',
     textAlign: 'center',
-    lineHeight: 36,
+    lineHeight: 40,
     letterSpacing: -0.8,
   },
   body: {
     marginTop: 14,
     fontSize: 16,
-    fontWeight: '400',
+    fontFamily: font.regular,
     color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 24,
@@ -340,7 +360,7 @@ const s = StyleSheet.create({
   btnPrimaryLabel: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: font.semibold,
     letterSpacing: -0.2,
   },
 
@@ -348,13 +368,22 @@ const s = StyleSheet.create({
   loginText: {
     textAlign: 'center',
     fontSize: 14,
-    fontWeight: '400',
+    fontFamily: font.regular,
     color: '#888',
     marginTop: 4,
   },
   loginLink: {
     color: BRAND,
-    fontWeight: '600',
+    fontFamily: font.semibold,
+  },
+  guestLink: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: font.semibold,
+    color: '#555',
+    textDecorationLine: 'underline',
+    marginTop: 10,
+    paddingVertical: 6,
   },
 
   /* ── Consent (clickwrap) ── */
@@ -381,8 +410,8 @@ const s = StyleSheet.create({
   checkboxTick: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 16,
+    fontFamily: font.bold,
+    lineHeight: 17,
   },
   consentText: {
     flex: 1,
@@ -392,6 +421,6 @@ const s = StyleSheet.create({
   },
   consentLink: {
     color: '#5A5A5A',
-    fontWeight: '600',
+    fontFamily: font.semibold,
   },
 })

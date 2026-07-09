@@ -10,6 +10,7 @@ import WalletTopUpAnimation from '@/components/WalletTopUpAnimation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { formatGHS } from '@/lib/utils/currency'
 
 const BRAND = '#FF4D1C'
 const AMOUNTS = [5, 10, 20, 50]
@@ -46,7 +47,7 @@ export default function MomoTopUpScreen() {
 
   const handleFund = async () => {
     if (!effectiveAmount || effectiveAmount < 1) {
-      Alert.alert('Invalid Amount', 'Please select or enter an amount (min GHS 1)')
+      Alert.alert('Invalid Amount', 'Please select or enter an amount (min GH₵ 1)')
       return
     }
     // Ghana mobile: 9 local digits (optionally a leading 0), 2nd digit 2 or 5
@@ -68,7 +69,7 @@ export default function MomoTopUpScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
     // Request, not result — nothing has landed yet (UX-19)
-    setAnim({ state: 'loading', message: `Requesting GH₵ ${effectiveAmount.toFixed(2)} top-up…` })
+    setAnim({ state: 'loading', message: `Requesting ${formatGHS(effectiveAmount)} top-up…` })
 
     try {
       const res = await fetch(`${API_URL}/api/wallet/topup`, {
@@ -89,7 +90,7 @@ export default function MomoTopUpScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         setAnim({
           state: 'success',
-          message: data.display_text || `A MoMo prompt was sent to ${msisdn}. Approve it to add GH₵ ${effectiveAmount.toFixed(2)} to your wallet.`,
+          message: data.display_text || `A MoMo prompt was sent to ${msisdn}. Approve it to add ${formatGHS(effectiveAmount)} to your wallet.`,
         })
       } else {
         setAnim(null)
@@ -108,7 +109,7 @@ export default function MomoTopUpScreen() {
     <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={24} color={t.text} />
         </TouchableOpacity>
         <Text style={[s.headerTitle, { color: t.text }]}>{PROVIDERS.find((p) => p.id === provider)?.label ?? 'Mobile Money'}</Text>
@@ -207,7 +208,7 @@ export default function MomoTopUpScreen() {
           }]}>
             <View style={s.summaryRow}>
               <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Amount</Text>
-              <Text style={[s.summaryValue, { color: t.text }]}>GH₵ {effectiveAmount.toFixed(2)}</Text>
+              <Text style={[s.summaryValue, { color: t.text }]}>{formatGHS(effectiveAmount)}</Text>
             </View>
             <View style={s.summaryRow}>
               <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Fee</Text>
@@ -216,7 +217,7 @@ export default function MomoTopUpScreen() {
             <View style={[s.summaryDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]} />
             <View style={s.summaryRow}>
               <Text style={[s.summaryLabel, { color: t.text, fontFamily: font.bold }]}>Total</Text>
-              <Text style={[s.summaryTotal, { color: BRAND }]}>GH₵ {effectiveAmount.toFixed(2)}</Text>
+              <Text style={[s.summaryTotal, { color: BRAND }]}>{formatGHS(effectiveAmount)}</Text>
             </View>
           </Animated.View>
         )}
@@ -231,7 +232,7 @@ export default function MomoTopUpScreen() {
           >
             <MaterialIcons name="add-circle" size={20} color="#fff" />
             <Text style={s.fundBtnText}>
-              {loading ? 'Processing...' : `Fund GH₵ ${effectiveAmount > 0 ? effectiveAmount.toFixed(2) : '0.00'}`}
+              {loading ? 'Processing...' : `Fund ${formatGHS(effectiveAmount)}`}
             </Text>
           </TouchableOpacity>
         </Animated.View>

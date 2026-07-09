@@ -44,9 +44,10 @@ import OfflineBanner from '@/components/OfflineBanner'
 
 import Mapbox from '@rnmapbox/maps'
 import '../global.css'
+import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 
 // Centralized Mapbox init — must happen ONCE, early, before any MapView renders
-Mapbox.setAccessToken('pk.eyJ1Ijoic2FtcHkxIiwiYSI6ImNranl2NHNjdTAxZzQzMWxldmx5dGhkaDEifQ.1eOzL1554nbXGIPai5Kmlg')
+Mapbox.setAccessToken(MAPBOX_TOKEN)
 
 export { ErrorBoundary } from 'expo-router'
 

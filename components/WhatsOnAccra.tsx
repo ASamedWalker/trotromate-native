@@ -114,7 +114,7 @@ function SponsoredBadge({ light = false }: { light?: boolean }) {
         paddingVertical: 2,
       }}
     >
-      <Text style={{ fontFamily: font.bold, fontSize: 9, color: light ? '#fff' : '#6B7280', letterSpacing: 0.3 }}>
+      <Text style={{ fontFamily: font.bold, fontSize: 10, color: light ? '#fff' : '#6B7280', letterSpacing: 0.3 }}>
         SPONSORED
       </Text>
     </View>
@@ -124,8 +124,10 @@ function SponsoredBadge({ light = false }: { light?: boolean }) {
 export default function WhatsOnAccra() {
   const router = useRouter()
   const { deviceId } = useApp()
+  // Bundled seed is a fallback — never show events whose date has passed (UX-34)
+  const freshSeedEvents = ACCRA_EVENTS.filter((e) => !e.date || e.date >= new Date().toISOString().slice(0, 10))
   const [movies, setMovies] = useState<(MovieListing & { posterUrl?: string })[]>(ACCRA_MOVIES)
-  const [events, setEvents] = useState<CityEvent[]>(ACCRA_EVENTS)
+  const [events, setEvents] = useState<CityEvent[]>(freshSeedEvents)
 
   // Live listings from the backend; bundled seed stays as the offline fallback
   useEffect(() => {
@@ -263,7 +265,7 @@ export default function WhatsOnAccra() {
                 }}
               >
                 <Text style={{ fontFamily: font.extrabold, fontSize: 16, color: '#000' }}>{day}</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#6B7280', letterSpacing: 0.3, marginTop: -3 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#6B7280', letterSpacing: 0.3, marginTop: -3 }}>
                   {month}
                 </Text>
               </View>

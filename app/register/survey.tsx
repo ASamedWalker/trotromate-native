@@ -8,6 +8,7 @@ import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
 
@@ -103,18 +104,18 @@ const s = StyleSheet.create({
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
 
   titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.8 },
-  subtitle: { fontSize: 15, fontWeight: '400', color: '#888', marginTop: 10 },
+  title: { fontSize: 28, fontFamily: font.bold, color: '#0A0A0A', letterSpacing: -0.8 },
+  subtitle: { fontSize: 15, fontFamily: font.regular, color: '#888', marginTop: 10 },
 
   options: { paddingHorizontal: 24, marginTop: 24, gap: 2 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#DDD', alignItems: 'center', justifyContent: 'center' },
   radioActive: { borderColor: BRAND },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: BRAND },
-  optionText: { fontSize: 15, fontWeight: '500', color: '#333' },
-  optionTextActive: { fontWeight: '700', color: '#0A0A0A' },
+  optionText: { fontSize: 15, fontFamily: font.medium, color: '#333' },
+  optionTextActive: { fontFamily: font.bold, color: '#0A0A0A' },
 
   ctaWrap: { paddingHorizontal: 24, paddingTop: 12 },
   btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
 })

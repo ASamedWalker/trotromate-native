@@ -36,7 +36,21 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { detectRegionOrNull, REGIONS } from '@/lib/config/regions'
+import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
+
+// Station-name suggestions — free-text station names fragment the fare dataset
+// by spelling ("Kaneshie" vs "Kanishie"); nudging toward canonical names
+// protects data quality (UX-23).
+const STATION_NAMES = Object.keys(FALLBACK_STATION_COORDS)
+function stationSuggestions(q: string): string[] {
+  const t = q.trim().toLowerCase()
+  if (t.length < 2) return []
+  if (STATION_NAMES.some((n) => n.toLowerCase() === t)) return []
+  return STATION_NAMES.filter((n) => n.toLowerCase().includes(t)).slice(0, 4)
+}
+
 import type { TransportType } from '@/lib/types'
+import { formatGHS } from '@/lib/utils/currency'
 
 export default function FareReportScreen() {
   const router = useRouter()
@@ -192,6 +206,16 @@ export default function FareReportScreen() {
                   />
                 </View>
 
+                {stationSuggestions(from).length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {stationSuggestions(from).map((n) => (
+                      <TouchableOpacity key={n} onPress={() => setFrom(n)} style={{ backgroundColor: 'rgba(129,81,0,0.08)', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#815100' }}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
                 {/* Region chip */}
                 <TouchableOpacity
                   style={[s.regionChip, activeRegion && s.regionChipActive]}
@@ -233,6 +257,16 @@ export default function FareReportScreen() {
                     style={s.locationInput}
                   />
                 </View>
+
+                {stationSuggestions(to).length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {stationSuggestions(to).map((n) => (
+                      <TouchableOpacity key={n} onPress={() => setTo(n)} style={{ backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 }}>
+                        <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#15803d' }}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </>
             )}
           </View>
@@ -252,7 +286,7 @@ export default function FareReportScreen() {
               </TouchableOpacity>
 
               <View style={s.fareInputWrap}>
-                <Text style={s.fareCedi}>₵</Text>
+                <Text style={s.fareCedi}>GH₵</Text>
                 <TextInput
                   value={fare}
                   onChangeText={setFare}
@@ -282,7 +316,7 @@ export default function FareReportScreen() {
                   style={[s.quickBtn, fare === amount && s.quickBtnActive]}
                 >
                   <Text style={[s.quickBtnText, fare === amount && s.quickBtnTextActive]}>
-                    ₵{amount}
+                    {formatGHS(Number(amount))}
                   </Text>
                 </TouchableOpacity>
               ))}

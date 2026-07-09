@@ -4,6 +4,7 @@ import { BarChart3, TrendingUp, TrendingDown, Minus, MapPin } from 'lucide-react
 import { c, themed, font } from '@/lib/theme'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { supabase } from '@/lib/supabase'
+import { formatGHS } from '@/lib/utils/currency'
 
 interface SummaryData {
   total_trips: number
@@ -147,11 +148,11 @@ export function SpendingSummary() {
           <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Trips</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: isDark ? c.stone800 : c.stone100, borderRadius: 12, padding: 12, alignItems: 'center' }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 22, color: c.amber500 }}>₵{data.total_spent.toFixed(0)}</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 22, color: c.amber500 }}>{formatGHS(data.total_spent)}</Text>
           <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Spent</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: isDark ? c.stone800 : c.stone100, borderRadius: 12, padding: 12, alignItems: 'center' }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 22, color: t.text }}>₵{data.avg_per_trip.toFixed(1)}</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 22, color: t.text }}>{formatGHS(data.avg_per_trip)}</Text>
           <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Avg/trip</Text>
         </View>
       </View>
@@ -205,7 +206,7 @@ export function SpendingSummary() {
               </Text>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={{ fontFamily: font.semibold, fontSize: 13, color: t.text }}>{route.count}x</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 10, color: t.textSecondary }}>₵{route.avg_fare.toFixed(1)}/trip</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 10, color: t.textSecondary }}>{formatGHS(route.avg_fare)}/trip</Text>
               </View>
             </View>
           ))}
