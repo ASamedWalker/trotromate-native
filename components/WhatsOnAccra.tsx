@@ -232,28 +232,30 @@ export default function WhatsOnAccra() {
       </>
       )}
 
-      {/* ── Advertiser CTA ── */}
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-          Alert.alert(
-            'Advertise on Troski',
-            'Reach thousands of Accra commuters. Email ads@troski.me to promote your event, movie or business.',
-          )
-        }}
-        style={{
-          marginHorizontal: 24, marginTop: 12,
-          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', borderStyle: 'dashed',
-          paddingHorizontal: 14, paddingVertical: 12,
-        }}
-      >
-        <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', flex: 1 }}>
-          Promote your event or business to Accra commuters
-        </Text>
-        <ChevronRight size={16} color="#6B7280" />
-      </TouchableOpacity>
+      {/* ── Advertiser CTA (only alongside real listings) ── */}
+      {!isEmpty && (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            Alert.alert(
+              'Advertise on Troski',
+              'Reach thousands of Accra commuters. Email ads@troski.me to promote your event, movie or business.',
+            )
+          }}
+          style={{
+            marginHorizontal: 24, marginTop: 12,
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', borderStyle: 'dashed',
+            paddingHorizontal: 14, paddingVertical: 12,
+          }}
+        >
+          <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', flex: 1 }}>
+            Promote your event or business to Accra commuters
+          </Text>
+          <ChevronRight size={16} color="#6B7280" />
+        </TouchableOpacity>
+      )}
     </View>
   )
 }
