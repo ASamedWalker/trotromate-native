@@ -87,7 +87,7 @@ export default function WhatsOnScreen() {
           <ChevronLeft size={22} color="#000" />
         </TouchableOpacity>
         <View>
-          <Text style={{ fontFamily: font.bold, fontSize: 22, color: '#000', letterSpacing: -0.5 }}>What&apos;s On in Accra</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 22, color: '#000', letterSpacing: -0.5 }}>What&apos;s On</Text>
           <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: -2 }}>Movies &amp; events across the city</Text>
         </View>
       </View>

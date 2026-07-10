@@ -65,8 +65,7 @@ export default function WhatsOnAccra() {
   // Tap = the tracked ad click. Shared with the see-all screen.
   const { openMovie, openEvent } = useWhatsOnNav(deviceId || undefined)
 
-  // Nothing current to show → show nothing. An empty section beats a stale one.
-  if (movies.length === 0 && events.length === 0) return null
+  const isEmpty = movies.length === 0 && events.length === 0
 
   return (
     <View style={{ marginBottom: 28 }}>
@@ -78,19 +77,41 @@ export default function WhatsOnAccra() {
         }}
       >
         <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>
-          What&apos;s On in Accra
+          What&apos;s On
         </Text>
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/whatson' as any) }}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-        >
-          <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>See all</Text>
-          <ChevronRight size={16} color="#6B7280" />
-        </TouchableOpacity>
+        {!isEmpty && (
+          <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/whatson' as any) }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+          >
+            <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>See all</Text>
+            <ChevronRight size={16} color="#6B7280" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* ── Movie carousel ── */}
+      {/* ── Empty state (visible so the section never silently vanishes) ── */}
+      {isEmpty && (
+        <View
+          style={{
+            marginHorizontal: 24, borderRadius: 16, backgroundColor: '#FFFFFF',
+            paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', ...CARD_SHADOW,
+          }}
+        >
+          <Clapperboard size={28} color="#D1D5DB" />
+          <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000', marginTop: 10, textAlign: 'center' }}>
+            Nothing on right now
+          </Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 3, textAlign: 'center' }}>
+            New movies and events land here every week.
+          </Text>
+        </View>
+      )}
+
+      {/* ── Movie carousel + events (only when there's content) ── */}
+      {!isEmpty && (
+      <>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -208,6 +229,8 @@ export default function WhatsOnAccra() {
           )
         })}
       </View>
+      </>
+      )}
 
       {/* ── Advertiser CTA ── */}
       <TouchableOpacity
