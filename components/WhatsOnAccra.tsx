@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Alert, ImageBackground } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Linking, ImageBackground } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -11,7 +11,7 @@ import {
 } from '@/lib/constants/accra-events'
 import {
   API_URL, CATEGORY_META, CARD_SHADOW, formatEventDate,
-  toMovie, toEvent, trackImpressions, useWhatsOnNav,
+  toMovie, toEvent, trackImpressions, useWhatsOnNav, ADVERTISE_MAILTO,
 } from '@/lib/whatson-shared'
 
 function SponsoredBadge({ light = false }: { light?: boolean }) {
@@ -238,10 +238,7 @@ export default function WhatsOnAccra() {
           activeOpacity={0.7}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            Alert.alert(
-              'Advertise on Troski',
-              'Reach thousands of Accra commuters. Email ads@troski.me to promote your event, movie or business.',
-            )
+            Linking.openURL(ADVERTISE_MAILTO).catch(() => {})
           }}
           style={{
             marginHorizontal: 24, marginTop: 12,

@@ -13,6 +13,19 @@ import { type CityEvent, type MovieListing } from '@/lib/constants/accra-events'
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
+// Advertiser CTA → real support mailbox (ads@ alias not set up; support@ works).
+const ADVERTISE_SUBJECT = 'Advertise on Troski'
+const ADVERTISE_BODY = [
+  "Hi Troski team, I'd like to promote my event, movie or business in What's On.",
+  '',
+  'Business / event name:',
+  'What I want to promote:',
+  'Preferred dates:',
+  'Best contact (phone/WhatsApp):',
+].join('\n')
+export const ADVERTISE_MAILTO =
+  `mailto:support@troski.me?subject=${encodeURIComponent(ADVERTISE_SUBJECT)}&body=${encodeURIComponent(ADVERTISE_BODY)}`
+
 export const CATEGORY_META: Record<CityEvent['category'], { icon: any; color: string; bg: string }> = {
   concert: { icon: Music, color: '#C026D3', bg: '#FDF4FF' },
   bar: { icon: Beer, color: '#D97706', bg: '#FFFBEB' },

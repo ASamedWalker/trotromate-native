@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, ImageBackground, Dimensions, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, ImageBackground, Dimensions, ActivityIndicator, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -14,7 +14,7 @@ import {
 } from '@/lib/constants/accra-events'
 import {
   API_URL, CATEGORY_META, CARD_SHADOW, formatEventDate,
-  toMovie, toEvent, trackImpressions, useWhatsOnNav, type ClientMovie,
+  toMovie, toEvent, trackImpressions, useWhatsOnNav, ADVERTISE_MAILTO, type ClientMovie,
 } from '@/lib/whatson-shared'
 
 const SCREEN_W = Dimensions.get('window').width
@@ -192,7 +192,7 @@ export default function WhatsOnScreen() {
             activeOpacity={0.7}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              Alert.alert('Advertise on Troski', 'Reach thousands of Accra commuters. Email ads@troski.me to promote your event, movie or business.')
+              Linking.openURL(ADVERTISE_MAILTO).catch(() => {})
             }}
             style={{ marginHorizontal: 24, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', borderStyle: 'dashed', paddingHorizontal: 14, paddingVertical: 12 }}
           >
