@@ -114,8 +114,21 @@ AND train, built on Transit's GO model.
   `reporter_id` (uuid col; deviceId is undashed hex — Postgres accepts it,
   returns it dashed; normalize when joining contributor_profiles).
 
-## Train Section (June 2026)
-`app/train/index.tsx` (Train segment of Lines tab) + `app/train/[lineId].tsx`.
+## Train Section (June 2026; positioning updated 2026-07-11)
+`app/train/index.tsx` (now its OWN top-level tab — Home·Lines·Train·Wallet·Pulse)
++ `app/train/[lineId].tsx`. (Was a segment inside Lines; promoted after Search
+Console showed train = top organic demand. Rewards left the tab bar → Home coins
+chip + profile row.)
+
+**⚠️ TRAIN = INFORMATION ONLY (owner, 2026-07-11). NO booking, NO ticketing, NO
+payment/wallet debit for train — do NOT build any.** Goal: be Ghana's #1 go-to app
+for TRAIN INFORMATION (schedules, fares, stations, live departures, reminders).
+Train booking/ticketing is deferred until a **GRDA partnership** exists; only then
+revisit an in-app train booking flow. Until then every train surface (native tab +
+web troski.me/train + per-line pages) stays purely informational — no "book",
+"buy ticket", or checkout affordance. Fares shown are GRDA's official prices for
+reference (paid at the station via TapnGo), not something the app sells.
+
 - **Departure board**: dark "station display" with flip-style countdown to the
   next departure across all lines. States: waiting (countdown) / in-transit
   (progress) / no-service. **No-service renders only on SUNDAY** (all schedules

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -26,7 +27,7 @@ import {
   Calendar,
   MessageSquare,
   Zap,
-  Navigation,
+  Bell,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
@@ -36,6 +37,9 @@ import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { timeAgo } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
+import { computeLineDeparture } from '@/app/train/index'
+import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
+import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
 import { LoadErrorState } from '@/components/StateViews'
 
@@ -91,6 +95,7 @@ export default function LineDetailScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const { line, stations, recentReports, isLoading, isError, refetch } = useTrainLineDetail(lineId!)
+  const { isSet: reminderSet, toggle: toggleReminder } = useDepartureReminders()
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null)
 
   const meta = LINE_META[line?.code ?? ''] ?? DEFAULT_LINE_META
@@ -495,26 +500,54 @@ export default function LineDetailScreen() {
       )}
       */}
 
-      {/* Sticky primary action — the detail screen was report-only; let riders
-          act on the line by planning a trip origin → destination (prefills +
-          auto-searches the trip planner). */}
-      <View style={s.goModeWrap}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-            const schs = line.code ? TRAIN_SCHEDULES[line.code] : null
-            const stops = schs?.[0]?.stops
-            const origin = stops?.[0]?.station ?? ''
-            const dest = stops && stops.length ? stops[stops.length - 1].station : ''
-            router.push(`/routes/search?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(dest)}` as any)
-          }}
-          style={s.goModeBtn}
-        >
-          <Navigation size={18} color="#0c4a6e" />
-          <Text style={s.goModeBtnText}>Plan a trip</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Sticky primary action — Train is INFORMATION ONLY (no booking; owner
+          2026-07-11). The on-brand action for a train INFO app is a free
+          departure reminder, not a trip/booking. Shown only when there's an
+          upcoming departure to remind about. */}
+      {(() => {
+        const nextDep = line.code ? computeLineDeparture(line.code, TRAIN_SCHEDULES[line.code] || []) : null
+        if (!nextDep || nextDep.type !== 'waiting') {
+          return (
+            <View style={s.goModeWrap}>
+              <View style={[s.goModeBtn, { backgroundColor: isDark ? '#292524' : '#e7e5e4' }]}>
+                <Text style={[s.goModeBtnText, { color: isDark ? '#a8a29e' : '#78716c' }]}>
+                  No more departures today
+                </Text>
+              </View>
+            </View>
+          )
+        }
+        const armed = reminderSet(nextDep.schedule.id)
+        return (
+          <View style={s.goModeWrap}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={async () => {
+                Haptics.selectionAsync()
+                const { on, denied } = await toggleReminder({
+                  scheduleId: nextDep.schedule.id,
+                  lineCode: nextDep.schedule.code,
+                  origin: nextDep.origin,
+                  destination: nextDep.destination,
+                  departTime: nextDep.departTime,
+                  secondsUntilDeparture: nextDep.remaining,
+                })
+                if (denied) {
+                  Alert.alert('Reminder not set', `Enable notifications for Troski, or pick a departure more than ${REMINDER_LEAD_MINUTES} minutes away.`)
+                } else if (on) {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                }
+              }}
+              style={s.goModeBtn}
+            >
+              <Bell size={18} color="#0c4a6e" />
+              <Text style={s.goModeBtnText}>
+                {armed ? `Reminder set · ${nextDep.departTime}` : `Remind me · ${nextDep.departTime}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )
+      })()}
     </SafeAreaView>
   )
 }

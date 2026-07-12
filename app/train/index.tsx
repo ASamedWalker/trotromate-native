@@ -64,7 +64,7 @@ function getCurrentStation(schedule: TrainSchedule, currentMinutes: number) {
   }
 }
 
-type DepartureInfo =
+export type DepartureInfo =
   | {
       type: 'waiting'
       lineCode: string
@@ -89,7 +89,7 @@ type DepartureInfo =
   | { type: 'no-service' }
 
 /** Compute next departure for a single line (direction-agnostic) */
-function computeLineDeparture(
+export function computeLineDeparture(
   lineCode: string,
   schedules: TrainSchedule[]
 ): DepartureInfo {
