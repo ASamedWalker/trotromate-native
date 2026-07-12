@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   RefreshControl,
   StyleSheet,
   Alert,
+  Animated as RNAnimated,
+  Easing,
   type DimensionValue,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
@@ -183,9 +185,31 @@ function getNextDeparture(): DepartureInfo {
 // ─── Flip-digit component ────────────────────────────────
 
 function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles> }) {
+  // Core RN Animated (NOT reanimated — this sits inside a ScrollView, which
+  // breaks reanimated width on Android). On each digit change the new glyph
+  // ticks down into place with a quick slide + fade, like a mechanical board.
+  const anim = useRef(new RNAnimated.Value(1)).current
+  const prev = useRef(digit)
+
+  useEffect(() => {
+    if (prev.current === digit) return
+    prev.current = digit
+    anim.setValue(0)
+    RNAnimated.timing(anim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start()
+  }, [digit, anim])
+
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] })
+
   return (
     <View style={s.digit}>
-      <Text style={s.digitText}>{digit}</Text>
+      <RNAnimated.Text style={[s.digitText, { opacity: anim, transform: [{ translateY }] }]}>
+        {digit}
+      </RNAnimated.Text>
     </View>
   )
 }
@@ -866,6 +890,7 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.06)',
+      overflow: 'hidden',
     },
     digitText: {
       fontSize: 28,

@@ -26,7 +26,9 @@ import {
   Calendar,
   MessageSquare,
   Zap,
+  Navigation,
 } from 'lucide-react-native'
+import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GRDABadge } from '@/components/GRDABadge'
@@ -222,7 +224,7 @@ export default function LineDetailScreen() {
               <View style={[s.feedbackTypeDot, { backgroundColor: config.color }]} />
               <Text style={s.feedbackTime}>{timeAgo(report.reported_at)}</Text>
             </View>
-            <Text style={s.feedbackText}>"{feedbackText}"</Text>
+            <Text style={s.feedbackText}>&ldquo;{feedbackText}&rdquo;</Text>
           </View>
         </View>
       )
@@ -492,6 +494,27 @@ export default function LineDetailScreen() {
         </View>
       )}
       */}
+
+      {/* Sticky primary action — the detail screen was report-only; let riders
+          act on the line by planning a trip origin → destination (prefills +
+          auto-searches the trip planner). */}
+      <View style={s.goModeWrap}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+            const schs = line.code ? TRAIN_SCHEDULES[line.code] : null
+            const stops = schs?.[0]?.stops
+            const origin = stops?.[0]?.station ?? ''
+            const dest = stops && stops.length ? stops[stops.length - 1].station : ''
+            router.push(`/routes/search?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(dest)}` as any)
+          }}
+          style={s.goModeBtn}
+        >
+          <Navigation size={18} color="#0c4a6e" />
+          <Text style={s.goModeBtnText}>Plan a trip</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   )
 }
