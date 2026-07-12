@@ -2,7 +2,7 @@ import React from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native'
 import {
-  Home, Route, Wallet, Radio, Trophy,
+  Home, Route, Wallet, Radio, TrainFront,
 } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
@@ -22,18 +22,18 @@ export const TAB_BAR_CLEARANCE = 96
 const TAB_ICONS: Record<string, typeof Home> = {
   index: Home,
   lines: Route,
+  train: TrainFront,
   wallet: Wallet,
   tales: Radio,
-  rewards: Trophy,
 }
 
 // route name → i18n key (also used to decide which tabs are visible)
 const TAB_KEYS: Record<string, string> = {
   index: 'nav.home',
   lines: 'nav.lines',
+  train: 'nav.train',
   wallet: 'nav.wallet',
   tales: 'nav.pulse',
-  rewards: 'nav.rewards',
 }
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -109,15 +109,15 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="lines" />
+      <Tabs.Screen name="train" />
       <Tabs.Screen name="wallet" />
       <Tabs.Screen name="tales" />
-      <Tabs.Screen name="rewards" />
       {/* Hidden tabs — still accessible via navigation */}
       <Tabs.Screen name="activity" options={{ href: null }} />
       <Tabs.Screen name="report" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="routes" options={{ href: null }} />
-      <Tabs.Screen name="train" options={{ href: null }} />
+      <Tabs.Screen name="rewards" options={{ href: null }} />
     </Tabs>
   )
 }

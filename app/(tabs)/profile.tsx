@@ -10,7 +10,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Linking } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
-import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame, Megaphone } from 'lucide-react-native'
+import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame, Megaphone, Trophy } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
 
   const menuItems: { icon: typeof Bell; label: string; onPress: () => void; badge?: number }[] = [
+    { icon: Trophy, label: 'Rewards', onPress: () => router.push('/(tabs)/rewards' as Href) },
     { icon: Bell, label: 'Notifications', onPress: () => router.navigate('/activity' as Href), badge: unreadCount },
     { icon: Megaphone, label: 'Contribute / Report', onPress: () => router.push('/report' as Href) },
     { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as Href) },

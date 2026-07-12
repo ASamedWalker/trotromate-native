@@ -133,6 +133,9 @@ export function usePushNotifications(deviceId: string | null, enabled: boolean =
               ...(data.type === 'train' ? { type: 'train', lineId: data.lineId ?? data.routeId } : {}),
             },
           } as any)
+        } else if (data?.screen === 'train') {
+          // Train departure reminders → the Train tab
+          router.push('/(tabs)/train' as any)
         }
       }
     )

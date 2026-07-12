@@ -14,7 +14,7 @@ import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin,
   Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
-  ScanLine, Plus,
+  ScanLine, Plus, Trophy,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
@@ -156,7 +156,7 @@ export default function HomeScreen() {
   const handleServiceTap = useCallback((svc: Service) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`); return }
-    if (svc.id === 'train') { router.push('/(tabs)/lines?tab=train' as any); return }
+    if (svc.id === 'train') { router.push('/(tabs)/train' as any); return }
     if (svc.route) router.push(svc.route as any)
   }, [router])
 
@@ -196,19 +196,38 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
-            <Pressable
-              onPress={() => router.push('/(tabs)/activity' as any)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-              style={{
-                width: 44, height: 44, borderRadius: 22,
-                backgroundColor: '#F3F4F6',
-                justifyContent: 'center', alignItems: 'center',
-              }}
-            >
-              <Bell size={22} color="#374151" />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {/* Coins chip — Rewards' daily-return hook, now that it's off the tab bar */}
+              <Pressable
+                onPress={() => router.push('/(tabs)/rewards' as any)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Rewards and coins"
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 5,
+                  height: 44, paddingHorizontal: 12, borderRadius: 22,
+                  backgroundColor: '#FEF3C7',
+                }}
+              >
+                <Trophy size={18} color="#D97706" />
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#B45309' }}>
+                  {profile?.total_points ?? 0}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/(tabs)/activity' as any)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+                style={{
+                  width: 44, height: 44, borderRadius: 22,
+                  backgroundColor: '#F3F4F6',
+                  justifyContent: 'center', alignItems: 'center',
+                }}
+              >
+                <Bell size={22} color="#374151" />
+              </Pressable>
+            </View>
           </View>
         </View>
 
