@@ -39,6 +39,7 @@ import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
 import { NETWORK_BULLETINS, HOW_TO_RIDE } from '@/lib/constants/train-network'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import type { TrainLineWithStats } from '@/lib/types'
 
 // ─── Schedule helpers ────────────────────────────────────
@@ -747,7 +748,7 @@ export default function TrainLinesScreen() {
             <Text style={s.bulletinTitle}>Authority Bulletins</Text>
           </View>
 
-          {NETWORK_BULLETINS.map((b) => {
+          {NETWORK_BULLETINS.slice(0, 2).map((b) => {
             const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
             return (
               <View key={b.text} style={[s.bulletinCard, { borderLeftColor: color }]}>
@@ -763,7 +764,8 @@ export default function TrainLinesScreen() {
           <DailyTipCard category="train" />
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* Clear the floating tab bar — Train is a top-level tab now. */}
+        <View style={{ height: TAB_BAR_CLEARANCE + insets.bottom }} />
       </ScrollView>
     </SafeAreaView>
   )
