@@ -735,7 +735,7 @@ export default function TrainLinesScreen() {
           <View style={{ gap: 12 }}>
             {RAIL_NEWS.map((item) => (
               <TouchableOpacity
-                key={item.url + item.date}
+                key={item.title}
                 onPress={() => Linking.openURL(item.url)}
                 activeOpacity={0.85}
                 style={s.newsCard}
