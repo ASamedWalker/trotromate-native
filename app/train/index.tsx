@@ -8,7 +8,6 @@ import {
   RefreshControl,
   StyleSheet,
   Alert,
-  Linking,
   Animated as RNAnimated,
   Easing,
   type DimensionValue,
@@ -26,7 +25,6 @@ import {
   ShieldCheck,
   Bell,
   BellRing,
-  Newspaper,
   Info,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
@@ -40,7 +38,7 @@ import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
-import { RAIL_NEWS, HOW_TO_RIDE } from '@/lib/constants/train-network'
+import { NETWORK_BULLETINS, HOW_TO_RIDE } from '@/lib/constants/train-network'
 import type { TrainLineWithStats } from '@/lib/types'
 
 // ─── Schedule helpers ────────────────────────────────────
@@ -725,32 +723,6 @@ export default function TrainLinesScreen() {
           )}
         </Animated.View>
 
-        {/* ─── Rail Network Updates ────────────────────── */}
-        <View style={s.newsSection}>
-          <View style={s.newsHeader}>
-            <Newspaper size={18} color="#0891b2" />
-            <Text style={s.newsHeaderTitle}>Rail network updates</Text>
-          </View>
-
-          <View style={{ gap: 12 }}>
-            {RAIL_NEWS.map((item) => (
-              <TouchableOpacity
-                key={item.title}
-                onPress={() => Linking.openURL(item.url)}
-                activeOpacity={0.85}
-                style={s.newsCard}
-              >
-                <View style={s.newsDateChip}>
-                  <Text style={s.newsDateText}>{item.date}</Text>
-                </View>
-                <Text style={s.newsTitle}>{item.title}</Text>
-                <Text style={s.newsBody}>{item.body}</Text>
-                <Text style={s.newsSource}>{item.source}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* ─── How to Ride ──────────────────────────────── */}
         <View style={s.rideSection}>
           <View style={s.newsHeader}>
@@ -769,24 +741,21 @@ export default function TrainLinesScreen() {
         </View>
 
         {/* ─── Authority Bulletins ─────────────────────── */}
+        {/* Factual network bulletins in our own words — no media names/links. */}
         <View style={s.bulletinSection}>
           <View style={s.bulletinHeader}>
             <Text style={s.bulletinTitle}>Authority Bulletins</Text>
           </View>
 
-          <View style={[s.bulletinCard, { borderLeftColor: '#815100' }]}>
-            <Text style={[s.bulletinType, { color: '#815100' }]}>SERVICE NOTICE</Text>
-            <Text style={s.bulletinText}>
-              All train services operate Monday – Saturday. No Sunday service.
-            </Text>
-          </View>
-
-          <View style={[s.bulletinCard, { borderLeftColor: '#0891b2' }]}>
-            <Text style={[s.bulletinType, { color: '#0891b2' }]}>GRDA REMINDER</Text>
-            <Text style={s.bulletinText}>
-              Always purchase tickets before boarding. E-tickets coming soon.
-            </Text>
-          </View>
+          {NETWORK_BULLETINS.map((b) => {
+            const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
+            return (
+              <View key={b.text} style={[s.bulletinCard, { borderLeftColor: color }]}>
+                <Text style={[s.bulletinType, { color }]}>{b.tag}</Text>
+                <Text style={s.bulletinText}>{b.text}</Text>
+              </View>
+            )
+          })}
         </View>
 
         {/* Daily Commuter Tip — train-focused */}

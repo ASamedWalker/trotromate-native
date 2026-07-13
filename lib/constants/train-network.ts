@@ -1,10 +1,15 @@
-export interface RailNewsItem { date: string; title: string; body: string; source: string; url: string }
+// LEGAL NOTE: neutral factual bulletins in Troski's OWN words — public facts,
+// NOT reproductions of any media outlet's article, and NO links to media orgs.
+// Facts aren't copyrightable; naming/quoting/linking a publication is the risk,
+// so we don't. Keep this style when refreshing.
+export interface NetworkBulletin { tag: "SERVICE UPDATE" | "NETWORK UPDATE" | "NOTICE"; date: string; text: string }
 
-export const RAIL_NEWS: RailNewsItem[] = [
-  { date: "2026-04-24", title: "Kojokrom–Sekondi–Takoradi passenger service resumes", body: "The 15 km Kojokrom–Sekondi–Takoradi commuter line reopened on 24 April 2026 after a two-year suspension and rehabilitation, part of the government's railway 'Reset Agenda'.", source: "Citi Newsroom", url: "https://www.citinewsroom.com/2026/04/transport-minister-relaunches-kojokrom-takoradi-railway-passenger-services/" },
-  { date: "2025-10-01", title: "Tema–Mpakadan line begins commercial passenger service", body: "The new 96.7 km standard-gauge Tema–Mpakadan line began commercial passenger service on 1 October 2025, running two Polish-built Pesa diesel multiple units between Tema Port and Akosombo (Mpakadan).", source: "Graphic Online", url: "https://www.graphic.com.gh/news/general-news/grda-activates-tema-mpakadan-rail-services.html" },
-  { date: "2025-09-01", title: "Nsawam–Kumasi–Paga standard-gauge line agreed", body: "Ghana signed a US$6.05bn agreement for a new standard-gauge railway from Nsawam (near Accra) through Kumasi to Paga on the Burkina Faso border, with a branch from Tamale to Yendi.", source: "Rail transport in Ghana (Wikipedia)", url: "https://en.wikipedia.org/wiki/Rail_transport_in_Ghana" },
-  { date: "2025-09-02", title: "Feasibility study: Accra suburban rail to Kasoa, Winneba & Madina", body: "Government feasibility studies are examining new Accra suburban rail services toward Kasoa, Winneba and Madina, plus extensions northward — early-stage, not yet operational.", source: "Rail transport in Ghana (Wikipedia)", url: "https://en.wikipedia.org/wiki/Rail_transport_in_Ghana" },
+export const NETWORK_BULLETINS: NetworkBulletin[] = [
+  { tag: "SERVICE UPDATE", date: "2026-04-24", text: "Passenger service on the 15 km Kojokrom–Sekondi–Takoradi commuter line resumed in April 2026 after rehabilitation." },
+  { tag: "SERVICE UPDATE", date: "2025-10-01", text: "The new 96.7 km standard-gauge Tema–Mpakadan line began commercial passenger service in October 2025, running between Tema Port and Mpakadan, near Akosombo." },
+  { tag: "NETWORK UPDATE", date: "2025-09-01", text: "A new standard-gauge railway from Nsawam through Kumasi to Paga has been announced as part of Ghana's national rail expansion." },
+  { tag: "NETWORK UPDATE", date: "2025-09-02", text: "Feasibility studies are underway for new Accra suburban rail toward Kasoa, Winneba and Madina — early-stage, not yet operational." },
+  { tag: "NOTICE", date: "2026-07-12", text: "Schedules and fares shown are indicative and compiled from public announcements — always confirm current times and prices at the station." },
 ]
 
 export interface RideTip { title: string; text: string }
