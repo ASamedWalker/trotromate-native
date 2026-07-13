@@ -7,7 +7,6 @@ import {
   useColorScheme,
   RefreshControl,
   StyleSheet,
-  Alert,
   Animated as RNAnimated,
   Easing,
   type DimensionValue,
@@ -34,7 +33,7 @@ import { DailyTipCard } from '@/components/DailyTipCard'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
-import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
+import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
@@ -273,7 +272,7 @@ export default function TrainLinesScreen() {
   const toggleReminder = useCallback(
     async (dep: Extract<DepartureInfo, { type: 'waiting' }>) => {
       Haptics.selectionAsync()
-      const { on, denied } = await toggle({
+      const { on, failure } = await toggle({
         scheduleId: dep.schedule.id,
         lineCode: dep.schedule.code,
         origin: dep.origin,
@@ -281,12 +280,8 @@ export default function TrainLinesScreen() {
         departTime: dep.departTime,
         secondsUntilDeparture: dep.remaining,
       })
-      if (denied) {
-        Alert.alert(
-          'Reminder not set',
-          'Enable notifications for Troski, or pick a departure more than ' +
-            `${REMINDER_LEAD_MINUTES} minutes away.`,
-        )
+      if (failure) {
+        showReminderFailureAlert(failure)
       } else if (on) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       }

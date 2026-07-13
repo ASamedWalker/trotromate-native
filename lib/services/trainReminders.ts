@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Notifications from 'expo-notifications'
-import { Platform } from 'react-native'
+import { Alert, Linking, Platform } from 'react-native'
 
 // Persisted set of active departure reminders, keyed by schedule id.
 // One reminder per schedule (a given train run) — re-arming replaces it.
@@ -81,9 +81,12 @@ async function ensurePermission(): Promise<boolean> {
  * Arm a reminder that fires REMINDER_LEAD_MINUTES before departure.
  * `secondsUntilDeparture` comes straight from the board countdown so the
  * fire time always matches what the rider sees ticking down.
- * Returns the stored reminder, or null if permission denied / departure is
- * already inside the lead window (too late to be useful).
+ * Returns the stored reminder, or a failure reason: 'too-soon' when the
+ * departure is already inside the lead window, 'denied' when the OS
+ * notification permission is not granted.
  */
+export type ReminderFailure = 'too-soon' | 'denied'
+
 export async function setDepartureReminder(params: {
   scheduleId: string
   lineCode: string
@@ -91,13 +94,13 @@ export async function setDepartureReminder(params: {
   destination: string
   departTime: string
   secondsUntilDeparture: number
-}): Promise<DepartureReminder | null> {
+}): Promise<DepartureReminder | ReminderFailure> {
   const leadSeconds = REMINDER_LEAD_MINUTES * 60
   const fireInSeconds = Math.round(params.secondsUntilDeparture - leadSeconds)
-  if (fireInSeconds <= 0) return null // departure too soon to remind
+  if (fireInSeconds <= 0) return 'too-soon'
 
   const ok = await ensurePermission()
-  if (!ok) return null
+  if (!ok) return 'denied'
 
   // Replace any existing reminder for this schedule first
   await cancelDepartureReminder(params.scheduleId)
@@ -131,6 +134,30 @@ export async function setDepartureReminder(params: {
   map[params.scheduleId] = reminder
   await writeAll(map)
   return reminder
+}
+
+/**
+ * Explain a reminder failure to the rider. 'denied' means the OS-level
+ * notification permission is off (the in-app Settings toggle is a separate
+ * preference and can't grant it) — deep-link to the system settings so they
+ * can flip it without hunting.
+ */
+export function showReminderFailureAlert(failure: ReminderFailure): void {
+  if (failure === 'too-soon') {
+    Alert.alert(
+      'Departure too close',
+      `This train leaves within ${REMINDER_LEAD_MINUTES} minutes — too late for a ${REMINDER_LEAD_MINUTES}-minute heads-up. Pick a later departure.`,
+    )
+    return
+  }
+  Alert.alert(
+    'Notifications are off',
+    'Troski needs notification permission from your phone to remind you. Turn it on in system Settings.',
+    [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Open Settings', onPress: () => Linking.openSettings() },
+    ],
+  )
 }
 
 export async function cancelDepartureReminder(scheduleId: string): Promise<void> {

@@ -4,6 +4,7 @@ import {
   setDepartureReminder,
   cancelDepartureReminder,
   type DepartureReminder,
+  type ReminderFailure,
 } from '@/lib/services/trainReminders'
 
 /**
@@ -36,7 +37,7 @@ export function useDepartureReminders() {
       destination: string
       departTime: string
       secondsUntilDeparture: number
-    }): Promise<{ on: boolean; denied?: boolean }> => {
+    }): Promise<{ on: boolean; failure?: ReminderFailure }> => {
       if (reminders[params.scheduleId]) {
         await cancelDepartureReminder(params.scheduleId)
         await refresh()
@@ -44,7 +45,7 @@ export function useDepartureReminders() {
       }
       const result = await setDepartureReminder(params)
       await refresh()
-      if (!result) return { on: false, denied: true }
+      if (result === 'too-soon' || result === 'denied') return { on: false, failure: result }
       return { on: true }
     },
     [reminders, refresh],

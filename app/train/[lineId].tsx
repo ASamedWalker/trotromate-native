@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -41,7 +40,7 @@ import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { computeLineDeparture } from '@/app/train/index'
 import { LINE_STATUS } from '@/lib/constants/train-network'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
-import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
+import { showReminderFailureAlert } from '@/lib/services/trainReminders'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
 import { LoadErrorState } from '@/components/StateViews'
 
@@ -547,7 +546,7 @@ export default function LineDetailScreen() {
               activeOpacity={0.9}
               onPress={async () => {
                 Haptics.selectionAsync()
-                const { on, denied } = await toggleReminder({
+                const { on, failure } = await toggleReminder({
                   scheduleId: nextDep.schedule.id,
                   lineCode: nextDep.schedule.code,
                   origin: nextDep.origin,
@@ -555,8 +554,8 @@ export default function LineDetailScreen() {
                   departTime: nextDep.departTime,
                   secondsUntilDeparture: nextDep.remaining,
                 })
-                if (denied) {
-                  Alert.alert('Reminder not set', `Enable notifications for Troski, or pick a departure more than ${REMINDER_LEAD_MINUTES} minutes away.`)
+                if (failure) {
+                  showReminderFailureAlert(failure)
                 } else if (on) {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                 }

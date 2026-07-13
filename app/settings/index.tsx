@@ -153,7 +153,28 @@ export default function SettingsScreen() {
               </View>
               <Switch
                 value={prefs.pushNotifications}
-                onValueChange={(v) => updatePref('pushNotifications', v)}
+                onValueChange={async (v) => {
+                  updatePref('pushNotifications', v)
+                  if (!v) return
+                  // The pref alone can't deliver anything — the OS permission
+                  // is the real gate. Request it here so the toggle is honest.
+                  const Notifications = await import('expo-notifications')
+                  const { status } = await Notifications.getPermissionsAsync()
+                  const final =
+                    status === 'granted'
+                      ? status
+                      : (await Notifications.requestPermissionsAsync()).status
+                  if (final !== 'granted') {
+                    Alert.alert(
+                      'Notifications are off in Settings',
+                      'Your phone is blocking Troski notifications. Turn them on in system Settings to receive alerts.',
+                      [
+                        { text: 'Not now', style: 'cancel' },
+                        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                      ],
+                    )
+                  }
+                }}
                 trackColor={{ false: isDark ? c.stone700 : c.stone300, true: c.amber500 }}
                 thumbColor={c.white}
               />
