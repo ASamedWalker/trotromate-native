@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Zap,
   Bell,
+  Info,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
@@ -38,6 +39,7 @@ import { timeAgo } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
 import { computeLineDeparture } from '@/app/train/index'
+import { LINE_STATUS } from '@/lib/constants/train-network'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
@@ -72,7 +74,7 @@ const LINE_META: Record<string, { heroTitle: string; heroDesc: string }> = {
   },
   TMP: {
     heroTitle: 'Tema – Mpakadan',
-    heroDesc: 'Inter-regional service through the Eastern Corridor connecting Tema Port to Mpakadan via Koforidua.',
+    heroDesc: 'New 96.7 km standard-gauge line connecting Tema Port to Mpakadan (near Akosombo) via Shai Hills and Kpong. Commercial service since October 2025.',
   },
   STK: {
     heroTitle: 'Sekondi – Takoradi',
@@ -366,6 +368,27 @@ export default function LineDetailScreen() {
             )}
           </View>
         </Animated.View>
+
+        {/* ─── Line Facts ────────────────────────────────── */}
+        {line.code && LINE_STATUS[line.code] && (
+          <View style={s.sectionWrap}>
+            <View style={s.factsCard}>
+              <View style={s.factsHeader}>
+                <Info size={18} color="#0891b2" />
+                <Text style={s.factsHeaderTitle}>Facts</Text>
+              </View>
+              <Text style={s.factsStatusNote}>{LINE_STATUS[line.code].statusNote}</Text>
+              <View style={{ gap: 8, marginTop: 8 }}>
+                {LINE_STATUS[line.code].facts.map((fact) => (
+                  <View key={fact} style={s.factRow}>
+                    <View style={s.factDot} />
+                    <Text style={s.factText}>{fact}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ─── Official Timetable ───────────────────────── */}
         {line.code && TRAIN_SCHEDULES[line.code] && (
@@ -792,6 +815,49 @@ const getStyles = (isDark: boolean) => {
       fontFamily: font.medium,
       fontSize: 12,
       color: onSurfaceVariant,
+    },
+
+    // ── Line Facts ──
+    factsCard: {
+      backgroundColor: surfaceLow,
+      borderRadius: 24,
+      padding: 20,
+    },
+    factsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    factsHeaderTitle: {
+      fontSize: 17,
+      fontFamily: font.bold,
+      color: onSurface,
+    },
+    factsStatusNote: {
+      fontSize: 13,
+      fontFamily: font.medium,
+      color: '#0891b2',
+      marginBottom: 4,
+    },
+    factRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    factDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: onSurfaceVariant,
+      marginTop: 7,
+    },
+    factText: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      lineHeight: 19,
     },
 
     // ── Schedule Accordion ──

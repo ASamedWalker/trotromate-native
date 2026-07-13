@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   Alert,
+  Linking,
   Animated as RNAnimated,
   Easing,
   type DimensionValue,
@@ -25,6 +26,8 @@ import {
   ShieldCheck,
   Bell,
   BellRing,
+  Newspaper,
+  Info,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
@@ -37,6 +40,7 @@ import { REMINDER_LEAD_MINUTES } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
+import { RAIL_NEWS, HOW_TO_RIDE } from '@/lib/constants/train-network'
 import type { TrainLineWithStats } from '@/lib/types'
 
 // ─── Schedule helpers ────────────────────────────────────
@@ -721,6 +725,49 @@ export default function TrainLinesScreen() {
           )}
         </Animated.View>
 
+        {/* ─── Rail Network Updates ────────────────────── */}
+        <View style={s.newsSection}>
+          <View style={s.newsHeader}>
+            <Newspaper size={18} color="#0891b2" />
+            <Text style={s.newsHeaderTitle}>Rail network updates</Text>
+          </View>
+
+          <View style={{ gap: 12 }}>
+            {RAIL_NEWS.map((item) => (
+              <TouchableOpacity
+                key={item.url + item.date}
+                onPress={() => Linking.openURL(item.url)}
+                activeOpacity={0.85}
+                style={s.newsCard}
+              >
+                <View style={s.newsDateChip}>
+                  <Text style={s.newsDateText}>{item.date}</Text>
+                </View>
+                <Text style={s.newsTitle}>{item.title}</Text>
+                <Text style={s.newsBody}>{item.body}</Text>
+                <Text style={s.newsSource}>{item.source}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ─── How to Ride ──────────────────────────────── */}
+        <View style={s.rideSection}>
+          <View style={s.newsHeader}>
+            <Info size={18} color="#815100" />
+            <Text style={s.newsHeaderTitle}>How to ride</Text>
+          </View>
+
+          <View style={{ gap: 12 }}>
+            {HOW_TO_RIDE.map((tip) => (
+              <View key={tip.title} style={s.rideCard}>
+                <Text style={s.rideCardTitle}>{tip.title}</Text>
+                <Text style={s.rideCardText}>{tip.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* ─── Authority Bulletins ─────────────────────── */}
         <View style={s.bulletinSection}>
           <View style={s.bulletinHeader}>
@@ -1256,6 +1303,86 @@ const getStyles = (isDark: boolean) => {
       height: 3,
       borderRadius: 1.5,
       backgroundColor: 'rgba(255,255,255,0.4)',
+    },
+
+    // ── Rail Network Updates ──
+    newsSection: {
+      paddingHorizontal: 20,
+      paddingTop: 32,
+    },
+    newsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16,
+    },
+    newsHeaderTitle: {
+      fontSize: 20,
+      fontFamily: font.bold,
+      color: onSurface,
+      letterSpacing: -0.3,
+    },
+    newsCard: {
+      backgroundColor: surfaceLowest,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: outlineVariant,
+    },
+    newsDateChip: {
+      alignSelf: 'flex-start',
+      backgroundColor: surfaceLow,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    newsDateText: {
+      fontSize: 10,
+      fontFamily: font.bold,
+      color: onSurfaceVariant,
+      letterSpacing: 0.5,
+    },
+    newsTitle: {
+      fontSize: 15,
+      fontFamily: font.bold,
+      color: onSurface,
+      marginBottom: 4,
+    },
+    newsBody: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      lineHeight: 19,
+      marginBottom: 8,
+    },
+    newsSource: {
+      fontSize: 11,
+      fontFamily: font.semibold,
+      color: '#0891b2',
+    },
+
+    // ── How to Ride ──
+    rideSection: {
+      paddingHorizontal: 20,
+      paddingTop: 32,
+    },
+    rideCard: {
+      backgroundColor: surfaceLow,
+      borderRadius: 16,
+      padding: 16,
+    },
+    rideCardTitle: {
+      fontSize: 14,
+      fontFamily: font.bold,
+      color: onSurface,
+      marginBottom: 4,
+    },
+    rideCardText: {
+      fontSize: 13,
+      fontFamily: font.regular,
+      color: onSurfaceVariant,
+      lineHeight: 19,
     },
 
     // ── Authority Bulletins ──
