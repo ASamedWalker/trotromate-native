@@ -199,10 +199,15 @@ All transparent bg, ~1254px source, rendered at 48-68px.
 - **NEVER** nest `@gorhom/bottom-sheet` inside another BottomSheet
 
 ## Deployment
-- OTA on Windows: deploy iOS and Android SEPARATELY (`--platform ios` then `--platform android`)
+- OTA: ALWAYS deploy iOS and Android SEPARATELY (`--platform ios` then `--platform android`).
+  `--platform all` triggers a web export that executes the Supabase client in Node and
+  dies with `ReferenceError: window is not defined` (seen on macOS too, 2026-07).
 - Use `CI=1` env var for eas-cli
 - ALWAYS preview first, NEVER production unless explicitly told
-- Android PROD = runtimeVersion 1.1.0, everything else = 1.1.1
+- Runtime versions (policy = appVersion; verified 2026-07-16): preview = 1.1.2 (both
+  platforms), production iOS = 1.1.3, production Android = 1.1.2. Config version is
+  1.1.2 — an OTA published now will NOT reach the prod iOS build (1.1.3); bump
+  `version` in app.config.js to 1.1.3 first if targeting prod iOS.
 
 ## Quality Standards
 - Research before coding (Golden Standard rule #1)
