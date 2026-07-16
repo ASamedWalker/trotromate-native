@@ -9,10 +9,9 @@ export default function OfflineBanner() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const { isOnline, pendingReports } = useApp()
+  const s = useMemo(() => getStyles(isDark), [isDark])
 
   if (isOnline && pendingReports === 0) return null
-
-  const s = useMemo(() => getStyles(isDark), [isDark])
 
   if (!isOnline) {
     return (

@@ -409,62 +409,7 @@ export default function TripScreen() {
     }
   }, [completedTrip, deviceId, refreshProfile, setLastReward, finishToArrival])
 
-  // Still fetching route data — show loading spinner
-  const isStillLoading = (!route && !isTrain && routeLoading) || (!line && isTrain)
-
-  if (isStillLoading) {
-    return (
-      <SafeAreaView style={s.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <ActivityIndicator size="large" color={c.amber500} />
-          <Text style={s.loadingText}>Loading route...</Text>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  // Route fetch finished but nothing found — bad routeId or stale trip
-  if (!route && !line) {
-    return (
-      <SafeAreaView style={s.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <Text style={s.loadingText}>Route not found</Text>
-          <TouchableOpacity
-            onPress={() => { if (deviceId) endTrip(deviceId); router.back() }}
-            activeOpacity={0.7}
-            style={{ backgroundColor: '#ef4444', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-          >
-            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>End Trip & Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  // Route loaded but station coordinates couldn't be resolved — GO needs geometry
-  if (!tripStations && ((isTrain && line) || (!isTrain && route))) {
-    return (
-      <SafeAreaView style={s.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <Navigation size={40} color={c.amber500} />
-          <Text style={[s.loadingText, { marginTop: 0, fontSize: 16 }]}>
-            GO Mode isn't available for this route yet
-          </Text>
-          <Text style={[s.loadingText, { marginTop: 0, fontSize: 13 }]}>
-            We're still mapping station coordinates for {routeLabel || 'this route'}.
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            style={{ backgroundColor: c.amber500, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-          >
-            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
+  // ── All hooks below must run on EVERY render (before any early return) ──
   const dest = tripStations?.find((s) => s.isDestination)
   const origin = tripStations?.find((s) => s.isOrigin)
   const isActive = tripState === 'active' || tripState === 'approaching'
@@ -712,6 +657,63 @@ export default function TripScreen() {
       },
     }
   }, [isActive, isNearRoute, userLocation?.latitude, userLocation?.longitude, userLocation?.heading, effectiveProgress, tripStations, isTrain, route?.transport_type])
+
+  // Still fetching route data — show loading spinner
+  const isStillLoading = (!route && !isTrain && routeLoading) || (!line && isTrain)
+
+  if (isStillLoading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
+          <ActivityIndicator size="large" color={c.amber500} />
+          <Text style={s.loadingText}>Loading route...</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Route fetch finished but nothing found — bad routeId or stale trip
+  if (!route && !line) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
+          <Text style={s.loadingText}>Route not found</Text>
+          <TouchableOpacity
+            onPress={() => { if (deviceId) endTrip(deviceId); router.back() }}
+            activeOpacity={0.7}
+            style={{ backgroundColor: '#ef4444', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>End Trip & Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Route loaded but station coordinates couldn't be resolved — GO needs geometry
+  if (!tripStations && ((isTrain && line) || (!isTrain && route))) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
+          <Navigation size={40} color={c.amber500} />
+          <Text style={[s.loadingText, { marginTop: 0, fontSize: 16 }]}>
+            GO Mode isn't available for this route yet
+          </Text>
+          <Text style={[s.loadingText, { marginTop: 0, fontSize: 13 }]}>
+            We're still mapping station coordinates for {routeLabel || 'this route'}.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            style={{ backgroundColor: c.amber500, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
 
   /* ── Shared fare modal (used by both trotro and train) ── */
   const renderFareModal = () => (
