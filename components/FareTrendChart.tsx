@@ -241,8 +241,8 @@ export function FareTrendChart({
     const latestAvg = data?.[data.length - 1]?.avg_fare
     const name = routeName || 'this route'
     const message = latestAvg != null
-      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg (Official: ${formatGHS(officialFare)}) based on ${totalReports} community reports. Track real fares on Troski! https://troski.app`
-      : `Track real trotro fares on Troski! https://troski.app`
+      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg (Official: ${formatGHS(officialFare)}) based on ${totalReports} community reports. Track real fares on Troski! https://www.troski.me`
+      : `Track real trotro fares on Troski! https://www.troski.me`
     try {
       await Share.share({ message, title: 'Troski Fare Trend' })
     } catch (e) { console.warn("[troski] silent error:", e) }

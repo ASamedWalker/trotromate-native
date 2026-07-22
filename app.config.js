@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "Troski",
     slug: "troski",
-    version: "1.1.2",
+    version: "1.1.4",
     description: "Know your trotro fare, beat the queue. Community-powered transit updates for Ghana.",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -73,7 +73,7 @@ export default {
       [
         "expo-notifications",
         {
-          icon: "./assets/images/icon.png",
+          icon: "./assets/images/notification-icon.png",
           color: "#f59e0b",
         },
       ],
@@ -94,6 +94,12 @@ export default {
       ["voltra", { widgetName: "TroskiTripActivity", deploymentTarget: "16.2" }],
       ...(process.platform === "win32" ? [] : [["@bacons/apple-targets", { appleTeamId: "6NVKXYM5TK" }]]),
       "expo-video",
+      [
+        "expo-local-authentication",
+        {
+          faceIDPermission: "Troski uses Face ID to unlock your wallet quickly and securely.",
+        },
+      ],
       [
         "expo-location",
         {

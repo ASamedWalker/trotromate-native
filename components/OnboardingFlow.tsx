@@ -19,8 +19,8 @@ import { font } from '@/lib/theme'
 const { width, height: SCREEN_H } = Dimensions.get('window')
 const BRAND = '#FF4D1C'
 const BRAND_DEEP = '#E94817'
-const TERMS_URL = 'https://troski.app/terms'
-const PRIVACY_URL = 'https://troski.app/privacy'
+const TERMS_URL = 'https://www.troski.me/terms'
+const PRIVACY_URL = 'https://www.troski.me/privacy'
 
 // ─── Slides (3 benefit slides — Material "Top User Benefits", one per card.
 //     Brand intro lives on the splash; carousel leads straight with value.) ──

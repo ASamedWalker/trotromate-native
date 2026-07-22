@@ -95,7 +95,7 @@ export default function TermsScreen() {
           <Text style={s.sectionTitle}>12. Contact</Text>
           <Text style={s.body}>
             For questions about these terms:{'\n\n'}
-            Email: support@troski.app{'\n'}
+            Email: support@troski.me{'\n'}
             Location: Accra, Ghana
           </Text>
 
