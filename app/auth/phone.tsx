@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { ArrowLeft } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 
 const BRAND = '#FF4D1C'
@@ -48,6 +49,18 @@ export default function PhoneAuthScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+
+          {/* Back — screen is replace-mounted from onboarding, so history can be
+              empty; fall back to guest home instead of trapping the user here */}
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
+            hitSlop={12}
+            style={s.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <ArrowLeft size={20} color="#0A0A0A" />
+          </Pressable>
 
           {/* Logo + Brand */}
           <Animated.View entering={FadeInDown.duration(300)} style={s.brandWrap}>
@@ -112,6 +125,7 @@ export default function PhoneAuthScreen() {
 }
 
 const s = StyleSheet.create({
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginTop: 8, marginLeft: 20 },
   container: { flex: 1, backgroundColor: '#fff' },
 
   // Brand hero

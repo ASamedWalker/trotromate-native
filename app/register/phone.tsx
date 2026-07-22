@@ -52,7 +52,14 @@ export default function RegisterPhone() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
-            <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+            {/* This screen is reached via router.replace from onboarding, so the
+                history can be empty — fall back to guest home instead of a dead
+                back button */}
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
+              hitSlop={12}
+              style={s.backBtn}
+            >
               <ArrowLeft size={20} color="#0A0A0A" />
             </Pressable>
             <StepIndicator current={1} total={4} />
