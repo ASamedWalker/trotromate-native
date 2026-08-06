@@ -34,9 +34,10 @@ import { font } from '@/lib/theme'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
-import { timeAgo } from '@/lib/utils/time'
+import { timeAgo, getGhanaTime } from '@/lib/utils/time'
+import { parseTimeToMinutes } from '@/lib/utils/train'
 import { formatGHS } from '@/lib/utils/currency'
-import { TRAIN_SCHEDULES } from '@/lib/constants/train-schedule'
+import { TRAIN_SCHEDULES, TMP_ZONE_FARES, SCHEDULE_VERIFIED } from '@/lib/constants/train-schedule'
 import { computeLineDeparture } from '@/app/train/index'
 import { LINE_STATUS } from '@/lib/constants/train-network'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
@@ -172,7 +173,7 @@ export default function LineDetailScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.stationName}>{stop.name}</Text>
               <Text style={s.stationSub}>
-                {isFirst ? `Platform 1 • Departs ${displayTime || '—'}` :
+                {isFirst ? `Departs ${displayTime || '—'}` :
                  isLast ? `Terminating • Arrives ${displayTime || '—'}` :
                  `Arrives ${displayTime || '—'}`}
               </Text>
@@ -360,11 +361,26 @@ export default function LineDetailScreen() {
             {line.official_fare && (
               <View style={s.fareStrip}>
                 <GRDABadge size="small" />
-                <Text style={s.farePrice}>{formatGHS(line.official_fare)}</Text>
+                <Text style={s.farePrice}>
+                  {line.code === 'TMP' ? `${formatGHS(15)} – ${formatGHS(40)}` : formatGHS(line.official_fare)}
+                </Text>
                 <View style={{ flex: 1 }} />
                 <Text style={s.fareStations}>{timelineStops.length} stations</Text>
               </View>
             )}
+            {line.code === 'TMP' && (
+              <View style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 6 }}>
+                {TMP_ZONE_FARES.map((z) => (
+                  <View key={z.fare} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={s.fareStations}>{z.from} → {z.to}</Text>
+                    <Text style={[s.fareStations, { fontFamily: font.semibold }]}>{formatGHS(z.fare)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text style={[s.fareStations, { textAlign: 'center', paddingBottom: 10 }]}>
+              Schedule verified {SCHEDULE_VERIFIED} · Confirm at the station
+            </Text>
           </View>
         </Animated.View>
 
@@ -527,7 +543,28 @@ export default function LineDetailScreen() {
           departure reminder, not a trip/booking. Shown only when there's an
           upcoming departure to remind about. */}
       {(() => {
-        const nextDep = line.code ? computeLineDeparture(line.code, TRAIN_SCHEDULES[line.code] || []) : null
+        let nextDep = line.code ? computeLineDeparture(line.code, TRAIN_SCHEDULES[line.code] || []) : null
+        // While a run is in transit the LATER run today is still remindable —
+        // "No more departures today" was a lie every weekday morning.
+        if (nextDep && nextDep.type === 'in-transit' && line.code) {
+          const ghana = getGhanaTime()
+          const nowMins = ghana.hours * 60 + ghana.minutes
+          const later = (TRAIN_SCHEDULES[line.code] || [])
+            .filter((sc) => parseTimeToMinutes(sc.stops[0].depart!) > nowMins)
+            .sort((a, b) => parseTimeToMinutes(a.stops[0].depart!) - parseTimeToMinutes(b.stops[0].depart!))[0]
+          if (later) {
+            const depMins = parseTimeToMinutes(later.stops[0].depart!)
+            nextDep = {
+              type: 'waiting',
+              lineCode: line.code,
+              schedule: later,
+              remaining: (depMins - nowMins) * 60 - ghana.seconds,
+              origin: later.stops[0].station,
+              destination: later.stops[later.stops.length - 1].station,
+              departTime: later.stops[0].depart!,
+            }
+          }
+        }
         if (!nextDep || nextDep.type !== 'waiting') {
           return (
             <View style={s.goModeWrap}>

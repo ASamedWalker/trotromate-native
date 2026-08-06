@@ -148,9 +148,20 @@ export function computeLineDeparture(
     }
   }
 
+  // Today's runs are done — count down to the NEXT SERVICE DAY, not blindly to
+  // tomorrow: Saturday night must roll to Monday (Sunday has no service), and
+  // weekday-only lines must skip Saturday too. Otherwise the board (and the
+  // reminder button armed from it) targets a phantom Sunday train.
   const first = sorted[0]
   const firstDepart = parseTimeToMinutes(first.stops[0].depart!)
-  const remaining = (24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
+  const serviceMax = hasWeekdayOnly ? 5 : 6 // last weekday with service (Fri or Sat)
+  let daysAhead = 1
+  let d = (day + 1) % 7
+  while (d === 0 || d > serviceMax) {
+    daysAhead++
+    d = (d + 1) % 7
+  }
+  const remaining = (daysAhead * 24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
   return {
     type: 'waiting',
     lineCode,
@@ -159,7 +170,7 @@ export function computeLineDeparture(
     origin: first.stops[0].station,
     destination: first.stops[first.stops.length - 1].station,
     departTime: first.stops[0].depart!,
-    tomorrow: true,
+    tomorrow: daysAhead === 1,
   }
 }
 
@@ -357,7 +368,7 @@ export default function TrainLinesScreen() {
               <View style={s.lineStat}>
                 <Text style={s.lineStatLabel}>OFFICIAL FARE</Text>
                 <Text style={s.lineStatValue}>
-                  {meta.fareRange != null ? formatGHS(meta.fareRange) : '—'}
+                  {item.code === 'TMP' ? `${formatGHS(15)} – ${formatGHS(40)}` : meta.fareRange != null ? formatGHS(meta.fareRange) : '—'}
                 </Text>
               </View>
               <View style={s.lineStatDivider} />
@@ -477,7 +488,7 @@ export default function TrainLinesScreen() {
         {/* ─── Hero Section ──────────────────────────────── */}
         <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.hero}>
           <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
-          <HeroText size={36} weight="displayHeavy" style={s.heroTitle}>Train Index</HeroText>
+          <HeroText size={36} weight="displayHeavy" style={s.heroTitle}>Trains</HeroText>
         </Animated.View>
 
         {/* ─── Departure Board ─────────────────────────── */}

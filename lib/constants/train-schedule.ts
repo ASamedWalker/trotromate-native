@@ -25,6 +25,19 @@ export interface TrainSchedule {
 // Morning: Community 1 → Accra Central (S112)
 // Evening: Accra Central → Community 1 (S117)
 
+
+// ─── Freshness + zone fares ────────────────────────────────
+// Bump SCHEDULE_VERIFIED whenever times/fares are re-checked against GRDA/GRCL.
+export const SCHEDULE_VERIFIED = '2026-08-06'
+
+// Tema–Mpakadan is zone-priced (GRDA official) — flat `fare: 40` is the
+// full-trip price only. Zones per GRDA announcements Oct 2025.
+export const TMP_ZONE_FARES = [
+  { from: 'Tema', to: 'Afienya', fare: 15 },
+  { from: 'Afienya', to: 'Adome', fare: 25 },
+  { from: 'Tema', to: 'Mpakadan (full trip)', fare: 40 },
+] as const
+
 export const TRAIN_SCHEDULES: Record<string, TrainSchedule[]> = {
   TMA: [
     {
