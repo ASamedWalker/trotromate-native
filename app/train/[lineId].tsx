@@ -422,7 +422,7 @@ export default function LineDetailScreen() {
                   >
                     <View style={s.schedHeaderLeft}>
                       <Clock size={18} color="#815100" />
-                      <Text style={s.schedHeaderTitle}>Official Timetable</Text>
+                      <Text style={s.schedHeaderTitle}>To {sched.stops[sched.stops.length - 1].station}</Text>
                     </View>
                     <View style={s.schedHeaderRight}>
                       <View style={[s.schedDirPill, { backgroundColor: `${dirColor}15` }]}>

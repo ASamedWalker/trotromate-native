@@ -5,6 +5,7 @@
 export interface NetworkBulletin { tag: "SERVICE UPDATE" | "NETWORK UPDATE" | "NOTICE"; date: string; text: string }
 
 export const NETWORK_BULLETINS: NetworkBulletin[] = [
+  { tag: "SERVICE UPDATE", date: "2026-07-30", text: "A Tema–Mpakadan passenger train struck livestock on the track on 30 July 2026; no passengers were hurt, but train DMU002 is undergoing repairs — some services may run with reduced capacity. Confirm departures at the station." },
   { tag: "SERVICE UPDATE", date: "2026-04-24", text: "Passenger service on the 15 km Kojokrom–Sekondi–Takoradi commuter line resumed in April 2026 after rehabilitation." },
   { tag: "SERVICE UPDATE", date: "2025-10-01", text: "The new 96.7 km standard-gauge Tema–Mpakadan line began commercial passenger service in October 2025, running between Tema Port and Mpakadan, near Akosombo." },
   { tag: "NETWORK UPDATE", date: "2025-09-01", text: "A new standard-gauge railway from Nsawam through Kumasi to Paga has been announced as part of Ghana's national rail expansion." },

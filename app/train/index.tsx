@@ -373,6 +373,18 @@ export default function TrainLinesScreen() {
               </View>
               <View style={s.lineStatDivider} />
               <View style={s.lineStat}>
+                <Text style={s.lineStatLabel}>JOURNEY</Text>
+                <Text style={s.lineStatValue}>
+                  {(() => {
+                    const st = TRAIN_SCHEDULES[item.code]?.[0]?.stops
+                    if (!st?.length || !st[0].depart || !st[st.length - 1].arrive) return '—'
+                    const mins = parseTimeToMinutes(st[st.length - 1].arrive!) - parseTimeToMinutes(st[0].depart!)
+                    return `~${Math.floor(mins / 60)}h ${mins % 60}m`
+                  })()}
+                </Text>
+              </View>
+              <View style={s.lineStatDivider} />
+              <View style={s.lineStat}>
                 <Text style={s.lineStatLabel}>STATUS</Text>
                 <View style={s.occupancyRow}>
                   <View style={[s.occupancyDot, {
@@ -754,15 +766,23 @@ export default function TrainLinesScreen() {
             <Text style={s.bulletinTitle}>Authority Bulletins</Text>
           </View>
 
-          {NETWORK_BULLETINS.slice(0, 2).map((b) => {
-            const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
-            return (
-              <View key={b.text} style={[s.bulletinCard, { borderLeftColor: color }]}>
-                <Text style={[s.bulletinType, { color }]}>{b.tag}</Text>
-                <Text style={s.bulletinText}>{b.text}</Text>
-              </View>
-            )
-          })}
+          {(() => {
+            // Two newest bulletins by date + the NOTICE disclaimer always pinned
+            // last (it is the honesty statement about this whole screen).
+            const sorted = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
+            const notice = sorted.find((b) => b.tag === 'NOTICE')
+            const news = sorted.filter((b) => b.tag !== 'NOTICE').slice(0, 2)
+            const shown = notice ? [...news, notice] : news
+            return shown.map((b) => {
+              const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
+              return (
+                <View key={b.text} style={[s.bulletinCard, { borderLeftColor: color }]}>
+                  <Text style={[s.bulletinType, { color }]}>{b.tag} · {b.date}</Text>
+                  <Text style={s.bulletinText}>{b.text}</Text>
+                </View>
+              )
+            })
+          })()}
         </View>
 
         {/* Daily Commuter Tip — train-focused */}
