@@ -12,7 +12,23 @@
 >     fare_report w/ stops + segment_fares(0,3) report_count 0→1, avg 5.00).
 >   - ✅ Planner stage-awareness — DONE + tested (Circle→Dome → corridor, ₵5.50,
 >     pre-selects Dome on detail). + fare source badge (official/estimate).
->   - GO Mode: read the booking's chosen drop-off (unify, don't re-ask) — NEXT
+>   - ⛔ GO Mode: read the booking's chosen drop-off — **CANCELLED, DO NOT REBUILD**
+>     (owner re-confirmed 2026-08-12 after a side-by-side sim demo).
+>
+>     **WHY (owner, the reason that kept getting lost):** most passengers will NOT
+>     burn their data bundle to watch a bus move on Troski. Ghana is an Android-heavy
+>     market and those riders already have Google Maps on the phone — it does live
+>     movement better and they're already paying for it. Troski's job is the thing
+>     Google Maps CANNOT do (fares, routes, trotro knowledge), not competing on live
+>     map tracking. Pulling GO Mode into the booking flow pushes a data-expensive
+>     feature at the exact moment the rider just paid — wrong trade for them.
+>
+>     History: built as `a4cbe83`, reverted same day as `24e561c`. A pre-seed-only
+>     version was rebuilt from this doc's stale "NEXT" line on 2026-08-12, demoed on
+>     the sim, and removed again. Booking → `/booking/track`; GO Mode →
+>     `/trip/[routeId]` (rider-opt-in, from train search / train line page / push).
+>     Related: `e851b9a` removed the "Start GO Mode" CTA from route pages (CLAUDE.md),
+>     `b4dca26` removed the receipt "Keep track of your ride?" card.
 >   - Optional board picker on detail (mid-route boarders)
 >   - Step 5: national %-reprice — DB fn `reprice_segment_fares()` ready (ops-only,
 >     run on a GPRTU change); app shows effective fare. No app UI needed.

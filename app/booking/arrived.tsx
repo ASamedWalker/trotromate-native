@@ -18,6 +18,8 @@ import { submitDriverRating } from '@/lib/services/driver-ratings'
 
 const BRAND = '#FF4D1C'
 const TAGS = ['On time', 'Friendly', 'Fast', 'Professional']
+/** Hard cap on how long Done waits for the rating submit before dismissing. */
+const SAVE_TIMEOUT_MS = 2500
 
 export default function ArrivedScreen() {
   const router = useRouter()
@@ -45,35 +47,54 @@ export default function ArrivedScreen() {
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState<string[]>([])
   const [comment, setComment] = useState('')
+  const [savingRating, setSavingRating] = useState(false)
 
   const toggleTag = (t: string) => {
     Haptics.selectionAsync()
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
 
-  const handleDone = () => {
+  const handleDone = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    // Fire-and-forget: never hold the user on the celebration screen
-    if (rating > 0 && deviceId) {
-      submitRideRating({
-        rating,
-        tags,
-        deviceId,
-        routeId: params.routeId || params.route_id || null,
-        tripType: isGoTrip ? 'go' : 'booking',
-      }).catch(() => {})
-      // Booking trips also rate the DRIVER (with the rider's comment).
-      if (!isGoTrip && driver?.driverId) {
-        const body = [comment.trim(), tags.join(', ')].filter(Boolean).join(comment.trim() ? ' — ' : '')
-        submitDriverRating({
-          driverId: driver.driverId,
-          vanId: driver.vanId,
-          routeLabel: params.from && params.to ? `${params.from} → ${params.to}` : null,
+    // Feedback must land WHILE this screen is still up — a global Alert fired
+    // after dismissAll() pops on an unrelated screen. So show "Saving…" here,
+    // capped at SAVE_TIMEOUT_MS so a slow network can never trap the user.
+    if (rating > 0 && deviceId && !savingRating) {
+      setSavingRating(true)
+      const submits = (async () => {
+        const ratingOk = await submitRideRating({
+          rating,
+          tags,
           deviceId,
-          stars: rating,
-          comment: body || null,
-        }).catch(() => {})
-      }
+          routeId: params.routeId || params.route_id || null,
+          tripType: isGoTrip ? 'go' : 'booking',
+        }).catch(() => false)
+
+        // Booking trips also rate the DRIVER (with the rider's comment).
+        let driverOk = true
+        if (!isGoTrip && driver?.driverId) {
+          const body = [comment.trim(), tags.join(', ')].filter(Boolean).join(comment.trim() ? ' — ' : '')
+          driverOk = await submitDriverRating({
+            driverId: driver.driverId,
+            vanId: driver.vanId,
+            routeLabel: params.from && params.to ? `${params.from} → ${params.to}` : null,
+            deviceId,
+            stars: rating,
+            comment: body || null,
+          }).then(() => true).catch(() => false)
+        }
+
+        return ratingOk && driverOk
+      })()
+
+      // submitRideRating queues when offline, so this resolves fast in the
+      // normal case; the timeout only covers a hanging request.
+      const ok = await Promise.race([
+        submits.catch(() => false),
+        new Promise<boolean>((res) => setTimeout(() => res(false), SAVE_TIMEOUT_MS)),
+      ])
+      setSavingRating(false)
+      if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     }
     router.dismissAll()
   }
@@ -192,9 +213,10 @@ export default function ArrivedScreen() {
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={handleDone}
-          style={s.doneBtn}
+          disabled={savingRating}
+          style={[s.doneBtn, savingRating && { opacity: 0.6 }]}
         >
-          <Text style={s.doneText}>Done</Text>
+          <Text style={s.doneText}>{savingRating ? 'Saving…' : 'Done'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

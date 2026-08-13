@@ -23,14 +23,16 @@ steps, and the files to touch.
   5. `scan/index.tsx`: swap the `ScanFrame` placeholder for `CameraView` + `onBarcodeScanned` → `/scan/confirm?code=`. Add `NSCameraUsageDescription`. Native rebuild `CI=1 npx expo run:ios`.
 - **Files**: `app/scan/{index,confirm,pin}.tsx`, backend repo.
 
-### Ride rating — silently lost (no offline queue + migration unrun)
-- **Gate**: run `lib/supabase/migrations/051_ride_ratings.sql` in Supabase SQL editor (anon key can't do DDL). Then add rating to the offline queue.
-- **Why P0**: `arrived.tsx` submits stars fire-and-forget with `.catch(()=>{})`. If the table is missing or the user is offline, the rating is gone with no feedback.
-- **Build order**:
-  1. Run migration `051` (creates `ride_ratings` + `route_rating_stats` view).
-  2. Add `'rating'` type to `QueuedReportType` in `lib/services/offline-queue.ts`; enqueue in `processQueue`.
-  3. `lib/services/ratings.ts`: NetInfo check before insert → enqueue when offline, return success-ish to UI; toast "Rating saved".
-- **Files**: backend migration, `lib/services/{ratings,offline-queue}.ts`, `app/booking/arrived.tsx`.
+### ~~Ride rating — silently lost~~ ✅ DONE (client + migration, 2026-08-12)
+- **Client work landed**: `'rating'` in `QueuedReportType` + a `processQueue` case;
+  `ratings.ts` split into `insertRideRatingDirect` (raw) + `submitRideRating`
+  (NetInfo check → enqueue when offline, enqueue on failure too); `arrived.tsx`
+  no longer fire-and-forget — Done shows "Saving…" (capped 2.5s) then dismisses.
+- **Migration `051_ride_ratings.sql` RUN by owner 2026-08-12** — `ride_ratings` +
+  `route_rating_stats` live. No gate left.
+- Note: the queue drops an item after `MAX_RETRIES` (5) failed syncs and
+  `processQueue` fires on every connectivity change — fine now the table exists,
+  but keep in mind for any future queue type that can fail persistently.
 
 ### W13 — Bank-transfer account numbers are placeholders
 - **Gate**: backend must issue real per-user virtual accounts + reconcile inbound transfers (GH₵0.25 charge, ~2 min reflect).
@@ -91,10 +93,12 @@ steps, and the files to touch.
 - **Build**: bell registers a watch (bus + stop) → backend push when near; reuse `usePushNotifications` + `lib/services/liveActivity.ts`. Persist toggle (AsyncStorage) so it survives close.
 - **Files**: `app/routes/detail.tsx`.
 
-### T1 + T3 — Train "On Time" hardcoded, Unsplash hero photos, static FlipDigit
-- **Gate**: live train telemetry (none today); Ghana rail imagery.
-- **Build**: (1) show "Scheduled" + report age instead of fake green "On Time"/"LIVE"; (2) animate `FlipDigit` (renders static Text today); (3) replace Unsplash heroes in `train/[lineId].tsx` with owned imagery + `onError` gradient fallback; (4) currency consistency through the GH₵ util.
-- **Files**: `app/train/{index,[lineId]}.tsx`.
+### ~~T1 + T3 — Train "On Time" hardcoded, Unsplash heroes, static FlipDigit~~ ✅ DONE
+Closed 2026-08-12 (audited, all 5 sub-items already shipped in the Aug 6 train pass):
+honest status copy; `FlipDigit` is animated (`train/index.tsx:200`, 260ms cubic
+fade+slide); all currency routes through `formatGHS` (`lib/utils/currency.ts:6`);
+Unsplash heroes replaced by LinearGradient + TrainFront icon
+(`train/[lineId].tsx:328`); timetables titled by destination; "Train Index" gone.
 
 ### Realtime subscriptions — notifications / activity / comments
 - **Gate**: backend Supabase realtime channels.
@@ -110,9 +114,12 @@ steps, and the files to touch.
 
 ## 🟢 P3 — Polish / scope decisions
 
-### W10 — Offline ticket QR empty-cache edge
-- If cache empty + no param → "No active ticket" even when backend has one. Fetch by id when param missing before falling back.
-- **Files**: `app/wallet/ticket.tsx`.
+### ~~W10 — Offline ticket QR empty-cache edge~~ ✅ DONE (2026-08-12)
+`wallet/ticket.tsx` keeps the cache as the instant offline-first path; on a cache
+miss it now fetches `fetchMyTickets(user.id)`, matches by `trip_code` (else the
+first **active** ticket — never a used/expired/cancelled one, which would render a
+dead QR as valid), writes back via `cacheActivePasses`, and only shows
+"No active ticket" after the fetch resolves empty. Network failure → empty state.
 
 ### RW4 — Referral count stale on pull-refresh
 - Count fetched once on mount; not re-fetched in `onRefresh`. Move fetch into a `useCallback` called from refresh.

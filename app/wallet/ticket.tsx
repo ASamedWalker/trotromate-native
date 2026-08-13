@@ -20,8 +20,9 @@ function brightnessMod(): any | null {
   } catch { return null }
 }
 import { formatGHS } from '@/lib/utils/currency'
-import { formatPassExpiry, type ActivePass } from '@/lib/services/tickets'
-import { getCachedPasses } from '@/lib/services/ticketCache'
+import { formatPassExpiry, fetchMyTickets, type ActivePass } from '@/lib/services/tickets'
+import { getCachedPasses, cacheActivePasses } from '@/lib/services/ticketCache'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 
 const BRAND = '#FF4D1C'
 
@@ -33,15 +34,48 @@ const BRAND = '#FF4D1C'
 export default function TicketScreen() {
   const router = useRouter()
   const { trip_code } = useLocalSearchParams<{ trip_code?: string }>()
+  const { user } = useAuthContext()
   const [pass, setPass] = useState<ActivePass | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getCachedPasses().then((passes) => {
-      setPass(passes.find((p) => p.trip_code === trip_code) ?? passes[0] ?? null)
+    let cancelled = false
+    setLoading(true)
+    getCachedPasses().then(async (passes) => {
+      const cached = passes.find((p) => p.trip_code === trip_code) ?? passes[0] ?? null
+      if (cached) {
+        // Cache hit — instant path, works offline. No network round-trip needed.
+        if (!cancelled) { setPass(cached); setLoading(false) }
+        return
+      }
+      // Cache miss — fall back to the backend before declaring "no ticket".
+      if (!user?.id) { if (!cancelled) { setPass(null); setLoading(false) }; return }
+      const tickets = await fetchMyTickets(user.id)
+      if (cancelled) return
+      // ONLY an active ticket is a boarding pass. Never surface a used/expired/
+      // cancelled one with the full "valid" QR UI — a rider could show it to a
+      // conductor. No active ticket → the empty state is the correct answer.
+      const candidates = tickets?.filter((t): t is typeof t & { status: ActivePass['status'] } => t.status === 'active') ?? []
+      const found = candidates.find((t) => t.trip_code === trip_code)
+        ?? candidates[0] ?? null
+      const matched: ActivePass | null = found ? {
+        trip_code: found.trip_code,
+        route_label: found.route_label,
+        van_plate: found.van_plate,
+        fare: found.fare,
+        currency: found.currency,
+        status: found.status,
+        expires_at: found.expires_at,
+      } : null
+      setPass(matched)
       setLoading(false)
+      if (matched) {
+        // Write back so the next offline open has it cached.
+        cacheActivePasses([matched, ...passes.filter((p) => p.trip_code !== matched.trip_code)])
+      }
     })
-  }, [trip_code])
+    return () => { cancelled = true }
+  }, [trip_code, user?.id])
 
   // Max brightness while the QR is shown (restored on leave) so it scans easily
   // in a dim trotro. Best-effort — needs a native build with expo-brightness.

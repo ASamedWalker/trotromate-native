@@ -5,11 +5,13 @@ import { submitTale } from './tales'
 import { awardPointsForReport, awardPointsForTrip } from './rewards'
 import { saveCompletedTripDirect } from './trips'
 import type { CompletedTripPayload } from './trips'
+import { insertRideRatingDirect } from './ratings'
+import type { RideRatingPayload } from './ratings'
 import type { ReportType } from '@/lib/types'
 
 const QUEUE_KEY = '@troski_offline_queue'
 
-export type QueuedReportType = 'fare' | 'queue' | 'incident' | 'tale' | 'trip'
+export type QueuedReportType = 'fare' | 'queue' | 'incident' | 'tale' | 'trip' | 'rating'
 
 const MAX_RETRIES = 5
 
@@ -121,11 +123,17 @@ export async function processQueue(): Promise<number> {
           reportId = tripId
           break
         }
+        case 'rating': {
+          const ratingPayload = item.payload as unknown as RideRatingPayload
+          const ok = await insertRideRatingDirect(ratingPayload)
+          reportId = ok ? item.id : null
+          break
+        }
       }
 
       if (reportId) {
-        // Award report points (skip for trips — already handled above)
-        if (item.type !== 'trip') {
+        // Award report points (skip for trips and ratings — no points for these)
+        if (item.type !== 'trip' && item.type !== 'rating') {
           await awardPointsForReport({
             deviceId: item.deviceId,
             reportType,
