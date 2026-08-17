@@ -12,10 +12,31 @@ import type { RouteStop } from '@/lib/types'
  * Safe before migration 052 is run: fetchSegmentFare degrades to null, so callers
  * fall through to interpolation/corridor.
  */
+/**
+ * Where a stored fare actually came from (the DB `source` column). Only 'gprtu'
+ * and 'station' are authoritative — a printed union chart. 'seed' is OUR manual
+ * placeholder, 'driver'/'crowd' are unverified.
+ */
+export type FareOrigin = 'gprtu' | 'station' | 'driver' | 'crowd' | 'seed'
+
+/** Origins we may call "official" to a rider. Nothing else earns the badge. */
+const AUTHORITATIVE: readonly FareOrigin[] = ['gprtu', 'station']
+
+/**
+ * A stored `official_fare` is NOT proof of an official fare — the column just
+ * means "an authoritative-shaped number lives here". Seeded demo rows carry one
+ * too. Trust requires BOTH an authoritative origin and the is_official flag.
+ */
+export function isAuthoritative(origin: FareOrigin | null, isOfficial: boolean | null): boolean {
+  return !!isOfficial && !!origin && AUTHORITATIVE.includes(origin)
+}
+
 export interface SegmentFare {
   fare: number
-  source: 'official' | 'reported' | 'interpolated' | 'corridor'
+  source: 'official' | 'reported' | 'unverified' | 'interpolated' | 'corridor'
   isOfficial: boolean
+  /** DB origin behind the number, so the UI can name it ("GPRTU"). */
+  origin?: FareOrigin | null
   reportCount: number
   effectiveDate?: string | null
 }
@@ -25,6 +46,7 @@ interface SegmentFareRow {
   avg_reported_fare: number | null
   report_count: number | null
   is_official: boolean | null
+  source: FareOrigin | null
   effective_date: string | null
 }
 
@@ -35,6 +57,7 @@ export interface RouteSegmentFare {
   avg_reported_fare: number | null
   report_count: number | null
   is_official: boolean | null
+  source: FareOrigin | null
   effective_date: string | null
 }
 
@@ -43,7 +66,7 @@ export async function fetchRouteSegmentFares(routeId: string): Promise<RouteSegm
   try {
     const { data, error } = await supabase
       .from('segment_fares')
-      .select('from_stop_order, to_stop_order, official_fare, avg_reported_fare, report_count, is_official, effective_date')
+      .select('from_stop_order, to_stop_order, official_fare, avg_reported_fare, report_count, is_official, source, effective_date')
       .eq('route_id', routeId)
     if (error) return []
     return (data as RouteSegmentFare[]) ?? []
@@ -59,10 +82,19 @@ export function resolveDropoffFareSync(
 ): SegmentFare {
   const row = segments.find((s) => s.from_stop_order === fromOrder && s.to_stop_order === toOrder)
   if (row?.official_fare != null) {
-    return { fare: Number(row.official_fare), source: 'official', isOfficial: true, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+    // The number is used either way — only the CLAIM about it depends on origin.
+    const trusted = isAuthoritative(row.source, row.is_official)
+    return {
+      fare: Number(row.official_fare),
+      source: trusted ? 'official' : 'unverified',
+      isOfficial: trusted,
+      origin: row.source,
+      reportCount: row.report_count ?? 0,
+      effectiveDate: row.effective_date,
+    }
   }
   if (row?.avg_reported_fare != null) {
-    return { fare: Number(row.avg_reported_fare), source: 'reported', isOfficial: false, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+    return { fare: Number(row.avg_reported_fare), source: 'reported', isOfficial: false, origin: row.source, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
   }
   const interp = interpolateFare(stops, fromOrder, toOrder, corridorFare)
   if (interp != null) return { fare: interp, source: 'interpolated', isOfficial: false, reportCount: 0 }
@@ -76,7 +108,7 @@ export async function fetchSegmentFare(
   try {
     const { data, error } = await supabase
       .from('segment_fares')
-      .select('official_fare, avg_reported_fare, report_count, is_official, effective_date')
+      .select('official_fare, avg_reported_fare, report_count, is_official, source, effective_date')
       .eq('route_id', routeId)
       .eq('from_stop_order', fromOrder)
       .eq('to_stop_order', toOrder)
@@ -119,10 +151,18 @@ export async function resolveDropoffFare(opts: {
 
   const row = await fetchSegmentFare(routeId, fromOrder, toOrder)
   if (row?.official_fare != null) {
-    return { fare: Number(row.official_fare), source: 'official', isOfficial: true, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+    const trusted = isAuthoritative(row.source, row.is_official)
+    return {
+      fare: Number(row.official_fare),
+      source: trusted ? 'official' : 'unverified',
+      isOfficial: trusted,
+      origin: row.source,
+      reportCount: row.report_count ?? 0,
+      effectiveDate: row.effective_date,
+    }
   }
   if (row?.avg_reported_fare != null) {
-    return { fare: Number(row.avg_reported_fare), source: 'reported', isOfficial: false, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
+    return { fare: Number(row.avg_reported_fare), source: 'reported', isOfficial: false, origin: row.source, reportCount: row.report_count ?? 0, effectiveDate: row.effective_date }
   }
 
   const interp = interpolateFare(stops, fromOrder, toOrder, corridorFare)

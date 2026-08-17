@@ -650,10 +650,15 @@ export default function RouteDetailScreen() {
               {dropoffName ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
+                  {/* "official" names its source — a rider can check a GPRTU or
+                      station chart. Only an authoritative origin earns the green
+                      badge; our own seeded numbers read as estimates. */}
                   {dropoffResult?.isOfficial ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
                       <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#10B981' }} />
-                      <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: '#059669' }}>official</Text>
+                      <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: '#059669' }}>
+                        {dropoffResult.origin === 'station' ? 'station chart' : 'GPRTU'}
+                      </Text>
                     </View>
                   ) : (
                     <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
