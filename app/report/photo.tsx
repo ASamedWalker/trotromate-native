@@ -37,7 +37,7 @@ const LOCATIONS = [
 
 export default function TrotroTalesPostScreen() {
   const router = useRouter()
-  const { mode } = useLocalSearchParams<{ mode?: string }>()
+  const { mode, location: locationParam } = useLocalSearchParams<{ mode?: string; location?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -59,7 +59,9 @@ export default function TrotroTalesPostScreen() {
 
   const [imageUris, setImageUris] = useState<string[]>([])
   const [caption, setCaption] = useState('')
-  const [location, setLocation] = useState('')
+  // Prefilled when the composer is opened from a route page, so the post is
+  // tagged with a place that matches the corridor it belongs to.
+  const [location, setLocation] = useState(locationParam ?? '')
   const [mediaType, setMediaType] = useState<TaleMediaType>(mode === 'text' ? 'text' : 'image')
   const [videoUri, setVideoUri] = useState<string | null>(null)
   const [videoThumbnailUri, setVideoThumbnailUri] = useState<string | null>(null)

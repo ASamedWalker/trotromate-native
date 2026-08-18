@@ -434,6 +434,7 @@ export async function submitTale(params: {
 export async function fetchPostsForRoute(
   placeNames: string[],
   limit = 3,
+  maxAgeDays = 30,
 ): Promise<TalePost[]> {
   const names = placeNames
     .map((n) => (n || '').trim())
@@ -446,12 +447,18 @@ export async function fetchPostsForRoute(
       .map((n) => `location_name.ilike.*${n.replace(/[,()*]/g, '')}*`)
       .join(',')
 
+    // Recency cap. A four-month-old post under a heading about what is
+    // happening on this route is a freshness claim we can't back — better to
+    // show nothing and invite a post than to dress up stale content as live.
+    const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString()
+
     const { data, error } = await supabase
       .from('tale_posts')
       .select('*')
       .or(filter)
       .eq('is_hidden', false)
       .neq('moderation_status', 'rejected')
+      .gt('created_at', cutoff)
       .order('created_at', { ascending: false })
       .limit(limit)
 

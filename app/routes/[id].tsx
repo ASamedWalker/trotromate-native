@@ -356,16 +356,49 @@ export default function RouteDetailScreen() {
             Pulse is the app's freshest data: what someone actually paid or saw,
             in their words, minutes ago. Surfacing it where the rider is already
             asking about this corridor beats leaving it in a separate feed. */}
-        {routePosts.length > 0 && (
+        {(
           <View style={s.pulseCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Text style={s.pulseHeading}>FROM RIDERS ON THIS ROUTE</Text>
-              <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8}>
-                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: c.amber600 }}>See all</Text>
-              </TouchableOpacity>
+              {routePosts.length > 0 && (
+                <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: c.amber600 }}>See all</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {routePosts.map((post, i) => (
+            {routePosts.length === 0 ? (
+              /* No recent post for this corridor. Dead space here would read as
+                 a broken feature; an invitation turns it into the contribution
+                 that fills it. The composer opens pre-tagged with this route's
+                 origin so the post lands back on this page. */
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push(
+                    `/report/photo?mode=text&location=${encodeURIComponent(route.from_location)}` as Href
+                  )
+                }
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}
+              >
+                <View style={{
+                  width: 38, height: 38, borderRadius: 19,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF4EF',
+                }}>
+                  <MapPin size={17} color={c.amber600} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: isDark ? '#e5e7eb' : '#292524' }}>
+                    Nothing shared here lately
+                  </Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 12, lineHeight: 17, color: isDark ? '#9ca3af' : '#78716c', marginTop: 2 }}>
+                    Riding {route.from_location} → {route.to_location}? Tell others what you paid or saw.
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: c.amber600 }}>Post</Text>
+              </TouchableOpacity>
+            ) : routePosts.map((post, i) => (
               <TouchableOpacity
                 key={post.id}
                 activeOpacity={0.7}
