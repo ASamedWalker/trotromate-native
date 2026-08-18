@@ -135,7 +135,9 @@ const styles = StyleSheet.create({
   },
   containerCompact: {
     gap: 4,
-    paddingHorizontal: 0,
+    // Match the card's content inset (captionWrap / commentLink use 14) so the
+    // first pill isn't sliced against the screen edge.
+    paddingHorizontal: 14,
     paddingVertical: 4,
   },
   pill: {
@@ -156,8 +158,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 2,
   },
-  emoji: { fontSize: 16 },
-  emojiCompact: { fontSize: 14 },
-  count: { fontSize: 13, fontFamily: font.semibold },
-  countCompact: { fontSize: 11, fontFamily: font.medium },
+  // Emoji glyphs are taller than their nominal font size, and with no explicit
+  // lineHeight the line box is too short so iOS clips the top and bottom —
+  // 🚨 💯 👀 lost their crowns and bases. Same 1.3x floor the theme documents
+  // for Baloo. includeFontPadding is an Android no-op elsewhere but keeps the
+  // glyph from being re-padded there.
+  emoji: { fontSize: 16, lineHeight: 22, includeFontPadding: false },
+  emojiCompact: { fontSize: 14, lineHeight: 19, includeFontPadding: false },
+  count: { fontSize: 13, lineHeight: 18, fontFamily: font.semibold },
+  countCompact: { fontSize: 11, lineHeight: 16, fontFamily: font.medium },
 })
