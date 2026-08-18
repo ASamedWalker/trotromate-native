@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   Text,
   Pressable,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   useColorScheme,
 } from 'react-native'
+import { SmilePlus } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { REACTION_EMOJIS } from '@/lib/constants/tales'
 
@@ -24,6 +25,18 @@ export default function ReactionBar({
   compact,
 }: ReactionBarProps) {
   const isDark = useColorScheme() === 'dark'
+  const [expanded, setExpanded] = useState(false)
+
+  // Only reactions that actually happened. A row of six zeros advertises that
+  // nobody is here — the opposite of what a feed should project — so the full
+  // set stays behind a deliberate tap.
+  const used = REACTION_EMOJIS.filter(
+    ({ emoji }) => (reactionSummary[emoji] || 0) > 0 || userReactions.includes(emoji)
+  )
+  const visible = expanded ? REACTION_EMOJIS : used
+
+  const inactiveBg = isDark ? 'rgba(255,255,255,0.06)' : '#e8e1de'
+  const inactiveText = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
 
   return (
     <ScrollView
@@ -34,7 +47,7 @@ export default function ReactionBar({
         compact && styles.containerCompact,
       ]}
     >
-      {REACTION_EMOJIS.map(({ emoji, label }) => {
+      {visible.map(({ emoji, label }) => {
         const count = reactionSummary[emoji] || 0
         const isActive = userReactions.includes(emoji)
         return (
@@ -50,6 +63,36 @@ export default function ReactionBar({
           />
         )
       })}
+
+      {/* The way in: labelled when the post has no reactions yet, a quiet
+          icon-only affordance once there are some to sit beside. */}
+      {!expanded && (
+        <Pressable
+          onPress={() => setExpanded(true)}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel="Add a reaction"
+        >
+          <Animated.View
+            style={[
+              compact ? styles.pillCompact : styles.pill,
+              { backgroundColor: inactiveBg, borderColor: 'transparent' },
+            ]}
+          >
+            <SmilePlus size={compact ? 14 : 16} color={inactiveText} strokeWidth={2} />
+            {used.length === 0 && (
+              <Text
+                style={[
+                  compact ? styles.countCompact : styles.count,
+                  { color: inactiveText },
+                ]}
+              >
+                React
+              </Text>
+            )}
+          </Animated.View>
+        </Pressable>
+      )}
     </ScrollView>
   )
 }
