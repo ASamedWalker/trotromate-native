@@ -228,7 +228,7 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? c.stone800 : c.stone200,
       paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
     },
-    levelEmoji: { fontSize: 14 },
+    levelEmoji: { fontSize: 14, lineHeight: 19 },
     levelText: { fontSize: 12, fontFamily: font.semibold, color: c.amber600 },
     metaRow: { flexDirection: 'row', gap: 16, marginTop: 8 },
     metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

@@ -1,0 +1,720 @@
+<title>Troski — Ghana's trotro network, made legible</title>
+<style>
+  :root {
+    --ground: #FAF8F6;
+    --surface: #FFFFFF;
+    --ink: #14100E;
+    --muted: #6E6560;
+    --faint: #9A918B;
+    --rule: #E6DFD9;
+    --accent: #FF4D1C;
+    --accent-soft: rgba(255, 77, 28, 0.10);
+    --shadow: 0 1px 2px rgba(20, 16, 14, 0.04), 0 8px 24px rgba(20, 16, 14, 0.05);
+
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --grotesk: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #17120F;
+      --surface: #1F1916;
+      --ink: #F4EFEB;
+      --muted: #A79E98;
+      --faint: #857C76;
+      --rule: #302825;
+      --accent: #FF6A3D;
+      --accent-soft: rgba(255, 106, 61, 0.14);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #17120F;
+    --surface: #1F1916;
+    --ink: #F4EFEB;
+    --muted: #A79E98;
+    --faint: #857C76;
+    --rule: #302825;
+    --accent: #FF6A3D;
+    --accent-soft: rgba(255, 106, 61, 0.14);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 24px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 43rem; margin: 0 auto; }
+
+  /* ── Masthead ─────────────────────────────────────────── */
+  header { padding: 72px 0 0; }
+
+  .org {
+    font-family: var(--grotesk);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .org .dot { color: var(--rule); }
+
+  h1 {
+    font-family: var(--grotesk);
+    font-size: clamp(3rem, 11vw, 4.75rem);
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+    margin: 22px 0 0;
+    text-wrap: balance;
+  }
+  h1 .mark { color: var(--accent); }
+
+  .standfirst {
+    font-size: clamp(1.2rem, 3.4vw, 1.45rem);
+    line-height: 1.42;
+    color: var(--ink);
+    margin: 20px 0 0;
+    max-width: 30ch;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin: 26px 0 0;
+    color: var(--muted);
+    font-size: 1.06rem;
+  }
+
+  .stores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 26px 0 0;
+    align-items: center;
+  }
+  .store {
+    font-family: var(--grotesk);
+    font-size: 12.5px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    text-decoration: none;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    border-radius: 999px;
+    padding: 7px 15px;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .store:hover, .store:focus-visible { border-color: var(--accent); color: var(--accent); }
+  .store .live {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .stores .since {
+    font-family: var(--grotesk);
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  .rule-heavy {
+    height: 3px;
+    background: var(--accent);
+    width: 56px;
+    margin: 40px 0 0;
+    border-radius: 2px;
+  }
+
+  /* ── Sections ─────────────────────────────────────────── */
+  section { margin: 54px 0 0; }
+
+  .eyebrow {
+    font-family: var(--grotesk);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h2 {
+    font-family: var(--grotesk);
+    font-size: clamp(1.5rem, 4.2vw, 1.85rem);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--grotesk);
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+  }
+
+  p { margin: 0 0 18px; }
+  p:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 600; }
+  em.term { font-style: italic; color: var(--ink); }
+
+  /* ── Reason list: why it is still unsolved ────────────── */
+  .reasons {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .reasons li {
+    display: grid;
+    grid-template-columns: 1.15rem 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .reasons .bar {
+    width: 3px;
+    height: 100%;
+    min-height: 2.6em;
+    background: var(--rule);
+    border-radius: 2px;
+    justify-self: center;
+  }
+  .reasons p { margin: 0; color: var(--muted); font-size: 0.99rem; }
+
+  /* ── The mechanism diagram ────────────────────────────── */
+  .mechanism {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 28px 26px 24px;
+    margin: 28px 0 0;
+    box-shadow: var(--shadow);
+  }
+  .mechanism figcaption {
+    font-family: var(--grotesk);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin: 18px 0 0;
+    line-height: 1.5;
+  }
+  .flow { width: 100%; height: auto; display: block; overflow: visible; }
+  .flow .node-fill { fill: var(--accent-soft); }
+  .flow .node-line { stroke: var(--accent); stroke-width: 1.25; fill: none; }
+  .flow .label {
+    font-family: var(--grotesk);
+    font-size: 12.5px;
+    font-weight: 650;
+    fill: var(--ink);
+  }
+  .flow .sub {
+    font-family: var(--grotesk);
+    font-size: 11px;
+    font-weight: 500;
+    fill: var(--muted);
+  }
+  .flow .conn { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+  .flow .arrow { fill: var(--faint); }
+
+  /* ── Surfaces grid ────────────────────────────────────── */
+  .surfaces {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 24px 0 0;
+  }
+  .surfaces > div {
+    background: var(--surface);
+    padding: 20px 20px 22px;
+  }
+  .surfaces p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .who {
+    font-family: var(--grotesk);
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 10px;
+  }
+
+  /* ── Phases ───────────────────────────────────────────── */
+  .phases {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0 0;
+    border-top: 1px solid var(--rule);
+  }
+  .phase {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+  }
+  .phase .tag {
+    font-family: var(--grotesk);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-top: 3px;
+  }
+  .phase.now .tag { color: var(--accent); }
+  .phase p { margin: 0; color: var(--muted); font-size: 0.97rem; }
+
+  /* ── Timing callout ───────────────────────────────────── */
+  .timing {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 12px 12px 0;
+    padding: 22px 24px;
+    margin: 24px 0 0;
+  }
+  .timing ul { margin: 0; padding-left: 1.1rem; }
+  .timing li { margin: 0 0 10px; color: var(--ink); font-size: 0.99rem; }
+  .timing li:last-child { margin-bottom: 0; }
+
+  /* ── Stage + footer ───────────────────────────────────── */
+  .stage {
+    margin: 54px 0 0;
+    padding: 24px 0 0;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.99rem;
+  }
+
+  footer {
+    margin: 44px 0 0;
+    padding: 26px 0 0;
+    border-top: 1px solid var(--rule);
+    font-family: var(--grotesk);
+    font-size: 13px;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    justify-content: space-between;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover, footer a:focus-visible { text-decoration: underline; }
+  footer .sig { display: flex; flex-direction: column; gap: 2px; }
+  footer .signame {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  footer .sigrole { color: var(--faint); }
+  footer .sigcontact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  footer .dot { color: var(--rule); }
+
+  .notes {
+    margin: 30px 0 0;
+    font-family: var(--grotesk);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--faint);
+  }
+  .notes p { margin: 0 0 7px; }
+
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  /* ── Print / PDF ──────────────────────────────────────── */
+  @page { margin: 15mm 14mm; }
+
+  @media print {
+    /* Force the light palette: a dark-mode reader must not get an
+       ink-flooded PDF, and the accent has to hold on white paper. */
+    :root, :root[data-theme="dark"] {
+      --ground: #FFFFFF;
+      --surface: #FFFFFF;
+      --ink: #14100E;
+      --muted: #4A443F;
+      --faint: #6E6560;
+      --rule: #D8D0C9;
+      --accent: #D2380F;
+      --accent-soft: rgba(210, 56, 15, 0.08);
+      --shadow: none;
+    }
+
+    body { font-size: 10.5pt; line-height: 1.5; padding: 0; }
+    .wrap { max-width: none; }
+
+    header { padding-top: 0; }
+    h1 { font-size: 34pt; }
+    .standfirst { font-size: 13pt; max-width: 34ch; }
+    .lede { font-size: 11pt; }
+
+    section { margin-top: 22pt; }
+    h2 { font-size: 15pt; }
+    h3 { font-size: 10.5pt; }
+
+    /* Keep a card, a reason, or a phase from splitting across a page. */
+    .mechanism, .timing, .surfaces > div, .reasons li, .phase, .stage {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    h2, h3 { break-after: avoid; page-break-after: avoid; }
+
+    .mechanism, .surfaces, .timing { box-shadow: none; }
+    .surfaces { border-color: var(--rule); }
+
+    /* Store pills stay legible, and the URLs come along for a printed page. */
+    .store { border-color: var(--rule); }
+    .stores .since { color: var(--faint); }
+
+    a { color: var(--accent); text-decoration: none; }
+
+    .notes { font-size: 8.5pt; }
+    footer { font-size: 9pt; break-inside: avoid; page-break-inside: avoid; }
+    footer .signame { font-size: 11pt; }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 16.5px; padding-bottom: 64px; }
+    header { padding-top: 52px; }
+    .phase { grid-template-columns: 1fr; gap: 6px; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="org">
+      <span>Troski Technologies</span>
+      <span class="dot">&bull;</span>
+      <span>Accra, Ghana</span>
+      <span class="dot">&bull;</span>
+      <span>BN299000326</span>
+    </div>
+
+    <h1>Trotro,<br />made <span class="mark">legible</span>.</h1>
+
+    <p class="standfirst">
+      Eight in ten motorised trips in Accra happen on a system with no schedule, no published fare, and no map.
+    </p>
+
+    <p class="lede">
+      Troski is the digital layer for that system — telling a rider what a trip should cost, where the vehicle
+      leaves from, and how long the queue is, on the phones and data budgets people actually have.
+    </p>
+
+    <div class="stores">
+      <a class="store" href="https://apps.apple.com/gh/app/troski-know-your-fare/id6758959524"><span class="live"></span>App&nbsp;Store</a>
+      <a class="store" href="https://play.google.com/store/apps/details?id=com.troski.app"><span class="live"></span>Google&nbsp;Play</a>
+      <span class="since">Live in both stores since February 2026</span>
+    </div>
+
+    <div class="rule-heavy"></div>
+  </header>
+
+  <section>
+    <p class="eyebrow">The problem</p>
+    <h2>The network everyone uses, and nobody can see</h2>
+    <p>
+      The trotro — a shared minibus that departs when it fills — carries up to 86% of Accra's residents and
+      around 80% of the city's motorised trips. It has no timetable, because vehicles leave when full rather
+      than at a time. It has no published fare list online: prices are negotiated nationally as a single
+      percentage change, then posted as printed charts at each lorry station. Boarding order is kept in a
+      paper ledger by the station "bookman".
+    </p>
+    <p>
+      So the gap isn't vehicles — Accra has plenty. The gap is <em class="term">certainty</em>. A rider
+      stepping onto an unfamiliar route doesn't know the fare, can't tell whether they're being overcharged,
+      and has no way to compare one station's queue against another's. After each fare announcement, even
+      regular riders are unsure what they now owe, and unions must police drivers charging above the
+      approved rate.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why it is still unsolved</p>
+    <h2>Better-funded attempts have already failed here</h2>
+    <ul class="reasons">
+      <li>
+        <span class="bar"></span>
+        <div>
+          <h3>The data decays faster than it can be collected</h3>
+          <p>
+            Routes shift constantly. WhereIsMyTransport raised roughly $27M mapping African transport and
+            shut down in 2023, unable to make collection economics work. The canonical open dataset for
+            Accra's routes is frozen at September 2017 and has had no refresh pipeline since.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="bar"></span>
+        <div>
+          <h3>There is no schedule to publish</h3>
+          <p>
+            Apps built on timetable assumptions import stale 2017 route codes and present them as live
+            service. The model doesn't fit the system, so the output is confidently wrong.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="bar"></span>
+        <div>
+          <h3>The union is the operating system</h3>
+          <p>
+            Fares, queue order and route allocation run through GPRTU branches and their bookmen. Technology
+            that routes around them gets rejected — the union said publicly of one cashless scheme that it
+            "can never work as trotro."
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="bar"></span>
+        <div>
+          <h3>Riders are on cheap phones and expensive data</h3>
+          <p>
+            A product that assumes live maps and constant connectivity prices out the people it serves.
+            This is a hard design constraint, not a polish item.
+          </p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">The insight</p>
+    <h2>Fares move as one number, nationwide</h2>
+    <p>
+      Ghana doesn't reprice route by route. The union negotiates a single national percentage — fares rose
+      20% in June 2026; a proposed 30% was suspended in July when government cut diesel prices — and every
+      station updates its printed chart by that same figure.
+    </p>
+    <p>
+      That is the opening. It means fare data does not have to be re-surveyed each time it changes. Collect a
+      baseline from the charts once, then apply one percentage and the entire network is current again.
+      The recurring cost that killed everyone else becomes a few minutes of work per announcement.
+    </p>
+
+    <figure class="mechanism">
+      <svg class="flow" viewBox="0 0 640 132" role="img"
+           aria-label="A union announces one percentage change; Troski applies it once; every fare across the network is current.">
+        <rect class="node-fill" x="1" y="26" width="176" height="72" rx="12" />
+        <rect class="node-line" x="1" y="26" width="176" height="72" rx="12" />
+        <text class="label" x="22" y="58">Union announces</text>
+        <text class="sub" x="22" y="78">one national %</text>
+
+        <path class="conn" d="M186 62 H 226" />
+        <path class="arrow" d="M226 57 l 10 5 l -10 5 z" />
+
+        <rect class="node-fill" x="244" y="26" width="152" height="72" rx="12" />
+        <rect class="node-line" x="244" y="26" width="152" height="72" rx="12" />
+        <text class="label" x="265" y="58">Applied once</text>
+        <text class="sub" x="265" y="78">to the baseline</text>
+
+        <path class="conn" d="M405 62 H 445" />
+        <path class="arrow" d="M445 57 l 10 5 l -10 5 z" />
+
+        <rect class="node-fill" x="463" y="26" width="176" height="72" rx="12" />
+        <rect class="node-line" x="463" y="26" width="176" height="72" rx="12" />
+        <text class="label" x="484" y="58">Whole network</text>
+        <text class="sub" x="484" y="78">fresh again</text>
+      </svg>
+      <figcaption>
+        Refresh economics are the whole game in informal transport. This is the mechanism that makes them
+        survivable — and riders reporting what they actually paid then act as a check on the official number.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">The product</p>
+    <h2>Four ways in, two networks, one dataset underneath</h2>
+    <p>
+      Troski meets people where they already are, rather than assuming everyone will install an app. Every
+      surface reads from and writes to the same route, fare and station data.
+    </p>
+
+    <div class="surfaces">
+      <div>
+        <p class="who">Rider &middot; mobile app</p>
+        <p>
+          Plan a trip, see the fare to your specific drop-off rather than one flat corridor price, check
+          station queues, buy a ticket and pay by mobile money.
+        </p>
+      </div>
+      <div>
+        <p class="who">Rider &middot; WhatsApp</p>
+        <p>
+          Ask a fare in plain language — English, Twi, Ga, Pidgin — with no install and almost no data.
+          The lowest-friction door into the network.
+        </p>
+      </div>
+      <div>
+        <p class="who">Rider &middot; rail (web + app)</p>
+        <p>
+          All three of Ghana's passenger lines — Tema&ndash;Accra, Tema&ndash;Mpakadan, Sekondi&ndash;Takoradi —
+          with official times, station lists, live countdowns to the next departure and reminders before it
+          leaves.
+        </p>
+      </div>
+      <div>
+        <p class="who">Operator &middot; Troski&nbsp;Pro</p>
+        <p>
+          A driver and fleet-owner app: shift tracking, cash and mobile-money takings, vehicle location, and
+          the first real utilisation data owners have ever had.
+        </p>
+      </div>
+    </div>
+
+    <p style="margin-top:22px">
+      The rail product is worth singling out, because it does three jobs at once. It is the cheapest channel
+      we have — Ghana train queries are the largest source of organic search demand reaching us, and they
+      cost nothing to win. It is proof the model works against an <em class="term">official</em> operator:
+      the fares shown are the rail authority's own, including the zone pricing on Tema&ndash;Mpakadan, and
+      the data carries the date it was last checked, so a stale schedule is visible rather than silently
+      wrong. And it is a second network running on the same spine, which is what makes this a transport
+      platform rather than a trotro app.
+    </p>
+
+    <p>
+      It is also deliberately restrained: rail is information only. We show what a ticket costs and when the
+      train goes, but we don't sell the ticket, because we don't have the right to. That waits on an
+      agreement with the rail authority &mdash; the same discipline we apply to the trotro unions, and the
+      reason both parties can treat us as a partner rather than a threat.
+    </p>
+
+    <p style="margin-top:22px">
+      The operator side matters more than it looks. Drivers rent their vehicle for a fixed daily amount and
+      keep the rest, so owners have no visibility into what a route actually earns — and drivers carry a day
+      of cash, which is why the union itself wants to go cashless.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Where it goes</p>
+    <h2>Information first, because it earns the right to the rest</h2>
+    <div class="phases">
+      <div class="phase now">
+        <div class="tag">Now</div>
+        <div>
+          <h3>Be the answer to "what does this cost?"</h3>
+          <p>
+            Own fare truth and freshness across Accra. Trust is the asset; everything after this depends on
+            riders and unions believing the number.
+          </p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="tag">Next</div>
+        <div>
+          <h3>Move the money</h3>
+          <p>
+            Ticketing and mobile-money fare payment, with the driver app closing the loop. This is where
+            revenue begins, and it addresses the robbery risk the union already wants solved.
+          </p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="tag">Later</div>
+        <div>
+          <h3>Sell certainty to the operators</h3>
+          <p>
+            Route-level demand and revenue data no union or owner has today — informing fleet deployment,
+            and positioning us as the matchmaker for electric minibus adoption rather than the balance
+            sheet that owns the vehicles.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why now</p>
+    <h2>Three clocks are running</h2>
+    <div class="timing">
+      <ul>
+        <li>
+          <strong>The union is shopping.</strong> GPRTU has publicly said it wants a cashless system to stop
+          drivers being robbed for their daily cash — and has no named technology partner.
+        </li>
+        <li>
+          <strong>Electric buses have a deadline.</strong> Ghana's import-duty waiver for public-transport
+          EVs runs to 2032, which sets the window for the fleet-enablement phase.
+        </li>
+        <li>
+          <strong>Competitors have noticed.</strong> Two crowdsourced-fare apps launched in 2026. The
+          difference is refresh: they collect fares, they don't have a mechanism to keep them true.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="stage">
+    <p>
+      <strong>Where we are.</strong> Troski is founder-built and early, but it is not a prototype: the
+      rider app has been published on the App Store and Google Play since February 2026 and ships regular
+      updates. The WhatsApp assistant, the rail product and the operator app are built and working, and the
+      fare pipeline is in place and being populated from union and station charts. We are pre-revenue, and
+      this is an introduction to the concept rather than a fundraise document — happy to walk through the
+      product, the data model, or the union strategy in detail.
+    </p>
+  </section>
+
+  <div class="notes">
+    <p>
+      Sources for the figures above: ScienceDirect and the Accra Mobility project (mode share); TechCabal
+      (WhereIsMyTransport closure); DigitalTransport4Africa (2017 route dataset); Citinewsroom and GhanaWeb
+      (June 2026 fare increase, union statements); trade.gov (EV import-duty waiver).
+    </p>
+  </div>
+
+  <footer>
+    <span class="sig">
+      <strong class="signame">Samed Walker</strong>
+      <span class="sigrole">Founder, Troski</span>
+    </span>
+    <span class="sigcontact">
+      <a href="mailto:samed@troski.me">samed@troski.me</a>
+      <span class="dot">&middot;</span>
+      <a href="https://troski.me">troski.me</a>
+      <span class="dot">&middot;</span>
+      <span>Accra, Ghana</span>
+    </span>
+  </footer>
+</div>

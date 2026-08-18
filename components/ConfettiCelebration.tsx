@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 12,
   },
-  emoji: { fontSize: 48, marginBottom: 8 },
+  emoji: { fontSize: 48, lineHeight: 65, marginBottom: 8 },
   points: { fontSize: 40, fontFamily: font.bold, color: c.amber500 },
   label: { fontSize: 16, color: '#78716c', marginBottom: 8 },
   streak: {

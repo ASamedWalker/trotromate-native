@@ -416,6 +416,7 @@ const getStyles = (isDark: boolean) => {
     },
     levelEmoji: {
       fontSize: 32,
+      lineHeight: 43,
       marginBottom: 8,
     },
     levelLabel: {

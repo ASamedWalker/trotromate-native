@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 18,
+    lineHeight: 24,
   },
   title: {
     fontFamily: font.bold,

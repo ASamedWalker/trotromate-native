@@ -419,6 +419,7 @@ const getStyles = (isDark: boolean) => {
     },
     successEmoji: {
       fontSize: 40,
+      lineHeight: 54,
       marginBottom: 12,
     },
     successTitle: {

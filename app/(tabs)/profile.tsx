@@ -268,7 +268,7 @@ const getStyles = (isDark: boolean) =>
       paddingVertical: 4,
       borderRadius: 12,
     },
-    levelEmoji: { fontSize: 13 },
+    levelEmoji: { fontSize: 13, lineHeight: 18 },
     levelText: { fontSize: 12, fontFamily: font.semibold },
     bioCard: {
       marginHorizontal: 20,

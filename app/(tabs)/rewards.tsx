@@ -745,7 +745,7 @@ export default function RewardsScreen() {
                       style={s.missionCard}
                     >
                       <View style={s.missionEmojiWrap}>
-                        <Text style={{ fontSize: 30 }}>{a.emoji}</Text>
+                        <Text style={{ fontSize: 30, lineHeight: 40 }}>{a.emoji}</Text>
                       </View>
                       <Text style={s.missionLabel} numberOfLines={1}>{a.label}</Text>
                       <View style={s.missionPts}>
@@ -995,7 +995,7 @@ const getStyles = (isDark: boolean) => {
     weekTitle: { fontFamily: font.bold, fontSize: 15, color: t.text },
     weekRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
     weekStat: { flex: 1, alignItems: 'center', gap: 3 },
-    weekValue: { fontFamily: font.extrabold, fontSize: 18, color: t.text },
+    weekValue: { fontFamily: font.extrabold, fontSize: 18, lineHeight: 24, color: t.text },
     weekLabel: { fontFamily: font.medium, fontSize: 12, color: subText },
 
     /* badge case */

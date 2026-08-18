@@ -146,7 +146,7 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       marginRight: 10,
     },
-    rankEmoji: { fontSize: 20 },
+    rankEmoji: { fontSize: 20, lineHeight: 27 },
     rankNum: {
       fontSize: 14,
       fontFamily: font.bold,
