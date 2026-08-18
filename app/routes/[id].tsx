@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
+import { fetchPostsForRoute } from '@/lib/services/tales'
 import { useQuery } from '@tanstack/react-query'
 import { fetchLineChampions } from '@/lib/services/reports'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -60,6 +61,22 @@ export default function RouteDetailScreen() {
   const [showGprtuInfo, setShowGprtuInfo] = useState(false)
 
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
+
+  // Pulse posts from anywhere along this corridor — the rider's own words about
+  // this route, which is the freshest signal we have and the reason someone
+  // opens the page at all.
+  const placeNames = useMemo(() => {
+    const names = [route?.from_location, route?.to_location]
+    for (const st of route?.stops ?? []) names.push(st.stop_name)
+    return names.filter(Boolean) as string[]
+  }, [route?.from_location, route?.to_location, route?.stops])
+
+  const { data: routePosts = [] } = useQuery({
+    queryKey: ['route-pulse', id, placeNames.join('|')],
+    queryFn: () => fetchPostsForRoute(placeNames, 3),
+    enabled: placeNames.length > 0,
+    staleTime: 2 * 60 * 1000,
+  })
   const { data: traffic } = useTrafficInfo(id)
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
   const { data: champions = [] } = useQuery({
@@ -332,6 +349,50 @@ export default function RouteDetailScreen() {
                 </View>
               </View>
             )}
+          </View>
+        )}
+
+        {/* ── From riders on this route ──
+            Pulse is the app's freshest data: what someone actually paid or saw,
+            in their words, minutes ago. Surfacing it where the rider is already
+            asking about this corridor beats leaving it in a separate feed. */}
+        {routePosts.length > 0 && (
+          <View style={s.pulseCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={s.pulseHeading}>FROM RIDERS ON THIS ROUTE</Text>
+              <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: c.amber600 }}>See all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {routePosts.map((post, i) => (
+              <TouchableOpacity
+                key={post.id}
+                activeOpacity={0.7}
+                onPress={() => router.push('/tales' as Href)}
+                style={{
+                  paddingVertical: 10,
+                  borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                  borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <MapPin size={11} color={c.amber600} />
+                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: c.amber600 }}>
+                    {post.location_name}
+                  </Text>
+                  <Text style={{ fontFamily: font.regular, fontSize: 11, color: isDark ? '#9ca3af' : '#9a918b' }}>
+                    · {timeAgo(post.created_at)}
+                  </Text>
+                </View>
+                <Text
+                  numberOfLines={2}
+                  style={{ fontFamily: font.regular, fontSize: 13.5, lineHeight: 19, color: isDark ? '#e5e7eb' : '#292524' }}
+                >
+                  {post.caption || 'Shared a photo'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 

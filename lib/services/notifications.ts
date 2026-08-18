@@ -15,6 +15,7 @@ export type NotificationType =
   | 'level_up'
   | 'badge_earned'
   | 'community'
+  | 'post_activity'
   | 'official_announcement'
 
 export interface AppNotification {
@@ -46,6 +47,8 @@ export async function fetchNotifications(
   const notifications: AppNotification[] = []
   const now = new Date()
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  // Social activity is rarer than fare traffic, so it gets a longer window.
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   // 1+2. Fare drops + Queue alerts — fetch in parallel
   if (favoriteRouteIds.length > 0) {
@@ -170,6 +173,91 @@ export async function fetchNotifications(
         source,
       })
     }
+  }
+
+  // ── Activity on YOUR Pulse posts ────────────────────────────────────────
+  // Derived the same way as everything else here rather than from a
+  // notifications table: find this device's posts, then any reaction or
+  // comment on them by somebody else. Without this a reply is invisible
+  // unless the author happens to reopen the exact post.
+  try {
+    const { data: myPosts } = await supabase
+      .from('tale_posts')
+      .select('id, caption, location_name')
+      .eq('device_id', deviceId)
+      .eq('is_hidden', false)
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    const postIds = (myPosts ?? []).map((p) => p.id as string)
+
+    if (postIds.length > 0) {
+      const [reactionsRes, commentsRes] = await Promise.all([
+        supabase
+          .from('tale_reactions')
+          .select('id, post_id, device_id, emoji, created_at')
+          .in('post_id', postIds)
+          .neq('device_id', deviceId)
+          .gt('created_at', sevenDaysAgo)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase
+          .from('tale_comments')
+          .select('id, post_id, device_id, display_name, content, created_at')
+          .in('post_id', postIds)
+          .neq('device_id', deviceId)
+          .eq('is_hidden', false)
+          .gt('created_at', sevenDaysAgo)
+          .order('created_at', { ascending: false })
+          .limit(30),
+      ])
+
+      const postLabel = (postId: string) => {
+        const post = (myPosts ?? []).find((p) => p.id === postId)
+        const caption = (post?.caption ?? '').trim()
+        if (caption) return `"${caption.length > 40 ? caption.slice(0, 40) + '…' : caption}"`
+        return post?.location_name ? `your post from ${post.location_name}` : 'your post'
+      }
+
+      // One entry per post per emoji burst reads better than ten separate
+      // lines saying the same thing.
+      const byPost = new Map<string, { emojis: string[]; latest: string }>()
+      for (const r of reactionsRes.data ?? []) {
+        const key = r.post_id as string
+        const entry = byPost.get(key) ?? { emojis: [], latest: r.created_at as string }
+        if (!entry.emojis.includes(r.emoji as string)) entry.emojis.push(r.emoji as string)
+        byPost.set(key, entry)
+      }
+
+      for (const [postId, { emojis, latest }] of byPost) {
+        notifications.push({
+          id: `post-reaction-${postId}-${latest}`,
+          type: 'post_activity',
+          title: `${emojis.join(' ')} on your post`,
+          body: `Someone reacted to ${postLabel(postId)}`,
+          timestamp: latest,
+          color: '#ec4899',
+          linkTo: '/tales',
+        })
+      }
+
+      for (const c of commentsRes.data ?? []) {
+        const who = (c.display_name as string) || 'Someone'
+        const text = ((c.content as string) || '').trim()
+        notifications.push({
+          id: `post-comment-${c.id}`,
+          type: 'post_activity',
+          title: `${who} commented`,
+          body: text.length > 60 ? `${text.slice(0, 60)}…` : text || `on ${postLabel(c.post_id as string)}`,
+          timestamp: c.created_at as string,
+          color: '#ec4899',
+          linkTo: '/tales',
+        })
+      }
+    }
+  } catch (e) {
+    // Never let the social feed break the whole notification list.
+    console.warn('[troski] post activity notifications failed:', e)
   }
 
   notifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

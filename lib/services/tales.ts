@@ -421,3 +421,43 @@ export async function submitTale(params: {
     return null
   }
 }
+
+/**
+ * Posts tagged to somewhere on a corridor — the route page's "what's happening
+ * here right now" strip.
+ *
+ * Matched on location_name rather than route_id/station_id: those columns exist
+ * on tale_posts but nothing has ever populated them (0 of 17 posts), and the
+ * composer captures a free-text place. Name matching works with the data that
+ * actually exists today; if the composer starts tagging ids, prefer them here.
+ */
+export async function fetchPostsForRoute(
+  placeNames: string[],
+  limit = 3,
+): Promise<TalePost[]> {
+  const names = placeNames
+    .map((n) => (n || '').trim())
+    .filter((n) => n.length >= 3)
+  if (names.length === 0) return []
+
+  try {
+    // ilike per name, OR'd — covers "Circle" matching "Circle Station".
+    const filter = names
+      .map((n) => `location_name.ilike.*${n.replace(/[,()*]/g, '')}*`)
+      .join(',')
+
+    const { data, error } = await supabase
+      .from('tale_posts')
+      .select('*')
+      .or(filter)
+      .eq('is_hidden', false)
+      .neq('moderation_status', 'rejected')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) return []
+    return (data ?? []) as TalePost[]
+  } catch {
+    return []
+  }
+}

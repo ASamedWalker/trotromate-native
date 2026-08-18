@@ -16,20 +16,21 @@ import {
 import { Swipeable } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
-  TrendingUp,
-  TrendingDown,
-  Users,
   AlertTriangle,
-  Camera,
-  Trash2,
-  TrainFront,
-  Navigation,
-  Bell,
-  Flame,
   Award,
-  Star,
-  MessageCircle,
+  Bell,
+  Camera,
+  Flame,
+  Heart,
   Megaphone,
+  MessageCircle,
+  Navigation,
+  Star,
+  TrainFront,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react-native'
 import { router, type Href } from 'expo-router'
 import { c, font } from '@/lib/theme'
@@ -63,6 +64,7 @@ const NOTIF_ICON_MAP: Record<NotificationType, { icon: typeof Bell; color: strin
   level_up: { icon: Award, color: '#f59e0b' },
   badge_earned: { icon: Star, color: '#8b5cf6' },
   community: { icon: MessageCircle, color: '#8b5cf6' },
+  post_activity: { icon: Heart, color: '#ec4899' },
   official_announcement: { icon: Megaphone, color: '#f59e0b' },
 }
 
