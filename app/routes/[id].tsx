@@ -14,7 +14,7 @@ import {
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy, Heart } from 'lucide-react-native'
+import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy, Heart, Receipt } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
@@ -22,12 +22,13 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
-import { fetchPostsForRoute } from '@/lib/services/tales'
+import { fetchRouteActivity } from '@/lib/services/route-activity'
 import { useQuery } from '@tanstack/react-query'
 import { fetchLineChampions } from '@/lib/services/reports'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { timeAgo } from '@/lib/utils/time'
+import { formatGHS } from '@/lib/utils/currency'
 import { TripShareButton } from '@/components/TripShareButton'
 import { SOSButton } from '@/components/SOSButton'
 import { TrafficBadge } from '@/components/TrafficBadge'
@@ -72,9 +73,9 @@ export default function RouteDetailScreen() {
   }, [route?.from_location, route?.to_location, route?.stops])
 
   const { data: routePosts = [] } = useQuery({
-    queryKey: ['route-pulse', id, placeNames.join('|')],
-    queryFn: () => fetchPostsForRoute(placeNames, 3),
-    enabled: placeNames.length > 0,
+    queryKey: ['route-activity', id, placeNames.join('|')],
+    queryFn: () => fetchRouteActivity({ routeId: id!, placeNames, limit: 3 }),
+    enabled: !!id,
     staleTime: 2 * 60 * 1000,
   })
   const { data: traffic } = useTrafficInfo(id)
@@ -359,8 +360,10 @@ export default function RouteDetailScreen() {
         {(
           <View style={s.pulseCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Text style={s.pulseHeading}>FROM RIDERS ON THIS ROUTE</Text>
-              {routePosts.length > 0 && (
+              <Text style={s.pulseHeading}>RECENT RIDER ACTIVITY</Text>
+              {/* Only points at Pulse when there is actually a post to see —
+                  a fare report lives on the Reports tab, not in the feed. */}
+              {routePosts.some((it) => it.kind === 'post') && (
                 <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 12, color: c.amber600 }}>See all</Text>
                 </TouchableOpacity>
@@ -410,9 +413,16 @@ export default function RouteDetailScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <MapPin size={11} color={c.amber600} />
-                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: c.amber600 }}>
-                    {post.location_name}
+                  {post.kind === 'fare' ? (
+                    <Receipt size={11} color="#059669" />
+                  ) : (
+                    <MapPin size={11} color={c.amber600} />
+                  )}
+                  <Text style={{
+                    fontFamily: font.semibold, fontSize: 11.5,
+                    color: post.kind === 'fare' ? '#059669' : c.amber600,
+                  }}>
+                    {post.kind === 'fare' ? 'Fare reported' : post.location_name}
                   </Text>
                   <Text style={{ fontFamily: font.regular, fontSize: 11, color: isDark ? '#9ca3af' : '#9a918b' }}>
                     · {timeAgo(post.created_at)}
@@ -422,7 +432,9 @@ export default function RouteDetailScreen() {
                   numberOfLines={2}
                   style={{ fontFamily: font.regular, fontSize: 13.5, lineHeight: 19, color: isDark ? '#e5e7eb' : '#292524' }}
                 >
-                  {post.caption || 'Shared a photo'}
+                  {post.kind === 'fare'
+                    ? `A rider paid ${formatGHS(post.fare)} on this route.`
+                    : post.caption || 'Shared a photo'}
                 </Text>
               </TouchableOpacity>
             ))}
