@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { useProfile } from '@/lib/hooks/useRewards'
 import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
@@ -44,27 +44,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refetch()
   }, [refetch])
 
-  return (
-    <AppContext.Provider
-      value={{
-        deviceId,
-        isDeviceReady: !deviceLoading && !!deviceId,
-        profile,
-        badges,
-        rank,
-        isProfileLoading: profileLoading,
-        lastReward,
-        setLastReward,
-        clearLastReward,
-        isOnline,
-        pendingReports: pendingCount,
-        queueReport,
-        refreshProfile,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  // Memoised: an object literal here is a new reference on every provider
+  // render, which re-renders every useApp() consumer — most of the app — even
+  // when nothing they read has changed.
+  const value = useMemo(
+    () => ({
+      deviceId,
+      isDeviceReady: !deviceLoading && !!deviceId,
+      profile,
+      badges,
+      rank,
+      isProfileLoading: profileLoading,
+      lastReward,
+      setLastReward,
+      clearLastReward,
+      isOnline,
+      pendingReports: pendingCount,
+      queueReport,
+      refreshProfile,
+    }),
+    [
+      deviceId,
+      deviceLoading,
+      profile,
+      badges,
+      rank,
+      profileLoading,
+      lastReward,
+      setLastReward,
+      clearLastReward,
+      isOnline,
+      pendingCount,
+      queueReport,
+      refreshProfile,
+    ],
   )
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 
 export function useApp(): AppContextValue {

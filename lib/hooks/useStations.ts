@@ -24,7 +24,11 @@ export function useStations() {
       return result
     },
     staleTime: 2 * 60 * 1000,      // 2 minutes
-    refetchInterval: 2 * 60 * 1000, // auto-poll every 2 minutes
+    // No refetchInterval: the realtime subscription below already invalidates
+    // this query the moment anyone files a queue report. Polling as well meant
+    // ~720 extra requests per device per day — each pulling every station — for
+    // data we were already being pushed. Data costs money in Ghana.
+    refetchOnWindowFocus: false,
     placeholderData: cachedData,
   })
 

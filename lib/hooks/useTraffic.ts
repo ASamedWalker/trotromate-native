@@ -46,6 +46,7 @@ export function useTrafficInfo(routeId: string | undefined) {
     enabled: !!routeId,
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -68,6 +69,7 @@ export function useTrafficSummary() {
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -123,17 +125,26 @@ async function fallbackTrafficSummary(): Promise<TrafficSummaryRoute[]> {
 
   if (!routes || routes.length === 0) return []
 
+  // One query for every route's cache instead of one per route. This was 10
+  // sequential round trips behind a screen that shows a summary strip.
+  const { data: cacheRows } = await supabase
+    .from('traffic_cache')
+    .select('route_id, traffic_condition, duration_in_traffic_mins, typical_duration_mins, fetched_at')
+    .in('route_id', routes.map((r) => r.id))
+    .gt('expires_at', new Date().toISOString())
+    .order('fetched_at', { ascending: false })
+
+  // Newest row per route wins (the query is already sorted newest-first).
+  type CacheRow = NonNullable<typeof cacheRows>[number]
+  const cacheByRoute = new Map<string, CacheRow>()
+  for (const row of cacheRows ?? []) {
+    if (!cacheByRoute.has(row.route_id as string)) cacheByRoute.set(row.route_id as string, row)
+  }
+
   const results: TrafficSummaryRoute[] = []
 
   for (const route of routes) {
-    const { data: cached } = await supabase
-      .from('traffic_cache')
-      .select('*')
-      .eq('route_id', route.id)
-      .gt('expires_at', new Date().toISOString())
-      .order('fetched_at', { ascending: false })
-      .limit(1)
-      .single()
+    const cached = cacheByRoute.get(route.id) ?? null
 
     const busyness = await computeBusyness(
       { from_station_id: null, to_station_id: null },

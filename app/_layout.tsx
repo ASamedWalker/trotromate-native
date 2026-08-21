@@ -2,13 +2,6 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans'
-import {
   Baloo2_400Regular,
   Baloo2_500Medium,
   Baloo2_600SemiBold,
@@ -254,13 +247,11 @@ export default function RootLayout() {
   // OTA updates — runs immediately on cold start, before splash/onboarding
   useAppUpdate()
 
+  // Only Baloo ships: lib/theme.ts maps every font.* token to Baloo 2, and
+  // neither Plus Jakarta (the pre-June face) nor SpaceMono is referenced
+  // anywhere. Loading them blocked the splash and shipped ~half the TTF weight
+  // in the bundle for nothing.
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
     Baloo2_400Regular,
     Baloo2_500Medium,
     Baloo2_600SemiBold,

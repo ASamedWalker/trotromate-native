@@ -40,18 +40,25 @@ export function getWaitEstimate(stat: QueueStat): string {
 }
 
 export async function fetchStations(): Promise<StationWithQueue[]> {
-  const { data: stations, error } = await supabase
-    .from('stations')
-    .select('*')
-    .order('is_major', { ascending: false })
-    .order('name')
+  // Explicit columns, and both queries in parallel — they don't depend on each
+  // other. select('*') pulled google_place_id (unused by the app) across ~295
+  // rows on every app boot, and the sequential await added a needless round
+  // trip on the slowest part of a cold start.
+  const [stationsRes, queueStatsRes] = await Promise.all([
+    supabase
+      .from('stations')
+      .select('id, name, location, latitude, longitude, is_major, created_at')
+      .order('is_major', { ascending: false })
+      .order('name'),
+    supabase
+      .from('station_queue_stats')
+      .select('station_id, current_status, report_count_last_hour, last_report_at, avg_vehicle_count, avg_wait_mins'),
+  ])
 
+  const { data: stations, error } = stationsRes
   if (error || !stations) return []
 
-  // Try the aggregated view first, fall back to raw queue_reports
-  const { data: queueStats } = await supabase
-    .from('station_queue_stats')
-    .select('*')
+  const { data: queueStats } = queueStatsRes
 
   if (queueStats && queueStats.length > 0) {
     return stations.map((station: Station) => ({

@@ -439,7 +439,9 @@ export function TalesScreen() {
     ])
   }
 
-  const renderItem = ({ item }: { item: TalePost }) => {
+  // useCallback: an inline renderItem is a new function on every render, which
+  // makes FlatList treat every row as changed and defeats TaleCard's memo.
+  const renderItem = useCallback(({ item }: { item: TalePost }) => {
     return (
       <TaleCard
         post={item}
@@ -462,7 +464,7 @@ export function TalesScreen() {
         } : undefined}
       />
     )
-  }
+  }, [isDark, reactionSummaries, userReactions, deviceId, handleReact, deletePost, handleReport, router])
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -527,6 +529,10 @@ export function TalesScreen() {
           }
           contentContainerStyle={{ paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          removeClippedSubviews
         />
       )}
 

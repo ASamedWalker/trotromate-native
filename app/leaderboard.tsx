@@ -7,7 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Medal } from 'lucide-react-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
@@ -36,7 +36,8 @@ export default function LeaderboardScreen() {
     setIsRefreshing(false)
   }
 
-  const renderItem = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
+  // Memoised so the rows aren't all invalidated on every parent render.
+  const renderItem = useCallback(({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const isUser = item.device_id === deviceId
     const levelInfo = LEVELS[item.current_level as keyof typeof LEVELS] ?? LEVELS.passenger
     const rank = index + 1
@@ -68,7 +69,7 @@ export default function LeaderboardScreen() {
         </View>
       </View>
     )
-  }
+  }, [deviceId, s])
 
   return (
     <SafeAreaView style={s.container}>

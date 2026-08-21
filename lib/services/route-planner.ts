@@ -120,42 +120,43 @@ export async function planRoute(from: string, to: string, transportType?: string
     .select('station_name, avg_transfer_time_mins')
     .eq('is_active', true)
 
-  // 3. For each hub, find from→hub AND hub→to
-  for (const hub of hubs || []) {
+  // 3. For each hub, find from→hub AND hub→to.
+  // Every hub is independent, so all of it goes out at once. This used to await
+  // leg A then leg B inside a for-loop — with 5-10 active hubs that is 10-20
+  // serial round trips stacked on the slowest screen in the app, on a
+  // connection where each round trip is expensive.
+  const candidateHubs = (hubs || []).filter(
+    (hub) =>
+      hub.station_name.toLowerCase() !== from.toLowerCase() &&
+      hub.station_name.toLowerCase() !== to.toLowerCase(),
+  )
+
+  const legQuery = (originLike: string, destLike: string) => {
+    let q = supabase
+      .from('routes')
+      .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
+      .or(
+        `and(from_location.ilike.%${originLike}%,to_location.ilike.%${destLike}%),` +
+        `and(from_location.ilike.%${destLike}%,to_location.ilike.%${originLike}%)`
+      )
+      .limit(1)
+    if (transportType) q = q.eq('transport_type', transportType)
+    return q
+  }
+
+  const hubLegs = await Promise.all(
+    candidateHubs.map(async (hub) => {
+      const [{ data: legA }, { data: legB }] = await Promise.all([
+        legQuery(from, hub.station_name),
+        legQuery(hub.station_name, to),
+      ])
+      return { hub, legA, legB }
+    }),
+  )
+
+  for (const { hub, legA, legB } of hubLegs) {
     const hubName = hub.station_name
-
-    if (
-      hubName.toLowerCase() === from.toLowerCase() ||
-      hubName.toLowerCase() === to.toLowerCase()
-    ) continue
-
-    let legAQuery = supabase
-      .from('routes')
-      .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
-      .or(
-        `and(from_location.ilike.%${from}%,to_location.ilike.%${hubName}%),` +
-        `and(from_location.ilike.%${hubName}%,to_location.ilike.%${from}%)`
-      )
-      .limit(1)
-
-    if (transportType) legAQuery = legAQuery.eq('transport_type', transportType)
-    const { data: legA } = await legAQuery
-
-    if (!legA?.length) continue
-
-    let legBQuery = supabase
-      .from('routes')
-      .select('id, from_location, to_location, official_fare, estimated_duration_mins, transport_type')
-      .or(
-        `and(from_location.ilike.%${hubName}%,to_location.ilike.%${to}%),` +
-        `and(from_location.ilike.%${to}%,to_location.ilike.%${hubName}%)`
-      )
-      .limit(1)
-
-    if (transportType) legBQuery = legBQuery.eq('transport_type', transportType)
-    const { data: legB } = await legBQuery
-
-    if (!legB?.length) continue
+    if (!legA?.length || !legB?.length) continue
 
     const a = legA[0]
     const b = legB[0]

@@ -5,9 +5,12 @@ import {
   ScrollView,
   Pressable,
   Alert,
-  Image,
   TouchableOpacity,
 } from 'react-native'
+// expo-image (already used in 12 other screens) downsamples to the drawn size
+// and caches decoded bitmaps. RN's Image decoded these at full source
+// resolution, which is how six small icons cost ~195 MB of RAM on this screen.
+import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
@@ -402,7 +405,7 @@ export default function HomeScreen() {
                     <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
                   </View>
                 )}
-                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8, opacity: svc.comingSoon ? 0.45 : 1 }} resizeMode="contain" />
+                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8, opacity: svc.comingSoon ? 0.45 : 1 }} contentFit="contain" transition={0} />
                 <Text style={{ fontFamily: font.bold, fontSize: 14, color: svc.comingSoon ? '#6B7280' : '#000', textAlign: 'center' }}>{svc.label}</Text>
               </TouchableOpacity>
             ))}
