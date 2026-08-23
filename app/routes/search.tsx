@@ -280,7 +280,10 @@ export default function PlanTripScreen() {
       ...s,
       distance: location ? formatDistance(haversineKm(location.latitude, location.longitude, s.lat, s.lon)) : undefined,
     }))
-  }, [activeInput, from, to, location])
+    // debouncedQuery MUST be here: it is state set 400ms after typing stops, and
+    // without it this memo never recomputed when the debounce landed — the final
+    // search term's results simply never appeared. from/to are not read here.
+  }, [debouncedQuery, location])
 
   const selectStation = useCallback((station: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -492,7 +495,12 @@ export default function PlanTripScreen() {
           {!showingResults && (
             <View style={{ paddingHorizontal: 24 }}>
               <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginBottom: 10 }}>
-                {(activeInput === 'from' ? from : to).length > 0 ? 'Results' : 'Nearby stations'}
+                {(activeInput === 'from' ? from : to).length > 0
+                  ? 'Results'
+                  /* Without a location fix these are just stations, in no
+                     particular order — calling them "nearby" while showing
+                     Kojokrom to someone in Accra is a claim we can't back. */
+                  : location ? 'Nearby stations' : 'Stations'}
               </Text>
               {suggestions.map((station, i) => (
                 <TouchableOpacity

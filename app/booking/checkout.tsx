@@ -236,7 +236,9 @@ export default function CheckoutScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+      {/* paddingBottom clears the sticky pay footer — at 20 the payment section
+          was hidden underneath it and looked truncated. */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 150 }}>
         {/* ── Route + details card ── */}
         <View style={s.card}>
           {/* From → To */}
@@ -335,7 +337,10 @@ export default function CheckoutScreen() {
                       {live && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />}
                       <Text style={s.driverName}>{driver}</Text>
                     </View>
-                    <Text style={s.driverRole}>Bus Driver · {plate}{live ? ' · Live' : onShift ? ' · On shift' : ''}</Text>
+                    {/* No "Bus Driver ·" prefix: this row is plainly the driver,
+                        and the words pushed the plate and shift status off the
+                        line. Plate + status are the parts a rider checks. */}
+                    <Text numberOfLines={1} style={s.driverRole}>{plate}{live ? ' · Live' : onShift ? ' · On shift' : ''}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                     <Text style={s.linkText}>Driver Details</Text>

@@ -41,7 +41,27 @@ export async function planRoute(from: string, to: string, transportType?: string
 
   const { data: directRoutes } = await directQuery
 
+  // The .or() above matches BOTH directions of a corridor, so Circle→Lapaz and
+  // Lapaz→Circle both come back and the rider sees the same journey listed
+  // twice at the same fare with no way to tell them apart. Keep one row per
+  // corridor, preferring the one already pointing the way they asked to travel.
+  const seenCorridor = new Set<string>()
+  const uniqueDirect = (directRoutes || []).filter((r) => {
+    const key = [r.from_location.toLowerCase(), r.to_location.toLowerCase()].sort().join('|')
+    if (seenCorridor.has(key)) return false
+    seenCorridor.add(key)
+    return true
+  })
+  // Prefer the forward-facing row when both directions were returned.
   for (const r of directRoutes || []) {
+    const key = [r.from_location.toLowerCase(), r.to_location.toLowerCase()].sort().join('|')
+    const idx = uniqueDirect.findIndex(
+      (u) => [u.from_location.toLowerCase(), u.to_location.toLowerCase()].sort().join('|') === key,
+    )
+    if (idx >= 0 && r.from_location.toLowerCase().includes(from.toLowerCase())) uniqueDirect[idx] = r
+  }
+
+  for (const r of uniqueDirect) {
     const isReversed = r.from_location.toLowerCase().includes(to.toLowerCase())
     results.push({
       type: 'direct',

@@ -81,7 +81,10 @@ export function RoutePlannerResults({
             onPress={() => onSelectPlan?.(i)}
             activeOpacity={0.7}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 14,
+              // Column, not row: the timing line needs the card's full width.
+              // Squeezed beside the fare it either wrapped mid-phrase or
+              // truncated to "25 min ri…".
+              gap: 8,
               padding: 14, borderRadius: 16,
               backgroundColor: isSelected ? '#FFF0EB' : '#FFFFFF',
               borderWidth: isSelected ? 1.5 : 1,
@@ -93,12 +96,11 @@ export function RoutePlannerResults({
               elevation: 1,
             }}
           >
-            {/* Vehicle image */}
-            <Image source={config.image} style={{ width: 52, height: 52 }} resizeMode="contain" />
-
-            {/* Route info */}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            {/* Top row: vehicle, label, fare */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Image source={config.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+              <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>{config.label}</Text>
                 {plan.type === 'direct' ? (
                   <View style={{ backgroundColor: '#FFF0EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
@@ -110,20 +112,29 @@ export function RoutePlannerResults({
                   </View>
                 )}
               </View>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text numberOfLines={1} style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>{formatGHS(plan.total_fare)}</Text>
+              </View>
+              <ChevronRight size={18} color="#D1D5DB" />
+            </View>
+
+            {/* Timing + transfer hub, full width */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 2, flexWrap: 'wrap' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Clock size={12} color="#6B7280" />
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
                   {etaMins} min away · {plan.total_duration_mins} min ride
                 </Text>
               </View>
+              {/* A transfer means changing vehicle somewhere — say where, or the
+                  rider can't weigh it against a direct option. */}
+              {plan.type === 'transfer' && plan.transfer_hub ? (
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#0EA5E9' }}>
+                  change at {plan.transfer_hub}
+                </Text>
+              ) : null}
             </View>
-
-            {/* Fare */}
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#000' }}>{formatGHS(plan.total_fare)}</Text>
-            </View>
-
-            <ChevronRight size={18} color="#D1D5DB" />
           </TouchableOpacity>
         )
       })}

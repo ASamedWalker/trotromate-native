@@ -103,7 +103,9 @@ export default function ReceiptScreen() {
           <X size={20} color="#111" />
         </TouchableOpacity>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 }}>
+      {/* Bottom padding clears the sticky Track/Share footer — at 20 the ticket's
+          fare and trip-code rows sat underneath it and read as cut off. */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 190 }}>
         {/* Success */}
         <View style={{ alignItems: 'center' }}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
