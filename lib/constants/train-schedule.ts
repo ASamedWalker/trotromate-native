@@ -28,7 +28,7 @@ export interface TrainSchedule {
 
 // ─── Freshness + zone fares ────────────────────────────────
 // Bump SCHEDULE_VERIFIED whenever times/fares are re-checked against GRDA/GRCL.
-export const SCHEDULE_VERIFIED = '2026-08-06'
+export const SCHEDULE_VERIFIED = '2026-09-15'
 
 // Tema–Mpakadan is zone-priced (GRDA official) — flat `fare: 40` is the
 // full-trip price only. Zones per GRDA announcements Oct 2025.

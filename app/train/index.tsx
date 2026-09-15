@@ -767,11 +767,22 @@ export default function TrainLinesScreen() {
           </View>
 
           {(() => {
-            // Two newest bulletins by date + the NOTICE disclaimer always pinned
-            // last (it is the honesty statement about this whole screen).
-            const sorted = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
-            const notice = sorted.find((b) => b.tag === 'NOTICE')
-            const news = sorted.filter((b) => b.tag !== 'NOTICE').slice(0, 2)
+            // Two bulletins + the NOTICE disclaimer always pinned last (it is
+            // the honesty statement about this whole screen).
+            // SERVICE UPDATE outranks NETWORK UPDATE regardless of date: the
+            // first kind affects the train someone is about to catch, the
+            // second is background. Sorting on date alone let two pieces of
+            // sector news push an active reduced-capacity notice off the screen.
+            // One of each, newest of its kind: the latest SERVICE UPDATE (what
+            // affects the train you are about to catch) and the latest other
+            // bulletin. Ranking purely by tag buried this month's news behind a
+            // five-month-old service note; ranking purely by date buried an
+            // active reduced-capacity warning behind sector news.
+            const byDate = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
+            const notice = byDate.find((b) => b.tag === 'NOTICE')
+            const service = byDate.find((b) => b.tag === 'SERVICE UPDATE')
+            const latestOther = byDate.find((b) => b.tag !== 'NOTICE' && b !== service)
+            const news = [service, latestOther].filter(Boolean) as typeof byDate
             const shown = notice ? [...news, notice] : news
             return shown.map((b) => {
               const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
