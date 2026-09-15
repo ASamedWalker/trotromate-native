@@ -37,7 +37,7 @@ import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
-import { NETWORK_BULLETINS, HOW_TO_RIDE } from '@/lib/constants/train-network'
+import { NETWORK_BULLETINS, HOW_TO_RIDE, LINE_STATUS } from '@/lib/constants/train-network'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import type { TrainLineWithStats } from '@/lib/types'
 
@@ -366,7 +366,11 @@ export default function TrainLinesScreen() {
             {/* Stats row: fare + occupancy */}
             <View style={s.lineStatsRow}>
               <View style={s.lineStat}>
-                <Text style={s.lineStatLabel}>OFFICIAL FARE</Text>
+                {/* Only a corroborated fare gets called official. TMA and STK
+                    are our own figures — GRDA has published neither. */}
+                <Text style={s.lineStatLabel}>
+                  {LINE_STATUS[item.code]?.fareConfidence === 'confirmed' ? 'OFFICIAL FARE' : 'FARE (GUIDE)'}
+                </Text>
                 <Text style={s.lineStatValue}>
                   {item.code === 'TMP' ? `${formatGHS(15)} – ${formatGHS(40)}` : meta.fareRange != null ? formatGHS(meta.fareRange) : '—'}
                 </Text>
