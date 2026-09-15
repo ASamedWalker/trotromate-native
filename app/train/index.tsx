@@ -371,8 +371,15 @@ export default function TrainLinesScreen() {
                 <Text style={s.lineStatLabel}>
                   {LINE_STATUS[item.code]?.fareConfidence === 'confirmed' ? 'OFFICIAL FARE' : 'FARE (GUIDE)'}
                 </Text>
-                <Text style={s.lineStatValue}>
-                  {item.code === 'TMP' ? `${formatGHS(15)} – ${formatGHS(40)}` : meta.fareRange != null ? formatGHS(meta.fareRange) : '—'}
+                {/* Compact: station boards write "15–40", not
+                    "GH₵ 15.00 – GH₵ 40.00". The long form was wide enough to
+                    push the STATUS stat clean off the card. */}
+                <Text numberOfLines={1} style={s.lineStatValue}>
+                  {item.code === 'TMP'
+                    ? 'GH₵15–40'
+                    : meta.fareRange != null
+                      ? `GH₵${meta.fareRange % 1 === 0 ? meta.fareRange : meta.fareRange.toFixed(2)}`
+                      : '—'}
                 </Text>
               </View>
               <View style={s.lineStatDivider} />
@@ -383,7 +390,12 @@ export default function TrainLinesScreen() {
                     const st = TRAIN_SCHEDULES[item.code]?.[0]?.stops
                     if (!st?.length || !st[0].depart || !st[st.length - 1].arrive) return '—'
                     const mins = parseTimeToMinutes(st[st.length - 1].arrive!) - parseTimeToMinutes(st[0].depart!)
-                    return `~${Math.floor(mins / 60)}h ${mins % 60}m`
+                    // "42 min", not "~0h 42m" — a leading 0h is noise, and
+                    // departure boards state duration the way people say it.
+                    if (mins < 60) return `${mins} min`
+                    const h = Math.floor(mins / 60)
+                    const m = mins % 60
+                    return m === 0 ? `${h}h` : `${h}h ${m}m`
                   })()}
                 </Text>
               </View>
@@ -1224,9 +1236,13 @@ const getStyles = (isDark: boolean) => {
     lineStatsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 20,
+      gap: 12,
     },
     lineStat: {
+      // flex + minWidth 0: without these a long fare value sized the stat to
+      // its content and pushed STATUS outside the card entirely.
+      flex: 1,
+      minWidth: 0,
       gap: 4,
     },
     lineStatLabel: {
