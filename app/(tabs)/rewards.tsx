@@ -45,7 +45,8 @@ import {
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter, type Href } from 'expo-router'
-import { themed, font } from '@/lib/theme'
+import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
+import { Chip, SectionHeader, Button } from '@/components/ui'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -68,7 +69,6 @@ import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 /* ── Constants ──────────────────────────────────────── */
 
-const BRAND = '#FF4D1C'
 const TABS = ['Coins', 'Earn', 'History', 'Referrals'] as const
 type Tab = (typeof TABS)[number]
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -82,7 +82,7 @@ const BADGE_ICONS: Record<string, typeof Star> = {
   shield: Shield, coins: Coins, users: Users, trophy: Trophy, calendar: CalendarDays,
 }
 const BADGE_COLORS: Record<string, string> = {
-  amber: '#F59E0B', orange: '#F97316', emerald: '#10B981', violet: '#8B5CF6',
+  amber: ui.warning, orange: '#F97316', emerald: '#10B981', violet: '#8B5CF6',
 }
 
 /* ── Game-feel animation primitives ──────────────────── */
@@ -199,7 +199,7 @@ function CoinGauge({
   const markerY = cy - R * Math.sin(phi)
 
   const d = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
-  const track = isDark ? 'rgba(255,255,255,0.10)' : '#F1ECEA'
+  const track = isDark ? 'rgba(255,255,255,0.10)' : ui.hairline
 
   return (
     <View style={{ width: W, height: H + 36, alignItems: 'center' }}>
@@ -228,7 +228,7 @@ function CoinGauge({
         {f > 0.004 && (
           <Path
             d={d}
-            stroke={BRAND}
+            stroke={brand.orange}
             strokeWidth={SW}
             fill="none"
             strokeLinecap="round"
@@ -245,10 +245,10 @@ function CoinGauge({
           width: 28,
           height: 28,
           borderRadius: 14,
-          backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
+          backgroundColor: isDark ? '#1c1c1e' : ui.card,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#B45309',
+          shadowColor: ui.warning,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.35,
           shadowRadius: 5,
@@ -262,10 +262,10 @@ function CoinGauge({
         <View style={{ position: 'absolute', top: -17, left: W / 2 - 30, width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFC93C', opacity: 0.16 }} />
         <View style={{ position: 'absolute', top: -7, left: W / 2 - 20, width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFC93C', opacity: 0.2 }} />
         <TroskiCoin size={26} />
-        <Text style={{ fontFamily: font.displayHeavy, fontSize: 40, color: isDark ? '#fff' : '#1c1917', letterSpacing: 0, marginTop: 4 }}>
+        <Text style={{ fontFamily: font.displayHeavy, fontSize: 40, color: isDark ? ui.onBrand : ui.text, letterSpacing: 0, marginTop: 4 }}>
           {shown.toLocaleString()}
         </Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginTop: 4 }}>
+        <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary, marginTop: 4 }}>
           Troski Coin
         </Text>
       </View>
@@ -274,14 +274,14 @@ function CoinGauge({
         {levelMin}
       </Text>
       <Text style={[gaugeScaleStyle(isDark), { position: 'absolute', left: cx + R - 26, top: cy + 14, width: 52, textAlign: 'center' }]}>
-        {levelMax === null ? 'MAX' : levelMax}
+        {levelMax === null ? 'Max' : levelMax}
       </Text>
     </View>
   )
 }
 
 function gaugeScaleStyle(isDark: boolean) {
-  return { fontFamily: font.extrabold, fontSize: 17, letterSpacing: -0.3, color: isDark ? 'rgba(255,255,255,0.7)' : '#57534e' } as const
+  return { fontFamily: font.extrabold, fontSize: 17, letterSpacing: -0.3, color: isDark ? 'rgba(255,255,255,0.7)' : ui.textSecondary } as const
 }
 
 /* ── Tier journey strip ──────────────────────────────── */
@@ -290,7 +290,7 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
   const curIdx = LEVEL_ORDER.indexOf(levelSlug)
   return (
     <View style={s.tierCard}>
-      <Text style={s.tierTitle}>Tier Journey</Text>
+      <Text style={s.tierTitle}>Tier journey</Text>
       <View style={s.tierRow}>
         {LEVEL_ORDER.map((slug, i) => {
           const lvl = LEVELS[slug]
@@ -298,7 +298,7 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
           const current = i === curIdx
           return (
             <Fragment key={slug}>
-              {i > 0 && <View style={[s.tierLine, reached && { backgroundColor: BRAND }]} />}
+              {i > 0 && <View style={[s.tierLine, reached && { backgroundColor: brand.orange }]} />}
               <View style={{ alignItems: 'center', width: 64 }}>
                 {current ? (
                   <Bob dy={4}>
@@ -544,23 +544,16 @@ export default function RewardsScreen() {
         {TABS.map((tb) => {
           const active = tab === tb
           return (
-            <TouchableOpacity
-              key={tb}
-              activeOpacity={0.8}
-              onPress={() => { setTab(tb); Haptics.selectionAsync() }}
-              style={[s.tabPill, active && s.tabPillActive]}
-            >
-              <Text style={[s.tabPillText, active && s.tabPillTextActive]}>{tb}</Text>
-            </TouchableOpacity>
+            <Chip key={tb} label={tb} selected={active} onPress={() => setTab(tb)} />
           )
         })}
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
+        contentContainerStyle={{ paddingHorizontal: space.gutter, paddingTop: 18, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} colors={[BRAND]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.orange} colors={[brand.orange]} />}
       >
         {isLoading ? (
           <SkeletonRewards isDark={isDark} />
@@ -619,7 +612,7 @@ export default function RewardsScreen() {
                 {/* Weekly recap — Waze-style impact rhythm, computed from real history */}
                 {derived.weekCoins > 0 && (
                   <View style={s.weekCard}>
-                    <Text style={s.weekTitle}>This Week</Text>
+                    <Text style={s.weekTitle}>This week</Text>
                     <View style={s.weekRow}>
                       <View style={s.weekStat}>
                         <Text style={s.weekValue}>{derived.weekReports}</Text>
@@ -646,7 +639,7 @@ export default function RewardsScreen() {
                 {(profile?.total_reports ?? 0) > 0 && (
                   <View style={s.impactCard}>
                     <View style={s.impactIconWrap}>
-                      <Users size={20} color={BRAND} />
+                      <Users size={20} color={brand.orange} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.impactValue}>{(profile?.total_reports ?? 0).toLocaleString()} reports shared</Text>
@@ -658,19 +651,17 @@ export default function RewardsScreen() {
                 {/* Badge case — Local Guides-style typed achievements (real backend badges) */}
                 {allBadges.length > 0 && (
                   <>
-                    <View style={s.badgeHeaderRow}>
-                      <Text style={s.sectionTitle}>Badges</Text>
-                      <Text style={s.badgeCount}>{earnedBadges.length} of {allBadges.length}</Text>
-                    </View>
+                    <SectionHeader title="Badges" style={s.sectionHead} />
+                    <Text style={s.sectionSub}>{earnedBadges.length} of {allBadges.length} earned</Text>
                     <View style={s.badgeGrid}>
                       {allBadges.map((b) => {
                         const earned = earnedBadges.some((e) => e.id === b.id)
                         const IconComponent = BADGE_ICONS[b.icon] || Star
-                        const color = BADGE_COLORS[b.color] || '#F59E0B'
+                        const color = BADGE_COLORS[b.color] || ui.warning
                         return (
                           <View key={b.id} style={[s.badgeCard, !earned && { opacity: 0.45 }]}>
-                            <View style={[s.badgeIconCircle, { backgroundColor: earned ? `${color}1F` : (isDark ? 'rgba(255,255,255,0.06)' : '#F4F1F0') }]}>
-                              <IconComponent size={22} color={earned ? color : (isDark ? 'rgba(255,255,255,0.4)' : '#A8A29E')} />
+                            <View style={[s.badgeIconCircle, { backgroundColor: earned ? `${color}1F` : (isDark ? 'rgba(255,255,255,0.06)' : ui.surface) }]}>
+                              <IconComponent size={22} color={earned ? color : (isDark ? 'rgba(255,255,255,0.4)' : ui.textTertiary)} />
                             </View>
                             <Text style={s.badgeName} numberOfLines={1}>{b.name}</Text>
                             <Text style={s.badgeDesc} numberOfLines={2}>{b.description}</Text>
@@ -681,10 +672,7 @@ export default function RewardsScreen() {
                   </>
                 )}
 
-                <TouchableOpacity activeOpacity={0.9} style={s.primaryBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/leaderboard' as Href) }}>
-                  <Trophy size={18} color="#fff" />
-                  <Text style={s.primaryBtnText}>View Leaderboard</Text>
-                </TouchableOpacity>
+                <Button label="View leaderboard" icon={Trophy} style={{ marginTop: 12 }} onPress={() => router.push('/leaderboard' as Href)} />
               </>
             )}
 
@@ -692,11 +680,11 @@ export default function RewardsScreen() {
             {tab === 'Earn' && (
               <>
                 {/* Daily streak */}
-                <LinearGradient colors={['#FF6A3D', '#E83C0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.streakCard}>
+                <LinearGradient colors={[brand.orange, brand.orangePressed]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.streakCard}>
                   <View style={s.streakTop}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Flame size={19} color="#fff" fill="#FFD166" />
-                      <Text style={s.streakTitle}>Daily Streak</Text>
+                      <Flame size={19} color={ui.onBrand} fill="#FFD166" />
+                      <Text style={s.streakTitle}>Daily streak</Text>
                     </View>
                     <Text style={s.streakBadge}>
                       {streak} day streak{longestStreak > streak ? ` · Best ${longestStreak}` : ''}
@@ -734,7 +722,7 @@ export default function RewardsScreen() {
                 </LinearGradient>
 
                 {/* Missions grid */}
-                <Text style={s.sectionTitle}>Missions</Text>
+                <SectionHeader title="Missions" style={s.sectionHead} />
                 <Text style={s.sectionSub}>Ways to earn coins</Text>
                 <View style={s.missionGrid}>
                   {earnActions.map((a) => (
@@ -762,7 +750,7 @@ export default function RewardsScreen() {
             {tab === 'History' && (
               <>
                 <View style={s.card}>
-                  <Text style={s.availLabel}>Total Coins</Text>
+                  <Text style={s.availLabel}>Total coins</Text>
                   <View style={s.availRow}>
                     <TroskiCoin size={32} />
                     <Text style={s.availValue}>{coins.toLocaleString()}</Text>
@@ -772,18 +760,18 @@ export default function RewardsScreen() {
 
                 <View style={s.summaryRow}>
                   <View style={[s.summaryCard, { marginRight: 6 }]}>
-                    <Text style={s.summaryLabel}>This Month</Text>
-                    <Text style={[s.summaryValue, { color: '#16a34a' }]}>+{derived.monthEarned}</Text>
+                    <Text style={s.summaryLabel}>This month</Text>
+                    <Text style={[s.summaryValue, { color: ui.success }]}>+{derived.monthEarned}</Text>
                   </View>
                   <View style={[s.summaryCard, { marginLeft: 6 }]}>
                     <Text style={s.summaryLabel}>Redeemed</Text>
-                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.5)' : '#6B7280') }]}>
+                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? ui.danger : (isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary) }]}>
                       {derived.redeemed > 0 ? `-${derived.redeemed}` : '0'}
                     </Text>
                   </View>
                 </View>
 
-                <Text style={s.sectionTitle}>Coin History</Text>
+                <SectionHeader title="Coin history" style={s.sectionHead} />
                 {derived.groups.length === 0 ? (
                   <View style={s.emptyHistory}>
                     <View style={{ opacity: 0.55 }}><TroskiCoin size={42} /></View>
@@ -799,14 +787,14 @@ export default function RewardsScreen() {
                           const positive = h.points >= 0
                           return (
                             <View key={h.id} style={[s.histRow, i < g.items.length - 1 && s.rowBorder]}>
-                              <View style={[s.histIcon, !positive && { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEECEC' }]}>
-                                <meta.Icon size={16} color={positive ? BRAND : '#ef4444'} />
+                              <View style={[s.histIcon, !positive && { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : ui.dangerSoft }]}>
+                                <meta.Icon size={16} color={positive ? brand.orange : ui.danger} />
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={s.histLabel}>{meta.label}</Text>
                                 <Text style={s.histTime}>{histTime(h.created_at)}</Text>
                               </View>
-                              <Text style={[s.histPts, { color: positive ? '#16a34a' : '#ef4444' }]}>
+                              <Text style={[s.histPts, { color: positive ? ui.success : ui.danger }]}>
                                 {positive ? '+' : '-'}{Math.abs(h.points)}
                               </Text>
                             </View>
@@ -825,17 +813,17 @@ export default function RewardsScreen() {
                 <View style={s.refTopCard}>
                   <View style={s.refAvatars}>
                     {[0, 1, 2, 3].map((i) => (
-                      <View key={i} style={[s.refAvatar, { marginLeft: i === 0 ? 0 : -10, backgroundColor: ['#FFD6C7', '#C7E5FF', '#D7F5D7', '#EAD7FF'][i] }]}>
-                        <Users size={14} color="#fff" />
+                      <View key={i} style={[s.refAvatar, { marginLeft: i === 0 ? 0 : -10, backgroundColor: brand.orangeSoft }]}>
+                        <Users size={14} color={brand.orange} />
                       </View>
                     ))}
                   </View>
                   <TouchableOpacity onPress={() => Alert.alert('Referral History', referralCount > 0 ? `${referralCount} friend${referralCount === 1 ? '' : 's'} have joined with your code.` : 'No referrals yet. Share your code to get started!')}>
-                    <Text style={s.refHistoryLink}>View History</Text>
+                    <Text style={s.refHistoryLink}>View history</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={s.refCountRow}>
-                  <Text style={s.refCountLabel}>Total Completed Referrals</Text>
+                  <Text style={s.refCountLabel}>Total completed referrals</Text>
                   <Text style={s.refCountValue}>{referralCount} Friend{referralCount === 1 ? '' : 's'}</Text>
                 </View>
 
@@ -847,17 +835,17 @@ export default function RewardsScreen() {
                   <Spin duration={20000} reverse style={{ position: 'absolute' }}>
                     <View style={[s.orbit, { width: 140, height: 140, borderRadius: 70 }]} />
                   </Spin>
-                  <Bob dy={5}><View style={s.giftCircle}><Gift size={40} color={BRAND} /></View></Bob>
+                  <Bob dy={5}><View style={s.giftCircle}><Gift size={40} color={brand.orange} /></View></Bob>
                   {[
                     { top: 6, left: 30 }, { top: 30, right: 18 }, { bottom: 12, left: 18 }, { bottom: 24, right: 30 },
                   ].map((pos, i) => (
-                    <View key={i} style={[s.orbitAvatar, pos as object, { backgroundColor: ['#FFD6C7', '#C7E5FF', '#D7F5D7', '#EAD7FF'][i] }]}>
-                      <Users size={13} color="#fff" />
+                    <View key={i} style={[s.orbitAvatar, pos as object, { backgroundColor: brand.orangeSoft }]}>
+                      <Users size={13} color={brand.orange} />
                     </View>
                   ))}
                 </View>
 
-                <Text style={s.refTitle}>Invite Friends</Text>
+                <Text style={s.refTitle}>Invite friends</Text>
                 <Text style={s.refSub}>It pays to bring your friends along</Text>
 
                 <View style={s.refRewardPill}>
@@ -885,10 +873,10 @@ export default function RewardsScreen() {
                     <Text style={s.codeText}>{referralCode ?? '—'}</Text>
                   </View>
                   <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy}>
-                    {copied ? <Check size={18} color="#16a34a" /> : <Copy size={18} color={BRAND} />}
+                    {copied ? <Check size={18} color={ui.success} /> : <Copy size={18} color={brand.orange} />}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={s.codeShare}>
-                    <Share2 size={16} color="#fff" />
+                    <Share2 size={16} color={ui.onBrand} />
                     <Text style={s.codeShareText}>Share</Text>
                   </TouchableOpacity>
                 </View>
@@ -906,7 +894,7 @@ export default function RewardsScreen() {
             origin={{ x: SCREEN_W / 2, y: -10 }}
             fadeOut
             autoStart
-            colors={[BRAND, '#FFB196', '#FFD700', '#16a34a', '#8b5cf6']}
+            colors={[brand.orange, '#FFB196', '#FFD700', ui.success, '#8b5cf6']}
             explosionSpeed={400}
             fallSpeed={2800}
             onAnimationEnd={() => setCelebrating(false)}
@@ -922,8 +910,8 @@ export default function RewardsScreen() {
 function Stat({ label, value, isDark, onPress }: { label: string; value: string; isDark: boolean; onPress?: () => void }) {
   const body = (
     <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-      <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: isDark ? '#fff' : '#1c1917' }}>{value}</Text>
-      <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280' }}>{label}</Text>
+      <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: isDark ? ui.onBrand : ui.text }}>{value}</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary }}>{label}</Text>
     </View>
   )
   if (onPress) return <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.6} onPress={onPress}>{body}</TouchableOpacity>
@@ -938,28 +926,24 @@ function histTime(iso: string): string {
 /* ── Styles ──────────────────────────────────────────── */
 
 const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
-  const surface = isDark ? '#1c1c1e' : '#ffffff'
-  const subText = isDark ? 'rgba(255,255,255,0.55)' : '#6B7280'
-  const border = isDark ? 'rgba(255,255,255,0.07)' : '#F1ECEA'
+  const surface = isDark ? '#1c1c1e' : ui.card
+  const subText = isDark ? 'rgba(255,255,255,0.55)' : ui.textSecondary
+  const border = isDark ? 'rgba(255,255,255,0.07)' : ui.hairline
+  const lift = isDark ? {} : cardShadow
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fafaf9' },
+    container: { flex: 1, backgroundColor: ui.bg },
 
-    header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8, alignItems: 'center' },
-    headerTitle: { fontFamily: font.bold, fontSize: 18, color: t.text },
+    header: { paddingHorizontal: space.gutter, paddingTop: 6, paddingBottom: 8, alignItems: 'center' },
+    headerTitle: { fontFamily: font.bold, fontSize: 18, color: ui.text },
 
     /* sub-tabs */
-    tabRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8 },
-    tabPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F4F1F0' },
-    tabPillActive: { backgroundColor: BRAND },
-    tabPillText: { fontFamily: font.semibold, fontSize: 13, color: subText },
-    tabPillTextActive: { color: '#fff' },
+    tabRow: { flexDirection: 'row', paddingHorizontal: space.gutter, gap: 8 },
 
     card: {
-      backgroundColor: surface, borderRadius: 20, paddingVertical: 20, padding: 20,
+      backgroundColor: surface, borderRadius: radius.xl, paddingVertical: 20, padding: 20,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0 : 0.06, shadowRadius: 16, elevation: isDark ? 0 : 3,
+      ...lift,
     },
 
     tierPill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
@@ -972,43 +956,41 @@ const getStyles = (isDark: boolean) => {
 
     /* tier journey */
     tierCard: {
-      backgroundColor: surface, borderRadius: 16, padding: 16, marginTop: 14,
+      backgroundColor: surface, borderRadius: radius.lg, padding: 16, marginTop: 14,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2,
+      ...lift,
     },
-    tierTitle: { fontFamily: font.bold, fontSize: 15, color: t.text },
+    tierTitle: { fontFamily: font.bold, fontSize: 15, color: ui.text },
     tierRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
-    tierLine: { flex: 1, height: 3, borderRadius: 2, marginTop: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : '#F1ECEA' },
-    tierDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F4F1F0', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-    tierDotReached: { backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB' },
-    tierDotCurrent: { borderColor: BRAND },
+    tierLine: { flex: 1, height: 3, borderRadius: 2, marginTop: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : ui.hairline },
+    tierDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : ui.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+    tierDotReached: { backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft },
+    tierDotCurrent: { borderColor: brand.orange },
     tierName: { fontFamily: font.semibold, fontSize: 10, color: subText, textAlign: 'center', marginTop: 6, lineHeight: 13 },
-    tierNameReached: { color: t.text },
+    tierNameReached: { color: ui.text },
     tierPts: { fontFamily: font.medium, fontSize: 9, color: subText, marginTop: 1 },
 
     /* weekly recap */
     weekCard: {
-      backgroundColor: surface, borderRadius: 16, padding: 16, marginTop: 14,
+      backgroundColor: surface, borderRadius: radius.lg, padding: 16, marginTop: 14,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2,
+      ...lift,
     },
-    weekTitle: { fontFamily: font.bold, fontSize: 15, color: t.text },
+    weekTitle: { fontFamily: font.bold, fontSize: 15, color: ui.text },
     weekRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
     weekStat: { flex: 1, alignItems: 'center', gap: 3 },
-    weekValue: { fontFamily: font.extrabold, fontSize: 18, lineHeight: 24, color: t.text },
+    weekValue: { fontFamily: font.extrabold, fontSize: 18, lineHeight: 24, color: ui.text },
     weekLabel: { fontFamily: font.medium, fontSize: 12, color: subText },
 
     /* badge case */
-    badgeHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-    badgeCount: { fontFamily: font.semibold, fontSize: 13, color: subText },
     badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 12, rowGap: 10 },
     badgeCard: {
       width: '31.5%', alignItems: 'center', backgroundColor: surface, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 8,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 10, elevation: isDark ? 0 : 2,
+      ...lift,
     },
     badgeIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-    badgeName: { fontFamily: font.semibold, fontSize: 12, color: t.text, marginTop: 8 },
+    badgeName: { fontFamily: font.semibold, fontSize: 12, color: ui.text, marginTop: 8 },
     badgeDesc: { fontFamily: font.regular, fontSize: 10, color: subText, textAlign: 'center', marginTop: 2, lineHeight: 13 },
 
     /* community impact */
@@ -1016,38 +998,32 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14,
       backgroundColor: surface, borderRadius: 16, padding: 16,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2,
+      ...lift,
     },
-    impactIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-    impactValue: { fontFamily: font.bold, fontSize: 15, color: t.text },
+    impactIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+    impactValue: { fontFamily: font.bold, fontSize: 15, color: ui.text },
     impactSub: { fontFamily: font.regular, fontSize: 12.5, color: subText, marginTop: 3, lineHeight: 17 },
 
-    primaryBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      height: 52, borderRadius: 14, backgroundColor: BRAND, marginTop: 12,
-    },
-    primaryBtnText: { fontFamily: font.bold, fontSize: 15, color: '#fff' },
-
     /* streak */
-    streakCard: { borderRadius: 20, padding: 18, overflow: 'hidden' },
+    streakCard: { borderRadius: radius.xl, padding: 18, overflow: 'hidden' },
     streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-    streakTitle: { fontFamily: font.bold, fontSize: 18, color: '#fff' },
+    streakTitle: { fontFamily: font.bold, fontSize: 18, color: ui.onBrand },
     streakBadge: { fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
     streakDays: { flexDirection: 'row', justifyContent: 'space-between' },
     dayDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-    dayDotDone: { backgroundColor: '#fff' },
-    dayDotToday: { borderWidth: 2, borderColor: '#fff' },
+    dayDotDone: { backgroundColor: ui.onBrand },
+    dayDotToday: { borderWidth: 2, borderColor: ui.onBrand },
     dayNum: { fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
     dayLabel: { fontFamily: font.medium, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
-    dayLabelToday: { fontFamily: font.bold, color: '#fff' },
+    dayLabelToday: { fontFamily: font.bold, color: ui.onBrand },
     streakNoteWrap: { borderRadius: 10, overflow: 'hidden', marginTop: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     streakNote: { backgroundColor: 'rgba(255,255,255,0.12)', padding: 12 },
-    streakNoteText: { fontFamily: font.medium, fontSize: 12.5, color: '#fff', textAlign: 'center' },
+    streakNoteText: { fontFamily: font.medium, fontSize: 12.5, color: ui.onBrand, textAlign: 'center' },
 
-    sectionTitle: { fontFamily: font.bold, fontSize: 18, color: t.text, marginTop: 22 },
+    sectionHead: { marginTop: space.section },
     sectionSub: { fontFamily: font.regular, fontSize: 13, color: subText, marginTop: 2, marginBottom: 12 },
 
-    listCard: { backgroundColor: surface, borderRadius: 16, paddingHorizontal: 14, borderWidth: isDark ? 1 : 0, borderColor: border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2, marginTop: 8 },
+    listCard: { backgroundColor: surface, borderRadius: 16, paddingHorizontal: 14, borderWidth: isDark ? 1 : 0, borderColor: border, ...lift, marginTop: 8 },
     rowBorder: { borderBottomWidth: 1, borderBottomColor: border },
 
     /* missions */
@@ -1055,33 +1031,33 @@ const getStyles = (isDark: boolean) => {
     missionCard: {
       width: '48.5%', alignItems: 'center', backgroundColor: surface, borderRadius: 18, paddingVertical: 16,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2,
+      ...lift,
     },
     missionEmojiWrap: {
       width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(255,77,28,0.12)' : '#FFF4EF',
+      backgroundColor: isDark ? 'rgba(255,77,28,0.12)' : brand.orangeSoft,
     },
-    missionLabel: { fontFamily: font.semibold, fontSize: 13.5, color: t.text, marginTop: 10, paddingHorizontal: 8 },
+    missionLabel: { fontFamily: font.semibold, fontSize: 13.5, color: ui.text, marginTop: 10, paddingHorizontal: 8 },
     missionPts: {
       flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8,
-      backgroundColor: isDark ? 'rgba(255,201,60,0.14)' : '#FFF7E0',
+      backgroundColor: isDark ? 'rgba(255,201,60,0.14)' : ui.warningSoft,
       paddingHorizontal: 11, paddingVertical: 5, borderRadius: 12,
     },
-    missionPtsText: { fontFamily: font.bold, fontSize: 13, color: '#B45309' },
+    missionPtsText: { fontFamily: font.bold, fontSize: 13, color: ui.warning },
 
     /* history */
     availLabel: { fontFamily: font.medium, fontSize: 13, color: subText, marginTop: 4 },
     availRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-    availValue: { fontFamily: font.extrabold, fontSize: 34, color: t.text, letterSpacing: -1 },
+    availValue: { fontFamily: font.extrabold, fontSize: 34, color: ui.text, letterSpacing: -1 },
     availSub: { fontFamily: font.regular, fontSize: 13, color: subText, marginTop: 2 },
     summaryRow: { flexDirection: 'row', marginTop: 18 },
-    summaryCard: { flex: 1, backgroundColor: surface, borderRadius: 14, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 10, elevation: isDark ? 0 : 2 },
+    summaryCard: { flex: 1, backgroundColor: surface, borderRadius: 14, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border, ...lift, },
     summaryLabel: { fontFamily: font.medium, fontSize: 12, color: subText },
     summaryValue: { fontFamily: font.extrabold, fontSize: 22, marginTop: 6 },
-    histGroup: { fontFamily: font.bold, fontSize: 12, color: subText, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 2 },
+    histGroup: { fontFamily: font.semibold, fontSize: 13, color: subText, marginTop: 16, marginBottom: 2 },
     histRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
-    histIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-    histLabel: { fontFamily: font.semibold, fontSize: 14, color: t.text },
+    histIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+    histLabel: { fontFamily: font.semibold, fontSize: 14, color: ui.text },
     histTime: { fontFamily: font.regular, fontSize: 12, color: subText, marginTop: 2 },
     histPts: { fontFamily: font.extrabold, fontSize: 15 },
     emptyHistory: { alignItems: 'center', gap: 10, paddingVertical: 40 },
@@ -1091,39 +1067,39 @@ const getStyles = (isDark: boolean) => {
     refTopCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: surface, borderRadius: 16, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border },
     refAvatars: { flexDirection: 'row', alignItems: 'center' },
     refAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: surface },
-    refHistoryLink: { fontFamily: font.bold, fontSize: 13, color: BRAND },
+    refHistoryLink: { fontFamily: font.bold, fontSize: 13, color: brand.orange },
     refCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 4 },
     refCountLabel: { fontFamily: font.medium, fontSize: 14, color: subText },
-    refCountValue: { fontFamily: font.bold, fontSize: 14, color: t.text },
+    refCountValue: { fontFamily: font.bold, fontSize: 14, color: ui.text },
 
     giftWrap: { alignItems: 'center', justifyContent: 'center', height: 220, marginTop: 10 },
     orbit: { borderWidth: 1.5, borderColor: border, borderStyle: 'dashed' },
-    giftCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-    orbitAvatar: { position: 'absolute', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: isDark ? '#0c0a09' : '#fafaf9' },
+    giftCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+    orbitAvatar: { position: 'absolute', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: isDark ? '#0c0a09' : ui.bg },
 
-    refTitle: { fontFamily: font.bold, fontSize: 20, color: t.text, textAlign: 'center', marginTop: 4 },
+    refTitle: { fontFamily: font.bold, fontSize: 20, color: ui.text, textAlign: 'center', marginTop: 4 },
     refSub: { fontFamily: font.regular, fontSize: 13, color: subText, textAlign: 'center', marginTop: 4, marginBottom: 12, paddingHorizontal: 20 },
     refRewardPill: {
       alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
-      backgroundColor: isDark ? 'rgba(255,201,60,0.14)' : '#FFF7E0',
+      backgroundColor: isDark ? 'rgba(255,201,60,0.14)' : ui.warningSoft,
       paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, marginBottom: 14,
     },
-    refRewardText: { fontFamily: font.bold, fontSize: 14, color: '#B45309' },
+    refRewardText: { fontFamily: font.bold, fontSize: 14, color: ui.warning },
     stepsCard: {
       backgroundColor: surface, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16,
       borderWidth: isDark ? 1 : 0, borderColor: border,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 12, elevation: isDark ? 0 : 2,
+      ...lift,
     },
     stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
-    stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-    stepNumText: { fontFamily: font.bold, fontSize: 13, color: BRAND },
-    stepText: { flex: 1, fontFamily: font.medium, fontSize: 13.5, color: t.text },
+    stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+    stepNumText: { fontFamily: font.bold, fontSize: 13, color: brand.orange },
+    stepText: { flex: 1, fontFamily: font.medium, fontSize: 13.5, color: ui.text },
     codeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     codeBox: { flex: 1, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: border },
     codeLabel: { fontFamily: font.regular, fontSize: 11, color: subText },
-    codeText: { fontFamily: font.extrabold, fontSize: 18, color: t.text, letterSpacing: 2, marginTop: 2 },
-    codeCopy: { width: 48, height: 48, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-    codeShare: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, paddingHorizontal: 18, borderRadius: 14, backgroundColor: BRAND },
-    codeShareText: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
+    codeText: { fontFamily: font.extrabold, fontSize: 18, color: ui.text, letterSpacing: 2, marginTop: 2 },
+    codeCopy: { width: 48, height: 48, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+    codeShare: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, paddingHorizontal: 18, borderRadius: radius.md, backgroundColor: brand.orange },
+    codeShareText: { fontFamily: font.bold, fontSize: 14, color: ui.onBrand },
   })
 }

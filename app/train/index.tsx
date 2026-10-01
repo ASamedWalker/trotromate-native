@@ -16,7 +16,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SkeletonTrainCard } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { useRouter } from 'expo-router'
-import { LinearGradient } from 'expo-linear-gradient'
 import {
   TrainFront,
   Clock,
@@ -24,9 +23,9 @@ import {
   ShieldCheck,
   Bell,
   BellRing,
-  Info,
 } from 'lucide-react-native'
-import { font } from '@/lib/theme'
+import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
+import { Badge, Button, SectionHeader } from '@/components/ui'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { DailyTipCard } from '@/components/DailyTipCard'
@@ -229,40 +228,18 @@ function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles
 
 // ─── Line metadata for editorial cards ───────────────────
 
-const LINE_META: Record<string, { subtitle: string; fareRange: number; badgeColor: string; badgeBg: string; gradientFrom: string; gradientTo: string }> = {
-  TMA: {
-    subtitle: 'Suburban Commuter',
-    fareRange: 15,
-    badgeColor: '#0e7490',
-    badgeBg: '#ecfeff',
-    gradientFrom: '#06b6d4',
-    gradientTo: '#1d4ed8',
-  },
-  TMP: {
-    subtitle: 'Inter-Regional',
-    fareRange: 40,
-    badgeColor: '#92400e',
-    badgeBg: '#fffbeb',
-    gradientFrom: '#f59e0b',
-    gradientTo: '#ea580c',
-  },
-  STK: {
-    subtitle: 'Western Line Commuter',
-    fareRange: 10,
-    badgeColor: '#065f46',
-    badgeBg: '#ecfdf5',
-    gradientFrom: '#10b981',
-    gradientTo: '#0d9488',
-  },
+type LineTone = 'info' | 'warning' | 'success'
+
+const LINE_META: Record<string, { subtitle: string; fareRange: number; tone: LineTone }> = {
+  TMA: { subtitle: 'Suburban Commuter', fareRange: 15, tone: 'info' },
+  TMP: { subtitle: 'Inter-Regional', fareRange: 40, tone: 'warning' },
+  STK: { subtitle: 'Western Line Commuter', fareRange: 10, tone: 'success' },
 }
 
 const DEFAULT_LINE_META = {
   subtitle: 'Rail Service',
   fareRange: null as number | null,
-  badgeColor: '#0e7490',
-  badgeBg: '#ecfeff',
-  gradientFrom: '#06b6d4',
-  gradientTo: '#1d4ed8',
+  tone: 'info' as LineTone,
 }
 
 // ─── Main screen ─────────────────────────────────────────
@@ -311,9 +288,9 @@ export default function TrainLinesScreen() {
   const departure = useMemo(() => getNextDeparture(), [tick])
 
   const lineColor = useMemo(() => {
-    if (departure.type === 'no-service') return '#0ea5e9'
+    if (departure.type === 'no-service') return ui.info
     const line = lines.find((l) => l.code === departure.lineCode)
-    return line?.color || '#0ea5e9'
+    return line?.color || ui.info
   }, [departure, lines])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,16 +327,12 @@ export default function TrainLinesScreen() {
             {/* Top: badge + title + shield */}
             <View style={s.lineCardTop}>
               <View style={{ flex: 1 }}>
-                <View style={[s.lineBadge, { backgroundColor: meta.badgeBg }]}>
-                  <Text style={[s.lineBadgeText, { color: meta.badgeColor }]}>
-                    Line {item.code}
-                  </Text>
-                </View>
+                <Badge label={`Line ${item.code}`} tone={meta.tone} />
                 <HeroText size={24} style={s.lineTitle}>{item.name}</HeroText>
                 <Text style={s.lineSubtitle}>{meta.subtitle}</Text>
               </View>
               <View style={s.shieldBox}>
-                <ShieldCheck size={22} color="#fff" />
+                <ShieldCheck size={22} color={ui.onBrand} />
               </View>
             </View>
 
@@ -369,7 +342,7 @@ export default function TrainLinesScreen() {
                 {/* Only a corroborated fare gets called official. TMA and STK
                     are our own figures — GRDA has published neither. */}
                 <Text style={s.lineStatLabel}>
-                  {LINE_STATUS[item.code]?.fareConfidence === 'confirmed' ? 'OFFICIAL FARE' : 'FARE (GUIDE)'}
+                  {LINE_STATUS[item.code]?.fareConfidence === 'confirmed' ? 'Official fare' : 'Fare (guide)'}
                 </Text>
                 {/* Compact: station boards write "15–40", not
                     "GH₵ 15.00 – GH₵ 40.00". The long form was wide enough to
@@ -384,7 +357,7 @@ export default function TrainLinesScreen() {
               </View>
               <View style={s.lineStatDivider} />
               <View style={s.lineStat}>
-                <Text style={s.lineStatLabel}>JOURNEY</Text>
+                <Text style={s.lineStatLabel}>Journey</Text>
                 <Text style={s.lineStatValue}>
                   {(() => {
                     const st = TRAIN_SCHEDULES[item.code]?.[0]?.stops
@@ -401,17 +374,17 @@ export default function TrainLinesScreen() {
               </View>
               <View style={s.lineStatDivider} />
               <View style={s.lineStat}>
-                <Text style={s.lineStatLabel}>STATUS</Text>
+                <Text style={s.lineStatLabel}>Status</Text>
                 <View style={s.occupancyRow}>
                   <View style={[s.occupancyDot, {
-                    backgroundColor: isInTransit ? '#22c55e' : isWaiting ? '#f59e0b' : '#9ca3af',
+                    backgroundColor: isInTransit ? ui.success : isWaiting ? ui.warning : ui.textTertiary,
                   }]} />
                   <Text style={[s.occupancyText, {
                     color: isInTransit
-                      ? (isDark ? '#4ade80' : '#15803d')
+                      ? (isDark ? '#4ade80' : ui.success)
                       : isWaiting
-                        ? (isDark ? '#fbbf24' : '#92400e')
-                        : (isDark ? '#9ca3af' : '#6b7280'),
+                        ? (isDark ? '#fbbf24' : ui.warning)
+                        : (isDark ? '#9ca3af' : ui.textSecondary),
                   }]}>
                     {isInTransit ? 'In Transit' : isWaiting ? 'Next Service' : 'No Service'}
                   </Text>
@@ -421,22 +394,13 @@ export default function TrainLinesScreen() {
 
             {/* Actions row */}
             <View style={s.lineActions}>
-              <TouchableOpacity
+              <Button
+                label="View schedule"
                 onPress={() =>
                   router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
                 }
-                activeOpacity={0.85}
-                style={s.lineActionPrimary}
-              >
-                <LinearGradient
-                  colors={['#815100', '#f8a010']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={s.lineActionPrimaryGradient}
-                >
-                  <Text style={s.lineActionPrimaryText}>View Schedule</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
               {/* Reminder toggle — only when this line has an upcoming departure
                   far enough out to be useful; replaces the old duplicate
                   "open detail" icon that did nothing the card tap didn't. */}
@@ -450,9 +414,9 @@ export default function TrainLinesScreen() {
                       style={[s.lineActionIcon, armed && s.lineActionIconOn]}
                     >
                       {armed ? (
-                        <BellRing size={20} color="#22c55e" />
+                        <BellRing size={20} color={ui.success} />
                       ) : (
-                        <Bell size={20} color={isDark ? '#a8a29e' : '#815100'} />
+                        <Bell size={20} color={isDark ? '#a8a29e' : brand.orangeText} />
                       )}
                     </TouchableOpacity>
                   )
@@ -461,12 +425,7 @@ export default function TrainLinesScreen() {
           </View>
 
           {/* Bottom gradient strip */}
-          <LinearGradient
-            colors={[meta.gradientFrom, meta.gradientTo]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={s.lineCardStrip}
-          >
+          <View style={s.lineCardStrip}>
             <View style={s.lineCardStripContent}>
               <GRDABadge size="small" />
               <Text style={s.lineCardStripText}>GRDA Official</Text>
@@ -477,7 +436,7 @@ export default function TrainLinesScreen() {
                 {item.stats?.total_reports ?? 0} reports
               </Text>
             </View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       )
     },
@@ -487,20 +446,15 @@ export default function TrainLinesScreen() {
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* GRDA Header Bar */}
-      <LinearGradient
-        colors={['#0891b2', '#1e40af']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[s.headerBar, { paddingTop: insets.top + 12 }]}
-      >
+      <View style={[s.headerBar, { paddingTop: insets.top + 12 }]}>
         <View style={s.headerLogo}>
-          <ShieldCheck size={18} color="#fff" />
+          <ShieldCheck size={18} color={ui.onBrand} />
         </View>
         <Text style={s.headerTitle}>GRDA Official</Text>
         <View style={{ flex: 1 }} />
         <Clock size={14} color="rgba(255,255,255,0.6)" />
         <Text style={s.headerTime}>{currentTime}</Text>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -508,14 +462,14 @@ export default function TrainLinesScreen() {
           <RefreshControl
             refreshing={false}
             onRefresh={refetch}
-            tintColor="#0ea5e9"
-            colors={['#0ea5e9']}
+            tintColor={brand.orange}
+            colors={[brand.orange]}
           />
         }
       >
         {/* ─── Hero Section ──────────────────────────────── */}
         <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.hero}>
-          <Text style={s.heroLabel}>NATIONAL TRANSIT NETWORK</Text>
+          <Text style={s.heroLabel}>National transit network</Text>
           <HeroText size={36} weight="displayHeavy" style={s.heroTitle}>Trains</HeroText>
         </Animated.View>
 
@@ -526,15 +480,15 @@ export default function TrainLinesScreen() {
           {/* Top row */}
           <View style={s.boardTopRow}>
             {/* No live GPS/telemetry feed exists for trains yet — schedules
-                are static, so the board always shows a neutral SCHEDULE chip
-                instead of a fake LIVE one. */}
+                are static, so the board always shows a neutral Schedule chip
+                instead of a fake Live one. */}
             <View style={s.scheduleBadge}>
               <View style={s.scheduleDot} />
-              <Text style={s.scheduleText}>SCHEDULE</Text>
+              <Text style={s.scheduleText}>Schedule</Text>
             </View>
             <View style={{ flex: 1 }} />
             <Text style={s.boardLabel}>
-              {departure.type === 'in-transit' ? 'IN TRANSIT' : 'DEPARTURES'}
+              {departure.type === 'in-transit' ? 'In transit' : 'Departures'}
             </Text>
           </View>
 
@@ -614,11 +568,11 @@ export default function TrainLinesScreen() {
                     style={[s.remindBtn, armed && s.remindBtnOn]}
                   >
                     {armed ? (
-                      <BellRing size={16} color="#22c55e" />
+                      <BellRing size={16} color={ui.success} />
                     ) : (
-                      <Bell size={16} color="#0ea5e9" />
+                      <Bell size={16} color={BOARD_ACCENT} />
                     )}
-                    <Text style={[s.remindText, armed && { color: '#22c55e' }]}>
+                    <Text style={[s.remindText, armed && { color: ui.success }]}>
                       {armed
                         ? `Reminder set · ${REMINDER_LEAD_MINUTES} min before`
                         : `Remind me ${REMINDER_LEAD_MINUTES} min before`}
@@ -689,8 +643,8 @@ export default function TrainLinesScreen() {
                   Arriving {departure.destination} at {departure.arrivalTime}
                 </Text>
                 <View style={s.transitBadge}>
-                  <View style={[s.statusDot, { backgroundColor: '#0ea5e9' }]} />
-                  <Text style={s.transitBadgeText}>In Transit</Text>
+                  <View style={[s.statusDot, { backgroundColor: BOARD_ACCENT }]} />
+                  <Text style={s.transitBadgeText}>In transit</Text>
                 </View>
               </View>
             </>
@@ -700,7 +654,7 @@ export default function TrainLinesScreen() {
           {departure.type === 'no-service' && (
             <View style={s.noService}>
               <TrainFront size={32} color="rgba(255,255,255,0.25)" />
-              <Text style={s.noServiceTitle}>No Service Today</Text>
+              <Text style={s.noServiceTitle}>No service today</Text>
               <Text style={s.noServiceSub}>
                 {(() => {
                   const allSchedules = Object.values(TRAIN_SCHEDULES).flat()
@@ -741,46 +695,39 @@ export default function TrainLinesScreen() {
         {/* ─── Rail Line Cards ─────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(300).duration(dur.entrance)} style={s.section}>
           {isLoading ? (
-            <View style={{ gap: 24 }}>
+            <View style={{ gap: space.lg }}>
               <SkeletonTrainCard isDark={isDark} />
               <SkeletonTrainCard isDark={isDark} />
             </View>
           ) : lines.length === 0 ? (
             <View style={s.emptyCard}>
-              <TrainFront size={40} color={isDark ? '#57534e' : '#a8a29e'} />
+              <TrainFront size={40} color={isDark ? '#57534e' : ui.textTertiary} />
               <Text style={s.emptyTitle}>No train lines yet</Text>
               <Text style={s.emptySub}>
                 Train lines will appear here once available
               </Text>
             </View>
           ) : (
-            <View style={{ gap: 24 }}>{lines.map(renderLineCard)}</View>
+            <View style={{ gap: space.lg }}>{lines.map(renderLineCard)}</View>
           )}
         </Animated.View>
 
         {/* ─── How to Ride ──────────────────────────────── */}
         <View style={s.rideSection}>
-          <View style={s.newsHeader}>
-            <Info size={18} color="#815100" />
-            <Text style={s.newsHeaderTitle}>How to ride</Text>
-          </View>
+          <SectionHeader title="How to ride" />
 
-          <View style={{ gap: 12 }}>
-            {HOW_TO_RIDE.map((tip) => (
-              <View key={tip.title} style={s.rideCard}>
-                <Text style={s.rideCardTitle}>{tip.title}</Text>
-                <Text style={s.rideCardText}>{tip.text}</Text>
-              </View>
-            ))}
-          </View>
+          {HOW_TO_RIDE.map((tip) => (
+            <View key={tip.title} style={s.rideCard}>
+              <Text style={s.rideCardTitle}>{tip.title}</Text>
+              <Text style={s.rideCardText}>{tip.text}</Text>
+            </View>
+          ))}
         </View>
 
         {/* ─── Authority Bulletins ─────────────────────── */}
         {/* Factual network bulletins in our own words — no media names/links. */}
         <View style={s.bulletinSection}>
-          <View style={s.bulletinHeader}>
-            <Text style={s.bulletinTitle}>Authority Bulletins</Text>
-          </View>
+          <SectionHeader title="Authority bulletins" />
 
           {(() => {
             // Two bulletins + the NOTICE disclaimer always pinned last (it is
@@ -801,10 +748,14 @@ export default function TrainLinesScreen() {
             const news = [service, latestOther].filter(Boolean) as typeof byDate
             const shown = notice ? [...news, notice] : news
             return shown.map((b) => {
-              const color = b.tag === 'SERVICE UPDATE' ? '#0891b2' : b.tag === 'NETWORK UPDATE' ? '#815100' : '#57534e'
+              const tone = b.tag === 'SERVICE UPDATE' ? 'info' : b.tag === 'NETWORK UPDATE' ? 'brand' : 'neutral'
+              const tagLabel = b.tag.charAt(0) + b.tag.slice(1).toLowerCase()
               return (
-                <View key={b.text} style={[s.bulletinCard, { borderLeftColor: color }]}>
-                  <Text style={[s.bulletinType, { color }]}>{b.tag} · {b.date}</Text>
+                <View key={b.text} style={s.bulletinCard}>
+                  <View style={s.bulletinMeta}>
+                    <Badge label={tagLabel} tone={tone} />
+                    <Text style={s.bulletinDate}>{b.date}</Text>
+                  </View>
                   <Text style={s.bulletinText}>{b.text}</Text>
                 </View>
               )
@@ -826,25 +777,26 @@ export default function TrainLinesScreen() {
 
 // ─── Styles ──────────────────────────────────────────────
 
+const BOARD_ACCENT = '#0ea5e9' // departure-board sky blue — board-only, keeps the station-display look
+
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
-  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
-  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#b2acaa'
+  const surface = isDark ? '#1c1c1e' : ui.bg
+  const surfaceLowest = isDark ? '#1c1c1e' : ui.card
+  const onSurface = isDark ? '#f5f5f4' : ui.text
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary
+  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : ui.surfaceStrong
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
-    centered: { padding: 40, alignItems: 'center', justifyContent: 'center' },
 
-    // ── GRDA Header Bar ──
+    // ── GRDA Header Bar ── (single solid blue surface, no gradient)
     headerBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: space.gutter,
       paddingVertical: 12,
       gap: 8,
+      backgroundColor: ui.info,
     },
     headerLogo: {
       width: 32,
@@ -857,7 +809,7 @@ const getStyles = (isDark: boolean) => {
     headerTitle: {
       fontSize: 16,
       fontFamily: font.extrabold,
-      color: '#fff',
+      color: ui.onBrand,
       letterSpacing: -0.5,
     },
     headerTime: {
@@ -869,16 +821,14 @@ const getStyles = (isDark: boolean) => {
 
     // ── Hero Section ──
     hero: {
-      paddingHorizontal: 24,
+      paddingHorizontal: space.gutter,
       paddingTop: 14,
       paddingBottom: 8,
     },
     heroLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#815100',
-      letterSpacing: 2,
-      marginBottom: 6,
+      ...type.caption,
+      color: isDark ? onSurfaceVariant : brand.orangeText,
+      marginBottom: 2,
     },
     heroTitle: {
       color: onSurface,
@@ -889,16 +839,12 @@ const getStyles = (isDark: boolean) => {
     // ── Departure Board (always dark — like a real station display) ──
     board: {
       backgroundColor: '#0c1220',
-      marginHorizontal: 16,
+      marginHorizontal: space.gutter,
       marginTop: 16,
-      borderRadius: 24,
+      borderRadius: radius.xl,
       padding: 20,
       overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.18,
-      shadowRadius: 12,
-      elevation: 6,
+      ...cardShadow,
     },
     boardGlow: {
       position: 'absolute',
@@ -930,16 +876,14 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: 'rgba(255,255,255,0.4)',
     },
     scheduleText: {
-      fontSize: 10,
-      fontFamily: font.bold,
+      fontSize: 12,
+      fontFamily: font.semibold,
       color: 'rgba(255,255,255,0.5)',
-      letterSpacing: 1,
     },
     boardLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
+      fontSize: 12,
+      fontFamily: font.semibold,
       color: 'rgba(255,255,255,0.4)',
-      letterSpacing: 1.5,
     },
 
     // ── Flip Clock ──
@@ -972,10 +916,11 @@ const getStyles = (isDark: boolean) => {
     clockColon: {
       fontSize: 28,
       fontFamily: font.bold,
-      color: '#0ea5e9',
+      color: BOARD_ACCENT,
       marginTop: 8,
       marginHorizontal: 2,
     },
+    // Short uppercase unit labels are allowed inside the board only.
     clockUnit: {
       fontSize: 9,
       fontFamily: font.bold,
@@ -1000,8 +945,7 @@ const getStyles = (isDark: boolean) => {
     depCodeText: {
       fontSize: 12,
       fontFamily: font.bold,
-      color: '#0ea5e9',
-      letterSpacing: 1,
+      color: BOARD_ACCENT,
     },
     depLabel: {
       fontSize: 14,
@@ -1039,7 +983,7 @@ const getStyles = (isDark: boolean) => {
       gap: 5,
     },
     scheduledText: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.semibold,
       color: 'rgba(255,255,255,0.5)',
     },
@@ -1053,7 +997,7 @@ const getStyles = (isDark: boolean) => {
       gap: 8,
       marginTop: 16,
       paddingVertical: 12,
-      borderRadius: 12,
+      borderRadius: radius.md,
       backgroundColor: 'rgba(14,165,233,0.12)',
       borderWidth: 1,
       borderColor: 'rgba(14,165,233,0.25)',
@@ -1065,7 +1009,7 @@ const getStyles = (isDark: boolean) => {
     remindText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: '#0ea5e9',
+      color: BOARD_ACCENT,
     },
 
     // ── In-transit ──
@@ -1082,7 +1026,7 @@ const getStyles = (isDark: boolean) => {
       top: 0,
       left: 0,
       height: 4,
-      backgroundColor: '#0ea5e9',
+      backgroundColor: BOARD_ACCENT,
       borderRadius: 2,
     },
     progressDot: {
@@ -1091,25 +1035,19 @@ const getStyles = (isDark: boolean) => {
       width: 12,
       height: 12,
       borderRadius: 6,
-      backgroundColor: '#0ea5e9',
+      backgroundColor: BOARD_ACCENT,
       borderWidth: 2,
       borderColor: '#0c1220',
       marginLeft: -6,
     },
     transitEndpoints: { flexDirection: 'row', justifyContent: 'space-between' },
     transitEndpoint: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.regular,
       color: 'rgba(255,255,255,0.35)',
     },
     transitDetails: { gap: 6, marginBottom: 12 },
     transitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    transitLiveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#22c55e',
-    },
     transitText: {
       fontSize: 13,
       fontFamily: font.regular,
@@ -1129,9 +1067,9 @@ const getStyles = (isDark: boolean) => {
       gap: 5,
     },
     transitBadgeText: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.semibold,
-      color: '#0ea5e9',
+      color: BOARD_ACCENT,
     },
 
     // ── No service ──
@@ -1159,7 +1097,7 @@ const getStyles = (isDark: boolean) => {
       gap: 8,
     },
     stripText: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.medium,
       color: 'rgba(255,255,255,0.3)',
     },
@@ -1176,58 +1114,38 @@ const getStyles = (isDark: boolean) => {
     },
 
     // ── Section ──
-    section: { paddingHorizontal: 20, paddingTop: 24 },
+    section: { paddingHorizontal: space.gutter, paddingTop: space.section },
 
-    // ── Editorial Line Cards ──
+    // ── Line Cards ──
     lineCard: {
-      borderRadius: 24,
+      borderRadius: radius.lg,
       backgroundColor: surfaceLowest,
       overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 3,
+      ...cardShadow,
     },
     lineCardBody: {
-      padding: 24,
-      gap: 20,
+      padding: space.xl,
+      gap: space.xl,
     },
     lineCardTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
     },
-    lineBadge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-      marginBottom: 8,
-    },
-    lineBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-    },
     lineTitle: {
       color: onSurface,
       letterSpacing: -0.5,
     },
     lineSubtitle: {
-      fontSize: 13,
-      fontFamily: font.medium,
+      ...type.label,
       color: onSurfaceVariant,
       marginTop: 2,
     },
     shieldBox: {
       width: 40,
       height: 40,
-      borderRadius: 14,
-      backgroundColor: '#1e40af',
+      borderRadius: radius.md,
+      backgroundColor: ui.info,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1240,16 +1158,14 @@ const getStyles = (isDark: boolean) => {
     },
     lineStat: {
       // flex + minWidth 0: without these a long fare value sized the stat to
-      // its content and pushed STATUS outside the card entirely.
+      // its content and pushed Status outside the card entirely.
       flex: 1,
       minWidth: 0,
-      gap: 4,
+      gap: 2,
     },
     lineStatLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
+      ...type.caption,
       color: onSurfaceVariant,
-      letterSpacing: 1.5,
     },
     lineStatValue: {
       fontSize: 18,
@@ -1281,40 +1197,24 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       gap: 10,
     },
-    lineActionPrimary: {
-      flex: 1,
-      borderRadius: 16,
-      overflow: 'hidden',
-    },
-    lineActionPrimaryGradient: {
-      paddingVertical: 14,
-      alignItems: 'center',
-      borderRadius: 16,
-    },
-    lineActionPrimaryText: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#fff',
-    },
     lineActionIcon: {
       width: 48,
       height: 48,
-      borderRadius: 16,
-      backgroundColor: surfaceLow,
+      borderRadius: radius.md,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : ui.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: outlineVariant,
     },
     lineActionIconOn: {
-      backgroundColor: 'rgba(34,197,94,0.12)',
-      borderColor: 'rgba(34,197,94,0.3)',
+      backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : ui.successSoft,
     },
 
-    // Bottom gradient strip
+    // Bottom info strip (was a gradient)
     lineCardStrip: {
-      paddingVertical: 10,
-      paddingHorizontal: 20,
+      paddingVertical: 12,
+      paddingHorizontal: space.xl,
+      borderTopWidth: 1,
+      borderTopColor: outlineVariant,
     },
     lineCardStripContent: {
       flexDirection: 'row',
@@ -1322,83 +1222,27 @@ const getStyles = (isDark: boolean) => {
       gap: 8,
     },
     lineCardStripText: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.8)',
+      ...type.caption,
+      color: onSurfaceVariant,
     },
     lineCardStripDot: {
       width: 3,
       height: 3,
       borderRadius: 1.5,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-    },
-
-    // ── Rail Network Updates ──
-    newsSection: {
-      paddingHorizontal: 20,
-      paddingTop: 32,
-    },
-    newsHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 16,
-    },
-    newsHeaderTitle: {
-      fontSize: 20,
-      fontFamily: font.bold,
-      color: onSurface,
-      letterSpacing: -0.3,
-    },
-    newsCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: outlineVariant,
-    },
-    newsDateChip: {
-      alignSelf: 'flex-start',
-      backgroundColor: surfaceLow,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-      marginBottom: 8,
-    },
-    newsDateText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: onSurfaceVariant,
-      letterSpacing: 0.5,
-    },
-    newsTitle: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: onSurface,
-      marginBottom: 4,
-    },
-    newsBody: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      lineHeight: 19,
-      marginBottom: 8,
-    },
-    newsSource: {
-      fontSize: 11,
-      fontFamily: font.semibold,
-      color: '#0891b2',
+      backgroundColor: ui.textTertiary,
     },
 
     // ── How to Ride ──
     rideSection: {
-      paddingHorizontal: 20,
-      paddingTop: 32,
+      paddingHorizontal: space.gutter,
+      paddingTop: space.section,
+      gap: 12,
     },
     rideCard: {
-      backgroundColor: surfaceLow,
-      borderRadius: 16,
-      padding: 16,
+      backgroundColor: surfaceLowest,
+      borderRadius: radius.lg,
+      padding: space.lg,
+      ...cardShadow,
     },
     rideCardTitle: {
       fontSize: 14,
@@ -1415,33 +1259,25 @@ const getStyles = (isDark: boolean) => {
 
     // ── Authority Bulletins ──
     bulletinSection: {
-      paddingHorizontal: 20,
-      paddingTop: 32,
+      paddingHorizontal: space.gutter,
+      paddingTop: space.section,
       gap: 12,
     },
-    bulletinHeader: {
+    bulletinCard: {
+      backgroundColor: surfaceLowest,
+      borderRadius: radius.lg,
+      padding: space.lg,
+      gap: 8,
+      ...cardShadow,
+    },
+    bulletinMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 4,
+      gap: 8,
     },
-    bulletinTitle: {
-      fontSize: 20,
-      fontFamily: font.bold,
-      color: onSurface,
-      letterSpacing: -0.3,
-    },
-    bulletinCard: {
-      backgroundColor: surfaceLow,
-      borderRadius: 16,
-      padding: 16,
-      borderLeftWidth: 4,
-    },
-    bulletinType: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      letterSpacing: 1.5,
-      marginBottom: 4,
+    bulletinDate: {
+      ...type.caption,
+      color: onSurfaceVariant,
     },
     bulletinText: {
       fontSize: 14,
@@ -1452,23 +1288,21 @@ const getStyles = (isDark: boolean) => {
 
     // ── Daily Tip ──
     tipCard: {
-      marginHorizontal: 20,
-      marginTop: 24,
-      borderRadius: 20,
+      marginHorizontal: space.gutter,
+      marginTop: space.section,
+      borderRadius: radius.lg,
       backgroundColor: surfaceLowest,
-      borderWidth: 1,
-      borderColor: outlineVariant,
       overflow: 'hidden',
+      ...cardShadow,
     },
 
     // ── Empty ──
     emptyCard: {
       padding: 32,
-      borderRadius: 20,
+      borderRadius: radius.lg,
       backgroundColor: surfaceLowest,
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: outlineVariant,
+      ...cardShadow,
     },
     emptyTitle: {
       fontSize: 16,

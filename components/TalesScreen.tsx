@@ -31,7 +31,8 @@ import {
   Bookmark,
   Play,
 } from 'lucide-react-native'
-import { c, font } from '@/lib/theme'
+import { brand, ui, radius, space, font } from '@/lib/theme'
+import { Button } from '@/components/ui'
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -96,7 +97,7 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
             { transform: [{ scale: heartScale }], opacity: heartOpacity },
           ]}
         >
-          <Heart size={80} color="#fff" fill="#fff" />
+          <Heart size={80} color={ui.onBrand} fill={ui.onBrand} />
         </Animated.View>
       </View>
     </GestureDetector>
@@ -174,7 +175,7 @@ const TaleCard = React.memo(function TaleCard({
       {/* ── Header ── */}
       <View style={s.header}>
         <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-          <View style={[s.avatarRing, { borderColor: badge ? badge.ringColor : isDark ? 'rgba(255,255,255,0.12)' : '#E7E5E4' }]}>
+          <View style={[s.avatarRing, { borderColor: badge ? badge.ringColor : isDark ? 'rgba(255,255,255,0.12)' : ui.surfaceStrong }]}>
             <InitialsAvatar
               name={post.display_name}
               deviceId={post.device_id}
@@ -191,7 +192,7 @@ const TaleCard = React.memo(function TaleCard({
             {badge && <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>}
           </View>
           <View style={s.headerMeta}>
-            <MapPin size={10} color={isDark ? 'rgba(255,255,255,0.35)' : '#a8a29e'} />
+            <MapPin size={12} color={isDark ? 'rgba(255,255,255,0.35)' : ui.textTertiary} />
             <Text style={s.locationText} numberOfLines={1}>{post.location_name}</Text>
           </View>
         </View>
@@ -201,7 +202,7 @@ const TaleCard = React.memo(function TaleCard({
           style={s.menuBtn}
           hitSlop={8}
         >
-          <MoreHorizontal size={20} color={isDark ? 'rgba(255,255,255,0.5)' : '#78716c'} />
+          <MoreHorizontal size={20} color={isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary} />
         </Pressable>
       </View>
 
@@ -211,12 +212,12 @@ const TaleCard = React.memo(function TaleCard({
           <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)} />
           <View style={s.menuDropdown}>
             <TouchableOpacity onPress={handleReport} activeOpacity={0.7} style={s.menuItem}>
-              <Flag size={16} color={isDark ? '#a8a29e' : '#78716c'} />
+              <Flag size={16} color={isDark ? '#a8a29e' : ui.textSecondary} />
               <Text style={s.menuItemText}>Report</Text>
             </TouchableOpacity>
             {isOwn && onDelete && (
               <TouchableOpacity onPress={handleDelete} activeOpacity={0.7} style={s.menuItem}>
-                <Trash2 size={16} color="#ef4444" />
+                <Trash2 size={16} color={ui.danger} />
                 <Text style={s.menuItemTextDanger}>Delete</Text>
               </TouchableOpacity>
             )}
@@ -236,7 +237,7 @@ const TaleCard = React.memo(function TaleCard({
           </Text>
           {post.location_name ? (
             <View style={s.textPostLocation}>
-              <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
+              <MapPin size={12} color={brand.orange} fill={brand.orange} />
               <Text style={s.textPostLocationText}>{post.location_name}</Text>
             </View>
           ) : null}
@@ -261,7 +262,7 @@ const TaleCard = React.memo(function TaleCard({
               ) : null}
               <View style={s.videoPlayOverlay}>
                 <View style={s.videoPlayBtn}>
-                  <Play size={36} color="#fff" fill="#fff" />
+                  <Play size={36} color={ui.onBrand} fill={ui.onBrand} />
                 </View>
               </View>
               {post.video_duration_secs != null && (
@@ -284,14 +285,14 @@ const TaleCard = React.memo(function TaleCard({
           {post.media_type === 'video' && (
             <View style={s.videoBadge}>
               <View style={s.videoBadgeDot} />
-              <Text style={s.videoBadgeText}>LIVE</Text>
+              <Text style={s.videoBadgeText}>Live</Text>
             </View>
           )}
 
           {/* Location pill — glassmorphic overlay (images only, videos show location in reel) */}
           {post.media_type !== 'video' && post.location_name ? (
             <View style={s.locationPill} pointerEvents="none">
-              <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
+              <MapPin size={12} color={brand.orange} fill={brand.orange} />
               <Text style={s.locationPillText} numberOfLines={1}>{post.location_name}</Text>
             </View>
           ) : null}
@@ -306,12 +307,12 @@ const TaleCard = React.memo(function TaleCard({
           <TouchableOpacity onPress={handleLikePress} activeOpacity={0.7} hitSlop={6}>
             <Heart
               size={26}
-              color={localLiked ? '#ef4444' : (isDark ? '#f5f5f4' : '#262626')}
-              fill={localLiked ? '#ef4444' : 'transparent'}
+              color={localLiked ? ui.danger : (isDark ? '#f5f5f4' : ui.text)}
+              fill={localLiked ? ui.danger : 'transparent'}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={onComment} activeOpacity={0.7} hitSlop={6}>
-            <MessageCircle size={24} color={isDark ? '#f5f5f4' : '#262626'} />
+            <MessageCircle size={24} color={isDark ? '#f5f5f4' : ui.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
@@ -325,14 +326,14 @@ const TaleCard = React.memo(function TaleCard({
             activeOpacity={0.7}
             hitSlop={6}
           >
-            <Send size={22} color={isDark ? '#f5f5f4' : '#262626'} style={{ transform: [{ rotate: '20deg' }] }} />
+            <Send size={22} color={isDark ? '#f5f5f4' : ui.text} style={{ transform: [{ rotate: '20deg' }] }} />
           </TouchableOpacity>
         </View>
         <TouchableOpacity onPress={() => setLocalSaved(!localSaved)} activeOpacity={0.7} hitSlop={6}>
           <Bookmark
             size={24}
-            color={localSaved ? '#f59e0b' : (isDark ? '#f5f5f4' : '#262626')}
-            fill={localSaved ? '#f59e0b' : 'transparent'}
+            color={localSaved ? brand.orange : (isDark ? '#f5f5f4' : ui.text)}
+            fill={localSaved ? brand.orange : 'transparent'}
           />
         </TouchableOpacity>
       </View>
@@ -485,7 +486,7 @@ export function TalesScreen() {
           activeOpacity={0.7}
           style={s.composeCamera}
         >
-          <Camera size={20} color={isDark ? c.stone400 : c.stone500} />
+          <Camera size={20} color={isDark ? '#a8a29e' : ui.textSecondary} />
         </TouchableOpacity>
       </ReanimatedAnimated.View>
 
@@ -501,16 +502,16 @@ export function TalesScreen() {
         </View>
       ) : posts.length === 0 ? (
         <View style={s.centered}>
-          <Camera size={48} color={isDark ? '#57534e' : '#a8a29e'} />
+          <Camera size={48} color={isDark ? '#57534e' : ui.textTertiary} />
           <Text style={s.emptyTitle}>No posts yet</Text>
           <Text style={s.emptySub}>Share a fare, a queue update, or a trotro moment!</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/report/photo?mode=text' as Href)}
-            style={s.emptyBtn}
-            activeOpacity={0.8}
-          >
-            <Text style={s.emptyBtnText}>Post to Pulse</Text>
-          </TouchableOpacity>
+          <View style={{ marginTop: 20 }}>
+            <Button
+              label="Post to Pulse"
+              fullWidth={false}
+              onPress={() => router.push('/report/photo?mode=text' as Href)}
+            />
+          </View>
         </View>
       ) : (
         <FlatList
@@ -518,13 +519,13 @@ export function TalesScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor="#815100" />
+            <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={brand.orange} />
           }
           onEndReached={hasMore ? loadMore : undefined}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             hasMore ? (
-              <ActivityIndicator size="small" color="#815100" style={{ paddingVertical: 20 }} />
+              <ActivityIndicator size="small" color={brand.orange} style={{ paddingVertical: 20 }} />
             ) : null
           }
           contentContainerStyle={{ paddingBottom: 90 }}
@@ -565,10 +566,10 @@ const styles = StyleSheet.create({
 // ─── Card Styles ────────────────────────────────────────
 
 const cardStyles = (isDark: boolean) => {
-  const onSurface = isDark ? '#f5f5f4' : '#262626'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
-  const surface = isDark ? '#000' : '#fff'
-  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+  const onSurface = isDark ? '#f5f5f4' : ui.text
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : ui.textSecondary
+  const surface = isDark ? '#000' : ui.card
+  const divider = isDark ? 'rgba(255,255,255,0.08)' : ui.hairline
 
   return StyleSheet.create({
     card: {
@@ -579,7 +580,7 @@ const cardStyles = (isDark: boolean) => {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       paddingVertical: 10,
     },
     avatarRing: {
@@ -602,10 +603,8 @@ const cardStyles = (isDark: boolean) => {
       color: onSurface,
     },
     badgeText: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
+      fontSize: 12,
+      fontFamily: font.semibold,
     },
     headerMeta: {
       flexDirection: 'row',
@@ -614,7 +613,7 @@ const cardStyles = (isDark: boolean) => {
       marginTop: 1,
     },
     locationText: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.regular,
       color: onSurfaceVariant,
       flex: 1,
@@ -630,7 +629,7 @@ const cardStyles = (isDark: boolean) => {
     // ── Media ──
     mediaWrap: {
       position: 'relative',
-      backgroundColor: isDark ? '#111' : '#fafafa',
+      backgroundColor: isDark ? '#111' : ui.bg,
     },
     videoBadge: {
       position: 'absolute',
@@ -648,13 +647,12 @@ const cardStyles = (isDark: boolean) => {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: '#ef4444',
+      backgroundColor: ui.danger,
     },
     videoBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#fff',
-      letterSpacing: 1.5,
+      fontSize: 12,
+      fontFamily: font.semibold,
+      color: ui.onBrand,
     },
     videoPlayOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -683,7 +681,7 @@ const cardStyles = (isDark: boolean) => {
       paddingVertical: 3,
     },
     videoDurationText: {
-      color: '#fff',
+      color: ui.onBrand,
       fontSize: 12,
       fontFamily: font.semibold,
     },
@@ -706,7 +704,7 @@ const cardStyles = (isDark: boolean) => {
     locationPillText: {
       fontSize: 11,
       fontFamily: font.medium,
-      color: '#fff',
+      color: ui.onBrand,
     },
 
     // ── Action Row ──
@@ -714,7 +712,7 @@ const cardStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       paddingTop: 10,
       paddingBottom: 6,
     },
@@ -729,13 +727,13 @@ const cardStyles = (isDark: boolean) => {
       fontFamily: font.bold,
       fontSize: 14,
       color: onSurface,
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       marginBottom: 4,
     },
 
     // ── Caption ──
     captionWrap: {
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       marginBottom: 4,
     },
     captionText: {
@@ -751,7 +749,7 @@ const cardStyles = (isDark: boolean) => {
 
     // ── Comments ──
     commentLink: {
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       paddingVertical: 4,
     },
     commentLinkText: {
@@ -762,14 +760,12 @@ const cardStyles = (isDark: boolean) => {
 
     // ── Timestamp ──
     timestamp: {
-      fontSize: 10,
+      fontSize: 12,
       fontFamily: font.regular,
       color: onSurfaceVariant,
-      paddingHorizontal: 14,
+      paddingHorizontal: space.gutter,
       marginTop: 2,
       marginBottom: 8,
-      textTransform: 'uppercase',
-      letterSpacing: 0.3,
     },
 
     // ── Separator ──
@@ -789,11 +785,11 @@ const cardStyles = (isDark: boolean) => {
     },
     menuDropdown: {
       position: 'absolute',
-      right: 14,
+      right: space.gutter,
       top: 48,
       zIndex: 20,
-      backgroundColor: isDark ? '#262626' : '#ffffff',
-      borderRadius: 12,
+      backgroundColor: isDark ? '#262626' : ui.card,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: divider,
       paddingVertical: 4,
@@ -819,26 +815,25 @@ const cardStyles = (isDark: boolean) => {
     menuItemTextDanger: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: '#ef4444',
+      color: ui.danger,
     },
 
     // Text-only post (Threads/Twitter style — polished card)
     textPostCard: {
-      marginHorizontal: 14,
+      marginHorizontal: space.gutter,
       marginVertical: 8,
-      paddingHorizontal: 18,
-      paddingVertical: 16,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fafaf9',
+      paddingHorizontal: space.xl,
+      paddingVertical: space.lg,
+      borderRadius: radius.lg,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : ui.bg,
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      borderColor: isDark ? 'rgba(255,255,255,0.06)' : ui.hairline,
     },
     textPostText: {
       fontSize: 16,
       fontFamily: font.regular,
-      color: isDark ? '#fafaf9' : '#1c1917',
+      color: isDark ? '#fafaf9' : ui.text,
       lineHeight: 24,
-      letterSpacing: 0.1,
     },
     textPostLocation: {
       flexDirection: 'row',
@@ -849,15 +844,15 @@ const cardStyles = (isDark: boolean) => {
     textPostLocationText: {
       fontSize: 12,
       fontFamily: font.medium,
-      color: isDark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
+      color: isDark ? 'rgba(255,255,255,0.4)' : ui.textSecondary,
     },
     hashtag: {
-      color: '#3b82f6',
+      color: ui.info,
       fontFamily: font.semibold,
     },
     textPostAuthor: {
       fontFamily: font.bold,
-      color: isDark ? '#fafaf9' : '#1c1917',
+      color: isDark ? '#fafaf9' : ui.text,
     },
   })
 }
@@ -865,100 +860,22 @@ const cardStyles = (isDark: boolean) => {
 // ─── Screen Styles ──────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#000' : '#fff'
-  const onSurface = isDark ? '#f5f5f4' : '#262626'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : '#8e8e8e'
-  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+  const surface = isDark ? '#000' : ui.card
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : ui.textSecondary
+  const divider = isDark ? 'rgba(255,255,255,0.08)' : ui.hairline
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontFamily: font.extrabold,
-      color: onSurface,
-      letterSpacing: -0.5,
-    },
-    newBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: isDark ? '#262626' : '#262626',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    // ── Story strip ──
-    storyStrip: {
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-    },
-    storyItem: {
-      alignItems: 'center',
-      gap: 4,
-    },
-    storyAddRing: {
-      borderWidth: 2,
-      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-      borderRadius: 32,
-      padding: 3,
-    },
-    storyAddBadge: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: '#0095f6',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: surface,
-    },
-    storyAddPlus: {
-      color: '#fff',
-      fontSize: 14,
-      fontFamily: font.bold,
-      lineHeight: 16,
-    },
-    storyLabel: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-    },
-    headerDivider: {
-      height: 1,
-      backgroundColor: divider,
-    },
 
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 16 },
-    emptySub: { fontSize: 14, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
-    emptyBtn: {
-      marginTop: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: '#0095f6',
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 8,
-    },
-    emptyBtnText: { color: '#fff', fontFamily: font.bold, fontSize: 14 },
+    emptySub: { fontSize: 14, fontFamily: font.regular, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
 
     // Threads-style compose bar
     composeBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: space.gutter,
       paddingVertical: 12,
       gap: 12,
       borderBottomWidth: 1,
@@ -968,11 +885,9 @@ const getStyles = (isDark: boolean) => {
     composeInput: {
       flex: 1,
       paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+      paddingHorizontal: space.lg,
+      borderRadius: radius.pill,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : ui.surface,
     },
     composePlaceholder: {
       fontSize: 14,
@@ -983,7 +898,7 @@ const getStyles = (isDark: boolean) => {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : ui.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },

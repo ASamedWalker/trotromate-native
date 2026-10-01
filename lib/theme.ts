@@ -1,4 +1,46 @@
-// TrotroMate shared color palette
+// ─────────────────────────────────────────────────────────────────────────────
+// Troski design tokens (rider app). ONE source of truth — screens should import
+// these instead of declaring local `const BRAND = '#FF4D1C'` or raw hex.
+// Identity: orange brand + Baloo 2 + light UI (dark mode is off app-wide).
+// Values follow the Uber Base table in CLAUDE.md.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Brand */
+export const brand = {
+  orange: '#FF4D1C',
+  orangePressed: '#E23F12',
+  orangeSoft: '#FFF1EC', // tinted backgrounds, selected chips
+  orangeText: '#C2360F', // orange text on white that passes contrast
+} as const
+
+/** Semantic colours — use these, not raw hex. One grey scale (Tailwind gray). */
+export const ui = {
+  bg: '#FAFAF9',
+  card: '#FFFFFF',
+  surface: '#F3F4F6', // grey fills: inputs, tiles, secondary buttons
+  surfaceStrong: '#E5E7EB',
+  hairline: '#EEEEEE',
+  text: '#0A0A0A',
+  textSecondary: '#6B7280',
+  textTertiary: '#7C828C', // ~4:1 on white — readable outdoors (was #9CA3AF, 2.5:1)
+  onBrand: '#FFFFFF',
+  success: '#16A34A',
+  successSoft: '#ECFDF5',
+  danger: '#DC2626',
+  dangerSoft: '#FEF2F2',
+  warning: '#B45309',
+  warningSoft: '#FEF3C7',
+  info: '#2563EB',
+  infoSoft: '#EFF6FF',
+} as const
+
+/** Spacing — 24 is the screen gutter, 28 between sections */
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, gutter: 24, section: 28, xxl: 32 } as const
+
+/** Corner radii */
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 } as const
+
+// TrotroMate shared color palette (legacy scale — prefer `ui` / `brand` above)
 export const c = {
   amber50: '#fffbeb',
   amber100: '#fef3c7',
@@ -79,7 +121,7 @@ export const themed = (isDark: boolean) => ({
   textSecondary: isDark ? c.stone400 : c.stone600,
   textTertiary: isDark ? c.stone500 : c.stone400,
   border: isDark ? c.stone700 : c.stone300,
-  primary: c.amber500,
+  primary: brand.orange, // was amber500 — the brand has been orange since 2026; nothing read this
 })
 
 // Shadow presets — Uber/DoorDash level (subtle, barely visible)
@@ -121,3 +163,27 @@ export const shadow = {
 // Adaptive shadow — use in components: isDark ? shadow.none : shadow.card
 export const adaptiveShadow = (isDark: boolean, level: keyof typeof shadow = 'card') =>
   isDark ? shadow.none : shadow[level]
+
+/**
+ * Type scale (Baloo 2). No lineHeight on purpose — Baloo clips glyph tops when
+ * lineHeight < ~1.3× size (see CLAUDE.md). For display sizes (≥ 24) prefer
+ * <HeroText size={…}>; these presets are for titles/body in normal flow.
+ */
+export const type = {
+  title: { fontFamily: font.bold, fontSize: 24, letterSpacing: -0.5 },
+  headline: { fontFamily: font.semibold, fontSize: 18, letterSpacing: -0.2 },
+  body: { fontFamily: font.regular, fontSize: 16 },
+  bodyMedium: { fontFamily: font.medium, fontSize: 16 },
+  label: { fontFamily: font.medium, fontSize: 14 },
+  labelStrong: { fontFamily: font.semibold, fontSize: 14 },
+  caption: { fontFamily: font.medium, fontSize: 12 },
+} as const
+
+/** Card shadow per the Uber Base table (0 4 16 / 0.12 was heavy — softened to match the app) */
+export const cardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 16,
+  elevation: 3,
+} as const

@@ -4,9 +4,11 @@ import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, R
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Wallet, Eye, EyeOff, QrCode, Clock, ChevronRight } from 'lucide-react-native'
+import { Eye, EyeOff, QrCode, ChevronRight, Plus, CheckCircle2, History } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
-import { font, themed } from '@/lib/theme'
+import { font, themed, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
+import { Button, Badge, SectionHeader } from '@/components/ui'
+import { HeroText } from '@/components/HeroText'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
@@ -153,14 +155,8 @@ export default function WalletScreen() {
     setBalanceVisible(!balanceVisible)
   }
 
-  const glass = {
-    backgroundColor: isDark ? 'rgba(60,51,43,0.2)' : 'rgba(0,0,0,0.02)',
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(255,77,28,0.1)' : 'rgba(0,0,0,0.06)',
-  }
-
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : '#fafaf9' }]} edges={['top']}>
+    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : ui.bg }]} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
         <Text style={[s.headerTitle, { color: t.text }]}>{tr('wallet.title')}</Text>
@@ -171,8 +167,8 @@ export default function WalletScreen() {
           accessibilityLabel={balanceVisible ? 'Hide balance' : 'Show balance'}
         >
           {balanceVisible
-            ? <Eye size={22} color={isDark ? '#78716c' : '#a8a29e'} />
-            : <EyeOff size={22} color={isDark ? '#78716c' : '#a8a29e'} />
+            ? <Eye size={22} color={isDark ? '#78716c' : ui.textTertiary} />
+            : <EyeOff size={22} color={isDark ? '#78716c' : ui.textTertiary} />
           }
         </TouchableOpacity>
       </View>
@@ -181,36 +177,33 @@ export default function WalletScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF4D1C" colors={["#FF4D1C"]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.orange} colors={[brand.orange]} />
         }
       >
-        {/* ── Balance Card — Glass + Gold Glow ── */}
+        {/* ── Balance Card ── */}
         <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
-          <View style={[s.balanceCard, glass, isDark && s.goldGlow]}>
-            {/* Amber blur glow */}
-            <View style={s.balanceGlowOrb} />
-
+          <View style={[s.balanceCard, isDark && s.balanceCardDark]}>
             {/* Coming Soon badge — only when not funded */}
             {!isAuthenticated && (
-              <View style={s.comingSoonBadge}>
-                <Text style={s.comingSoonText}>COMING SOON</Text>
+              <View style={{ marginBottom: space.md }}>
+                <Badge label="Coming soon" tone="brand" />
               </View>
             )}
 
-            <Text style={s.balanceLabelText}>{tr('wallet.balance').toUpperCase()}</Text>
+            <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
             <View style={s.balanceAmountRow}>
-              <Text style={[s.balanceAmount, { color: isDark ? '#eee0d3' : '#1c1917' }]}>
+              <HeroText size={44} style={{ color: isDark ? '#eee0d3' : ui.text, letterSpacing: -0.5 }}>
                 {balanceVisible
                   ? formatGHS(balance)
                   : 'GH₵ ••••••'
                 }
-              </Text>
+              </HeroText>
             </View>
 
             {/* Credit celebration — appears when a top-up lands */}
             {credited != null && (
               <Animated.View entering={FadeInDown.duration(300)} style={s.creditedBanner}>
-                <MaterialIcons name="check-circle" size={16} color="#16a34a" />
+                <CheckCircle2 size={16} color={ui.success} />
                 <Text style={s.creditedText}>{formatGHS(credited)} added to your wallet</Text>
               </Animated.View>
             )}
@@ -218,23 +211,13 @@ export default function WalletScreen() {
             {/* Add Money — fund the wallet to pay for bookings */}
             {isAuthenticated && (
               <View style={s.balanceCardBtns}>
-                <TouchableOpacity
-                  style={s.balanceCardBtnPrimary}
-                  activeOpacity={0.85}
+                <Button
+                  label={tr('wallet.addMoney')}
+                  icon={Plus}
                   onPress={() => router.push('/wallet/fund' as Href)}
-                  accessibilityRole="button"
-                  accessibilityLabel={tr('wallet.addMoney')}
-                >
-                  <View style={s.balanceCardBtnAmber}>
-                    <MaterialIcons name="add" size={18} color="#fff" />
-                    <Text style={s.balanceCardBtnPrimaryText}>{tr('wallet.addMoney')}</Text>
-                  </View>
-                </TouchableOpacity>
+                />
               </View>
             )}
-
-            {/* "LIVE SYNC READY" badge removed (UX audit): decorative fiction —
-                it indicated nothing real. */}
           </View>
         </Animated.View>
 
@@ -249,10 +232,10 @@ export default function WalletScreen() {
               accessibilityRole="button"
               accessibilityLabel={tr('wallet.myTickets')}
             >
-              <View style={s.myTicketsIcon}><QrCode size={18} color="#FF4D1C" /></View>
+              <View style={s.myTicketsIcon}><QrCode size={18} color={brand.orange} /></View>
               <Text style={s.myTicketsText}>{tr('wallet.myTickets')}</Text>
               <View style={{ flex: 1 }} />
-              <ChevronRight size={18} color="#6B7280" />
+              <ChevronRight size={18} color={ui.textTertiary} />
             </TouchableOpacity>
 
             {/* Active Pass — real tickets from the wallet backend; hidden when
@@ -262,7 +245,7 @@ export default function WalletScreen() {
               return (
                 <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
                   <View style={s.passHeader}>
-                    <Text style={[s.sectionTitle, { color: t.text }]}>{tr('wallet.activePass')}</Text>
+                    <Text style={[s.sectionTitle, { color: isDark ? t.text : ui.text }]}>{tr('wallet.activePass')}</Text>
                     {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
                   </View>
                   <TouchableOpacity
@@ -272,7 +255,7 @@ export default function WalletScreen() {
                     accessibilityLabel={`Active pass, ${pass.route_label}`}
                   >
                   <LinearGradient
-                    colors={['#FF4D1C', '#D63A12']}
+                    colors={[brand.orange, brand.orangePressed]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={s.passCard}
@@ -281,15 +264,15 @@ export default function WalletScreen() {
                       <View style={{ flex: 1 }}>
                         <View style={s.passLiveRow}>
                           <View style={s.passLiveDot} />
-                          <Text style={s.passLiveText}>ACTIVE PASS</Text>
+                          <Text style={s.passLiveText}>Active pass</Text>
                         </View>
                         <Text style={s.passRoute} numberOfLines={1}>{pass.route_label}</Text>
                       </View>
-                      <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.3)" />
+                      <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.4)" />
                     </View>
                     <View style={s.passBottom}>
                       <View>
-                        <Text style={s.passFieldLabel}>EXPIRES</Text>
+                        <Text style={s.passFieldLabel}>Expires</Text>
                         <Text style={s.passFieldValue}>{formatPassExpiry(pass.expires_at)}</Text>
                       </View>
                       <View style={s.passTripsLeft}>
@@ -321,12 +304,12 @@ export default function WalletScreen() {
 
             {/* Transactions */}
             <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
-              <View style={s.passHeader}>
-                <Text style={[s.sectionTitle, { color: t.text }]}>{tr('wallet.recentTransactions')}</Text>
-                {transactions.length > 5 && (
-                  <Text style={s.viewAll} onPress={() => router.push('/wallet/transactions' as Href)}>SEE ALL</Text>
-                )}
-              </View>
+              <SectionHeader
+                title={tr('wallet.recentTransactions')}
+                action={transactions.length > 5 ? 'See all' : undefined}
+                onAction={() => router.push('/wallet/transactions' as Href)}
+                style={{ marginBottom: space.md }}
+              />
               {!hydrated ? (
                 [0, 1, 2, 3].map((i) => (
                   <Animated.View key={`tx-skeleton-${i}`} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
@@ -338,24 +321,29 @@ export default function WalletScreen() {
                 const credit = tx.type === 'topup' || tx.type === 'refund'
                 const icon = isTopup ? 'account-balance' as const : tx.type === 'refund' ? 'undo' as const : 'commute' as const
                 const amountStr = `${credit ? '+' : '-'}${formatGHS(Number(tx.amount))}`
-                const amountColor = credit ? '#16a34a' : t.text
+                const amountColor = credit ? ui.success : (isDark ? t.text : ui.text)
                 const statusLabel = tx.status === 'success'
-                  ? (isTopup ? 'MOMO PAY' : tx.type === 'refund' ? 'REFUNDED' : 'COMPLETED')
-                  : tx.status.toUpperCase()
+                  ? (isTopup ? 'MoMo pay' : tx.type === 'refund' ? 'Refunded' : 'Completed')
+                  : String(tx.status).charAt(0).toUpperCase() + String(tx.status).slice(1).toLowerCase()
+                const statusTone = tx.status === 'success'
+                  ? 'success' as const
+                  : tx.status === 'pending' ? 'warning' as const
+                  : tx.status === 'failed' ? 'danger' as const
+                  : 'neutral' as const
                 const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 return (
                 <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
-                  <View style={[s.txRow, glass]} accessible accessibilityLabel={`${tx.type} ${formatGHS(Number(tx.amount))}`}>
-                    <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : '#f5f5f4' }]}>
-                      <MaterialIcons name={icon} size={20} color="#FF4D1C" />
+                  <View style={[s.txRow, isDark && s.txRowDark]} accessible accessibilityLabel={`${tx.type} ${formatGHS(Number(tx.amount))}`}>
+                    <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : ui.surface }]}>
+                      <MaterialIcons name={icon} size={20} color={brand.orange} />
                     </View>
                     <View style={s.txInfo}>
-                      <Text style={[s.txLabel, { color: t.text }]}>{(tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')).replace(/\bGHS\b/g, 'GH₵')}</Text>
+                      <Text style={[s.txLabel, { color: isDark ? t.text : ui.text }]}>{(tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')).replace(/\bGHS\b/g, 'GH₵')}</Text>
                       <Text style={s.txDate}>{date}</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
                       <Text style={[s.txAmount, { color: amountColor }]}>{amountStr}</Text>
-                      <Text style={s.txStatus}>{statusLabel}</Text>
+                      <Badge label={statusLabel} tone={statusTone} />
                     </View>
                   </View>
                 </Animated.View>
@@ -373,50 +361,26 @@ export default function WalletScreen() {
           <View style={s.skeletonWrap}>
             <View style={[s.skelBar, { width: '55%', height: 16 }]} />
             <View style={[s.skelBar, { width: '85%', height: 12, marginTop: 14 }]} />
-            <View style={[s.skelCard, { marginTop: 28 }]} />
+            <View style={[s.skelCard, { marginTop: space.section }]} />
             <View style={[s.skelCard, { marginTop: 12 }]} />
           </View>
         ) : (
           /* ── Empty State (Stitch Page 3 — "Your wallet is quiet") ── */
           <Animated.View entering={FadeIn.delay(200).duration(500)} style={s.emptyContainer}>
-            {/* Glass wallet illustration */}
-            <View style={s.emptyIllustration}>
-              {/* Background glow */}
-              <View style={s.emptyGlow} />
-
-              {/* Central glass wallet */}
-              <View style={[s.emptyWalletBox, glass]}>
-                <MaterialIcons name="account-balance-wallet" size={56} color={isDark ? 'rgba(255,77,28,0.5)' : 'rgba(255,77,28,0.3)'} />
-              </View>
-
-              {/* Floating glass coins */}
-              <View style={[s.floatingCoin1, glass]}>
-                <MaterialIcons name="currency-exchange" size={18} color="rgba(255,77,28,0.4)" />
-              </View>
-              <View style={[s.floatingCoin2, glass]}>
-                <MaterialIcons name="payments" size={16} color="rgba(255,77,28,0.3)" />
-              </View>
+            <View style={s.emptyWalletBox}>
+              <MaterialIcons name="account-balance-wallet" size={48} color={brand.orange} />
             </View>
 
             {/* Text */}
-            <Text style={[s.emptyTitle, { color: t.text }]}>Your wallet is quiet.</Text>
-            <Text style={[s.emptySub, { color: isDark ? '#78716c' : '#a8a29e' }]}>
+            <Text style={[s.emptyTitle, { color: isDark ? t.text : ui.text }]}>Your wallet is quiet.</Text>
+            <Text style={[s.emptySub, { color: isDark ? '#78716c' : ui.textSecondary }]}>
               Start your journey by funding your{'\n'}account via MoMo. Secure transit{'\n'}payments at your fingertips.
             </Text>
 
             {/* CTA Buttons */}
             <View style={s.emptyCTAs}>
-              <TouchableOpacity style={s.emptyPrimaryBtn} activeOpacity={0.85} onPress={handleAuthAction}>
-                <View style={s.emptyPrimaryInner}>
-                  <MaterialIcons name="add-circle" size={20} color="#000" />
-                  <Text style={s.emptyPrimaryText}>Add Money Now</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.emptySecondaryBtn, {
-                borderColor: isDark ? 'rgba(255,77,28,0.4)' : 'rgba(255,77,28,0.3)',
-              }]} activeOpacity={0.85} onPress={handleAuthAction}>
-                <Text style={s.emptySecondaryText}>Connect MoMo Account</Text>
-              </TouchableOpacity>
+              <Button label="Add money now" icon={Plus} onPress={handleAuthAction} />
+              <Button label="Connect MoMo account" variant="outline" onPress={handleAuthAction} />
             </View>
           </Animated.View>
         )}
@@ -424,12 +388,10 @@ export default function WalletScreen() {
         {/* ── Transactions (empty state) — only once we know there are none ── */}
         {!hasTransactions && (!isAuthenticated || hydrated) && (
           <Animated.View entering={FadeInDown.delay(400).duration(400)} style={[s.section, { marginTop: 'auto' }]}>
-            <View style={s.txEmptyHeader}>
-              <Text style={[s.txEmptyLabel, { color: t.text }]}>RECENT TRANSACTIONS</Text>
-            </View>
-            <View style={[s.txEmptyBox, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
-              <MaterialIcons name="history" size={28} color={isDark ? '#44403c' : '#d6d3d1'} />
-              <Text style={s.txEmptyText}>NO TRANSACTIONS YET</Text>
+            <SectionHeader title={tr('wallet.recentTransactions')} style={{ marginBottom: space.md }} />
+            <View style={[s.txEmptyBox, { borderColor: isDark ? 'rgba(255,255,255,0.05)' : ui.surfaceStrong }]}>
+              <History size={28} color={isDark ? '#44403c' : ui.textTertiary} />
+              <Text style={s.txEmptyText}>No transactions yet</Text>
             </View>
           </Animated.View>
         )}
@@ -441,180 +403,106 @@ export default function WalletScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  section: { paddingHorizontal: 20, marginBottom: 20 },
+  section: { paddingHorizontal: space.gutter, marginBottom: space.section },
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
+    paddingHorizontal: space.gutter, paddingTop: space.sm, paddingBottom: space.md,
   },
-  headerTitle: { fontSize: 26, fontFamily: font.extrabold, letterSpacing: -0.5 },
+  headerTitle: { ...type.title },
 
   // Balance card
   balanceCard: {
-    borderRadius: 16, padding: 24, alignItems: 'center', overflow: 'hidden',
+    borderRadius: radius.lg, padding: space.gutter, alignItems: 'center', overflow: 'hidden',
+    backgroundColor: ui.card, ...cardShadow,
   },
-  goldGlow: {
-    shadowColor: '#FF4D1C', shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.05, shadowRadius: 20,
+  balanceCardDark: {
+    backgroundColor: 'rgba(60,51,43,0.2)', shadowOpacity: 0, elevation: 0,
+    borderWidth: 1, borderColor: 'rgba(255,77,28,0.1)',
   },
-  balanceGlowOrb: {
-    position: 'absolute', top: -20, right: -20,
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(255,77,28,0.08)',
-  },
-  comingSoonBadge: {
-    backgroundColor: 'rgba(255,77,28,0.15)',
-    paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 99, alignSelf: 'center', marginBottom: 12,
-    borderWidth: 1, borderColor: 'rgba(255,77,28,0.2)',
-  },
-  comingSoonText: {
-    fontSize: 11, fontFamily: font.bold, color: '#FF4D1C',
-    letterSpacing: 2,
-  },
-  balanceLabelText: {
-    fontSize: 11, fontFamily: font.bold, color: '#78716c',
-    letterSpacing: 3, marginBottom: 8,
-  },
-  balanceCardBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  balanceCardBtnPrimary: { flex: 1 },
-  balanceCardBtnAmber: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#FF4D1C', paddingVertical: 13, borderRadius: 12,
-  },
-  balanceCardBtnPrimaryText: { fontSize: 14, fontFamily: font.bold, color: '#fff' },
-  balanceAmountRow: { marginBottom: 16 },
+  balanceLabelText: { ...type.label, color: ui.textSecondary, marginBottom: space.xs },
+  balanceCardBtns: { width: '100%', marginTop: space.xs },
+  balanceAmountRow: { marginBottom: space.lg },
   creditedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(22,163,74,0.12)',
-    borderRadius: 100,
-    paddingHorizontal: 12,
+    backgroundColor: ui.successSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
     paddingVertical: 6,
     marginBottom: 14,
   },
-  creditedText: {
-    fontFamily: font.semibold,
-    fontSize: 13,
-    color: '#16a34a',
-  },
-  balanceAmount: { fontSize: 44, fontFamily: font.extrabold, letterSpacing: -0.5 },
-  liveSyncBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(60,51,43,0.4)', paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
-  },
-  liveSyncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF4D1C' },
-  liveSyncText: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
-
-  // Quick actions
+  creditedText: { ...type.labelStrong, color: ui.success },
 
   // Section
-  sectionTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 12 },
-  viewAll: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
-  passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
+  sectionTitle: { ...type.title },
+  viewAll: { ...type.labelStrong, color: brand.orangeText },
+  passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
 
   // Active Pass
-  passCard: { borderRadius: 16, padding: 20, overflow: 'hidden', gap: 24 },
+  passCard: { borderRadius: radius.lg, padding: space.xl, overflow: 'hidden', gap: space.gutter },
   passTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   passLiveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  passLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  passLiveText: { fontSize: 11, fontFamily: font.bold, color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
-  passRoute: { fontSize: 22, fontFamily: font.extrabold, color: '#fff', letterSpacing: -0.5 },
+  passLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ui.onBrand },
+  passLiveText: { ...type.caption, color: 'rgba(255,255,255,0.85)' },
+  passRoute: { fontSize: 22, fontFamily: font.extrabold, color: ui.onBrand, letterSpacing: -0.5 },
   passBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  passFieldLabel: { fontSize: 11, fontFamily: font.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginBottom: 4 },
-  passFieldValue: { fontSize: 15, fontFamily: font.bold, color: '#fff' },
+  passFieldLabel: { ...type.caption, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
+  passFieldValue: { fontSize: 15, fontFamily: font.bold, color: ui.onBrand },
   passTripsLeft: {
     backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 99, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: radius.pill,
   },
-  passTripsText: { fontSize: 11, fontFamily: font.bold, color: '#fff', letterSpacing: 1 },
+  passTripsText: { ...type.caption, fontFamily: font.bold, color: ui.onBrand },
   passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
-  cancelPass: { alignSelf: 'center', marginTop: 12, paddingVertical: 6, paddingHorizontal: 12 },
-  cancelPassText: { fontFamily: font.semibold, fontSize: 13, color: '#EF4444' },
-  myTicketsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginTop: 4, marginBottom: 8, backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
-  myTicketsIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF0EB', alignItems: 'center', justifyContent: 'center' },
-  myTicketsText: { fontFamily: font.bold, fontSize: 15, color: '#111' },
+  cancelPass: { alignSelf: 'center', marginTop: space.md, paddingVertical: 6, paddingHorizontal: space.md },
+  cancelPassText: { ...type.labelStrong, color: ui.danger },
+  myTicketsRow: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    marginHorizontal: space.gutter, marginBottom: space.section,
+    backgroundColor: ui.card, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: 14,
+    ...cardShadow,
+  },
+  myTicketsIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+  myTicketsText: { ...type.bodyMedium, color: ui.text },
   passDecorCircle: {
     position: 'absolute', left: -20, bottom: -20,
     width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',
   },
 
   // Transactions
-  txRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 14, marginBottom: 6 },
+  txRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, padding: space.lg,
+    borderRadius: radius.lg, marginBottom: space.sm, backgroundColor: ui.card, ...cardShadow,
+  },
+  txRowDark: { backgroundColor: 'rgba(60,51,43,0.2)', shadowOpacity: 0, elevation: 0 },
   txIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   txInfo: { flex: 1 },
-  txLabel: { fontSize: 15, fontFamily: font.bold },
-  txDate: { fontSize: 11, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
-  txAmount: { fontSize: 16, fontFamily: font.bold, letterSpacing: 0.5 },
-  txStatus: { fontSize: 11, fontFamily: font.bold, color: '#78716c', letterSpacing: 0.5, marginTop: 2 },
+  txLabel: { ...type.bodyMedium },
+  txDate: { ...type.caption, color: ui.textSecondary, marginTop: 2 },
+  txAmount: { ...type.bodyMedium, fontFamily: font.bold },
 
   // Loading skeleton
-  skeletonWrap: { paddingHorizontal: 24, paddingTop: 24 },
-  skelBar: { backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 8 },
-  skelCard: { height: 72, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.05)' },
+  skeletonWrap: { paddingHorizontal: space.gutter, paddingTop: space.gutter },
+  skelBar: { backgroundColor: ui.surface, borderRadius: radius.sm },
+  skelCard: { height: 72, borderRadius: radius.lg, backgroundColor: ui.surface },
 
   // Empty state
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 20 },
-  emptyIllustration: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  emptyGlow: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(255,77,28,0.06)',
-  },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.gutter, paddingVertical: space.xl },
   emptyWalletBox: {
-    width: 100, height: 100, borderRadius: 20, justifyContent: 'center', alignItems: 'center',
+    width: 96, height: 96, borderRadius: radius.xl, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: brand.orangeSoft, marginBottom: space.gutter,
   },
-  floatingCoin1: {
-    position: 'absolute', top: 10, right: 20, width: 44, height: 44,
-    borderRadius: 22, justifyContent: 'center', alignItems: 'center',
-    transform: [{ rotate: '12deg' }],
-  },
-  floatingCoin2: {
-    position: 'absolute', bottom: 30, left: 20, width: 36, height: 36,
-    borderRadius: 18, justifyContent: 'center', alignItems: 'center',
-    transform: [{ rotate: '-12deg' }],
-  },
-  emptyTitle: { fontSize: 22, fontFamily: font.bold, letterSpacing: -0.3, marginBottom: 10 },
+  emptyTitle: { ...type.title, marginBottom: 10 },
   emptySub: { fontSize: 15, fontFamily: font.regular, textAlign: 'center', lineHeight: 22 },
-  emptyCTAs: { width: '100%', marginTop: 28, gap: 10 },
-  emptyPrimaryBtn: { width: '100%' },
-  emptyPrimaryInner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#FF4D1C', paddingVertical: 16, borderRadius: 14,
-    shadowColor: '#FF4D1C', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
-  },
-  emptyPrimaryText: { fontSize: 17, fontFamily: font.bold, color: '#000' },
-  emptySecondaryBtn: {
-    width: '100%', paddingVertical: 14, borderRadius: 14,
-    borderWidth: 1, alignItems: 'center',
-  },
-  emptySecondaryText: { fontSize: 12, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
+  emptyCTAs: { width: '100%', marginTop: space.section, gap: 10 },
 
   // Empty transactions
-  txEmptyHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 16,
-  },
-  txEmptyLabel: { fontSize: 11, fontFamily: font.bold, letterSpacing: 2 },
-  txEmptyViewAll: { fontSize: 11, fontFamily: font.bold, color: '#57534e', letterSpacing: 1 },
   txEmptyBox: {
-    borderWidth: 2, borderStyle: 'dashed', borderRadius: 16,
-    paddingVertical: 28, alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 2, borderStyle: 'dashed', borderRadius: radius.lg,
+    paddingVertical: space.section, alignItems: 'center', justifyContent: 'center', gap: space.sm,
   },
-  txEmptyText: { fontSize: 11, fontFamily: font.bold, color: '#57534e', letterSpacing: 3 },
-
-  // Promo banner
-  promoCard: { borderRadius: 16, padding: 20, minHeight: 140, justifyContent: 'center', overflow: 'hidden' },
-  promoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  promoContent: { gap: 6 },
-  promoTagWrap: {
-    backgroundColor: 'rgba(255,77,28,0.2)', paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 4, alignSelf: 'flex-start', marginBottom: 4,
-  },
-  promoTag: { fontSize: 11, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 2 },
-  promoTitle: { fontSize: 20, fontFamily: font.bold, color: '#ffffff', lineHeight: 26 },
-  promoSub: { fontSize: 11, fontFamily: font.bold, color: '#a8a29e', letterSpacing: 0.5 },
+  txEmptyText: { ...type.label, color: ui.textSecondary },
 })

@@ -32,7 +32,8 @@ import {
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
-import { c, themed, font, shadow } from '@/lib/theme'
+import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
+import { Chip, Badge, Button } from '@/components/ui'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
@@ -55,8 +56,7 @@ export default function RoutesScreen() {
   const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
-  const s = useMemo(() => getStyles(isDark), [isDark])
+  const s = useMemo(() => getStyles(), [])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<Filter>(
@@ -139,12 +139,12 @@ export default function RoutesScreen() {
     return LINE_COLORS[h % LINE_COLORS.length]
   }
 
-  const filters: { key: Filter; label: string; icon: typeof BusFront; color: string }[] = [
-    { key: 'all', label: 'All', icon: LayoutGrid, color: '#FF4D1C' },
-    { key: 'trotro', label: 'Trotro', icon: BusFront, color: '#FF4D1C' },
-    { key: 'okada', label: 'Okada', icon: Bike, color: c.orange500 },
-    { key: 'popular', label: 'Popular', icon: TrendingUp, color: '#FF4D1C' },
-    { key: 'saved', label: 'Saved', icon: Heart, color: c.red500 },
+  const filters: { key: Filter; label: string; icon: typeof BusFront }[] = [
+    { key: 'all', label: 'All', icon: LayoutGrid },
+    { key: 'trotro', label: 'Trotro', icon: BusFront },
+    { key: 'okada', label: 'Okada', icon: Bike },
+    { key: 'popular', label: 'Popular', icon: TrendingUp },
+    { key: 'saved', label: 'Saved', icon: Heart },
   ]
 
   const selectRegion = useCallback((key: string) => {
@@ -179,20 +179,16 @@ export default function RoutesScreen() {
           {/* Top: badge + route name + fare */}
           <View style={s.cardTop}>
             <View style={s.cardTopLeft}>
-              <View style={[s.typeBadge, { backgroundColor: `${accent}1C` }]}>
-                <Text style={[s.typeBadgeText, { color: accent }]}>
-                  {isOkada ? 'Okada' : 'Trotro'}
-                </Text>
-              </View>
+              <Badge label={isOkada ? 'Okada' : 'Trotro'} tone={isOkada ? 'brand' : 'neutral'} />
               <Text style={s.routeName} numberOfLines={1}>
                 {item.from_location} → {item.to_location}
               </Text>
             </View>
             <View style={s.fareWrap}>
-              <Text style={[s.fareAmount, { color: fareTrusted ? t.text : t.textSecondary }]}>
+              <Text style={[s.fareAmount, { color: fareTrusted ? ui.text : ui.textSecondary }]}>
                 {fareTrusted ? '' : 'Est. '}GH₵ {displayFare.toFixed(2)}
               </Text>
-              <Text style={s.fareLabel}>Per Seat</Text>
+              <Text style={s.fareLabel}>Per seat</Text>
               {!hasFareReports && (
                 <TouchableOpacity
                   style={s.reportFareCta}
@@ -203,7 +199,7 @@ export default function RoutesScreen() {
                   activeOpacity={0.7}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Plus size={11} color={c.amber500} />
+                  <Plus size={11} color={ui.warning} />
                   <Text style={s.reportFareCtaText}>Report fare (+pts)</Text>
                 </TouchableOpacity>
               )}
@@ -213,7 +209,7 @@ export default function RoutesScreen() {
           {/* Meta row */}
           <View style={s.metaRow}>
             <View style={s.metaItem}>
-              <Clock size={14} color={t.textTertiary} />
+              <Clock size={14} color={ui.textTertiary} />
               <Text style={s.metaText}>{lastUpdated}</Text>
             </View>
             {confidence && (
@@ -226,16 +222,16 @@ export default function RoutesScreen() {
             )}
             {item.rating_stats && item.rating_stats.rating_count > 0 && (
               <View style={s.metaItem}>
-                <Star size={14} color="#F5A623" fill="#F5A623" />
-                <Text style={[s.metaText, { color: '#B45309', fontFamily: font.semibold }]}>
+                <Star size={14} color={ui.warning} fill={ui.warning} />
+                <Text style={[s.metaText, { color: ui.warning, fontFamily: font.semibold }]}>
                   {Number(item.rating_stats.avg_rating).toFixed(1)} ({item.rating_stats.rating_count})
                 </Text>
               </View>
             )}
             {item.is_gprtu_verified && (
               <View style={s.metaItem}>
-                <ShieldCheck size={14} color="#16a34a" />
-                <Text style={s.gprtuText}>GPRTU Verified</Text>
+                <ShieldCheck size={14} color={ui.success} />
+                <Text style={s.gprtuText}>GPRTU verified</Text>
               </View>
             )}
           </View>
@@ -252,8 +248,8 @@ export default function RoutesScreen() {
       <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
         <View style={s.headerRow}>
           <View>
-            <Text style={s.headerLabel}>Urban Mobility</Text>
-            <Text style={s.headerTitle}>Find Your Route</Text>
+            <Text style={s.headerLabel}>Urban mobility</Text>
+            <Text style={s.headerTitle}>Find your route</Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -261,23 +257,23 @@ export default function RoutesScreen() {
             style={s.regionDropdown}
           >
             <Text style={s.regionDropdownText}>{activeRegionLabel}</Text>
-            <ChevronDown size={16} color={'#FF4D1C'} />
+            <ChevronDown size={16} color={brand.orange} />
           </TouchableOpacity>
         </View>
 
         {/* M3 Search bar */}
         <View style={s.searchBar}>
-          <Search size={20} color={t.textTertiary} />
+          <Search size={20} color={ui.textTertiary} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Where are you going?"
-            placeholderTextColor={t.textTertiary}
+            placeholderTextColor={ui.textTertiary}
             style={s.searchInput}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X size={18} color={t.textTertiary} />
+              <X size={18} color={ui.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -290,45 +286,21 @@ export default function RoutesScreen() {
           style={s.chipScroll}
         >
           {filters.map((filter) => {
-            const active = activeFilter === filter.key
-            const Icon = filter.icon
             return (
-              <TouchableOpacity
+              <Chip
                 key={filter.key}
+                label={filter.label}
+                icon={filter.icon}
+                selected={activeFilter === filter.key}
                 onPress={() => { haptics.light(); setActiveFilter(filter.key) }}
-                activeOpacity={0.7}
-                style={[s.chip, active && s.chipActiveWrap]}
-              >
-                {active ? (
-                  <LinearGradient
-                    colors={['#FF4D1C', '#FF4D1C']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={s.chipGradient}
-                  >
-                    {Icon && <Icon size={14} color="#fff" fill={filter.key === 'saved' ? '#fff' : 'transparent'} />}
-                    <Text style={s.chipTextActive}>{filter.label}</Text>
-                  </LinearGradient>
-                ) : (
-                  <>
-                    {Icon && (
-                      <Icon
-                        size={14}
-                        color={t.textSecondary}
-                        fill={filter.key === 'saved' ? t.textSecondary : 'transparent'}
-                      />
-                    )}
-                    <Text style={s.chipText}>{filter.label}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              />
             )
           })}
         </ScrollView>
 
         {(params.from || params.to) && (
           <View style={s.filterRow}>
-            <MapPin size={14} color={'#FF4D1C'} />
+            <MapPin size={14} color={brand.orange} />
             <Text style={s.filterText}>
               Showing: {params.from || 'Any'} {'\u2192'} {params.to || 'Any'}
             </Text>
@@ -337,7 +309,7 @@ export default function RoutesScreen() {
       </Animated.View>
 
       {isLoading ? (
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <View style={{ paddingHorizontal: space.gutter, paddingTop: 12 }}>
           <SkeletonRouteCard isDark={isDark} />
           <SkeletonRouteCard isDark={isDark} />
           <SkeletonRouteCard isDark={isDark} />
@@ -348,7 +320,7 @@ export default function RoutesScreen() {
           data={filteredRoutes}
           renderItem={renderRoute}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 90 }}
+          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={activeRegion !== 'all' ? (() => {
                 const hero = REGION_HEROES.find(h => h.key === activeRegion)
@@ -377,13 +349,13 @@ export default function RoutesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={async () => { setRefreshing(true); await refetch(); setRefreshing(false) }}
-              tintColor={'#FF4D1C'}
-              colors={['#FF4D1C']}
+              tintColor={brand.orange}
+              colors={[brand.orange]}
             />
           }
           ListEmptyComponent={
             <View style={s.emptyContainer}>
-              <MapPin size={48} color={t.textTertiary} />
+              <MapPin size={48} color={ui.textTertiary} />
               <Text style={s.emptyTitle}>
                 {activeFilter === 'saved' ? 'No saved routes' : 'No routes found'}
               </Text>
@@ -394,14 +366,14 @@ export default function RoutesScreen() {
                 }
               </Text>
               {activeFilter !== 'saved' && (
-                <TouchableOpacity
+                <Button
+                  label="Add this route"
+                  icon={Plus}
+                  variant="secondary"
+                  fullWidth={false}
+                  style={{ marginTop: 20, alignSelf: 'center' }}
                   onPress={() => router.push('/report/fare' as Href)}
-                  activeOpacity={0.7}
-                  style={s.addRouteBtn}
-                >
-                  <Plus size={16} color={'#FF4D1C'} />
-                  <Text style={s.addRouteBtnText}>Add This Route</Text>
-                </TouchableOpacity>
+                />
               )}
             </View>
           }
@@ -412,7 +384,7 @@ export default function RoutesScreen() {
                 activeOpacity={0.7}
                 style={s.footerCta}
               >
-                <Plus size={16} color={'#FF4D1C'} />
+                <Plus size={16} color={brand.orangeText} />
                 <Text style={s.footerCtaText}>Can&apos;t find your route? Add it</Text>
               </TouchableOpacity>
             ) : null
@@ -429,7 +401,7 @@ export default function RoutesScreen() {
       >
         <Pressable style={s.modalOverlay} onPress={() => setRegionPickerOpen(false)}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Select Region</Text>
+            <Text style={s.modalTitle}>Select region</Text>
             {REGIONS.map((region) => {
               const isActive = activeRegion === region.key
               return (
@@ -442,7 +414,7 @@ export default function RoutesScreen() {
                   <Text style={[s.modalOptionText, isActive && s.modalOptionTextActive]}>
                     {region.label}
                   </Text>
-                  {isActive && <Check size={18} color={'#FF4D1C'} />}
+                  {isActive && <Check size={18} color={brand.orange} />}
                 </TouchableOpacity>
               )
             })}
@@ -453,17 +425,12 @@ export default function RoutesScreen() {
   )
 }
 
-const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
-
-  const surfaceContainerLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const surfaceContainerHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
-
+const getStyles = () => {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: isDark ? t.bg : '#fcf5f2' },
+    container: { flex: 1, backgroundColor: ui.bg },
 
-    // Editorial header
-    header: { paddingHorizontal: 20, paddingTop: 2, paddingBottom: 8 },
+    // Header
+    header: { paddingHorizontal: space.gutter, paddingTop: 2, paddingBottom: 8 },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -471,17 +438,14 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 16,
     },
     headerLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#FF4D1C',
-      textTransform: 'uppercase',
-      letterSpacing: 2,
-      marginBottom: 4,
+      ...type.caption,
+      color: ui.textSecondary,
+      marginBottom: 2,
     },
     headerTitle: {
       fontSize: 28,
       fontFamily: font.displayHeavy,
-      color: t.text,
+      color: ui.text,
       letterSpacing: 0,
     },
 
@@ -492,83 +456,52 @@ const getStyles = (isDark: boolean) => {
       gap: 4,
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.08)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)',
+      borderRadius: radius.pill,
+      backgroundColor: brand.orangeSoft,
       marginTop: 6,
     },
     regionDropdownText: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: '#FF4D1C',
+      ...type.labelStrong,
+      color: brand.orangeText,
     },
 
-    // M3 Search bar — pill shape
+    // Search bar
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 28,
+      borderRadius: radius.pill,
       paddingHorizontal: 20,
       paddingVertical: 14,
-      backgroundColor: surfaceContainerHigh,
+      backgroundColor: ui.surface,
       gap: 12,
     },
     searchInput: {
       flex: 1,
       fontSize: 16,
-      color: t.text,
+      color: ui.text,
       fontFamily: font.regular,
       padding: 0,
     },
 
-    // Filter chips — gradient active, surface inactive
-    chipScroll: { marginTop: 14 },
+    // Filter chips (Chip primitive)
+    chipScroll: { marginTop: 14, marginHorizontal: -space.gutter },
     chipRow: {
       flexDirection: 'row' as const,
       gap: 10,
+      paddingHorizontal: space.gutter,
       paddingBottom: 6,
     },
-    chip: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      borderRadius: 24,
-      backgroundColor: surfaceContainerHigh,
-      gap: 6,
-    },
-    chipActiveWrap: {
-      padding: 0,
-      backgroundColor: 'transparent',
-      overflow: 'hidden' as const,
-    },
-    chipGradient: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 6,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      borderRadius: 24,
-    },
-    chipText: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: t.textSecondary,
-    },
-    chipTextActive: {
-      color: '#fff',
-    },
     filterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, marginTop: 12 },
-    filterText: { fontSize: 14, marginLeft: 4, color: t.textSecondary },
+    filterText: { ...type.label, marginLeft: 4, color: ui.textSecondary },
 
     // Route cards — Stitch editorial style
     routeCard: {
       flexDirection: 'row',
-      borderRadius: 16,
+      borderRadius: radius.lg,
       marginBottom: 14,
-      backgroundColor: surfaceContainerLow,
+      backgroundColor: ui.card,
       overflow: 'hidden',
+      ...cardShadow,
     },
     cardAccent: {
       width: 4,
@@ -592,22 +525,10 @@ const getStyles = (isDark: boolean) => {
       marginRight: 12,
       gap: 8,
     },
-    typeBadge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-    },
-    typeBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
     routeName: {
       fontSize: 18,
-      fontFamily: font.extrabold,
-      color: t.text,
+      fontFamily: font.bold,
+      color: ui.text,
       letterSpacing: -0.3,
     },
 
@@ -621,11 +542,8 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: 0,
     },
     fareLabel: {
-      fontSize: 9,
-      fontFamily: font.medium,
-      color: t.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...type.caption,
+      color: ui.textSecondary,
       marginTop: 2,
     },
     reportFareCta: {
@@ -637,7 +555,7 @@ const getStyles = (isDark: boolean) => {
     reportFareCtaText: {
       fontSize: 11,
       fontFamily: font.semibold,
-      color: c.amber500,
+      color: ui.warning,
     },
 
     // Meta row (last element in the card now that View Details is gone)
@@ -657,37 +575,20 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 3.5,
     },
     metaText: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: t.textSecondary,
+      ...type.label,
+      color: ui.textSecondary,
     },
     gprtuText: {
-      fontSize: 11,
-      fontFamily: font.bold,
-      color: '#16a34a',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...type.caption,
+      color: ui.success,
     },
 
     // View Details button
 
     // Empty
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
-    emptyTitle: { fontSize: 18, fontFamily: font.semibold, marginTop: 16, color: t.textSecondary },
-    emptySubtitle: { fontSize: 14, marginTop: 4, color: t.textTertiary, textAlign: 'center' },
-    addRouteBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 20,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 16,
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FFF0EB',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(245,158,11,0.2)' : '#FFD2C2',
-    },
-    addRouteBtnText: { fontSize: 14, fontFamily: font.semibold, color: '#FF4D1C' },
+    emptyTitle: { ...type.headline, marginTop: 16, color: ui.textSecondary },
+    emptySubtitle: { ...type.label, marginTop: 4, color: ui.textTertiary, textAlign: 'center' },
     footerCta: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -696,15 +597,15 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 16,
       marginBottom: 80,
     },
-    footerCtaText: { fontSize: 14, fontFamily: font.medium, color: '#FF4D1C' },
+    footerCtaText: { ...type.labelStrong, color: brand.orangeText },
 
     // Region Hero Banner
     heroBanner: {
       height: 130,
-      borderRadius: 24,
+      borderRadius: radius.xl,
       overflow: 'hidden' as const,
       marginBottom: 16,
-      ...shadow.cardStrong,
+      ...cardShadow,
     },
     heroBannerContent: {
       flex: 1,
@@ -714,7 +615,7 @@ const getStyles = (isDark: boolean) => {
     heroBannerCity: {
       fontSize: 22,
       fontFamily: font.bold,
-      color: c.white,
+      color: ui.onBrand,
     },
     heroBannerTagline: {
       fontSize: 13,
@@ -733,15 +634,15 @@ const getStyles = (isDark: boolean) => {
     },
     modalContent: {
       width: '100%' as const,
-      backgroundColor: t.card,
-      borderRadius: 20,
+      backgroundColor: ui.card,
+      borderRadius: radius.xl,
       padding: 20,
       maxWidth: 340,
     },
     modalTitle: {
       fontSize: 18,
       fontFamily: font.bold,
-      color: t.text,
+      color: ui.text,
       marginBottom: 16,
       textAlign: 'center' as const,
     },
@@ -755,16 +656,16 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 4,
     },
     modalOptionActive: {
-      backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.06)',
+      backgroundColor: brand.orangeSoft,
     },
     modalOptionText: {
       fontSize: 15,
       fontFamily: font.medium,
-      color: t.text,
+      color: ui.text,
     },
     modalOptionTextActive: {
       fontFamily: font.semibold,
-      color: '#FF4D1C',
+      color: brand.orangeText,
     },
   })
 }

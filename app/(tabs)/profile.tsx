@@ -11,7 +11,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Linking } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
 import { Settings, Bell, Shield, HelpCircle, ChevronRight, Edit3, MapPin, Flame, Megaphone, Trophy } from 'lucide-react-native'
-import { c, font } from '@/lib/theme'
+import { brand, ui, space, radius, type, cardShadow, font } from '@/lib/theme'
+import { Button } from '@/components/ui'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -55,7 +56,7 @@ export default function ProfileScreen() {
             style={s.editBtn}
             activeOpacity={0.7}
           >
-            <Edit3 size={18} color={isDark ? c.stone300 : c.stone600} />
+            <Edit3 size={18} color={ui.text} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -69,7 +70,7 @@ export default function ProfileScreen() {
             />
             {(profile?.current_streak ?? 0) > 0 && (
               <View style={s.streakBadge}>
-                <Flame size={10} color={c.white} />
+                <Flame size={10} color={ui.onBrand} />
               </View>
             )}
           </View>
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
             <Text style={s.bioText}>{profile.bio}</Text>
             {profile.home_route_label && (
               <View style={s.routeRow}>
-                <MapPin size={14} color={c.pink500} />
+                <MapPin size={14} color={brand.orange} />
                 <Text style={s.routeText}>{profile.home_route_label}</Text>
               </View>
             )}
@@ -96,7 +97,7 @@ export default function ProfileScreen() {
         ) : profile?.home_route_label ? (
           <View style={s.bioCard}>
             <View style={s.routeRow}>
-              <MapPin size={14} color={c.pink500} />
+              <MapPin size={14} color={brand.orange} />
               <Text style={s.routeText}>{profile.home_route_label}</Text>
             </View>
           </View>
@@ -132,7 +133,7 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(280).duration(400)}>
           <SpendingSummary />
         </Animated.View>
-        <View style={{ height: 16 }} />
+        <View style={{ height: space.lg }} />
 
         {/* Menu */}
         <Animated.View entering={FadeInDown.delay(360).duration(400)} style={s.menuCard}>
@@ -145,22 +146,24 @@ export default function ProfileScreen() {
                 activeOpacity={0.6}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); item.onPress() }}
               >
-                <Icon size={20} color={isDark ? '#a8a29e' : '#78716c'} />
+                <Icon size={20} color={ui.textSecondary} />
                 <Text style={s.menuLabel}>{item.label}</Text>
                 {item.badge != null && item.badge > 0 && (
                   <View style={s.badge}>
                     <Text style={s.badgeText}>{item.badge}</Text>
                   </View>
                 )}
-                <ChevronRight size={18} color={isDark ? '#57534e' : '#a8a29e'} />
+                <ChevronRight size={18} color={ui.textTertiary} />
               </TouchableOpacity>
             )
           })}
         </Animated.View>
 
         {/* Sign Out */}
-        <Animated.View entering={FadeInDown.delay(440).duration(400)} style={{ paddingHorizontal: 20, marginTop: 8 }}>
-          <TouchableOpacity
+        <Animated.View entering={FadeInDown.delay(440).duration(400)} style={{ paddingHorizontal: space.gutter, marginTop: space.md }}>
+          <Button
+            label="Sign Out"
+            variant="danger"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
               const { Alert } = require('react-native')
@@ -179,18 +182,7 @@ export default function ProfileScreen() {
                 },
               ])
             }}
-            style={{
-              height: 52,
-              borderRadius: 14,
-              backgroundColor: '#FEF2F2',
-              borderWidth: 1,
-              borderColor: '#FECACA',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#EF4444' }}>Sign Out</Text>
-          </TouchableOpacity>
+          />
         </Animated.View>
 
         {/* App Info */}
@@ -206,34 +198,34 @@ export default function ProfileScreen() {
 
 const getStyles = (isDark: boolean) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: isDark ? '#0c0a09' : '#fafaf9' },
+    container: { flex: 1, backgroundColor: isDark ? '#0c0a09' : ui.bg },
     scroll: { flex: 1 },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 8,
+      paddingHorizontal: space.gutter,
+      paddingTop: space.md,
+      paddingBottom: space.sm,
     },
-    headerTitle: { fontSize: 28, fontFamily: font.extrabold, color: isDark ? '#f5f5f4' : '#1c1917', letterSpacing: -0.5 },
+    headerTitle: { ...type.title, color: isDark ? '#f5f5f4' : ui.text },
     editBtn: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: isDark ? c.stone800 : c.stone100,
+      backgroundColor: isDark ? '#292524' : ui.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      margin: 20,
-      marginBottom: 0,
-      padding: 24,
-      borderRadius: 16,
-      backgroundColor: isDark ? '#1c1917' : '#ffffff',
-      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }),
+      marginHorizontal: space.gutter,
+      marginTop: space.lg,
+      padding: space.gutter,
+      borderRadius: radius.lg,
+      backgroundColor: isDark ? '#1c1917' : ui.card,
+      ...(isDark ? {} : cardShadow),
     },
     avatarRing: {
       width: 72,
@@ -250,14 +242,14 @@ const getStyles = (isDark: boolean) =>
       width: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: '#f97316',
+      backgroundColor: brand.orange,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: isDark ? '#1c1917' : '#ffffff',
+      borderColor: isDark ? '#1c1917' : ui.card,
     },
-    avatarInfo: { marginLeft: 16, flex: 1 },
-    avatarName: { fontSize: 20, fontFamily: font.bold, color: isDark ? '#f5f5f4' : '#1c1917', letterSpacing: -0.3 },
+    avatarInfo: { marginLeft: space.lg, flex: 1 },
+    avatarName: { ...type.headline, fontSize: 20, color: isDark ? '#f5f5f4' : ui.text },
     levelPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -266,79 +258,79 @@ const getStyles = (isDark: boolean) =>
       marginTop: 6,
       paddingHorizontal: 10,
       paddingVertical: 4,
-      borderRadius: 12,
+      borderRadius: radius.md,
     },
     levelEmoji: { fontSize: 13, lineHeight: 18 },
     levelText: { fontSize: 12, fontFamily: font.semibold },
     bioCard: {
-      marginHorizontal: 20,
-      marginTop: 8,
-      paddingHorizontal: 20,
+      marginHorizontal: space.gutter,
+      marginTop: space.md,
+      paddingHorizontal: space.xl,
       paddingVertical: 14,
-      borderRadius: 14,
-      backgroundColor: isDark ? '#1c1917' : '#ffffff',
-      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 }),
+      borderRadius: radius.lg,
+      backgroundColor: isDark ? '#1c1917' : ui.card,
+      ...(isDark ? {} : cardShadow),
     },
-    bioText: { fontSize: 14, color: isDark ? c.stone300 : c.stone600, lineHeight: 20 },
+    bioText: { ...type.label, fontFamily: font.regular, color: isDark ? '#d6d3d1' : ui.textSecondary },
     routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-    routeText: { fontSize: 12, color: isDark ? c.stone400 : c.stone500 },
+    routeText: { ...type.caption, color: isDark ? '#a8a29e' : ui.textSecondary },
     statsRow: {
       flexDirection: 'row',
-      marginHorizontal: 20,
-      marginTop: 16,
-      marginBottom: 20,
-      padding: 18,
-      borderRadius: 14,
-      backgroundColor: isDark ? '#1c1917' : '#ffffff',
-      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }),
+      marginHorizontal: space.gutter,
+      marginTop: space.lg,
+      marginBottom: space.xl,
+      padding: space.lg,
+      borderRadius: radius.lg,
+      backgroundColor: isDark ? '#1c1917' : ui.card,
+      ...(isDark ? {} : cardShadow),
     },
     statBox: { flex: 1, alignItems: 'center' },
     statBorder: {
       borderLeftWidth: 1,
-      borderColor: isDark ? '#292524' : '#e7e5e3',
+      borderColor: isDark ? '#292524' : ui.hairline,
     },
-    statValue: { fontSize: 22, fontFamily: font.extrabold, color: isDark ? '#f5f5f4' : '#1c1917', letterSpacing: -0.5 },
-    statLabel: { fontSize: 11, fontFamily: font.medium, color: isDark ? '#a8a29e' : '#78716c', marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+    statValue: { fontSize: 22, fontFamily: font.extrabold, color: isDark ? '#f5f5f4' : ui.text, letterSpacing: -0.5 },
+    statLabel: { ...type.caption, color: isDark ? '#a8a29e' : ui.textSecondary, marginTop: 4 },
     menuCard: {
-      marginHorizontal: 20,
-      borderRadius: 14,
-      backgroundColor: isDark ? '#1c1917' : '#ffffff',
+      marginHorizontal: space.gutter,
+      borderRadius: radius.lg,
+      backgroundColor: isDark ? '#1c1917' : ui.card,
       overflow: 'hidden',
-      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }),
+      ...(isDark ? {} : cardShadow),
     },
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 20,
+      paddingVertical: space.lg,
+      paddingHorizontal: space.xl,
     },
     menuBorder: {
       borderBottomWidth: 1,
-      borderBottomColor: isDark ? '#292524' : '#f5f5f4',
+      borderBottomColor: isDark ? '#292524' : ui.hairline,
     },
     menuLabel: {
+      ...type.bodyMedium,
       flex: 1,
       marginLeft: 14,
-      fontSize: 15,
-      color: isDark ? '#e7e5e3' : '#1c1917',
+      color: isDark ? '#e7e5e3' : ui.text,
     },
     badge: {
       minWidth: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: c.red500,
+      backgroundColor: ui.danger,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 6,
       marginRight: 8,
     },
     badgeText: {
-      color: '#ffffff',
+      color: ui.onBrand,
       fontSize: 11,
       fontFamily: font.bold,
     },
-    footer: { alignItems: 'center', paddingVertical: 32 },
-    version: { fontSize: 13, fontFamily: font.semibold, color: '#f59e0b' },
-    footerText: { fontSize: 12, fontFamily: font.medium, color: isDark ? '#78716c' : '#a8a29e', marginTop: 4 },
-    footerSub: { fontSize: 11, color: isDark ? '#44403c' : '#d6d3d1', marginTop: 2 },
+    footer: { alignItems: 'center', paddingVertical: space.xxl },
+    version: { ...type.labelStrong, color: ui.textSecondary },
+    footerText: { ...type.caption, color: isDark ? '#78716c' : ui.textTertiary, marginTop: 4 },
+    footerSub: { ...type.caption, color: isDark ? '#44403c' : ui.textTertiary, marginTop: 2 },
   })

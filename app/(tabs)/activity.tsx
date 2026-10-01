@@ -33,7 +33,7 @@ import {
   Users,
 } from 'lucide-react-native'
 import { router, type Href } from 'expo-router'
-import { c, font } from '@/lib/theme'
+import { brand, ui, space, radius, type, cardShadow, font } from '@/lib/theme'
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useActivity } from '@/lib/hooks/useActivity'
@@ -49,23 +49,23 @@ import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 type Segment = 'notifications' | 'activity'
 
 const ACTIVITY_TYPE_CONFIG: Record<string, { icon: typeof TrendingUp; color: string }> = {
-  fare: { icon: TrendingUp, color: '#f59e0b' },
-  queue: { icon: Users, color: '#8b5cf6' },
-  incident: { icon: AlertTriangle, color: '#ef4444' },
-  tale: { icon: Camera, color: '#8b5cf6' },
-  train: { icon: TrainFront, color: '#0ea5e9' },
-  trip: { icon: Navigation, color: '#22c55e' },
+  fare: { icon: TrendingUp, color: ui.warning },
+  queue: { icon: Users, color: ui.info },
+  incident: { icon: AlertTriangle, color: ui.danger },
+  tale: { icon: Camera, color: brand.orange },
+  train: { icon: TrainFront, color: ui.info },
+  trip: { icon: Navigation, color: ui.success },
 }
 
 const NOTIF_ICON_MAP: Record<NotificationType, { icon: typeof Bell; color: string }> = {
-  fare_drop: { icon: TrendingDown, color: '#22c55e' },
-  queue_alert: { icon: Users, color: '#f97316' },
-  streak_risk: { icon: Flame, color: '#ef4444' },
-  level_up: { icon: Award, color: '#f59e0b' },
-  badge_earned: { icon: Star, color: '#8b5cf6' },
-  community: { icon: MessageCircle, color: '#8b5cf6' },
-  post_activity: { icon: Heart, color: '#ec4899' },
-  official_announcement: { icon: Megaphone, color: '#f59e0b' },
+  fare_drop: { icon: TrendingDown, color: ui.success },
+  queue_alert: { icon: Users, color: ui.info },
+  streak_risk: { icon: Flame, color: ui.danger },
+  level_up: { icon: Award, color: brand.orange },
+  badge_earned: { icon: Star, color: brand.orange },
+  community: { icon: MessageCircle, color: ui.info },
+  post_activity: { icon: Heart, color: brand.orange },
+  official_announcement: { icon: Megaphone, color: ui.warning },
 }
 
 // Enable LayoutAnimation on Android
@@ -139,7 +139,7 @@ function SwipeableRow({
           style={rs.deleteAction}
         >
           <Animated.View style={[rs.deleteContent, { transform: [{ scale }] }]}>
-            <Trash2 size={20} color="#fff" />
+            <Trash2 size={20} color={ui.onBrand} />
             <Text style={rs.deleteText}>Delete</Text>
           </Animated.View>
         </TouchableOpacity>
@@ -151,7 +151,7 @@ function SwipeableRow({
   const config = ACTIVITY_TYPE_CONFIG[item.type] ?? ACTIVITY_TYPE_CONFIG.fare
   const Icon = config.icon
   const iconColor = item.type === 'trip' && item.meta !== 'arrived'
-    ? '#9ca3af'
+    ? ui.textTertiary
     : config.color
 
   const isRecent = Date.now() - new Date(item.timestamp).getTime() < 3600000
@@ -167,7 +167,7 @@ function SwipeableRow({
     >
       <View style={rs.card}>
         <View style={[rs.iconCircle, { backgroundColor: iconColor }]}>
-          <Icon size={20} color="#fff" />
+          <Icon size={20} color={ui.onBrand} />
         </View>
         <View style={rs.content}>
           <View style={rs.titleRow}>
@@ -338,7 +338,7 @@ export default function UpdatesScreen() {
       {isNotifSegment && (
         notifLoading ? (
           <View style={s.centered}>
-            <View style={{ paddingHorizontal: 16, paddingTop: 16, width: '100%' }}>
+            <View style={{ paddingHorizontal: space.gutter, paddingTop: space.lg, width: '100%' }}>
               <SkeletonActivityItem isDark={isDark} />
               <SkeletonActivityItem isDark={isDark} />
               <SkeletonActivityItem isDark={isDark} />
@@ -347,7 +347,7 @@ export default function UpdatesScreen() {
         ) : notifications.length === 0 ? (
           <View style={s.emptyWrap}>
             <View style={s.emptyIconBox}>
-              <Bell size={28} color={isDark ? '#fbbf24' : '#815100'} />
+              <Bell size={28} color={isDark ? '#fbbf24' : brand.orange} />
             </View>
             <Text style={s.emptyTitle}>All caught up</Text>
             <Text style={s.emptySub}>
@@ -359,14 +359,14 @@ export default function UpdatesScreen() {
             data={notifications}
             renderItem={renderNotifItem}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 90 }}
+            contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: 90 }}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={notifRefreshing}
                 onRefresh={handleNotifRefresh}
-                tintColor={c.amber500}
-                colors={[c.amber500]}
+                tintColor={brand.orange}
+                colors={[brand.orange]}
               />
             }
           />
@@ -376,7 +376,7 @@ export default function UpdatesScreen() {
       {/* ── Activity Segment ── */}
       {!isNotifSegment && (
         activityLoading ? (
-          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <View style={{ paddingHorizontal: space.gutter, paddingTop: space.lg }}>
             <SkeletonActivityItem isDark={isDark} />
             <SkeletonActivityItem isDark={isDark} />
             <SkeletonActivityItem isDark={isDark} />
@@ -386,7 +386,7 @@ export default function UpdatesScreen() {
         ) : activityItems.length === 0 ? (
           <View style={s.emptyWrap}>
             <View style={s.emptyIconBox}>
-              <Bell size={28} color={isDark ? '#fbbf24' : '#815100'} />
+              <Bell size={28} color={isDark ? '#fbbf24' : brand.orange} />
             </View>
             <Text style={s.emptyTitle}>Keep the pulse.</Text>
             <Text style={s.emptySub}>
@@ -404,15 +404,15 @@ export default function UpdatesScreen() {
               <RefreshControl
                 refreshing={activityRefreshing}
                 onRefresh={activityRefresh}
-                tintColor="#815100"
-                colors={['#815100']}
+                tintColor={brand.orange}
+                colors={[brand.orange]}
               />
             }
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.3}
             onScroll={() => { hasScrolledRef.current = true }}
             ListFooterComponent={renderActivityFooter}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 90 }}
+            contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: 90 }}
             showsVerticalScrollIndicator={false}
           />
         )
@@ -424,20 +424,21 @@ export default function UpdatesScreen() {
 // ─── Activity Row Styles ────────────────────────────────────
 
 const getRowStyles = (isDark: boolean) => {
-  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const onSurface = isDark ? '#fafaf9' : '#312e2d'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outline = isDark ? 'rgba(255,255,255,0.25)' : '#7a7674'
+  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : ui.card
+  const onSurface = isDark ? '#fafaf9' : ui.text
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary
+  const outline = isDark ? 'rgba(255,255,255,0.25)' : ui.textTertiary
 
   return StyleSheet.create({
     card: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
-      borderRadius: 16,
-      marginBottom: 12,
+      padding: space.lg,
+      borderRadius: radius.lg,
+      marginBottom: space.md,
       backgroundColor: surfaceLow,
       gap: 14,
+      ...(isDark ? {} : cardShadow),
     },
     iconCircle: {
       width: 40,
@@ -462,24 +463,24 @@ const getRowStyles = (isDark: boolean) => {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: '#3b82f6',
+      backgroundColor: brand.orange,
       marginLeft: 8,
     },
     subtitle: {
-      fontSize: 13,
+      fontSize: 14,
       fontFamily: font.regular,
       color: onSurfaceVariant,
       marginTop: 2,
     },
     time: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.medium,
       color: outline,
       marginTop: 4,
     },
     deleteAction: {
-      backgroundColor: '#b02500',
-      borderRadius: 16,
+      backgroundColor: ui.danger,
+      borderRadius: radius.lg,
       justifyContent: 'center',
       alignItems: 'center',
       width: 90,
@@ -488,7 +489,7 @@ const getRowStyles = (isDark: boolean) => {
     },
     deleteContent: { alignItems: 'center', justifyContent: 'center' },
     deleteText: {
-      color: '#fff',
+      color: ui.onBrand,
       fontFamily: font.semibold,
       fontSize: 12,
       marginTop: 4,
@@ -499,9 +500,9 @@ const getRowStyles = (isDark: boolean) => {
 // ─── Main Styles ────────────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#0c0a09' : '#fcf5f2'
-  const onSurface = isDark ? '#fafaf9' : '#312e2d'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
+  const surface = isDark ? '#0c0a09' : ui.bg
+  const onSurface = isDark ? '#fafaf9' : ui.text
+  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary
   const cardBg = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
 
   return StyleSheet.create({
@@ -510,31 +511,28 @@ const getStyles = (isDark: boolean) => {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 24,
-      paddingTop: 12,
-      paddingBottom: 8,
+      paddingHorizontal: space.gutter,
+      paddingTop: space.md,
+      paddingBottom: space.sm,
     },
     headerTitle: {
-      fontSize: 28,
-      fontFamily: font.extrabold,
-      color: isDark ? '#fafaf9' : '#78350f',
-      letterSpacing: -0.5,
+      ...type.title,
+      color: isDark ? '#fafaf9' : ui.text,
     },
     markRead: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: isDark ? '#f8a010' : '#b45309',
+      ...type.labelStrong,
+      color: isDark ? '#f8a010' : brand.orangeText,
     },
 
     // Segmented control
     segmentWrap: {
-      paddingHorizontal: 24,
+      paddingHorizontal: space.gutter,
       paddingBottom: 12,
     },
     segmentRow: {
       flexDirection: 'row',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-      borderRadius: 12,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : ui.surface,
+      borderRadius: radius.md,
       padding: 3,
     },
     segmentBtn: {
@@ -547,7 +545,7 @@ const getStyles = (isDark: boolean) => {
       gap: 6,
     },
     segmentBtnActive: {
-      backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#fff',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : ui.card,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: isDark ? 0 : 0.08,
@@ -564,7 +562,7 @@ const getStyles = (isDark: boolean) => {
       color: onSurface,
     },
     badge: {
-      backgroundColor: '#ef4444',
+      backgroundColor: ui.danger,
       borderRadius: 10,
       minWidth: 20,
       height: 20,
@@ -575,22 +573,19 @@ const getStyles = (isDark: boolean) => {
     badgeText: {
       fontSize: 11,
       fontFamily: font.bold,
-      color: '#fff',
+      color: ui.onBrand,
     },
 
     // Section list
     sectionHeader: {
       paddingVertical: 10,
-      paddingHorizontal: 16,
-      marginHorizontal: -16,
-      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(252,245,242,0.85)',
+      paddingHorizontal: space.gutter,
+      marginHorizontal: -space.gutter,
+      backgroundColor: isDark ? 'rgba(12,10,9,0.85)' : 'rgba(250,250,249,0.92)',
     },
     sectionTitle: {
-      fontSize: 12,
-      fontFamily: font.semibold,
+      ...type.labelStrong,
       color: onSurfaceVariant,
-      textTransform: 'uppercase',
-      letterSpacing: 2,
     },
     footer: { alignItems: 'center', paddingVertical: 20 },
     footerText: { fontSize: 13, fontFamily: font.regular, color: onSurfaceVariant },
@@ -599,15 +594,15 @@ const getStyles = (isDark: boolean) => {
     notifCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      padding: 16,
-      borderRadius: 14,
-      marginBottom: 10,
-      backgroundColor: isDark ? cardBg : '#fff',
-      ...(isDark ? {} : { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 }),
+      padding: space.lg,
+      borderRadius: radius.lg,
+      marginBottom: space.md,
+      backgroundColor: isDark ? cardBg : ui.card,
+      ...(isDark ? {} : cardShadow),
     },
     notifCardUnread: {
       borderLeftWidth: 3,
-      borderLeftColor: c.amber500,
+      borderLeftColor: brand.orange,
     },
     notifIconBox: {
       width: 42,
@@ -618,14 +613,14 @@ const getStyles = (isDark: boolean) => {
       marginRight: 12,
     },
     notifContent: { flex: 1 },
-    notifTitle: { fontSize: 14, fontFamily: font.semibold, color: onSurface },
-    notifBody: { fontSize: 13, color: onSurfaceVariant, marginTop: 2, lineHeight: 18 },
-    notifTime: { fontSize: 12, color: isDark ? 'rgba(255,255,255,0.25)' : '#7a7674', marginTop: 4 },
+    notifTitle: { fontSize: 15, fontFamily: font.semibold, color: onSurface },
+    notifBody: { fontSize: 14, color: onSurfaceVariant, marginTop: 2, lineHeight: 20 },
+    notifTime: { fontSize: 12, color: isDark ? 'rgba(255,255,255,0.25)' : ui.textTertiary, marginTop: 4 },
     notifUnreadDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: c.amber500,
+      backgroundColor: brand.orange,
       marginTop: 4,
     },
 
@@ -641,16 +636,10 @@ const getStyles = (isDark: boolean) => {
       width: 64,
       height: 64,
       borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#ffffff',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : brand.orangeSoft,
       alignItems: 'center',
       justifyContent: 'center',
-      transform: [{ rotate: '12deg' }],
       marginBottom: 20,
-      shadowColor: '#312e2d',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isDark ? 0 : 0.12,
-      shadowRadius: 20,
-      elevation: isDark ? 0 : 8,
     },
     emptyTitle: { fontSize: 22, fontFamily: font.bold, color: onSurface },
     emptySub: {

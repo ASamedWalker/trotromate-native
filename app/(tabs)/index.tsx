@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   Alert,
-  TouchableOpacity,
 } from 'react-native'
 // expo-image (already used in 12 other screens) downsamples to the drawn size
 // and caches decoded bitmaps. RN's Image decoded these at full source
@@ -19,9 +18,9 @@ import {
   Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
   ScanLine, Plus, Trophy,
 } from 'lucide-react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import { BlurView } from 'expo-blur'
-import { font } from '@/lib/theme'
+import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
+import { HeroText } from '@/components/HeroText'
+import { Card, SectionHeader, Badge, Tap } from '@/components/ui'
 import { useLanguage } from '@/lib/i18n'
 import { formatGHS } from '@/lib/utils/currency'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -31,8 +30,6 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import WhatsOnAccra from '@/components/WhatsOnAccra'
 import { getCachedWallet } from '@/lib/services/walletCache'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
-
-const BRAND = '#FF4D1C'
 
 // Approx Ghana bounding box — used only to guard against implausible
 // reverse-geocode results (e.g. simulator default location showing
@@ -45,16 +42,6 @@ function isWithinGhana(lat: number, lng: number): boolean {
     lat >= GHANA_BOUNDS.minLat && lat <= GHANA_BOUNDS.maxLat &&
     lng >= GHANA_BOUNDS.minLng && lng <= GHANA_BOUNDS.maxLng
   )
-}
-
-// Uber Base tokens adapted for Troski
-const BASE = {
-  radius: { sm: 8, md: 12, lg: 16, xl: 20, full: 9999 },
-  shadow: {
-    card: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4 },
-    subtle: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  },
-  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
 }
 
 /* ── Service data ── */
@@ -77,9 +64,9 @@ const SERVICES: Service[] = [
 /* ── Quick Actions ── */
 
 const QUICK_ACTIONS = [
-  { id: 'directions', labelKey: 'home.whereTo', subKey: 'home.directions', icon: Compass, color: '#1C1917' },
-  { id: 'nearby', labelKey: 'home.buses', subKey: 'home.nearby', icon: BusIcon, color: '#10B981' },
-  { id: 'queue', labelKey: 'home.queue', subKey: 'home.status', icon: Users, color: '#EF4444' },
+  { id: 'directions', labelKey: 'home.whereTo', subKey: 'home.directions', icon: Compass },
+  { id: 'nearby', labelKey: 'home.buses', subKey: 'home.nearby', icon: BusIcon },
+  { id: 'queue', labelKey: 'home.queue', subKey: 'home.status', icon: Users },
 ]
 
 
@@ -171,13 +158,13 @@ export default function HomeScreen() {
   }, [router])
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: ui.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Header ── */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }}>
+        <View style={{ paddingHorizontal: space.gutter, paddingTop: space.md, paddingBottom: space.gutter }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
               <Pressable
                 onPress={() => router.push('/settings' as Href)}
                 hitSlop={8}
@@ -186,14 +173,14 @@ export default function HomeScreen() {
               >
                 <InitialsAvatar name={displayName} deviceId={deviceId || ''} size={48} />
               </Pressable>
-              <View>
-                <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.title, { color: ui.text }]} numberOfLines={1}>
                   {t('home.hello')}, {firstName}
                 </Text>
                 {/* Static label — was a dead Pressable with a chevron affordance (UX-26) */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <MapPin size={14} color={BRAND} />
-                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }} numberOfLines={1}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <MapPin size={14} color={brand.orange} />
+                  <Text style={[type.label, { color: ui.textSecondary }]} numberOfLines={1}>
                     {locationName}
                   </Text>
                 </View>
@@ -208,12 +195,12 @@ export default function HomeScreen() {
                 accessibilityLabel="Rewards and coins"
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 5,
-                  height: 44, paddingHorizontal: 12, borderRadius: 22,
-                  backgroundColor: '#FEF3C7',
+                  height: 44, paddingHorizontal: space.md, borderRadius: radius.pill,
+                  backgroundColor: ui.warningSoft,
                 }}
               >
-                <Trophy size={18} color="#D97706" />
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#B45309' }}>
+                <Trophy size={18} color={ui.warning} />
+                <Text style={[type.labelStrong, { color: ui.warning }]}>
                   {profile?.total_points ?? 0}
                 </Text>
               </Pressable>
@@ -224,58 +211,33 @@ export default function HomeScreen() {
                 accessibilityLabel="Notifications"
                 style={{
                   width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: ui.surface,
                   justifyContent: 'center', alignItems: 'center',
                 }}
               >
-                <Bell size={22} color="#374151" />
+                <Bell size={22} color={ui.text} />
               </Pressable>
             </View>
           </View>
         </View>
 
-        {/* ── Wallet Card (stacked-deck look — peeks on the right) ── */}
-        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
-          {/* Back card 2 — furthest, teal, peeks most on the right */}
-          <LinearGradient
-            colors={['#22D3EE', '#0891B2']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+        {/* ── Wallet card — one solid brand card ── */}
+        <View style={{ paddingHorizontal: space.gutter, marginBottom: space.gutter }}>
+          <View
             style={{
-              position: 'absolute', top: 16, bottom: 16, left: 64, right: 6,
-              borderRadius: BASE.radius.xl,
-              ...BASE.shadow.card, shadowColor: '#0891B2', shadowOpacity: 0.3,
-            }}
-          />
-          {/* Back card 1 — middle, violet, peeks slightly on the right */}
-          <LinearGradient
-            colors={['#A78BFA', '#7C3AED']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              position: 'absolute', top: 8, bottom: 8, left: 52, right: 16,
-              borderRadius: BASE.radius.xl,
-              ...BASE.shadow.card, shadowColor: '#7C3AED', shadowOpacity: 0.3,
-            }}
-          />
-          {/* Front card — wallet balance (narrower so the deck peeks at right) */}
-          <LinearGradient
-            colors={[BRAND, '#D63A12']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              borderRadius: BASE.radius.xl, padding: 24, overflow: 'hidden',
-              ...BASE.shadow.card,
-              shadowColor: BRAND, shadowOpacity: 0.3,
+              backgroundColor: brand.orange,
+              borderRadius: radius.xl,
+              padding: space.gutter,
+              overflow: 'hidden',
+              ...cardShadow,
             }}
           >
-            {/* Decorative discs for depth */}
-            <View style={{ position: 'absolute', top: -45, right: -35, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' }} />
-            <View style={{ position: 'absolute', bottom: -55, left: -45, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+            {/* One soft disc for depth */}
+            <View style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.08)' }} />
 
             {/* Top: label + eye toggle */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>{t('home.walletBalance')}</Text>
+              <Text style={[type.label, { color: 'rgba(255,255,255,0.8)' }]}>{t('home.walletBalance')}</Text>
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
                 hitSlop={12}
@@ -283,131 +245,116 @@ export default function HomeScreen() {
                 accessibilityLabel={balanceVisible ? 'Hide balance' : 'Show balance'}
                 style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
               >
-                {balanceVisible ? <Eye size={18} color="#fff" /> : <EyeOff size={18} color="#fff" />}
+                {balanceVisible ? <Eye size={18} color={ui.onBrand} /> : <EyeOff size={18} color={ui.onBrand} />}
               </Pressable>
             </View>
 
-            {/* Balance */}
-            <Text style={{ fontFamily: font.extrabold, fontSize: 40, color: '#fff', letterSpacing: -1.5, marginTop: 14, marginBottom: balanceFailed ? 6 : 22 }}>{formattedBalance}</Text>
+            {/* Balance — HeroText carries Baloo-safe line metrics */}
+            <HeroText size={40} style={{ color: ui.onBrand, letterSpacing: -1.5, marginTop: space.sm, marginBottom: balanceFailed ? space.xs : space.lg }}>
+              {formattedBalance}
+            </HeroText>
             {balanceFailed && (
-              <Text style={{ fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
+              <Text style={[type.caption, { color: 'rgba(255,255,255,0.85)', marginBottom: space.md }]}>
                 Couldn&apos;t update — {walletBalance != null ? 'showing last known balance' : 'check your connection'}
               </Text>
             )}
 
             {/* Actions */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
+            <View style={{ flexDirection: 'row', gap: space.md }}>
+              <Tap
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
-                activeOpacity={0.8}
-                style={{ flex: 1 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.topupWallet')}
+                style={{
+                  flex: 1, height: 52, borderRadius: radius.md, backgroundColor: ui.card,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
+                }}
               >
-                <View style={{ height: 52, borderRadius: BASE.radius.md, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
-                  <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' }}>
-                    <Plus size={16} color="#fff" strokeWidth={2.6} />
-                  </View>
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#1c1917' }}>{t('home.topupWallet')}</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
+                <Plus size={18} color={brand.orange} strokeWidth={2.6} />
+                <Text style={[type.labelStrong, { fontSize: 15, color: ui.text }]}>{t('home.topupWallet')}</Text>
+              </Tap>
+              <Tap
                 // Scan-to-pay is a non-functional mock (accepts any PIN, no real debit) —
                 // gated coming-soon like the other not-yet-live services below.
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'Scan to Pay is coming soon!') }}
-                activeOpacity={0.8}
-                style={{ flex: 1 }}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('home.scanToPay')}, coming soon`}
+                style={{
+                  flex: 1, height: 52, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.16)',
+                  borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
+                }}
               >
-                {/* Frosted glass over the gradient — height pinned to match the
-                    primary button exactly (border-box, so the border is inside) */}
-                <View style={{ height: 52, borderRadius: BASE.radius.md, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' }}>
-                  <BlurView intensity={24} tint="light" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: 'rgba(255,255,255,0.14)' }}>
-                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
-                      <ScanLine size={15} color="#fff" />
-                    </View>
-                    <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{t('home.scanToPay')}</Text>
-                  </BlurView>
+                <ScanLine size={17} color={ui.onBrand} />
+                <Text style={[type.labelStrong, { fontSize: 15, color: ui.onBrand }]}>{t('home.scanToPay')}</Text>
+                <View style={{ position: 'absolute', top: -8, right: -6 }}>
+                  <Badge label="Soon" tone="dark" />
                 </View>
-                {/* "Soon" badge — same coming-soon treatment used for not-yet-live services */}
-                <View style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#6B7280', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
-                </View>
-              </TouchableOpacity>
+              </Tap>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
-        {/* ── Quick Actions ── */}
-        <View style={{ paddingHorizontal: 24, marginBottom: 28 }}>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+        {/* ── Quick actions ── */}
+        <View style={{ paddingHorizontal: space.gutter, marginBottom: space.section }}>
+          <View style={{ flexDirection: 'row', gap: space.md }}>
             {QUICK_ACTIONS.map((action) => {
               const Icon = action.icon
               const actionLabel = t(action.labelKey)
               return (
-                <TouchableOpacity
-                  key={action.id}
-                  onPress={() => handleQuickAction(action.id)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={actionLabel}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: BASE.radius.lg,
-                    padding: 16,
-                    ...BASE.shadow.card,
-                  }}
-                >
-                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 2 }}>{actionLabel}</Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', marginBottom: 14 }}>{t(action.subKey)}</Text>
-                  <View style={{
-                    width: 40, height: 40, borderRadius: 20,
-                    backgroundColor: action.color,
-                    justifyContent: 'center', alignItems: 'center',
-                    alignSelf: 'flex-end',
-                    marginTop: 'auto',
-                  }}>
-                    <Icon size={20} color="#fff" />
+                <Card key={action.id} onPress={() => handleQuickAction(action.id)} accessibilityLabel={actionLabel} style={{ flex: 1 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.bodyMedium, { fontFamily: font.bold, color: ui.text }]}>{actionLabel}</Text>
+                    <Text style={[type.label, { fontFamily: font.regular, color: ui.textSecondary, marginBottom: space.md }]}>{t(action.subKey)}</Text>
+                    <View style={{
+                      width: 40, height: 40, borderRadius: 20,
+                      backgroundColor: brand.orangeSoft,
+                      justifyContent: 'center', alignItems: 'center',
+                      alignSelf: 'flex-end',
+                      marginTop: 'auto', // icons line up even when a label wraps
+                    }}>
+                      <Icon size={20} color={brand.orange} strokeWidth={2.25} />
+                    </View>
                   </View>
-                </TouchableOpacity>
+                </Card>
               )
             })}
           </View>
         </View>
 
         {/* ── Services ── */}
-        <View style={{ marginBottom: 28 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 24, color: '#000', letterSpacing: -0.5, marginBottom: 16, paddingHorizontal: 24 }}>
-            {t('home.services')}
-          </Text>
+        <View style={{ marginBottom: space.section }}>
+          <SectionHeader title={t('home.services')} style={{ paddingHorizontal: space.gutter, marginBottom: space.lg }} />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
+            contentContainerStyle={{ paddingHorizontal: space.gutter, gap: space.md }}
           >
             {SERVICES.map((svc) => (
-              <TouchableOpacity
+              <Tap
                 key={svc.id}
                 onPress={() => handleServiceTap(svc)}
-                activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={svc.label}
+                accessibilityLabel={svc.comingSoon ? `${svc.label}, coming soon` : svc.label}
                 style={{
                   width: 100,
-                  backgroundColor: '#F3F4F6',
-                  borderRadius: BASE.radius.lg,
-                  paddingTop: 16,
-                  paddingBottom: 12,
+                  backgroundColor: ui.card,
+                  borderRadius: radius.lg,
+                  paddingTop: space.lg,
+                  paddingBottom: space.md,
                   alignItems: 'center',
+                  ...cardShadow,
                 }}
               >
                 {/* "Soon" badge — honest at a glance for not-yet-live services */}
                 {svc.comingSoon && (
-                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#6B7280', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>SOON</Text>
+                  <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                    <Badge label="Soon" />
                   </View>
                 )}
-                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: 8, opacity: svc.comingSoon ? 0.45 : 1 }} contentFit="contain" transition={0} />
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: svc.comingSoon ? '#6B7280' : '#000', textAlign: 'center' }}>{svc.label}</Text>
-              </TouchableOpacity>
+                <Image source={svc.image} style={{ width: 60, height: 60, marginBottom: space.sm, opacity: svc.comingSoon ? 0.45 : 1 }} contentFit="contain" transition={0} />
+                <Text style={[type.labelStrong, { color: svc.comingSoon ? ui.textSecondary : ui.text, textAlign: 'center' }]}>{svc.label}</Text>
+              </Tap>
             ))}
           </ScrollView>
         </View>
