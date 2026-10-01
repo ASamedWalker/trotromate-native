@@ -44,11 +44,14 @@ export async function fetchDriverRatingStats(driverId: string): Promise<DriverRa
 /** Total trips a driver has completed (sum of shifts). */
 export async function fetchDriverRides(driverId: string): Promise<number> {
   try {
+    // public_driver_trips (migration 079) — a per-driver total; shift rows
+    // (with revenue) are no longer readable by signed-in riders.
     const { data } = await supabase
-      .from('driver_shifts')
+      .from('public_driver_trips')
       .select('trips_completed')
       .eq('driver_id', driverId)
-    return (data ?? []).reduce((sum, r: { trips_completed: number | null }) => sum + (r.trips_completed || 0), 0)
+      .maybeSingle()
+    return (data as { trips_completed: number | null } | null)?.trips_completed ?? 0
   } catch {
     return 0
   }

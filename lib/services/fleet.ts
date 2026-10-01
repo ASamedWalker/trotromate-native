@@ -21,31 +21,34 @@ export interface AssignedVehicle {
 export async function fetchAssignedVehicle(from?: string, to?: string): Promise<AssignedVehicle | null> {
   if (!from?.trim() || !to?.trim()) return null
   try {
+    // public_checkout_vehicles (migration 079): first name + safe fields only.
+    // Signed-in users can no longer read fleet_vans/fleet_drivers directly.
     const { data, error } = await supabase
-      .from('fleet_vans')
-      .select('id, plate_number, vehicle_type, capacity, fleet_drivers(id, name, is_on_shift, photo_url, kyc_status, created_at)')
+      .from('public_checkout_vehicles')
+      .select('van_id, plate_number, vehicle_type, capacity, driver_id, first_name, is_on_shift, photo_url, kyc_status, driver_since')
       .ilike('route_label', `%${from.trim()}%`)
       .ilike('route_label', `%${to.trim()}%`)
-      .eq('is_active', true)
       .limit(1)
     if (error) return null
-    type Drv = { id: string; name: string; is_on_shift: boolean; photo_url: string | null; kyc_status: string | null; created_at: string | null }
     const v = data?.[0] as
-      | { id: string; plate_number: string; vehicle_type: string | null; capacity: number | null; fleet_drivers: Drv[] | Drv | null }
+      | {
+          van_id: string; plate_number: string; vehicle_type: string | null; capacity: number | null
+          driver_id: string | null; first_name: string | null; is_on_shift: boolean | null
+          photo_url: string | null; kyc_status: string | null; driver_since: string | null
+        }
       | undefined
     if (!v) return null
-    const d = Array.isArray(v.fleet_drivers) ? v.fleet_drivers[0] : v.fleet_drivers
     return {
-      vanId: v.id,
-      driverId: d?.id ?? null,
+      vanId: v.van_id,
+      driverId: v.driver_id,
       plate: v.plate_number,
       vehicleType: v.vehicle_type,
       capacity: v.capacity,
-      driverName: d?.name ?? null,
-      isOnShift: !!d?.is_on_shift,
-      driverPhotoUrl: d?.photo_url ?? null,
-      kycVerified: d?.kyc_status === 'approved' || d?.kyc_status === 'verified',
-      driverSince: d?.created_at ?? null,
+      driverName: v.first_name,
+      isOnShift: !!v.is_on_shift,
+      driverPhotoUrl: v.photo_url,
+      kycVerified: v.kyc_status === 'approved' || v.kyc_status === 'verified',
+      driverSince: v.driver_since,
     }
   } catch {
     return null
