@@ -15,8 +15,9 @@ import {
   DeviceEventEmitter,
   Animated,
   ScrollView,
+  TouchableWithoutFeedback,
+  GestureResponderEvent,
 } from 'react-native'
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { Image as ExpoImage } from 'expo-image'
@@ -72,6 +73,8 @@ function getDisplayName(post: TalePost): string {
 
 // ─── Double-tap like overlay ────────────────────────────
 
+const DOUBLE_TAP_MS = 350
+
 function DoubleTapLike({
   onDoubleTap,
   onSingleTap,
@@ -86,11 +89,20 @@ function DoubleTapLike({
 }) {
   const heartScale = useRef(new Animated.Value(0)).current
   const heartOpacity = useRef(new Animated.Value(0)).current
+  const lastTap = useRef(0)
+  const singleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .runOnJS(true)
-    .onEnd(() => {
+  useEffect(() => () => { if (singleTimer.current) clearTimeout(singleTimer.current) }, [])
+
+  // Plain JS tap timing instead of RNGH Gesture.Exclusive(double, single):
+  // on device the exclusive single tap never fired (double tap did), so the
+  // photo viewer couldn't open. A second tap within DOUBLE_TAP_MS = like;
+  // otherwise the single tap fires after that window. Scrolls cancel the press.
+  const handlePress = (e: GestureResponderEvent) => {
+    const now = Date.now()
+    if (now - lastTap.current < DOUBLE_TAP_MS) {
+      lastTap.current = 0
+      if (singleTimer.current) { clearTimeout(singleTimer.current); singleTimer.current = null }
       onDoubleTap()
       heartScale.setValue(0)
       heartOpacity.setValue(1)
@@ -99,24 +111,22 @@ function DoubleTapLike({
         Animated.delay(400),
         Animated.timing(heartOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start()
-    })
-
-  // Single tap only when provided; Exclusive waits for the double-tap to fail first.
-  const gesture = onSingleTap
-    ? Gesture.Exclusive(
-        doubleTap,
-        Gesture.Tap()
-          .numberOfTaps(1)
-          .runOnJS(true)
-          .onEnd((e) => {
-            if (edgeGuard && (e.x < edgeGuard.inset || e.x > edgeGuard.width - edgeGuard.inset)) return
-            onSingleTap()
-          }),
-      )
-    : doubleTap
+      return
+    }
+    lastTap.current = now
+    if (!onSingleTap) return
+    const x = e.nativeEvent.locationX
+    if (edgeGuard && (x < edgeGuard.inset || x > edgeGuard.width - edgeGuard.inset)) return
+    if (singleTimer.current) clearTimeout(singleTimer.current)
+    singleTimer.current = setTimeout(() => { singleTimer.current = null; onSingleTap() }, DOUBLE_TAP_MS)
+  }
 
   return (
-    <GestureDetector gesture={gesture}>
+    <TouchableWithoutFeedback
+      onPress={handlePress}
+      accessibilityRole={onSingleTap ? 'imagebutton' : undefined}
+      accessibilityLabel={onSingleTap ? 'Open photo. Double tap quickly to like.' : undefined}
+    >
       <View>
         {children}
         <Animated.View
@@ -129,7 +139,7 @@ function DoubleTapLike({
           <Heart size={80} color={ui.onBrand} fill={ui.onBrand} />
         </Animated.View>
       </View>
-    </GestureDetector>
+    </TouchableWithoutFeedback>
   )
 }
 
