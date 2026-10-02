@@ -84,7 +84,7 @@ const LINE_META: Record<string, { heroTitle: string; heroDesc: string }> = {
 
 const DEFAULT_LINE_META = {
   heroTitle: 'Rail Service',
-  heroDesc: 'Official GRDA rail service. View schedules, stations, and live passenger reports.',
+  heroDesc: 'GRDA rail service. Schedules, stations and passenger reports on Troski.',
 }
 
 // ─── Component ──────────────────────────────────────────
@@ -289,8 +289,8 @@ export default function LineDetailScreen() {
           <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{line.code} - {meta.heroTitle}</Text>
-          <Text style={s.headerSub}>GRDA OFFICIAL SERVICE</Text>
+          <Text style={s.headerTitle}>{line.code} – {meta.heroTitle}</Text>
+          <Text style={s.headerSub}>GRDA SCHEDULE</Text>
         </View>
         <View style={s.headerShield}>
           <ShieldCheck size={16} color="#fff" />
@@ -405,7 +405,7 @@ export default function LineDetailScreen() {
           </View>
         )}
 
-        {/* ─── Official Timetable ───────────────────────── */}
+        {/* ─── GRDA Timetable ───────────────────────── */}
         {line.code && TRAIN_SCHEDULES[line.code] && (
           <View style={s.sectionWrap}>
             {TRAIN_SCHEDULES[line.code].map((sched) => {

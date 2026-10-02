@@ -21,7 +21,7 @@ export function GRDABadge({ size = 'default', label }: GRDABadgeProps) {
   return (
     <View style={styles.badge}>
       <ShieldCheck size={14} color={GRDA_BLUE} />
-      <Text style={styles.badgeText}>{label ?? 'GRDA Official'}</Text>
+      <Text style={styles.badgeText}>{label ?? 'GRDA schedule'}</Text>
     </View>
   )
 }

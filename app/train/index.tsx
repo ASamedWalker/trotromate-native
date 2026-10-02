@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
+  Modal,
   TouchableOpacity,
   ScrollView,
   useColorScheme,
@@ -11,34 +12,49 @@ import {
   Easing,
   type DimensionValue,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Haptics from 'expo-haptics'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SkeletonTrainCard } from '@/components/Skeleton'
-import { HeroText } from '@/components/HeroText'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import {
   TrainFront,
   Clock,
   ArrowRight,
-  ShieldCheck,
   Bell,
   BellRing,
+  ChevronDown,
+  MapPin,
+  Plus,
+  ArrowUpDown,
+  Check,
+  X,
 } from 'lucide-react-native'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
-import { Badge, Button, SectionHeader } from '@/components/ui'
+import { Badge, Tap } from '@/components/ui'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { DailyTipCard } from '@/components/DailyTipCard'
-import { GRDABadge } from '@/components/GRDABadge'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
 import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
-import { formatGHS } from '@/lib/utils/currency'
-import { TRAIN_SCHEDULES, type TrainSchedule } from '@/lib/constants/train-schedule'
-import { NETWORK_BULLETINS, HOW_TO_RIDE, LINE_STATUS } from '@/lib/constants/train-network'
+import { TRAIN_SCHEDULES, SCHEDULE_VERIFIED, type TrainSchedule } from '@/lib/constants/train-schedule'
+import { NETWORK_BULLETINS, HOW_TO_RIDE } from '@/lib/constants/train-network'
+import {
+  LINE_COLORS,
+  STATION_NAMES,
+  findDirectRuns,
+  searchStations,
+  lineStationNames,
+  getFare,
+  lineFareLabel,
+  nextDepartures,
+  serviceDayNumbers,
+  toMinutes,
+  formatRemaining,
+} from '@/lib/utils/train-stations'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
-import type { TrainLineWithStats } from '@/lib/types'
 
 // ─── Schedule helpers ────────────────────────────────────
 
@@ -226,21 +242,95 @@ function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles
   )
 }
 
-// ─── Line metadata for editorial cards ───────────────────
 
-type LineTone = 'info' | 'warning' | 'success'
+// ─── Redesign helpers (My trip, Find a train, Next trains) ───
 
-const LINE_META: Record<string, { subtitle: string; fareRange: number; tone: LineTone }> = {
-  TMA: { subtitle: 'Suburban Commuter', fareRange: 15, tone: 'info' },
-  TMP: { subtitle: 'Inter-Regional', fareRange: 40, tone: 'warning' },
-  STK: { subtitle: 'Western Line Commuter', fareRange: 10, tone: 'success' },
+const MY_TRIP_KEY = 'troski_my_train_trip'
+const PAPER = '#FAF6F2'
+const INK = '#1C1917'
+const MY_TRIP_CARD = '#16110D'
+const LINE_NAMES: Record<string, string> = {
+  TMA: 'Tema – Accra',
+  TMP: 'Tema – Mpakadan',
+  STK: 'Sekondi – Takoradi',
+}
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+type MyTrip = { from: string; to: string }
+
+/** "2026-09-15" -> "15 Sep 2026" */
+function formatVerified(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d} ${MONTHS[m - 1]} ${y}`
 }
 
-const DEFAULT_LINE_META = {
-  subtitle: 'Rail Service',
-  fareRange: null as number | null,
-  tone: 'info' as LineTone,
+/** "Mon – Sat" -> "Mon–Sat" (compact, en dash with no spaces) */
+function compactDays(days: string): string {
+  return days.replace(/ – /g, '–')
 }
+
+function hhmm(totalMinutes: number): string {
+  const m = ((totalMinutes % 1440) + 1440) % 1440
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+
+function whenLabel(offset: number, now: Date): string {
+  if (offset === 0) return 'today'
+  if (offset === 1) return 'tomorrow'
+  return WEEKDAYS[(now.getUTCDay() + offset) % 7]
+}
+
+/** Next time (Ghana = UTC) a run is at a stop departing at `depart` on `days`. */
+function nextOccurrence(depart: string, days: string, now: Date): { offset: number; seconds: number } | null {
+  const nowSec = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
+  const today = now.getUTCDay()
+  const service = serviceDayNumbers(days)
+  for (let offset = 0; offset <= 7; offset++) {
+    if (!service.includes((today + offset) % 7)) continue
+    const seconds = offset * 86400 + toMinutes(depart) * 60 - nowSec
+    if (seconds > 0) return { offset, seconds }
+  }
+  return null
+}
+
+/** Reminder key for a run boarded at `from`. The "@station" suffix keeps it
+ *  distinct from whole-line reminders, which are keyed by the bare schedule id. */
+function tripReminderKey(schedule: TrainSchedule, from: string): string {
+  // Boarding at the run's origin: share the bare id with the board and Next
+  // trains bells so one train never gets two notifications.
+  return schedule.stops[0].station === from ? schedule.id : `${schedule.id}@${from}`
+}
+
+const PICKER_LINES = ['TMA', 'TMP', 'STK']
+
+function scheduleForRun(lineCode: string, runCode: string): TrainSchedule | undefined {
+  return TRAIN_SCHEDULES[lineCode]?.find((x) => x.code === runCode)
+}
+
+function Collapsible({ title, children, s }: { title: string; children: React.ReactNode; s: ReturnType<typeof getStyles> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <View style={s.collCard}>
+      <Tap
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={title}
+        style={s.collHead}
+      >
+        <Text style={s.collTitle}>{title}</Text>
+        <ChevronDown
+          size={20}
+          color="#44403C"
+          style={open ? { transform: [{ rotate: '180deg' }] } : undefined}
+        />
+      </Tap>
+      {open && <View style={s.collBody}>{children}</View>}
+    </View>
+  )
+}
+
 
 // ─── Main screen ─────────────────────────────────────────
 
@@ -252,21 +342,34 @@ export default function TrainLinesScreen() {
   const insets = useSafeAreaInsets()
 
   const { lines, isLoading, refetch } = useTrainLines()
-  const { isSet, toggle } = useDepartureReminders()
+  const { isSet, toggle, refresh } = useDepartureReminders()
+  useFocusEffect(
+    useCallback(() => {
+      refresh()
+    }, [refresh]),
+  )
 
-  // Arm / disarm a departure reminder from a waiting DepartureInfo.
+  // Arm / disarm a departure reminder. `key` is the storage key (the bare
+  // schedule id for whole-line reminders, "<id>@<station>" for My trip).
   // secondsUntilDeparture is the live countdown so the alert lines up with
-  // what the rider sees ticking on the board.
-  const toggleReminder = useCallback(
-    async (dep: Extract<DepartureInfo, { type: 'waiting' }>) => {
+  // what the rider sees ticking.
+  const toggleKeyed = useCallback(
+    async (p: {
+      key: string
+      lineCode: string
+      origin: string
+      destination: string
+      departTime: string
+      seconds: number
+    }) => {
       Haptics.selectionAsync()
       const { on, failure } = await toggle({
-        scheduleId: dep.schedule.id,
-        lineCode: dep.schedule.code,
-        origin: dep.origin,
-        destination: dep.destination,
-        departTime: dep.departTime,
-        secondsUntilDeparture: dep.remaining,
+        scheduleId: p.key,
+        lineCode: p.lineCode,
+        origin: p.origin,
+        destination: p.destination,
+        departTime: p.departTime,
+        secondsUntilDeparture: p.seconds,
       })
       if (failure) {
         showReminderFailureAlert(failure)
@@ -275,6 +378,19 @@ export default function TrainLinesScreen() {
       }
     },
     [toggle],
+  )
+
+  const toggleReminder = useCallback(
+    (dep: Extract<DepartureInfo, { type: 'waiting' }>) =>
+      toggleKeyed({
+        key: dep.schedule.id,
+        lineCode: dep.schedule.code,
+        origin: dep.origin,
+        destination: dep.destination,
+        departTime: dep.departTime,
+        seconds: dep.remaining,
+      }),
+    [toggleKeyed],
   )
 
   // Live clock — ticks every second (Ghana time)
@@ -296,168 +412,189 @@ export default function TrainLinesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const currentTime = useMemo(() => formatGhanaTime(), [tick])
 
-  // Compute per-line departure status for occupancy indicators
-  const lineDepartures = useMemo(() => {
-    const map: Record<string, DepartureInfo> = {}
-    for (const code of Object.keys(TRAIN_SCHEDULES)) {
-      map[code] = computeLineDeparture(code, TRAIN_SCHEDULES[code])
+  // ── My trip (saved in AsyncStorage) ──
+  const [trip, setTrip] = useState<MyTrip | null>(null)
+  const [showReturn, setShowReturn] = useState(false)
+  const tripTouched = useRef(false) // set once the rider saves/clears a trip, so a slow load can't overwrite it
+  useEffect(() => {
+    AsyncStorage.getItem(MY_TRIP_KEY)
+      .then((raw) => {
+        if (!raw || tripTouched.current) return
+        const p = JSON.parse(raw) as Partial<MyTrip>
+        if (
+          typeof p.from === 'string' &&
+          typeof p.to === 'string' &&
+          STATION_NAMES.includes(p.from) &&
+          STATION_NAMES.includes(p.to)
+        ) {
+          setTrip({ from: p.from, to: p.to })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const saveTrip = useCallback((next: MyTrip) => {
+    tripTouched.current = true
+    setTrip(next)
+    setShowReturn(false)
+    AsyncStorage.setItem(MY_TRIP_KEY, JSON.stringify(next)).catch(() => {})
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+  }, [])
+
+  const now = useMemo(() => new Date(), [tick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tripInfo = useMemo(() => {
+    if (!trip) return null
+    const runs = findDirectRuns(trip.from, trip.to)
+    let best: { run: (typeof runs)[number]; offset: number; seconds: number } | null = null
+    for (const run of runs) {
+      const n = nextOccurrence(run.departFrom, run.schedule.days, now)
+      if (n && (!best || n.seconds < best.seconds)) best = { run, ...n }
     }
-    return map
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick])
+    return { best, hasRuns: runs.length > 0, returnRuns: findDirectRuns(trip.to, trip.from) }
+  }, [trip, now])
 
-  const renderLineCard = useCallback(
-    (item: TrainLineWithStats) => {
-      const meta = LINE_META[item.code] ?? DEFAULT_LINE_META
-      const dep = lineDepartures[item.code]
-      const isInTransit = dep?.type === 'in-transit'
-      const isWaiting = dep?.type === 'waiting'
+  // ── Find a train ──
+  const [fromName, setFromName] = useState('')
+  const [toName, setToName] = useState('')
+  const [picker, setPicker] = useState<'from' | 'to' | null>(null)
+  const scrollRef = useRef<ScrollView>(null)
+  const findY = useRef(0)
 
-      return (
-        <TouchableOpacity
-          key={item.id}
-          onPress={() =>
-            router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
-          }
-          activeOpacity={0.85}
-          style={s.lineCard}
-        >
-          {/* Card content */}
-          <View style={s.lineCardBody}>
-            {/* Top: badge + title + shield */}
-            <View style={s.lineCardTop}>
-              <View style={{ flex: 1 }}>
-                <Badge label={`Line ${item.code}`} tone={meta.tone} />
-                <HeroText size={24} style={s.lineTitle}>{item.name}</HeroText>
-                <Text style={s.lineSubtitle}>{meta.subtitle}</Text>
-              </View>
-              <View style={s.shieldBox}>
-                <ShieldCheck size={22} color={ui.onBrand} />
-              </View>
-            </View>
-
-            {/* Stats row: fare + occupancy */}
-            <View style={s.lineStatsRow}>
-              <View style={s.lineStat}>
-                {/* Only a corroborated fare gets called official. TMA and STK
-                    are our own figures — GRDA has published neither. */}
-                <Text style={s.lineStatLabel}>
-                  {LINE_STATUS[item.code]?.fareConfidence === 'confirmed' ? 'Official fare' : 'Fare (guide)'}
-                </Text>
-                {/* Compact: station boards write "15–40", not
-                    "GH₵ 15.00 – GH₵ 40.00". The long form was wide enough to
-                    push the STATUS stat clean off the card. */}
-                <Text numberOfLines={1} style={s.lineStatValue}>
-                  {item.code === 'TMP'
-                    ? 'GH₵15–40'
-                    : meta.fareRange != null
-                      ? `GH₵${meta.fareRange % 1 === 0 ? meta.fareRange : meta.fareRange.toFixed(2)}`
-                      : '—'}
-                </Text>
-              </View>
-              <View style={s.lineStatDivider} />
-              <View style={s.lineStat}>
-                <Text style={s.lineStatLabel}>Journey</Text>
-                <Text style={s.lineStatValue}>
-                  {(() => {
-                    const st = TRAIN_SCHEDULES[item.code]?.[0]?.stops
-                    if (!st?.length || !st[0].depart || !st[st.length - 1].arrive) return '—'
-                    const mins = parseTimeToMinutes(st[st.length - 1].arrive!) - parseTimeToMinutes(st[0].depart!)
-                    // "42 min", not "~0h 42m" — a leading 0h is noise, and
-                    // departure boards state duration the way people say it.
-                    if (mins < 60) return `${mins} min`
-                    const h = Math.floor(mins / 60)
-                    const m = mins % 60
-                    return m === 0 ? `${h}h` : `${h}h ${m}m`
-                  })()}
-                </Text>
-              </View>
-              <View style={s.lineStatDivider} />
-              <View style={s.lineStat}>
-                <Text style={s.lineStatLabel}>Status</Text>
-                <View style={s.occupancyRow}>
-                  <View style={[s.occupancyDot, {
-                    backgroundColor: isInTransit ? ui.success : isWaiting ? ui.warning : ui.textTertiary,
-                  }]} />
-                  <Text style={[s.occupancyText, {
-                    color: isInTransit
-                      ? (isDark ? '#4ade80' : ui.success)
-                      : isWaiting
-                        ? (isDark ? '#fbbf24' : ui.warning)
-                        : (isDark ? '#9ca3af' : ui.textSecondary),
-                  }]}>
-                    {isInTransit ? 'In Transit' : isWaiting ? 'Next Service' : 'No Service'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Actions row */}
-            <View style={s.lineActions}>
-              <Button
-                label="View schedule"
-                onPress={() =>
-                  router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })
-                }
-                style={{ flex: 1 }}
-              />
-              {/* Reminder toggle — only when this line has an upcoming departure
-                  far enough out to be useful; replaces the old duplicate
-                  "open detail" icon that did nothing the card tap didn't. */}
-              {isWaiting && dep.type === 'waiting' &&
-                dep.remaining > REMINDER_LEAD_MINUTES * 60 && (() => {
-                  const armed = isSet(dep.schedule.id)
-                  return (
-                    <TouchableOpacity
-                      onPress={() => toggleReminder(dep)}
-                      activeOpacity={0.7}
-                      style={[s.lineActionIcon, armed && s.lineActionIconOn]}
-                    >
-                      {armed ? (
-                        <BellRing size={20} color={ui.success} />
-                      ) : (
-                        <Bell size={20} color={isDark ? '#a8a29e' : brand.orangeText} />
-                      )}
-                    </TouchableOpacity>
-                  )
-                })()}
-            </View>
-          </View>
-
-          {/* Bottom gradient strip */}
-          <View style={s.lineCardStrip}>
-            <View style={s.lineCardStripContent}>
-              <GRDABadge size="small" />
-              <Text style={s.lineCardStripText}>GRDA Official</Text>
-              <View style={s.lineCardStripDot} />
-              <Text style={s.lineCardStripText}>{item.station_count} stations</Text>
-              <View style={s.lineCardStripDot} />
-              <Text style={s.lineCardStripText}>
-                {item.stats?.total_reports ?? 0} reports
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      )
-    },
-    [isDark, s, lineDepartures, router, isSet, toggleReminder]
+  const result = useMemo(
+    () => (fromName && toName ? searchStations(fromName, toName) : null),
+    [fromName, toName],
   )
+
+  const pickStation = (name: string) => {
+    if (picker === 'from') setFromName(name)
+    else if (picker === 'to') setToName(name)
+    setPicker(null)
+  }
+
+  const swapStations = () => {
+    setFromName(toName)
+    setToName(fromName)
+  }
+
+  // ── Next trains ──
+  const next = useMemo(() => nextDepartures(now), [now])
+
+  const renderMyTrip = () => {
+    if (!trip || !tripInfo) return null
+    const best = tripInfo.best
+    const key = best ? tripReminderKey(best.run.schedule, trip.from) : ''
+    const armed = best ? isSet(key) : false
+    const lineName = best ? (LINE_NAMES[best.run.lineCode] ?? best.run.lineCode).replace(/ – /g, '–') : ''
+    const arriveMin = best ? hhmm(toMinutes(best.run.arriveTo)) : ''
+    return (
+      <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.tripCard}>
+        <View style={s.tripTopRow}>
+          <Text style={s.tripLabel}>MY TRIP</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Change saved trip"
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={s.tripChange}
+            onPress={() => {
+              tripTouched.current = true
+              setFromName(trip.from)
+              setToName(trip.to)
+              setShowReturn(false)
+              setTrip(null)
+              AsyncStorage.removeItem(MY_TRIP_KEY).catch(() => {})
+            }}
+          >
+            <Text style={s.tripChangeText}>Change</Text>
+          </TouchableOpacity>
+        </View>
+        <View>
+          <Text style={s.tripRoute}>{trip.from} → {trip.to}</Text>
+          {best ? (
+            <Text style={s.tripSub}>
+              {lineName} line · {getFare(best.run.lineCode, trip.from, trip.to).label} · {compactDays(best.run.schedule.days)}
+            </Text>
+          ) : null}
+        </View>
+        {best ? (
+          <>
+            <View style={s.tripTimeRow}>
+              <Text style={s.tripTime}>{best.run.departFrom}</Text>
+              <Text style={s.tripWhen}>{whenLabel(best.offset, now)} · arrives {arriveMin}</Text>
+            </View>
+            <Text style={s.tripLeaves}>Leaves in {formatRemaining(Math.ceil(best.seconds / 60))}</Text>
+            <View style={s.tripBtnRow}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={armed ? 'Turn reminder off' : 'Turn reminder on'}
+                accessibilityState={{ selected: armed }}
+                activeOpacity={0.85}
+                style={armed ? s.tripBtnOn : s.tripBtn}
+                onPress={() =>
+                  toggleKeyed({
+                    key,
+                    lineCode: best.run.schedule.code,
+                    origin: trip.from,
+                    destination: trip.to,
+                    departTime: best.run.departFrom,
+                    seconds: best.seconds,
+                  })
+                }
+              >
+                {armed ? <BellRing size={18} color={ui.onBrand} /> : <Bell size={18} color={ui.onBrand} />}
+                <Text style={s.tripBtnText}>{armed ? 'Reminder on' : 'Reminder off'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Return times"
+                accessibilityState={{ expanded: showReturn }}
+                activeOpacity={0.85}
+                style={s.tripBtnGhost}
+                onPress={() => setShowReturn((v) => !v)}
+              >
+                <Text style={s.tripBtnText}>Return times</Text>
+              </TouchableOpacity>
+            </View>
+            {showReturn && (
+              <View style={s.returnBox}>
+                <Text style={s.returnTitle}>{trip.to} → {trip.from}</Text>
+                {tripInfo.returnRuns.length === 0 ? (
+                  <Text style={s.returnRow}>No direct return train.</Text>
+                ) : (
+                  tripInfo.returnRuns.map((r) => (
+                    <Text key={r.schedule.id} style={s.returnRow}>
+                      {r.departFrom} → {r.arriveTo} · {compactDays(r.schedule.days)}
+                    </Text>
+                  ))
+                )}
+              </View>
+            )}
+            {armed ? (
+              <Text style={s.tripNote}>
+                {`We'll notify you at ${hhmm(toMinutes(best.run.departFrom) - REMINDER_LEAD_MINUTES)}. Works offline.`}
+              </Text>
+            ) : best.seconds > REMINDER_LEAD_MINUTES * 60 ? (
+              <Text style={s.tripNote}>Turn on a reminder for {REMINDER_LEAD_MINUTES} minutes before.</Text>
+            ) : null}
+          </>
+        ) : (
+          <Text style={s.tripNote}>
+            {tripInfo.hasRuns
+              ? 'No upcoming departure found.'
+              : 'There is no direct train for this trip any more. Tap Change to pick another.'}
+          </Text>
+        )}
+      </Animated.View>
+    )
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
-      {/* GRDA Header Bar */}
-      <View style={[s.headerBar, { paddingTop: insets.top + 12 }]}>
-        <View style={s.headerLogo}>
-          <ShieldCheck size={18} color={ui.onBrand} />
-        </View>
-        <Text style={s.headerTitle}>GRDA Official</Text>
-        <View style={{ flex: 1 }} />
-        <Clock size={14} color="rgba(255,255,255,0.6)" />
-        <Text style={s.headerTime}>{currentTime}</Text>
-      </View>
-
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={false}
@@ -467,13 +604,24 @@ export default function TrainLinesScreen() {
           />
         }
       >
-        {/* ─── Hero Section ──────────────────────────────── */}
-        <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.hero}>
-          <Text style={s.heroLabel}>National transit network</Text>
-          <HeroText size={36} weight="displayHeavy" style={s.heroTitle}>Trains</HeroText>
-        </Animated.View>
+        {/* ─── Header ─────────────────────────────────────── */}
+        <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.headerTitle}>Trains</Text>
+            <Text style={s.headerSub}>GRDA schedule · verified {formatVerified(SCHEDULE_VERIFIED)}</Text>
+          </View>
+          <View style={s.clockPill} accessibilityLabel={`Ghana time ${currentTime}`}>
+            <Clock size={14} color="#44403C" />
+            <Text style={s.clockPillText}>{currentTime}</Text>
+          </View>
+        </View>
 
-        {/* ─── Departure Board ─────────────────────────── */}
+        {/* ─── My trip ─────────────────────────────────────── */}
+        {renderMyTrip()}
+
+        {/* ─── Departure Board (no saved trip) ─────────── */}
+        {!trip && (
+        <>
         <Animated.View entering={FadeInDown.delay(150).duration(dur.entrance)} style={s.board}>
           <View style={s.boardGlow} />
 
@@ -565,7 +713,9 @@ export default function TrainLinesScreen() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => toggleReminder(departure)}
-                    style={[s.remindBtn, armed && s.remindBtnOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: armed }}
+                    style={armed ? s.remindBtnOnFull : s.remindBtn}
                   >
                     {armed ? (
                       <BellRing size={16} color={ui.success} />
@@ -670,9 +820,6 @@ export default function TrainLinesScreen() {
 
           {/* Bottom info strip */}
           <View style={s.boardStrip}>
-            <GRDABadge size="small" />
-            <Text style={s.stripText}>GRDA Official</Text>
-            <View style={s.stripDot} />
             <Text style={s.stripText}>
               {departure.type !== 'no-service' && departure.lineCode
                 ? TRAIN_SCHEDULES[departure.lineCode]?.[0]?.days || 'Mon – Sat'
@@ -685,15 +832,159 @@ export default function TrainLinesScreen() {
                 <Text style={s.stripText}>{departure.lineCode}</Text>
                 <View style={s.stripDot} />
                 <Text style={s.stripText}>
-                  {formatGHS(departure.schedule.fare)}
+                  {lineFareLabel(departure.lineCode)}
                 </Text>
               </>
             )}
           </View>
-        </Animated.View>
 
-        {/* ─── Rail Line Cards ─────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(300).duration(dur.entrance)} style={s.section}>
+        </Animated.View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Save a trip to pin it here"
+          activeOpacity={0.7}
+          style={s.saveHint}
+          onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, findY.current - 8), animated: true })}
+        >
+          <Plus size={18} color="#C2410C" />
+          <Text style={s.saveHintText}>Save a trip to pin it here</Text>
+        </TouchableOpacity>
+        </>
+        )}
+
+        {/* ─── Find a train ───────────────────────────────── */}
+        <View style={s.findCard} onLayout={(e) => { findY.current = e.nativeEvent.layout.y }}>
+          <Text style={s.cardTitle}>Find a train</Text>
+          <View style={s.fieldRow}>
+            <Tap
+              onPress={() => setPicker('from')}
+              accessibilityRole="button"
+              accessibilityLabel={`From station: ${fromName || 'not chosen'}`}
+              style={s.field}
+            >
+              <Text style={s.fieldLabel}>From</Text>
+              <Text style={fromName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{fromName || 'Choose station'}</Text>
+            </Tap>
+            <Tap
+              onPress={() => setPicker('to')}
+              accessibilityRole="button"
+              accessibilityLabel={`To station: ${toName || 'not chosen'}`}
+              style={s.field}
+            >
+              <Text style={s.fieldLabel}>To</Text>
+              <Text style={toName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{toName || 'Choose station'}</Text>
+            </Tap>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Swap direction"
+            activeOpacity={0.7}
+            style={s.swapBtn}
+            onPress={swapStations}
+          >
+            <ArrowUpDown size={16} color="#44403C" />
+            <Text style={s.swapText}>Swap direction ⇄</Text>
+          </TouchableOpacity>
+
+          {result?.kind === 'unknown' && <Text style={s.resultNote}>{result.message}</Text>}
+          {result?.kind === 'none' && (
+            <Text style={s.resultNote}>
+              No direct train between {result.from.name} and {result.to.name}.
+            </Text>
+          )}
+          {result?.kind === 'direct' && (
+            <View style={s.resultBox}>
+              {result.runs.map((r) => (
+                <View key={r.schedule.id} style={s.resultRow}>
+                  <Text style={s.resultTimes}>{r.departFrom} → {r.arriveTo}</Text>
+                  <Text style={s.resultMeta}>
+                    <Text style={{ color: LINE_COLORS[r.lineCode]?.main ?? INK, fontFamily: font.extrabold }}>
+                      {(LINE_NAMES[r.lineCode] ?? r.lineCode).replace(/ – /g, '–')}
+                    </Text>
+                    {' · '}{compactDays(r.schedule.days)} · {getFare(r.lineCode, result.from.name, result.to.name).label}
+                  </Text>
+                </View>
+              ))}
+              {trip && trip.from === result.from.name && trip.to === result.to.name ? (
+                <View style={s.savedRow} accessibilityLabel="Saved as My trip">
+                  <Check size={18} color="#15803D" />
+                  <Text style={s.savedText}>Saved as My trip</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Save as My trip"
+                  activeOpacity={0.85}
+                  style={s.saveBtn}
+                  onPress={() => saveTrip({ from: result.from.name, to: result.to.name })}
+                >
+                  <Text style={s.saveBtnText}>Save as My trip</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* ─── Next trains ────────────────────────────────── */}
+        <View style={s.nextCard}>
+          <Text style={s.cardTitle}>Next trains</Text>
+          {next.map((d, i) => {
+            const sched = scheduleForRun(d.lineCode, d.runCode)
+            const occ = sched ? nextOccurrence(d.departTime, sched.days, now) : null
+            const armed = sched ? isSet(sched.id) : false
+            const color = LINE_COLORS[d.lineCode]?.main ?? INK
+            return (
+              <View key={d.runCode} style={[s.nextRow, i > 0 && s.nextRowBorder]}>
+                <Text style={s.nextTime}>{d.departTime}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.nextRoute} numberOfLines={1}>{d.origin} → {d.destination}</Text>
+                  <Text style={s.nextMeta} numberOfLines={1}>
+                    <Text style={{ color, fontFamily: font.extrabold }}>{d.lineName.replace(/ – /g, '–')}</Text>
+                    {' · '}{d.offset != null ? whenLabel(d.offset, now) : ''} · {d.fareLabel}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`${armed ? 'Reminder on for' : 'Remind me about'} the ${d.departTime} to ${d.destination}`}
+                  accessibilityState={{ selected: armed }}
+                  activeOpacity={0.7}
+                  disabled={!sched || !occ}
+                  style={armed ? s.bellOn : s.bell}
+                  onPress={() => {
+                    if (!sched || !occ) return
+                    toggleKeyed({
+                      key: sched.id,
+                      lineCode: sched.code,
+                      origin: d.origin,
+                      destination: d.destination,
+                      departTime: d.departTime,
+                      seconds: occ.seconds,
+                    })
+                  }}
+                >
+                  {armed ? (
+                    <BellRing size={20} color="#FF4D1C" fill="#FF4D1C" />
+                  ) : (
+                    <Bell size={20} color="#44403C" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )
+          })}
+        </View>
+
+        {/* ─── Akosombo tip ───────────────────────────────── */}
+        <View style={s.akosombo}>
+          <MapPin size={22} color="#F5A300" fill="#F5A300" style={{ marginTop: 3 }} />
+          <Text style={s.akosomboText}>
+            <Text style={{ fontFamily: font.extrabold, color: INK }}>Going to Akosombo? </Text>
+            {"Take the Tema–Mpakadan train to Mpakadan, the line's last stop."}
+          </Text>
+        </View>
+
+        {/* ─── Lines ──────────────────────────────────────── */}
+        <View style={s.linesSection}>
+          <Text style={s.linesTitle}>Lines</Text>
           {isLoading ? (
             <View style={{ gap: space.lg }}>
               <SkeletonTrainCard isDark={isDark} />
@@ -701,69 +992,81 @@ export default function TrainLinesScreen() {
             </View>
           ) : lines.length === 0 ? (
             <View style={s.emptyCard}>
-              <TrainFront size={40} color={isDark ? '#57534e' : ui.textTertiary} />
+              <TrainFront size={40} color={ui.textTertiary} />
               <Text style={s.emptyTitle}>No train lines yet</Text>
-              <Text style={s.emptySub}>
-                Train lines will appear here once available
-              </Text>
+              <Text style={s.emptySub}>Train lines will appear here once available</Text>
             </View>
           ) : (
-            <View style={{ gap: space.lg }}>{lines.map(renderLineCard)}</View>
-          )}
-        </Animated.View>
-
-        {/* ─── How to Ride ──────────────────────────────── */}
-        <View style={s.rideSection}>
-          <SectionHeader title="How to ride" />
-
-          {HOW_TO_RIDE.map((tip) => (
-            <View key={tip.title} style={s.rideCard}>
-              <Text style={s.rideCardTitle}>{tip.title}</Text>
-              <Text style={s.rideCardText}>{tip.text}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ─── Authority Bulletins ─────────────────────── */}
-        {/* Factual network bulletins in our own words — no media names/links. */}
-        <View style={s.bulletinSection}>
-          <SectionHeader title="Authority bulletins" />
-
-          {(() => {
-            // Two bulletins + the NOTICE disclaimer always pinned last (it is
-            // the honesty statement about this whole screen).
-            // SERVICE UPDATE outranks NETWORK UPDATE regardless of date: the
-            // first kind affects the train someone is about to catch, the
-            // second is background. Sorting on date alone let two pieces of
-            // sector news push an active reduced-capacity notice off the screen.
-            // One of each, newest of its kind: the latest SERVICE UPDATE (what
-            // affects the train you are about to catch) and the latest other
-            // bulletin. Ranking purely by tag buried this month's news behind a
-            // five-month-old service note; ranking purely by date buried an
-            // active reduced-capacity warning behind sector news.
-            const byDate = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
-            const notice = byDate.find((b) => b.tag === 'NOTICE')
-            const service = byDate.find((b) => b.tag === 'SERVICE UPDATE')
-            const latestOther = byDate.find((b) => b.tag !== 'NOTICE' && b !== service)
-            const news = [service, latestOther].filter(Boolean) as typeof byDate
-            const shown = notice ? [...news, notice] : news
-            return shown.map((b) => {
-              const tone = b.tag === 'SERVICE UPDATE' ? 'info' : b.tag === 'NETWORK UPDATE' ? 'brand' : 'neutral'
-              const tagLabel = b.tag.charAt(0) + b.tag.slice(1).toLowerCase()
+            lines.map((item) => {
+              const sch = TRAIN_SCHEDULES[item.code] ?? []
+              const departs = sch.map((x) => x.stops[0].depart!).sort()
+              const stationCount = item.station_count ?? sch[0]?.stops.length ?? 0
               return (
-                <View key={b.text} style={s.bulletinCard}>
-                  <View style={s.bulletinMeta}>
-                    <Badge label={tagLabel} tone={tone} />
-                    <Text style={s.bulletinDate}>{b.date}</Text>
+                <Tap
+                  key={item.id}
+                  onPress={() => router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${LINE_NAMES[item.code] ?? item.name} line details`}
+                  style={s.lineRow}
+                >
+                  <View style={[s.lineBar, { backgroundColor: LINE_COLORS[item.code]?.main ?? ui.info }]} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.lineName} numberOfLines={1}>{LINE_NAMES[item.code] ?? item.name.replace(/ - /g, ' – ')}</Text>
+                    <Text style={s.lineMeta} numberOfLines={1}>
+                      {departs.length ? `${departs[0]} · ${departs[departs.length - 1]} · ` : ''}
+                      {sch[0] ? `${compactDays(sch[0].days)} · ` : ''}{stationCount} stations
+                    </Text>
                   </View>
-                  <Text style={s.bulletinText}>{b.text}</Text>
-                </View>
+                  <Text style={s.lineFare}>{lineFareLabel(item.code)}</Text>
+                </Tap>
               )
             })
-          })()}
+          )}
         </View>
 
-        {/* Daily Commuter Tip — train-focused */}
+        {/* ─── How to ride / Network updates (collapsed) ─── */}
+        <View style={s.collSection}>
+          <Collapsible title="How to ride" s={s}>
+            {HOW_TO_RIDE.map((tip) => (
+              <View key={tip.title} style={s.rideItem}>
+                <Text style={s.rideCardTitle}>{tip.title}</Text>
+                <Text style={s.rideCardText}>{tip.text}</Text>
+              </View>
+            ))}
+          </Collapsible>
+          <Collapsible title="Network updates" s={s}>
+            {(() => {
+              // Two bulletins + the NOTICE disclaimer always pinned last (it is
+              // the honesty statement about this whole screen).
+              // One of each, newest of its kind: the latest SERVICE UPDATE (what
+              // affects the train you are about to catch) and the latest other
+              // bulletin. Ranking purely by tag buried this month's news behind a
+              // five-month-old service note; ranking purely by date buried an
+              // active reduced-capacity warning behind sector news.
+              const byDate = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
+              const notice = byDate.find((b) => b.tag === 'NOTICE')
+              const service = byDate.find((b) => b.tag === 'SERVICE UPDATE')
+              const latestOther = byDate.find((b) => b.tag !== 'NOTICE' && b !== service)
+              const news = [service, latestOther].filter(Boolean) as typeof byDate
+              const shown = notice ? [...news, notice] : news
+              return shown.map((b) => {
+                const tone = b.tag === 'SERVICE UPDATE' ? 'info' : b.tag === 'NETWORK UPDATE' ? 'brand' : 'neutral'
+                const tagLabel = b.tag.charAt(0) + b.tag.slice(1).toLowerCase()
+                return (
+                  <View key={b.text} style={s.bulletinItem}>
+                    <View style={s.bulletinMeta}>
+                      <Badge label={tagLabel} tone={tone} />
+                      <Text style={s.bulletinDate}>{b.date}</Text>
+                    </View>
+                    <Text style={s.bulletinText}>{b.text}</Text>
+                  </View>
+                )
+              })
+            })()}
+          </Collapsible>
+        </View>
+
+        {/* Daily Commuter Tip — train-focused (kept) */}
         <View style={s.tipCard}>
           <DailyTipCard category="train" />
         </View>
@@ -771,6 +1074,45 @@ export default function TrainLinesScreen() {
         {/* Clear the floating tab bar — Train is a top-level tab now. */}
         <View style={{ height: TAB_BAR_CLEARANCE + insets.bottom }} />
       </ScrollView>
+      <Modal visible={picker !== null} animationType="slide" transparent onRequestClose={() => setPicker(null)}>
+        <View style={s.modalBackdrop}>
+          <View style={s.modalSheet}>
+            <View style={s.modalHead}>
+              <Text style={s.cardTitle}>{picker === 'from' ? 'From station' : 'To station'}</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Close station picker"
+                activeOpacity={0.7}
+                style={s.modalClose}
+                onPress={() => setPicker(null)}
+              >
+                <X size={22} color={INK} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PICKER_LINES.map((code) => (
+                <View key={code} style={{ marginBottom: 12 }}>
+                  <View style={s.pickerGroupHead}>
+                    <View style={[s.pickerBar, { backgroundColor: LINE_COLORS[code]?.main ?? INK }]} />
+                    <Text style={s.pickerGroupTitle}>{LINE_NAMES[code]}</Text>
+                  </View>
+                  {lineStationNames(code).map((name) => (
+                    <Tap
+                      key={`${code}-${name}`}
+                      onPress={() => pickStation(name)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Choose ${name}`}
+                      style={s.suggestRow}
+                    >
+                      <Text style={s.suggestText}>{name}</Text>
+                    </Tap>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -780,67 +1122,264 @@ export default function TrainLinesScreen() {
 const BOARD_ACCENT = '#0ea5e9' // departure-board sky blue — board-only, keeps the station-display look
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#1c1c1e' : ui.bg
   const surfaceLowest = isDark ? '#1c1c1e' : ui.card
-  const onSurface = isDark ? '#f5f5f4' : ui.text
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : ui.surfaceStrong
+  const onSurface = INK
+  const onSurfaceVariant = '#57534E'
+  const outlineVariant = '#EDE5DC'
+  const M = 14 // horizontal margin of the redesigned cards (approved mockup)
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: surface },
+    container: { flex: 1, backgroundColor: PAPER },
 
-    // ── GRDA Header Bar ── (single solid blue surface, no gradient)
-    headerBar: {
+    // ── Header ──
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: space.gutter,
-      paddingVertical: 12,
-      gap: 8,
-      backgroundColor: ui.info,
+      paddingHorizontal: 18,
+      paddingBottom: 10,
+      gap: 10,
     },
-    headerLogo: {
-      width: 32,
+    headerTitle: { fontSize: 32, lineHeight: 44, fontFamily: font.extrabold, color: INK, letterSpacing: -0.5 },
+    headerSub: { fontSize: 14, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
+    clockPill: {
       height: 32,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      backgroundColor: '#EFE9E3',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    clockPillText: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#44403C' },
+
+    // ── My trip ──
+    tripCard: {
+      marginHorizontal: M,
+      marginTop: 4,
+      backgroundColor: MY_TRIP_CARD,
+      borderRadius: 24,
+      padding: 16,
+      gap: 12,
+    },
+    tripTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    tripLabel: { fontSize: 15, lineHeight: 22, fontFamily: font.extrabold, color: '#FFD25A', letterSpacing: 0.3 },
+    tripChange: {
+      minHeight: 36,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerTitle: {
-      fontSize: 16,
-      fontFamily: font.extrabold,
-      color: ui.onBrand,
-      letterSpacing: -0.5,
+    tripChangeText: { fontSize: 13, lineHeight: 20, fontFamily: font.bold, color: '#FFFFFF' },
+    tripRoute: { fontSize: 22, lineHeight: 30, fontFamily: font.bold, color: '#FFFFFF' },
+    tripSub: { fontSize: 15, lineHeight: 22, fontFamily: font.regular, color: '#D6D3D1' },
+    tripTimeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
+    tripTime: { fontSize: 44, lineHeight: 60, fontFamily: font.extrabold, color: '#FFFFFF' },
+    tripWhen: { fontSize: 16, lineHeight: 24, fontFamily: font.regular, color: '#D6D3D1' },
+    tripLeaves: { fontSize: 15, lineHeight: 22, fontFamily: font.bold, color: '#86EFAC' },
+    tripBtnRow: { flexDirection: 'row', gap: 8 },
+    tripBtn: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
     },
-    headerTime: {
-      fontSize: 13,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.7)',
-      marginLeft: 4,
+    tripBtnOn: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: '#FF4D1C',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    tripBtnGhost: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tripBtnText: { fontSize: 15, lineHeight: 22, fontFamily: font.extrabold, color: '#FFFFFF' },
+    returnBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 4 },
+    returnTitle: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#FFD25A' },
+    returnRow: { fontSize: 15, lineHeight: 22, fontFamily: font.medium, color: '#FFFFFF' },
+    tripNote: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#D6D3D1' },
+
+    saveHint: {
+      marginHorizontal: M,
+      marginTop: 10,
+      minHeight: 44,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: '#D6CCC2',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    saveHintText: { fontSize: 15, lineHeight: 22, fontFamily: font.semibold, color: '#C2410C' },
+
+    // ── Find a train ──
+    findCard: {
+      marginHorizontal: M,
+      marginTop: 14,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 22,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: outlineVariant,
+      gap: 10,
+    },
+    cardTitle: { fontSize: 18, lineHeight: 26, fontFamily: font.extrabold, color: INK },
+    fieldRow: { flexDirection: 'row', gap: 8 },
+    field: { flex: 1, minWidth: 0, backgroundColor: '#F5F1EC', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+    fieldLabel: { fontSize: 13, lineHeight: 20, fontFamily: font.bold, color: '#57534E' },
+    fieldValue: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: INK },
+    fieldPlaceholder: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: '#78716C' },
+    swapBtn: {
+      minHeight: 44,
+      borderRadius: 14,
+      backgroundColor: '#F5F1EC',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    swapText: { fontSize: 15, lineHeight: 22, fontFamily: font.bold, color: '#44403C' },
+    savedRow: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    savedText: { fontSize: 16, lineHeight: 24, fontFamily: font.extrabold, color: '#15803D' },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    modalSheet: {
+      maxHeight: '80%',
+      backgroundColor: PAPER,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 24,
+    },
+    modalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+    modalClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    pickerGroupHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+    pickerBar: { width: 8, height: 24, borderRadius: 4 },
+    pickerGroupTitle: { fontSize: 17, lineHeight: 26, fontFamily: font.extrabold, color: INK },
+    suggestRow: { minHeight: 44, paddingHorizontal: 6, justifyContent: 'center' },
+    suggestText: { fontSize: 16, lineHeight: 24, fontFamily: font.semibold, color: INK },
+    resultNote: { fontSize: 15, lineHeight: 22, fontFamily: font.medium, color: '#44403C' },
+    resultBox: { gap: 10 },
+    resultRow: { gap: 2, paddingTop: 4, borderTopWidth: 1, borderTopColor: '#F0ECE8' },
+    resultTimes: { fontSize: 19, lineHeight: 28, fontFamily: font.extrabold, color: INK },
+    resultMeta: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
+    saveBtn: {
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: '#FF4D1C',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: { fontSize: 16, lineHeight: 24, fontFamily: font.extrabold, color: '#FFFFFF' },
+
+    // ── Next trains ──
+    nextCard: {
+      marginHorizontal: M,
+      marginTop: 14,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 22,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: outlineVariant,
+    },
+    nextRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+    nextRowBorder: { borderTopWidth: 1, borderTopColor: '#F0ECE8' },
+    nextTime: { width: 56, fontSize: 19, lineHeight: 28, fontFamily: font.extrabold, color: INK },
+    nextRoute: { fontSize: 16, lineHeight: 24, fontFamily: font.bold, color: INK },
+    nextMeta: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
+    bell: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: '#F5F1EC',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bellOn: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: '#FFEDE5',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
 
-    // ── Hero Section ──
-    hero: {
-      paddingHorizontal: space.gutter,
-      paddingTop: 14,
-      paddingBottom: 8,
+    // ── Akosombo tip ──
+    akosombo: {
+      marginHorizontal: M,
+      marginTop: 14,
+      backgroundColor: '#FFF8E8',
+      borderRadius: 20,
+      padding: 14,
+      flexDirection: 'row',
+      gap: 10,
+      alignItems: 'flex-start',
     },
-    heroLabel: {
-      ...type.caption,
-      color: isDark ? onSurfaceVariant : brand.orangeText,
-      marginBottom: 2,
+    akosomboText: { flex: 1, fontSize: 15, lineHeight: 22, fontFamily: font.regular, color: '#44403C' },
+
+    // ── Lines ──
+    linesSection: { paddingHorizontal: M, paddingTop: 20, gap: 10 },
+    linesTitle: { marginHorizontal: 4, fontSize: 22, lineHeight: 30, fontFamily: font.extrabold, color: INK },
+    lineRow: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: outlineVariant,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
     },
-    heroTitle: {
-      color: onSurface,
-      letterSpacing: 0,
-      marginBottom: 8,
+    lineBar: { width: 10, height: 44, borderRadius: 6 },
+    lineName: { fontSize: 18, lineHeight: 26, fontFamily: font.bold, color: INK },
+    lineMeta: { fontSize: 14, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
+    lineFare: { fontSize: 18, lineHeight: 26, fontFamily: font.bold, color: INK },
+
+    // ── Collapsible sections ──
+    collSection: { paddingHorizontal: M, paddingTop: 20, gap: 8 },
+    collCard: {
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: outlineVariant,
+      borderRadius: 18,
+      paddingHorizontal: 16,
     },
+    collHead: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    collTitle: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: INK },
+    collBody: { paddingBottom: 14, gap: 12 },
+    rideItem: { gap: 2 },
+    bulletinItem: { gap: 6 },
 
     // ── Departure Board (always dark — like a real station display) ──
     board: {
       backgroundColor: '#0c1220',
-      marginHorizontal: space.gutter,
-      marginTop: 16,
+      marginHorizontal: M,
+      marginTop: 14,
       borderRadius: radius.xl,
       padding: 20,
       overflow: 'hidden',
@@ -996,18 +1535,29 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
       gap: 8,
       marginTop: 16,
+      minHeight: 44,
       paddingVertical: 12,
       borderRadius: radius.md,
       backgroundColor: 'rgba(14,165,233,0.12)',
       borderWidth: 1,
       borderColor: 'rgba(14,165,233,0.25)',
     },
-    remindBtnOn: {
+    remindBtnOnFull: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 16,
+      minHeight: 44,
+      paddingVertical: 12,
+      borderRadius: radius.md,
       backgroundColor: 'rgba(34,197,94,0.12)',
+      borderWidth: 1,
       borderColor: 'rgba(34,197,94,0.3)',
     },
     remindText: {
       fontSize: 13,
+      lineHeight: 18,
       fontFamily: font.semibold,
       color: BOARD_ACCENT,
     },
@@ -1113,137 +1663,7 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 4,
     },
 
-    // ── Section ──
-    section: { paddingHorizontal: space.gutter, paddingTop: space.section },
-
-    // ── Line Cards ──
-    lineCard: {
-      borderRadius: radius.lg,
-      backgroundColor: surfaceLowest,
-      overflow: 'hidden',
-      ...cardShadow,
-    },
-    lineCardBody: {
-      padding: space.xl,
-      gap: space.xl,
-    },
-    lineCardTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-    },
-    lineTitle: {
-      color: onSurface,
-      letterSpacing: -0.5,
-    },
-    lineSubtitle: {
-      ...type.label,
-      color: onSurfaceVariant,
-      marginTop: 2,
-    },
-    shieldBox: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.md,
-      backgroundColor: ui.info,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    // Stats row
-    lineStatsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    lineStat: {
-      // flex + minWidth 0: without these a long fare value sized the stat to
-      // its content and pushed Status outside the card entirely.
-      flex: 1,
-      minWidth: 0,
-      gap: 2,
-    },
-    lineStatLabel: {
-      ...type.caption,
-      color: onSurfaceVariant,
-    },
-    lineStatValue: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: onSurface,
-    },
-    lineStatDivider: {
-      width: 1,
-      height: 32,
-      backgroundColor: outlineVariant,
-    },
-    occupancyRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    occupancyDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-    occupancyText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-    },
-
-    // Action buttons
-    lineActions: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    lineActionIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: radius.md,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : ui.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    lineActionIconOn: {
-      backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : ui.successSoft,
-    },
-
-    // Bottom info strip (was a gradient)
-    lineCardStrip: {
-      paddingVertical: 12,
-      paddingHorizontal: space.xl,
-      borderTopWidth: 1,
-      borderTopColor: outlineVariant,
-    },
-    lineCardStripContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    lineCardStripText: {
-      ...type.caption,
-      color: onSurfaceVariant,
-    },
-    lineCardStripDot: {
-      width: 3,
-      height: 3,
-      borderRadius: 1.5,
-      backgroundColor: ui.textTertiary,
-    },
-
     // ── How to Ride ──
-    rideSection: {
-      paddingHorizontal: space.gutter,
-      paddingTop: space.section,
-      gap: 12,
-    },
-    rideCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: radius.lg,
-      padding: space.lg,
-      ...cardShadow,
-    },
     rideCardTitle: {
       fontSize: 14,
       fontFamily: font.bold,
@@ -1258,18 +1678,6 @@ const getStyles = (isDark: boolean) => {
     },
 
     // ── Authority Bulletins ──
-    bulletinSection: {
-      paddingHorizontal: space.gutter,
-      paddingTop: space.section,
-      gap: 12,
-    },
-    bulletinCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: radius.lg,
-      padding: space.lg,
-      gap: 8,
-      ...cardShadow,
-    },
     bulletinMeta: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1288,7 +1696,7 @@ const getStyles = (isDark: boolean) => {
 
     // ── Daily Tip ──
     tipCard: {
-      marginHorizontal: space.gutter,
+      marginHorizontal: M,
       marginTop: space.section,
       borderRadius: radius.lg,
       backgroundColor: surfaceLowest,

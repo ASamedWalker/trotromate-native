@@ -24,7 +24,10 @@ export function useDepartureReminders() {
   }, [refresh])
 
   const isSet = useCallback(
-    (scheduleId: string) => !!reminders[scheduleId],
+    (scheduleId: string) => {
+      const r = reminders[scheduleId]
+      return !!r && r.fireAt > Date.now()
+    },
     [reminders],
   )
 
@@ -38,7 +41,8 @@ export function useDepartureReminders() {
       departTime: string
       secondsUntilDeparture: number
     }): Promise<{ on: boolean; failure?: ReminderFailure }> => {
-      if (reminders[params.scheduleId]) {
+      const existing = reminders[params.scheduleId]
+      if (existing && existing.fireAt > Date.now()) {
         await cancelDepartureReminder(params.scheduleId)
         await refresh()
         return { on: false }

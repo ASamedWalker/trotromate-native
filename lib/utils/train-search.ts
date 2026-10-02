@@ -53,7 +53,7 @@ export function getTrainLines(): NearbyLine[] {
         lineName: lineId.toUpperCase(),
         color: TRANSPORT_COLORS.train,
         sortKey: 9999,
-        href: '/train',
+        href: '/(tabs)/train',
       })
     }
     return results
@@ -84,7 +84,7 @@ export function getTrainLines(): NearbyLine[] {
           lineName: lineId.toUpperCase(),
           color: TRANSPORT_COLORS.train,
           sortKey: minsLeft,
-          href: '/train',
+          href: '/(tabs)/train',
         })
       } else if (nowMins >= departMins && nowMins <= arriveMins) {
         results.push({
@@ -100,7 +100,7 @@ export function getTrainLines(): NearbyLine[] {
           lineName: lineId.toUpperCase(),
           color: TRANSPORT_COLORS.train,
           sortKey: -1,
-          href: '/train',
+          href: '/(tabs)/train',
         })
       }
     }
@@ -125,7 +125,7 @@ export function getTrainLines(): NearbyLine[] {
         lineName: lineId.toUpperCase(),
         color: TRANSPORT_COLORS.train,
         sortKey: 9999,
-        href: '/train',
+        href: '/(tabs)/train',
       })
     }
   }
