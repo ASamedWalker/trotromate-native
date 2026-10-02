@@ -14,6 +14,7 @@ import {
   Share,
   DeviceEventEmitter,
   Animated,
+  ScrollView,
 } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -28,11 +29,10 @@ import {
   MoreHorizontal,
   Heart,
   Send,
-  Bookmark,
   Play,
 } from 'lucide-react-native'
 import { brand, ui, radius, space, font } from '@/lib/theme'
-import { Button } from '@/components/ui'
+import { Button, Tap } from '@/components/ui'
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -47,6 +47,8 @@ import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
 import { LEVELS } from '@/lib/constants/rewards'
 import type { TalePost } from '@/lib/types'
+import { pulseKind, extractRoute, extractAmount, parseComposerFare } from '@/lib/utils/pulse-extract'
+import { fetchBotAnswer, type BotAnswer } from '@/lib/services/pulse-bot'
 import { LoadErrorState } from '@/components/StateViews'
 
 const { width: SCREEN_W } = Dimensions.get('window')
@@ -104,7 +106,48 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
   )
 }
 
+// ─── Pulse kinds (type chip + filters) ──────────────────
+
+const KIND_CHIP: Record<'fare' | 'question' | 'queue' | 'moment', { label: string; bg: string; fg: string }> = {
+  fare: { label: 'Fare', bg: '#FFEDE5', fg: '#B4320B' },
+  question: { label: 'Question', bg: '#E6EEFF', fg: '#1D4ED8' },
+  queue: { label: 'Queue', bg: '#FDE8E8', fg: '#B91C1C' },
+  moment: { label: 'Moment', bg: '#EFEAFE', fg: '#6D28D9' },
+}
+
+type PulseFilter = 'all' | 'fare' | 'question' | 'queue' | 'moment'
+
+const FILTER_EMPTY: Record<Exclude<PulseFilter, 'all'>, string> = {
+  fare: 'No fare posts yet.',
+  question: 'No questions yet.',
+  queue: 'No queue updates yet.',
+  moment: 'No photos or videos yet.',
+}
+
+const FILTERS: { key: PulseFilter; label: string; bg: string; fg: string }[] = [
+  { key: 'all', label: 'All', bg: '#FFFFFF', fg: '#1C1917' },
+  { key: 'fare', label: 'Fares', bg: '#FFEDE5', fg: '#B4320B' },
+  { key: 'question', label: 'Questions', bg: '#E6EEFF', fg: '#1D4ED8' },
+  { key: 'queue', label: 'Queues', bg: '#FDE8E8', fg: '#B91C1C' },
+  { key: 'moment', label: 'Moments', bg: '#EFEAFE', fg: '#6D28D9' },
+]
+
+function formatDuration(secs: number): string {
+  return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`
+}
+
+
+function renderCaption(text: string, s: ReturnType<typeof cardStyles>) {
+  return text.split(/(#\w+)/g).map((part, i) =>
+    part.startsWith('#') ? (
+      <Text key={i} style={s.hashtag}>{part}</Text>
+    ) : part
+  )
+}
+
 // ─── TaleCard ───────────────────────────────────────────
+
+const CARD_MEDIA_W = SCREEN_W - 32 - 32 - 2 // list margin + card padding + border
 
 const TaleCard = React.memo(function TaleCard({
   post,
@@ -131,19 +174,48 @@ const TaleCard = React.memo(function TaleCard({
   onProfilePress: () => void
   onVideoPress?: () => void
 }) {
-  const s = cardStyles(isDark)
+  const s = cardStyles()
   const [showMenu, setShowMenu] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
   const [localLiked, setLocalLiked] = useState(userReactions.includes('❤️'))
-  const [localSaved, setLocalSaved] = useState(false)
   const badge = getContributorBadge(post)
   const displayName = getDisplayName(post)
+  const kind = pulseKind(post)
+  const chip = kind === 'post' ? null : KIND_CHIP[kind]
+
+  const caption = post.caption ?? ''
+  // Composer posts parse exactly; free-text fare posts fall back to the heuristics.
+  const composed = kind === 'fare' ? parseComposerFare(caption) : null
+  const fareRoute = composed ?? (kind === 'fare' ? extractRoute(caption) : null)
+  const fareAmount = composed ? composed.amount : kind === 'fare' ? extractAmount(caption) : null
+  const showFareCard = !!(fareRoute && fareAmount != null)
+  // Under a composer fare card show only the note; free-text posts show in full.
+  const bodyText = composed ? composed.note : caption
+
+  // Troski Bot answer for question posts (fetched per visible card, cached in the service)
+  const [bot, setBot] = useState<BotAnswer | null>(null)
+  const [botLoading, setBotLoading] = useState(kind === 'question')
+  useEffect(() => {
+    if (kind !== 'question') return
+    let cancelled = false
+    setBotLoading(true)
+    fetchBotAnswer(post.id).then((ans) => {
+      if (cancelled) return
+      setBot(ans)
+      setBotLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [kind, post.id])
+  const botText =
+    bot && (bot.status === 'no_route' || bot.status === 'not_found' || bot.status === 'found') ? bot.text : null
 
   // Sync localLiked with userReactions prop
   useEffect(() => {
     setLocalLiked(userReactions.includes('❤️'))
   }, [userReactions])
 
-  const likeCount = Object.values(reactionSummary).reduce((a, b) => a + b, 0)
+  const totalReactions = Object.values(reactionSummary).reduce((a, b) => a + b, 0)
+  const heartCount = reactionSummary['❤️'] ?? (totalReactions > 0 ? totalReactions : 0)
 
   const handleDoubleTapLike = useCallback(() => {
     if (!localLiked) {
@@ -170,40 +242,53 @@ const TaleCard = React.memo(function TaleCard({
     onReport()
   }, [onReport])
 
+  const handleShare = useCallback(() => {
+    const loc = post.location_name ?? ''
+    const cap = post.caption ? `\n"${post.caption}"` : ''
+    Share.share({
+      message: `${displayName} shared a commuter tale from ${loc} on Troski${cap}\n\nDownload Troski: https://troski.me`,
+    })
+  }, [post.location_name, post.caption, displayName])
+
+  const hasMedia = post.media_type !== 'text' && (post.media_type === 'video' ? !!post.video_url : !!post.image_url)
+
   return (
     <View style={s.card}>
       {/* ── Header ── */}
       <View style={s.header}>
-        <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-          <View style={[s.avatarRing, { borderColor: badge ? badge.ringColor : isDark ? 'rgba(255,255,255,0.12)' : ui.surfaceStrong }]}>
-            <InitialsAvatar
-              name={post.display_name}
-              deviceId={post.device_id}
-              size={36}
-            />
-          </View>
+        <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${displayName} profile`}>
+          <InitialsAvatar name={post.display_name} deviceId={post.device_id} size={42} />
         </TouchableOpacity>
 
         <View style={s.headerInfo}>
-          <View style={s.nameRow}>
-            <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
-              <Text style={s.name} numberOfLines={1}>{displayName}</Text>
-            </TouchableOpacity>
-            {badge && <Text style={[s.badgeText, { color: badge.color }]}>{badge.label}</Text>}
-          </View>
+          <Text numberOfLines={1} style={s.nameLine}>
+            <Text style={s.name} onPress={onProfilePress}>{displayName}</Text>
+            {badge ? <Text style={s.meta}>{` · ${badge.label.replace(/^\S+\s/, '')}`}</Text> : null}
+          </Text>
           <View style={s.headerMeta}>
-            <MapPin size={12} color={isDark ? 'rgba(255,255,255,0.35)' : ui.textTertiary} />
-            <Text style={s.locationText} numberOfLines={1}>{post.location_name}</Text>
+            {post.location_name ? <MapPin size={14} color="#57534E" /> : null}
+            <Text style={s.locationText} numberOfLines={1}>
+              {post.location_name ? `${post.location_name} · ${timeAgo(post.created_at)}` : timeAgo(post.created_at)}
+            </Text>
           </View>
         </View>
 
-        <Pressable
+        {chip && (
+          <View style={[s.typeChip, { backgroundColor: chip.bg }]}>
+            <Text style={[s.typeChipText, { color: chip.fg }]}>{chip.label}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
           onPress={() => setShowMenu(!showMenu)}
           style={s.menuBtn}
           hitSlop={8}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Post options"
         >
-          <MoreHorizontal size={20} color={isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary} />
-        </Pressable>
+          <MoreHorizontal size={20} color="#57534E" />
+        </TouchableOpacity>
       </View>
 
       {/* Menu dropdown */}
@@ -212,7 +297,7 @@ const TaleCard = React.memo(function TaleCard({
           <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)} />
           <View style={s.menuDropdown}>
             <TouchableOpacity onPress={handleReport} activeOpacity={0.7} style={s.menuItem}>
-              <Flag size={16} color={isDark ? '#a8a29e' : ui.textSecondary} />
+              <Flag size={16} color={ui.textSecondary} />
               <Text style={s.menuItemText}>Report</Text>
             </TouchableOpacity>
             {isOwn && onDelete && (
@@ -225,164 +310,138 @@ const TaleCard = React.memo(function TaleCard({
         </>
       )}
 
-      {/* ── Text-first caption for text posts (Threads/Twitter style) ── */}
-      {post.media_type === 'text' && post.caption ? (
-        <View style={s.textPostCard}>
-          <Text style={s.textPostText}>
-            {post.caption.split(/(#\w+)/g).map((part, i) =>
-              part.startsWith('#') ? (
-                <Text key={i} style={s.hashtag}>{part}</Text>
-              ) : part
-            )}
-          </Text>
-          {post.location_name ? (
-            <View style={s.textPostLocation}>
-              <MapPin size={12} color={brand.orange} fill={brand.orange} />
-              <Text style={s.textPostLocationText}>{post.location_name}</Text>
-            </View>
-          ) : null}
+      {/* ── Fare card ── */}
+      {showFareCard && fareRoute && fareAmount != null && (
+        <View style={s.fareCard}>
+          <View style={s.fareLeft}>
+            <Text style={s.farePaid}>Paid</Text>
+            <Text style={s.fareAmount}>{`₵${fareAmount.toFixed(2)}`}</Text>
+          </View>
+          <View style={s.fareRight}>
+            <Text style={s.fareRoute} numberOfLines={2}>{`${fareRoute.from} → ${fareRoute.to}`}</Text>
+            <Text style={s.fareSub}>Commuter report on Troski</Text>
+          </View>
         </View>
-      ) : (
-      <>
-      {/* ── Media (edge-to-edge) ── */}
-      <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
-        <View style={s.mediaWrap}>
-          {post.media_type === 'video' && post.video_url ? (
-            <Pressable
-              onPress={onVideoPress}
-              style={{ width: SCREEN_W, aspectRatio: 16 / 9, backgroundColor: '#000' }}
-            >
-              {post.video_thumbnail_url ? (
-                <ExpoImage
-                  source={{ uri: post.video_thumbnail_url }}
-                  style={StyleSheet.absoluteFillObject}
-                  contentFit="cover"
-                  cachePolicy="disk"
-                />
-              ) : null}
-              <View style={s.videoPlayOverlay}>
-                <View style={s.videoPlayBtn}>
-                  <Play size={36} color={ui.onBrand} fill={ui.onBrand} />
-                </View>
-              </View>
-              {post.video_duration_secs != null && (
-                <View style={s.videoDurationBadge}>
-                  <Text style={s.videoDurationText}>
-                    {Math.floor(post.video_duration_secs / 60)}:
-                    {String(Math.floor(post.video_duration_secs % 60)).padStart(2, '0')}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          ) : post.image_url ? (
-            <ImageCarousel
-              images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
-              width={SCREEN_W}
-            />
-          ) : null}
-
-          {/* Video badge */}
-          {post.media_type === 'video' && (
-            <View style={s.videoBadge}>
-              <View style={s.videoBadgeDot} />
-              <Text style={s.videoBadgeText}>Live</Text>
-            </View>
-          )}
-
-          {/* Location pill — glassmorphic overlay (images only, videos show location in reel) */}
-          {post.media_type !== 'video' && post.location_name ? (
-            <View style={s.locationPill} pointerEvents="none">
-              <MapPin size={12} color={brand.orange} fill={brand.orange} />
-              <Text style={s.locationPillText} numberOfLines={1}>{post.location_name}</Text>
-            </View>
-          ) : null}
-        </View>
-      </DoubleTapLike>
-      </>
       )}
 
-      {/* ── Action Row (Instagram-style) ── */}
-      <View style={s.actionRow}>
-        <View style={s.actionRowLeft}>
-          <TouchableOpacity onPress={handleLikePress} activeOpacity={0.7} hitSlop={6}>
-            <Heart
-              size={26}
-              color={localLiked ? ui.danger : (isDark ? '#f5f5f4' : ui.text)}
-              fill={localLiked ? ui.danger : 'transparent'}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onComment} activeOpacity={0.7} hitSlop={6}>
-            <MessageCircle size={24} color={isDark ? '#f5f5f4' : ui.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              const name = getDisplayName(post)
-              const loc = post.location_name ?? ''
-              const caption = post.caption ? `\n"${post.caption}"` : ''
-              Share.share({
-                message: `${name} shared a commuter tale from ${loc} on Troski${caption}\n\nDownload Troski: https://troski.me`,
-              })
-            }}
-            activeOpacity={0.7}
-            hitSlop={6}
-          >
-            <Send size={22} color={isDark ? '#f5f5f4' : ui.text} style={{ transform: [{ rotate: '20deg' }] }} />
-          </TouchableOpacity>
+      {/* ── Body text ── */}
+      {bodyText ? <Text style={s.bodyText}>{renderCaption(bodyText, s)}</Text> : null}
+
+      {/* ── Troski Bot answer (questions) ── */}
+      {kind === 'question' && botLoading && (
+        <View style={s.botBox}>
+          <View style={s.botSkeleton} />
         </View>
-        <TouchableOpacity onPress={() => setLocalSaved(!localSaved)} activeOpacity={0.7} hitSlop={6}>
-          <Bookmark
-            size={24}
-            color={localSaved ? brand.orange : (isDark ? '#f5f5f4' : ui.text)}
-            fill={localSaved ? brand.orange : 'transparent'}
+      )}
+      {kind === 'question' && !botLoading && botText ? (
+        <View style={s.botBox}>
+          <View style={s.botTitleRow}>
+            <MapPin size={18} color="#F5A300" fill="#F5A300" />
+            <Text style={s.botTitle}>Troski Bot answer</Text>
+          </View>
+          <Text style={s.botText}>{botText}</Text>
+        </View>
+      ) : null}
+      {kind === 'question' && (
+        <Tap
+          onPress={onComment}
+          style={s.answerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Answer this question and earn 8 coins"
+        >
+          <Text style={s.answerBtnText}>Answer this · +8 coins</Text>
+        </Tap>
+      )}
+
+      {/* ── Media ── */}
+      {hasMedia && (
+        <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
+          <View style={s.mediaWrap}>
+            {post.media_type === 'video' && post.video_url ? (
+              <Pressable
+                onPress={onVideoPress}
+                accessibilityRole="button"
+                accessibilityLabel="Play video"
+                style={s.videoTile}
+              >
+                {post.video_thumbnail_url ? (
+                  <ExpoImage
+                    source={{ uri: post.video_thumbnail_url }}
+                    style={StyleSheet.absoluteFillObject}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                  />
+                ) : null}
+                <View style={s.videoPlayOverlay}>
+                  <View style={s.videoPlayBtn}>
+                    <Play size={30} color={ui.onBrand} fill={ui.onBrand} />
+                  </View>
+                  <Text style={s.videoHint}>
+                    {post.video_duration_secs != null
+                      ? `Tap to play · ${formatDuration(post.video_duration_secs)}`
+                      : 'Tap to play'}
+                  </Text>
+                </View>
+              </Pressable>
+            ) : post.image_url ? (
+              <ImageCarousel
+                images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
+                width={CARD_MEDIA_W}
+              />
+            ) : null}
+          </View>
+        </DoubleTapLike>
+      )}
+
+      {/* ── Footer ── */}
+      <View style={s.footer}>
+        <TouchableOpacity
+          onPress={handleLikePress}
+          onLongPress={() => setShowPicker((v) => !v)}
+          activeOpacity={0.7}
+          style={s.pill}
+          accessibilityRole="button"
+          accessibilityLabel={`${totalReactions} reactions`}
+          accessibilityHint="Double tap to like, long press for more reactions"
+        >
+          <Heart
+            size={20}
+            color={localLiked ? ui.danger : '#57534E'}
+            fill={localLiked ? ui.danger : 'transparent'}
           />
+          {heartCount > 0 && <Text style={s.pillText}>{heartCount.toLocaleString()}</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onComment}
+          activeOpacity={0.7}
+          style={s.pill}
+          accessibilityRole="button"
+          accessibilityLabel={post.comment_count > 0 ? `${post.comment_count} comments` : 'Comment'}
+        >
+          <MessageCircle size={20} color="#57534E" />
+          <Text style={s.pillText}>{post.comment_count > 0 ? String(post.comment_count) : 'Comment'}</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={handleShare}
+          activeOpacity={0.7}
+          hitSlop={8}
+          style={s.shareBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Share post"
+        >
+          <Send size={20} color="#57534E" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Like count ── */}
-      {likeCount > 0 && (
-        <Text style={s.likeCount}>{likeCount.toLocaleString()} like{likeCount !== 1 ? 's' : ''}</Text>
+      {showPicker && (
+        <ReactionBar
+          reactionSummary={reactionSummary}
+          userReactions={userReactions}
+          onReact={onReact}
+          compact
+        />
       )}
-
-      {/* ── Caption (skip for text posts — already shown above) ── */}
-      {post.caption && post.media_type !== 'text' && (
-        <View style={s.captionWrap}>
-          <Text style={s.captionText}>
-            <Text style={s.captionAuthor}>{displayName}</Text>{'  '}
-            {post.caption.split(/(#\w+)/g).map((part, i) =>
-              part.startsWith('#') ? (
-                <Text key={i} style={s.hashtag}>{part}</Text>
-              ) : part
-            )}
-          </Text>
-        </View>
-      )}
-
-      {/* ── Reaction Bar (compact) ── */}
-      <ReactionBar
-        reactionSummary={reactionSummary}
-        userReactions={userReactions}
-        onReact={onReact}
-        compact
-      />
-
-      {/* ── Comments ── */}
-      {post.comment_count > 0 ? (
-        <TouchableOpacity onPress={onComment} style={s.commentLink} activeOpacity={0.7}>
-          <Text style={s.commentLinkText}>
-            View all {post.comment_count} comment{post.comment_count !== 1 ? 's' : ''}
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={onComment} style={s.commentLink} activeOpacity={0.7}>
-          <Text style={s.commentLinkText}>Add a comment...</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* ── Timestamp ── */}
-      <Text style={s.timestamp}>{timeAgo(post.created_at)}</Text>
-
-      {/* ── Separator ── */}
-      <View style={s.separator} />
     </View>
   )
 })
@@ -405,6 +464,11 @@ export function TalesScreen() {
   const haptics = useHaptics()
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
+  const [filter, setFilter] = useState<PulseFilter>('all')
+  const visiblePosts = useMemo(
+    () => (filter === 'all' ? posts : posts.filter((p) => pulseKind(p) === filter)),
+    [posts, filter],
+  )
 
   // Listen for comment open signal from reel screen
   useEffect(() => {
@@ -467,28 +531,77 @@ export function TalesScreen() {
     )
   }, [isDark, reactionSummaries, userReactions, deviceId, handleReact, deletePost, handleReport, router])
 
+  const header = (
+    <View>
+      <View style={s.titleWrap}>
+        <Text style={s.title}>Pulse</Text>
+        <Text style={s.subtitle}>Live from the road, by commuters</Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chipRow}
+        style={s.chipScroll}
+      >
+        {FILTERS.map((f) => {
+          const selected = filter === f.key
+          const isAll = f.key === 'all'
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 4, bottom: 4 }}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Show ${f.label}`}
+              style={{
+                paddingHorizontal: 16,
+                height: 38,
+                borderRadius: 19,
+                justifyContent: 'center',
+                backgroundColor: isAll ? (selected ? '#1C1917' : '#FFFFFF') : f.bg,
+                borderWidth: 1.5,
+                borderColor: isAll ? (selected ? '#1C1917' : '#E7E5E4') : selected ? f.fg : f.bg,
+              }}
+            >
+              <Text style={{ fontFamily: font.bold, fontSize: 15, lineHeight: 22, color: isAll && selected ? '#FFFFFF' : f.fg }}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
+    {/* Compose bar — single entry point for text + photo/video */}
+    <ReanimatedAnimated.View entering={FadeInDown.delay(100).duration(400)} style={s.composeBar}>
+      <View style={s.composeAvatar}>
+        <InitialsAvatar name={profile?.display_name ?? null} deviceId={deviceId ?? ''} size={36} />
+      </View>
+      <TouchableOpacity
+        onPress={() => router.push('/report/photo?mode=text' as Href)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Write a post"
+        style={s.composeInput}
+      >
+        <Text style={s.composePlaceholder}>What&apos;s happening on your route?</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => router.push('/report/photo' as Href)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Post a photo or video"
+        style={s.composeCamera}
+      >
+        <Camera size={20} color={isDark ? '#a8a29e' : ui.textSecondary} />
+      </TouchableOpacity>
+    </ReanimatedAnimated.View>
+    </View>
+  )
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      {/* Compose bar — single entry point for text + photo/video */}
-      <ReanimatedAnimated.View entering={FadeInDown.delay(100).duration(400)} style={s.composeBar}>
-        <View style={s.composeAvatar}>
-          <InitialsAvatar name={profile?.display_name ?? null} deviceId={deviceId ?? ''} size={36} />
-        </View>
-        <TouchableOpacity
-          onPress={() => router.push('/report/photo?mode=text' as Href)}
-          activeOpacity={0.7}
-          style={s.composeInput}
-        >
-          <Text style={s.composePlaceholder}>What&apos;s happening on your route?</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/report/photo' as Href)}
-          activeOpacity={0.7}
-          style={s.composeCamera}
-        >
-          <Camera size={20} color={isDark ? '#a8a29e' : ui.textSecondary} />
-        </TouchableOpacity>
-      </ReanimatedAnimated.View>
+      {!isLoading && posts.length > 0 ? null : header}
 
       {isLoading ? (
         <View style={{ paddingTop: 12 }}>
@@ -515,7 +628,29 @@ export function TalesScreen() {
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={visiblePosts}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            filter !== 'all' ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 17, lineHeight: 24, color: ui.text, textAlign: 'center' }}>
+                  {FILTER_EMPTY[filter]}
+                </Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 16, lineHeight: 22, color: ui.textSecondary, textAlign: 'center', marginTop: 4 }}>
+                  Share one and help the next rider.
+                </Text>
+                <View style={{ marginTop: 16 }}>
+                  <Button
+                    label="Post"
+                    fullWidth={false}
+                    onPress={() => router.push('/report/photo?mode=text' as Href)}
+                  />
+                </View>
+              </View>
+            ) : (
+              <Text style={s.emptySub}>Nothing here yet. Be the first to post.</Text>
+            )
+          }
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           refreshControl={
@@ -565,105 +700,144 @@ const styles = StyleSheet.create({
 
 // ─── Card Styles ────────────────────────────────────────
 
-const cardStyles = (isDark: boolean) => {
-  const onSurface = isDark ? '#f5f5f4' : ui.text
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : ui.textSecondary
-  const surface = isDark ? '#000' : ui.card
-  const divider = isDark ? 'rgba(255,255,255,0.08)' : ui.hairline
-
+const cardStyles = () => {
   return StyleSheet.create({
     card: {
-      backgroundColor: surface,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: '#EEEAE6',
+      padding: 16,
+      gap: 12,
+      marginHorizontal: 16,
+      marginBottom: 14,
     },
 
     // ── Header ──
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: space.gutter,
-      paddingVertical: 10,
-    },
-    avatarRing: {
-      borderWidth: 2,
-      borderRadius: 20,
-      padding: 2,
+      gap: 10,
     },
     headerInfo: {
       flex: 1,
-      marginLeft: 10,
     },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
+    nameLine: {
+      lineHeight: 24,
     },
     name: {
-      fontFamily: font.semibold,
-      fontSize: 14,
-      color: onSurface,
+      fontFamily: font.bold,
+      fontSize: 17,
+      lineHeight: 24,
+      color: '#1C1917',
     },
-    badgeText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
+    meta: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      lineHeight: 20,
+      color: '#57534E',
     },
     headerMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
-      marginTop: 1,
+      gap: 4,
     },
     locationText: {
-      fontSize: 12,
+      fontSize: 14,
+      lineHeight: 20,
       fontFamily: font.regular,
-      color: onSurfaceVariant,
+      color: '#57534E',
       flex: 1,
     },
+    typeChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    typeChipText: {
+      fontFamily: font.bold,
+      fontSize: 13,
+      lineHeight: 18,
+    },
     menuBtn: {
-      width: 32,
+      width: 28,
       height: 32,
-      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
 
-    // ── Media ──
-    mediaWrap: {
-      position: 'relative',
-      backgroundColor: isDark ? '#111' : ui.bg,
+    // ── Body ──
+    bodyText: {
+      fontFamily: font.regular,
+      fontSize: 18,
+      lineHeight: 27,
+      color: '#1C1917',
     },
-    videoBadge: {
-      position: 'absolute',
-      top: 12,
-      right: 12,
+    hashtag: {
+      color: ui.info,
+      fontFamily: font.semibold,
+    },
+
+    // ── Fare card ──
+    fareCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 20,
+      justifyContent: 'space-between',
+      backgroundColor: '#FFF6F1',
+      borderRadius: 18,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      gap: 12,
     },
-    videoBadgeDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: ui.danger,
+    fareLeft: {},
+    farePaid: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: '#9A3412' },
+    fareAmount: { fontFamily: font.extrabold, fontSize: 30, lineHeight: 42, color: '#1C1917' },
+    fareRight: { flex: 1 },
+    fareRoute: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: '#1C1917' },
+    fareSub: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, color: '#57534E' },
+
+    // ── Troski Bot box ──
+    botBox: {
+      backgroundColor: '#FFF8E8',
+      borderRadius: 18,
+      padding: 14,
+      gap: 6,
     },
-    videoBadgeText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: ui.onBrand,
+    botTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    botTitle: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: '#7C4A03' },
+    botText: { fontFamily: font.regular, fontSize: 16, lineHeight: 24, color: '#1C1917' },
+    botSkeleton: { height: 14, borderRadius: 7, backgroundColor: '#F3E3BC', width: '70%' },
+    answerBtn: {
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: '#1D4ED8',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    answerBtnText: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: '#FFFFFF' },
+
+    // ── Media ──
+    mediaWrap: {
+      borderRadius: 18,
+      overflow: 'hidden',
+      backgroundColor: ui.bg,
+    },
+    videoTile: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+      backgroundColor: '#1C1917',
     },
     videoPlayOverlay: {
       ...StyleSheet.absoluteFillObject,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'rgba(0,0,0,0.25)',
+      gap: 8,
     },
     videoPlayBtn: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: 'rgba(0,0,0,0.55)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -671,108 +845,25 @@ const cardStyles = (isDark: boolean) => {
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.25)',
     },
-    videoDurationBadge: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
-      backgroundColor: 'rgba(0,0,0,0.75)',
-      borderRadius: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-    },
-    videoDurationText: {
-      color: ui.onBrand,
-      fontSize: 12,
-      fontFamily: font.semibold,
-    },
+    videoHint: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: '#FFFFFF' },
 
-    // ── Location pill (glass overlay on media) ──
-    locationPill: {
-      position: 'absolute',
-      bottom: 12,
-      left: 12,
+    // ── Footer ──
+    footer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 12,
-      maxWidth: '70%' as any,
-      zIndex: 10,
+      gap: 8,
     },
-    locationPillText: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: ui.onBrand,
-    },
-
-    // ── Action Row ──
-    actionRow: {
+    pill: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: space.gutter,
-      paddingTop: 10,
-      paddingBottom: 6,
+      gap: 6,
+      height: 36,
+      paddingHorizontal: 12,
+      borderRadius: 18,
+      backgroundColor: '#F5F5F4',
     },
-    actionRowLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
-    },
-
-    // ── Like count ──
-    likeCount: {
-      fontFamily: font.bold,
-      fontSize: 14,
-      color: onSurface,
-      paddingHorizontal: space.gutter,
-      marginBottom: 4,
-    },
-
-    // ── Caption ──
-    captionWrap: {
-      paddingHorizontal: space.gutter,
-      marginBottom: 4,
-    },
-    captionText: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: onSurface,
-      lineHeight: 20,
-    },
-    captionAuthor: {
-      fontFamily: font.bold,
-      fontSize: 14,
-    },
-
-    // ── Comments ──
-    commentLink: {
-      paddingHorizontal: space.gutter,
-      paddingVertical: 4,
-    },
-    commentLinkText: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-    },
-
-    // ── Timestamp ──
-    timestamp: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      paddingHorizontal: space.gutter,
-      marginTop: 2,
-      marginBottom: 8,
-    },
-
-    // ── Separator ──
-    separator: {
-      height: 1,
-      backgroundColor: divider,
-    },
+    pillText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: '#44403C' },
+    shareBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 
     // ── Menu ──
     menuOverlay: {
@@ -785,13 +876,13 @@ const cardStyles = (isDark: boolean) => {
     },
     menuDropdown: {
       position: 'absolute',
-      right: space.gutter,
-      top: 48,
+      right: 16,
+      top: 56,
       zIndex: 20,
-      backgroundColor: isDark ? '#262626' : ui.card,
+      backgroundColor: ui.card,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: divider,
+      borderColor: ui.hairline,
       paddingVertical: 4,
       minWidth: 150,
       shadowColor: '#000',
@@ -809,50 +900,15 @@ const cardStyles = (isDark: boolean) => {
     },
     menuItemText: {
       fontSize: 14,
+      lineHeight: 20,
       fontFamily: font.medium,
-      color: onSurface,
+      color: ui.text,
     },
     menuItemTextDanger: {
       fontSize: 14,
+      lineHeight: 20,
       fontFamily: font.medium,
       color: ui.danger,
-    },
-
-    // Text-only post (Threads/Twitter style — polished card)
-    textPostCard: {
-      marginHorizontal: space.gutter,
-      marginVertical: 8,
-      paddingHorizontal: space.xl,
-      paddingVertical: space.lg,
-      borderRadius: radius.lg,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : ui.bg,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.06)' : ui.hairline,
-    },
-    textPostText: {
-      fontSize: 16,
-      fontFamily: font.regular,
-      color: isDark ? '#fafaf9' : ui.text,
-      lineHeight: 24,
-    },
-    textPostLocation: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 10,
-    },
-    textPostLocationText: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: isDark ? 'rgba(255,255,255,0.4)' : ui.textSecondary,
-    },
-    hashtag: {
-      color: ui.info,
-      fontFamily: font.semibold,
-    },
-    textPostAuthor: {
-      fontFamily: font.bold,
-      color: isDark ? '#fafaf9' : ui.text,
     },
   })
 }
@@ -860,9 +916,8 @@ const cardStyles = (isDark: boolean) => {
 // ─── Screen Styles ──────────────────────────────────────
 
 const getStyles = (isDark: boolean) => {
-  const surface = isDark ? '#000' : ui.card
+  const surface = ui.bg
   const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.45)' : ui.textSecondary
-  const divider = isDark ? 'rgba(255,255,255,0.08)' : ui.hairline
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: surface },
@@ -871,6 +926,12 @@ const getStyles = (isDark: boolean) => {
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 16 },
     emptySub: { fontSize: 14, fontFamily: font.regular, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
 
+    titleWrap: { paddingHorizontal: 20, paddingTop: 8 },
+    title: { fontFamily: font.extrabold, fontSize: 30, lineHeight: 42, color: '#1C1917' },
+    subtitle: { fontFamily: font.regular, fontSize: 15, lineHeight: 22, color: ui.textSecondary },
+    chipScroll: { flexGrow: 0, marginTop: 12 },
+    chipRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+
     // Threads-style compose bar
     composeBar: {
       flexDirection: 'row',
@@ -878,8 +939,7 @@ const getStyles = (isDark: boolean) => {
       paddingHorizontal: space.gutter,
       paddingVertical: 12,
       gap: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: divider,
+      marginBottom: 4,
     },
     composeAvatar: {},
     composeInput: {

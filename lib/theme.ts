@@ -22,7 +22,7 @@ export const ui = {
   hairline: '#EEEEEE',
   text: '#0A0A0A',
   textSecondary: '#6B7280',
-  textTertiary: '#7C828C', // ~4:1 on white — readable outdoors (was #9CA3AF, 2.5:1)
+  textTertiary: '#5F6670', // 5.8:1 on white — readable outdoors (was #7C828C 4:1, #9CA3AF 2.5:1)
   onBrand: '#FFFFFF',
   success: '#16A34A',
   successSoft: '#ECFDF5',
@@ -176,7 +176,7 @@ export const type = {
   bodyMedium: { fontFamily: font.medium, fontSize: 16 },
   label: { fontFamily: font.medium, fontSize: 14 },
   labelStrong: { fontFamily: font.semibold, fontSize: 14 },
-  caption: { fontFamily: font.medium, fontSize: 12 },
+  caption: { fontFamily: font.medium, fontSize: 13 },
 } as const
 
 /** Card shadow per the Uber Base table (0 4 16 / 0.12 was heavy — softened to match the app) */

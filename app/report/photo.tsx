@@ -16,18 +16,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video, Type } from 'lucide-react-native'
+import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video, Type, Banknote, HelpCircle, Users } from 'lucide-react-native'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useSubmitTale } from '@/lib/hooks/useTales'
-import type { TaleMediaType } from '@/lib/types'
+import { useSubmitFareReport } from '@/lib/hooks/useReports'
+import { validateFare } from '@/lib/security/validate'
+import { REPORT_POINTS } from '@/lib/constants/rewards'
+import type { TaleMediaType, TalePostType } from '@/lib/types'
 
 // Must match MAX_IMAGES in lib/services/tales.ts — the service rejects submissions above this.
 const MAX_IMAGES = 5
 const MAX_VIDEO_DURATION = 60 // seconds
+
+type ComposerKind = 'fare' | 'question' | 'queue' | 'media'
+
+const KIND_TILES: { key: ComposerKind; label: string; Icon: typeof Camera; bg: string; fg: string }[] = [
+  { key: 'fare', label: 'A fare I paid', Icon: Banknote, bg: '#FFEDE5', fg: '#B4320B' },
+  { key: 'question', label: 'A question', Icon: HelpCircle, bg: '#E6EEFF', fg: '#1D4ED8' },
+  { key: 'queue', label: 'Queue or station', Icon: Users, bg: '#FDE8E8', fg: '#B91C1C' },
+  { key: 'media', label: 'Photo or video', Icon: Camera, bg: '#EFEAFE', fg: '#6D28D9' },
+]
 
 const LOCATIONS = [
   'Circle', 'Madina', 'Lapaz', 'Achimota', 'Kaneshie',
@@ -47,8 +59,12 @@ export default function TrotroTalesPostScreen() {
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
+  const { submit: submitFare } = useSubmitFareReport(deviceId)
 
   const captionRef = useRef<TextInput>(null)
+  // isSubmitting clears before the fare report / review prompt / Alert finish, so guard the whole flow.
+  const submittingRef = useRef(false)
+  const [busy, setBusy] = useState(false)
 
   // Auto-focus caption when opening in text mode
   useEffect(() => {
@@ -67,6 +83,20 @@ export default function TrotroTalesPostScreen() {
   const [videoThumbnailUri, setVideoThumbnailUri] = useState<string | null>(null)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+
+  // null = plain text post (opened from "What's happening on your route?")
+  const [kind, setKind] = useState<ComposerKind | null>(mode === 'text' ? null : 'media')
+  const [fareFrom, setFareFrom] = useState('')
+  const [fareTo, setFareTo] = useState('')
+  const [fareAmount, setFareAmount] = useState('')
+  const [fareNote, setFareNote] = useState('')
+
+  const pickKind = (k: ComposerKind) => {
+    haptics.light()
+    setKind(k)
+    if (k === 'fare' || k === 'question') switchToText()
+    else if (k === 'media' && mediaType === 'text') switchToImage()
+  }
 
   const canAddMore = imageUris.length < MAX_IMAGES
 
@@ -157,7 +187,38 @@ export default function TrotroTalesPostScreen() {
   }
 
   const handleSubmit = async () => {
-    if (mediaType === 'text') {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setBusy(true)
+    try {
+      await runSubmit()
+    } finally {
+      submittingRef.current = false
+      setBusy(false)
+    }
+  }
+
+  const runSubmit = async () => {
+    const isFare = kind === 'fare'
+    const fareText = fareAmount.trim()
+    const fareAmt = parseFloat(fareText.replace(',', '.'))
+    if (isFare) {
+      if (!fareFrom.trim() || !fareTo.trim()) {
+        Alert.alert('Missing Route', 'Please enter where you boarded and where you got off')
+        return
+      }
+      if (!fareText) {
+        Alert.alert('Missing Fare', 'Please enter the amount you paid')
+        return
+      }
+      if (!/^\d{1,3}([.,]\d{1,2})?$/.test(fareText) || validateFare(fareAmt) === null) {
+        Alert.alert('Check the Fare', 'Enter the amount you paid as a number, like 5 or 7.50')
+        return
+      }
+    }
+    if (isFare) {
+      // fare form has no media or free-text caption
+    } else if (mediaType === 'text') {
       if (!caption.trim() || caption.trim().length < 3) {
         Alert.alert('Missing Text', 'Please write at least a few words')
         return
@@ -171,7 +232,7 @@ export default function TrotroTalesPostScreen() {
       Alert.alert('Missing Photo', 'Please take or choose a photo')
       return
     }
-    if (!location.trim()) {
+    if (!location.trim() && !(isFare && fareFrom.trim())) {
       Alert.alert('Missing Location', 'Please enter a location')
       return
     }
@@ -180,10 +241,18 @@ export default function TrotroTalesPostScreen() {
       return
     }
 
+    const postType: TalePostType | undefined =
+      kind === 'fare' ? 'fare' : kind === 'question' ? 'question' : kind === 'queue' ? 'queue' : undefined
+    const fareCaption = isFare
+      // Note on its own line: the line break is what parseComposerFare splits on.
+      ? `Paid ₵${fareAmt.toFixed(2).replace(/\.00$/, '')} from ${fareFrom.trim()} to ${fareTo.trim()}${fareNote.trim() ? `\n${fareNote.trim()}` : ''}`.slice(0, 280)
+      : caption
+
     const reward = await submitTale({
       imageUris,
-      caption,
-      location,
+      caption: fareCaption,
+      postType,
+      location: location.trim() || fareFrom.trim(),
       displayName: profile?.display_name ?? null,
       mediaType,
       videoUri: videoUri ?? undefined,
@@ -192,6 +261,21 @@ export default function TrotroTalesPostScreen() {
       onProgress: (p) => setUploadProgress(p),
     })
 
+    let fareFailed = false
+    if (reward && isFare) {
+      // Also feed Troski's fare data. Never let a failure block the post.
+      try {
+        const { errorMsg } = await submitFare(fareFrom.trim(), fareTo.trim(), fareAmt)
+        if (errorMsg) {
+          console.warn('[pulse] fare report failed:', errorMsg)
+          fareFailed = true
+        }
+      } catch (e) {
+        console.warn('[pulse] fare report failed:', e)
+        fareFailed = true
+      }
+    }
+
     if (reward) {
       haptics.success()
       setLastReward(reward)
@@ -199,7 +283,9 @@ export default function TrotroTalesPostScreen() {
       await maybePromptReview()
       Alert.alert(
         'Posted to Pulse! +' + reward.points_awarded + ' pts',
-        'Your post has been shared with the community.',
+        fareFailed
+          ? "Your post went up, but the fare couldn't be added to Troski's fare data."
+          : 'Your post has been shared with the community.',
         [{ text: 'OK', onPress: () => router.back() }]
       )
     } else {
@@ -209,31 +295,94 @@ export default function TrotroTalesPostScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
-      {/* Close button */}
-      <TouchableOpacity onPress={() => { haptics.light(); router.back() }} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.closeBtn}>
-        <X size={20} color={isDark ? '#fafaf9' : '#44403c'} />
-      </TouchableOpacity>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
           {/* Header Card */}
-          <View style={s.headerCard}>
-            <View style={s.headerRow}>
-              <View style={s.headerIcon}>
-                <Camera size={24} color={c.white} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.headerTitle}>Trotro Tales</Text>
-                <Text style={s.headerSub}>Share your trotro experience</Text>
-              </View>
+          <View style={s.newPostHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.newPostTitle}>New post</Text>
+              <Text style={s.newPostSub}>Share what&apos;s happening on your route</Text>
             </View>
+            <TouchableOpacity onPress={() => { haptics.light(); router.back() }} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
+              <X size={20} color={isDark ? '#fafaf9' : '#44403c'} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Type picker */}
+          <View style={s.kindGrid}>
+            {KIND_TILES.map(({ key, label, Icon, bg, fg }) => {
+              const selected = kind === key
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => pickKind(key)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                  style={{
+                    width: '48%',
+                    height: 64,
+                    borderRadius: 18,
+                    backgroundColor: bg,
+                    borderWidth: 2,
+                    borderColor: selected ? fg : bg,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingHorizontal: 12,
+                  }}
+                >
+                  <Icon size={22} color={fg} />
+                  <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, lineHeight: 21, color: fg }}>{label}</Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
 
           {/* Media Section */}
           <View style={s.formCard}>
+            {kind === 'fare' ? (
+              <>
+                <Text style={s.label}>From</Text>
+                <View style={s.inputBox}>
+                  <TextInput value={fareFrom} onChangeText={setFareFrom} placeholder="e.g. Circle" placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
+                </View>
+                <Text style={s.label}>To</Text>
+                <View style={s.inputBox}>
+                  <TextInput value={fareTo} onChangeText={setFareTo} placeholder="e.g. Madina" placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
+                </View>
+                <Text style={s.label}>You paid (GH₵)</Text>
+                <View style={s.inputBox}>
+                  <TextInput
+                    value={fareAmount}
+                    onChangeText={setFareAmount}
+                    placeholder="0.00"
+                    placeholderTextColor={t.textSecondary}
+                    keyboardType="decimal-pad"
+                    style={[s.input, { marginLeft: 0, fontSize: 26, lineHeight: 36, fontFamily: font.bold }]}
+                  />
+                </View>
+                <Text style={s.label}>Note (optional)</Text>
+                <View style={s.captionBox}>
+                  <TextInput
+                    value={fareNote}
+                    onChangeText={(text) => setFareNote(text.slice(0, 140))}
+                    placeholder="Anything other riders should know?"
+                    placeholderTextColor={t.textSecondary}
+                    style={[s.captionInput, { minHeight: 56 }]}
+                    multiline
+                  />
+                </View>
+                <Text style={s.fareHelper}>Your fare also goes into Troski&apos;s fare data, marked Reported. You earn {REPORT_POINTS.fare} coins.</Text>
+              </>
+            ) : (
+            <>
             {/* Mode tabs */}
+            {kind !== 'question' && (
             <View style={s.modeTabs}>
               <TouchableOpacity
                 onPress={switchToImage}
@@ -252,6 +401,7 @@ export default function TrotroTalesPostScreen() {
                 <Text style={[s.modeTabText, mediaType === 'text' && s.modeTabTextActive]}>Text</Text>
               </TouchableOpacity>
             </View>
+            )}
 
             {/* Text-only mode */}
             {mediaType === 'text' ? (
@@ -400,9 +550,12 @@ export default function TrotroTalesPostScreen() {
               <Text style={s.charCount}>{caption.length}/280</Text>
             </View>
 
+            </>
+            )}
+
             {/* Location */}
             <Text style={[s.label, { marginTop: 20 }]}>
-              Location <Text style={s.required}>Required</Text>
+              Location {kind === 'fare' ? <Text style={s.required}>Defaults to From</Text> : <Text style={s.required}>Required</Text>}
             </Text>
             <View style={s.inputBox}>
               <MapPin size={20} color={c.pink500} />
@@ -441,9 +594,9 @@ export default function TrotroTalesPostScreen() {
             {/* Submit */}
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={isSubmitting}
+              disabled={busy || isSubmitting}
               activeOpacity={0.8}
-              style={[s.submitBtn, isSubmitting && s.submitBtnDisabled]}
+              style={[s.submitBtn, (busy || isSubmitting) && s.submitBtnDisabled]}
             >
               <Send size={20} color={c.white} />
               <Text style={s.submitText}>
@@ -467,11 +620,10 @@ const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
+    newPostHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+    newPostTitle: { fontFamily: font.extrabold, fontSize: 26, lineHeight: 36, color: t.text },
+    newPostSub: { fontFamily: font.regular, fontSize: 15, lineHeight: 21, color: isDark ? c.stone300 : c.stone600 },
     closeBtn: {
-      position: 'absolute',
-      top: 48,
-      right: 16,
-      zIndex: 20,
       width: 44,
       height: 44,
       borderRadius: 22,
@@ -611,7 +763,7 @@ const getStyles = (isDark: boolean) => {
       marginBottom: 12,
       backgroundColor: t.cardAlt,
     },
-    input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text },
+    input: { flex: 1, marginLeft: 12, fontSize: 16, color: t.text, fontFamily: font.regular },
     quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
     quickBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
     quickBtnActive: { backgroundColor: c.pink500 },
@@ -654,6 +806,8 @@ const getStyles = (isDark: boolean) => {
     submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },
 
     // Mode tabs (Photo/Video vs Text)
+    kindGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginBottom: 16 },
+    fareHelper: { fontFamily: font.regular, fontSize: 13, lineHeight: 19, color: isDark ? c.stone300 : c.stone600, marginTop: 4 },
     modeTabs: {
       flexDirection: 'row',
       gap: 8,

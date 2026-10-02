@@ -12,7 +12,7 @@ import { Stack, useRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useState, useEffect, useCallback } from 'react'
-import { useColorScheme, Appearance } from 'react-native'
+import { useColorScheme, Appearance, Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { AppProvider, useApp } from '@/lib/contexts/AppContext'
@@ -130,7 +130,11 @@ function AppInner() {
 
   // Force light mode — dark mode disabled until properly tested
   useEffect(() => {
-    Appearance.setColorScheme('light')
+    // Web has no Appearance.setColorScheme (and NativeWind throws on web when
+    // dark mode is 'media'), which crashed the web preview — phones only.
+    if (Platform.OS !== 'web') {
+      Appearance.setColorScheme('light')
+    }
     loadLanguage() // restore saved language (i18n scaffold)
   }, [])
 

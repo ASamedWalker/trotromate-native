@@ -205,10 +205,10 @@ export default function RouteDetailScreen() {
             <View style={s.heroFareRow}>
               <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
               <Text style={s.heroFareLabel}>
-                {/* Label by the number actually shown: crowd average vs official (UX-18) */}
+                {/* Label by the number actually shown: crowd average vs official vs unverified static fare (UX-18) */}
                 {route.fare_stats?.avg_reported_fare != null
                   ? 'reported fare'
-                  : route.is_gprtu_verified ? 'official fare' : 'official fare (unverified)'}
+                  : route.is_gprtu_verified ? 'official fare' : 'unverified fare'}
               </Text>
             </View>
 

@@ -110,7 +110,7 @@ export function Button({
       ) : (
         <>
           {Icon && <Icon size={18} color={p.fg} strokeWidth={2.25} />}
-          <Text style={{ fontFamily: font.semibold, fontSize: size === 'lg' ? 17 : 16, color: p.fg }}>{label}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: font.semibold, fontSize: size === 'lg' ? 17 : 16, color: p.fg }}>{label}</Text>
         </>
       )}
     </Tap>
@@ -289,7 +289,7 @@ export function Badge({ label, tone = 'neutral', icon: Icon }: { label: string; 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: t.bg, alignSelf: 'flex-start' }}>
       {Icon && <Icon size={12} color={t.fg} strokeWidth={2.5} />}
-      <Text style={{ fontFamily: font.semibold, fontSize: 11, color: t.fg }}>{label}</Text>
+      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: t.fg }}>{label}</Text>
     </View>
   )
 }

@@ -276,7 +276,7 @@ export interface IncidentReport {
 
 // === Trotro Tales ===
 
-export type TalePostType = 'trip' | 'queue' | 'tale' | 'text'
+export type TalePostType = 'trip' | 'queue' | 'tale' | 'text' | 'fare' | 'question'
 
 export type TaleMediaType = 'image' | 'video' | 'text'
 

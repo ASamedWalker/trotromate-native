@@ -56,8 +56,10 @@ button ("Post to Pulse"), profile stat, reel badge, notification labels.
 `tale_posts`, `report_type: 'tale'`, notification pref keys (`tale_likes` etc.),
 hooks (`useTalesFeed`), types (`TalePost`), `components/TalesScreen.tsx`,
 `lib/hooks/useTales.ts`, `lib/services/tales.ts`. Renaming those would break the
-live Supabase backend for zero user benefit. Composer header intentionally keeps
-"Trotro Tales" (matches Figma). Don't "fix" the internal tale naming.
+live Supabase backend for zero user benefit. Composer header is "New post"
+(Pulse redesign approved 2026-10-02; mockup https://claude.ai/artifact/189nD6WKVRvFHr1LsYSJxx).
+Don't "fix" the internal tale naming.
+Pulse post kinds come from lib/utils/pulse-extract.ts (copy of trotromate/lib/services/pulse-extract.ts, keep in sync); composer fare captions are "Paid ₵X from A to B" + newline + note.
 
 ## Rewards (4 sub-tabs, June 2026 — game-feel + Transit-style recognition)
 `(tabs)/rewards.tsx` — segmented Coins / Earn / History / Referrals (brand pills).

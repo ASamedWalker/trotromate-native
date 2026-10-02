@@ -214,6 +214,25 @@ export async function deleteTale(postId: string, _deviceId: string): Promise<boo
   return true
 }
 
+/**
+ * Insert a tale post. The 'fare'/'question'/'queue' post_types need a DB
+ * migration that may not be applied yet — on a check-constraint violation
+ * (23514) retry once as 'text'.
+ */
+async function insertTalePost(row: Record<string, unknown> & { post_type: string }) {
+  const attempt = (r: Record<string, unknown>) =>
+    supabase.from('tale_posts').insert(r).select('id').single()
+  const res = await attempt(row)
+  if (
+    res.error?.code === '23514' &&
+    ['fare', 'question', 'queue'].includes(row.post_type)
+  ) {
+    console.warn('[tales] post_type rejected by DB, retried as text:', row.post_type)
+    return attempt({ ...row, post_type: 'text' })
+  }
+  return res
+}
+
 export async function submitTale(params: {
   deviceId: string
   displayName: string | null
@@ -241,24 +260,20 @@ export async function submitTale(params: {
   if (mediaType === 'text') {
     if (!caption || caption.trim().length < 3) return null
     try {
-      const { data, error: insertError } = await supabase
-        .from('tale_posts')
-        .insert({
+      const { data, error: insertError } = await insertTalePost({
           device_id: deviceId,
           display_name: displayName,
           is_anonymous: false,
           image_url: null,
           image_urls: null,
           caption,
-          post_type: 'text',
+          post_type: postType === 'tale' ? 'text' : postType,
           location_name: location,
           media_type: 'text',
           video_url: null,
           video_thumbnail_url: null,
           video_duration_secs: null,
         })
-        .select('id')
-        .single()
 
       if (insertError) {
         console.error('Error posting text tale:', insertError)
@@ -386,9 +401,7 @@ export async function submitTale(params: {
     params.onProgress?.(0.9)
 
     // Insert tale post
-    const { data, error: insertError } = await supabase
-      .from('tale_posts')
-      .insert({
+    const { data, error: insertError } = await insertTalePost({
         device_id: deviceId,
         display_name: displayName,
         is_anonymous: false,
@@ -401,9 +414,7 @@ export async function submitTale(params: {
         video_url: videoUrl,
         video_thumbnail_url: videoThumbnailUrl,
         video_duration_secs: params.videoDurationSecs ?? null,
-      })
-      .select('id')
-      .single()
+    })
 
     if (insertError) {
       console.error('Error posting tale:', insertError)

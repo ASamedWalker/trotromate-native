@@ -270,7 +270,7 @@ export function NearbyLines({
                 {line.fare != null && (
                   <>
                     <Text style={s.fareText}>{formatGHS(line.fare)}</Text>
-                    <Text style={s.fareSourceText}>{line.isVerified ? 'official' : 'official (unverified)'}</Text>
+                    <Text style={s.fareSourceText}>{line.isVerified ? 'Official fare' : 'Unverified fare'}</Text>
                   </>
                 )}
                 <ChevronRight size={18} color={t.textTertiary} />
@@ -535,7 +535,8 @@ const getStyles = (isDark: boolean) => {
       letterSpacing: -0.3,
     },
     fareSourceText: {
-      fontSize: 10,
+      fontSize: 12,
+      lineHeight: 17,
       fontFamily: font.medium,
       color: t.textSecondary,
       marginTop: 1,

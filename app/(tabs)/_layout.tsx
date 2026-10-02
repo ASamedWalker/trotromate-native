@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: font.bold,
     letterSpacing: 0.1,
   },
