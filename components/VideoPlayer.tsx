@@ -8,6 +8,7 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { safePlayer } from '@/lib/utils/safe-player'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Volume2, VolumeX, Play, Pause, Maximize2 } from 'lucide-react-native'
@@ -49,28 +50,26 @@ export default function VideoPlayer({
   // Sync muted state
   useEffect(() => {
     if (!player) return
-    player.muted = isMuted
+    safePlayer(() => { player.muted = isMuted })
   }, [isMuted, player])
 
   // Visibility-based play/pause
   useEffect(() => {
     if (!player) return
-    if (isVisible && !isPaused) {
-      player.play()
-    } else {
-      player.pause()
-    }
+    safePlayer(() => (isVisible && !isPaused ? player.play() : player.pause()))
   }, [isVisible, isPaused, player])
 
   // Track playback progress + remaining time
   useEffect(() => {
     if (!player) return
     const interval = setInterval(() => {
-      if (player.duration > 0) {
-        setDuration(player.duration)
-        setCurrentTime(player.currentTime)
-        setProgress(player.currentTime / player.duration)
-      }
+      safePlayer(() => {
+        if (player.duration > 0) {
+          setDuration(player.duration)
+          setCurrentTime(player.currentTime)
+          setProgress(player.currentTime / player.duration)
+        }
+      })
     }, 250)
     return () => clearInterval(interval)
   }, [player])
@@ -83,11 +82,7 @@ export default function VideoPlayer({
     if (!player) return
     setIsPaused((prev) => {
       const next = !prev
-      if (next) {
-        player.pause()
-      } else {
-        player.play()
-      }
+      safePlayer(() => (next ? player.pause() : player.play()))
       return next
     })
   }, [player])
