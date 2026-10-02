@@ -6,10 +6,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 interface ImageCarouselProps {
   images: string[]
   width: number
+  onIndexChange?: (i: number) => void
 }
 
-export default function ImageCarousel({ images, width }: ImageCarouselProps) {
+export default function ImageCarousel({ images, width, onIndexChange }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
+  const onIndexChangeRef = useRef(onIndexChange)
+  onIndexChangeRef.current = onIndexChange
   const flatListRef = useRef<FlatList>(null)
   const imageHeight = (width * 3) / 4 // 4:3 aspect ratio
 
@@ -17,6 +20,7 @@ export default function ImageCarousel({ images, width }: ImageCarouselProps) {
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index != null) {
         setActiveIndex(viewableItems[0].index)
+        onIndexChangeRef.current?.(viewableItems[0].index)
       }
     },
     []

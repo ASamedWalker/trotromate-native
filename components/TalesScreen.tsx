@@ -45,6 +45,7 @@ import { SkeletonTaleCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
+import ImageViewer from '@/components/ImageViewer'
 import { LEVELS } from '@/lib/constants/rewards'
 import type { TalePost } from '@/lib/types'
 import { pulseKind, extractRoute, extractAmount, parseComposerFare } from '@/lib/utils/pulse-extract'
@@ -71,12 +72,24 @@ function getDisplayName(post: TalePost): string {
 
 // ─── Double-tap like overlay ────────────────────────────
 
-function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; children: React.ReactNode }) {
+function DoubleTapLike({
+  onDoubleTap,
+  onSingleTap,
+  edgeGuard,
+  children,
+}: {
+  onDoubleTap: () => void
+  onSingleTap?: () => void
+  /** Ignore single taps this close (px) to the left/right edge of a `width`-wide media (carousel chevrons). */
+  edgeGuard?: { width: number; inset: number }
+  children: React.ReactNode
+}) {
   const heartScale = useRef(new Animated.Value(0)).current
   const heartOpacity = useRef(new Animated.Value(0)).current
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
+    .runOnJS(true)
     .onEnd(() => {
       onDoubleTap()
       heartScale.setValue(0)
@@ -88,8 +101,22 @@ function DoubleTapLike({ onDoubleTap, children }: { onDoubleTap: () => void; chi
       ]).start()
     })
 
+  // Single tap only when provided; Exclusive waits for the double-tap to fail first.
+  const gesture = onSingleTap
+    ? Gesture.Exclusive(
+        doubleTap,
+        Gesture.Tap()
+          .numberOfTaps(1)
+          .runOnJS(true)
+          .onEnd((e) => {
+            if (edgeGuard && (e.x < edgeGuard.inset || e.x > edgeGuard.width - edgeGuard.inset)) return
+            onSingleTap()
+          }),
+      )
+    : doubleTap
+
   return (
-    <GestureDetector gesture={doubleTap}>
+    <GestureDetector gesture={gesture}>
       <View>
         {children}
         <Animated.View
@@ -161,6 +188,7 @@ const TaleCard = React.memo(function TaleCard({
   onReport,
   onProfilePress,
   onVideoPress,
+  onOpenImages,
 }: {
   post: TalePost
   isDark: boolean
@@ -173,10 +201,12 @@ const TaleCard = React.memo(function TaleCard({
   onReport: () => void
   onProfilePress: () => void
   onVideoPress?: () => void
+  onOpenImages: (post: TalePost, images: string[], index: number) => void
 }) {
   const s = cardStyles()
   const [showMenu, setShowMenu] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  const [imageIndex, setImageIndex] = useState(0)
   const [localLiked, setLocalLiked] = useState(userReactions.includes('❤️'))
   const badge = getContributorBadge(post)
   const displayName = getDisplayName(post)
@@ -216,6 +246,15 @@ const TaleCard = React.memo(function TaleCard({
 
   const totalReactions = Object.values(reactionSummary).reduce((a, b) => a + b, 0)
   const heartCount = reactionSummary['❤️'] ?? (totalReactions > 0 ? totalReactions : 0)
+
+  const photoUrls = useMemo(
+    () => (post.image_url ? (post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url]) : []),
+    [post.image_url, post.image_urls],
+  )
+  const isPhoto = !(post.media_type === 'video' && post.video_url) && photoUrls.length > 0
+  const handleOpenImages = useCallback(() => {
+    onOpenImages(post, photoUrls, imageIndex)
+  }, [onOpenImages, post, photoUrls, imageIndex])
 
   const handleDoubleTapLike = useCallback(() => {
     if (!localLiked) {
@@ -355,7 +394,9 @@ const TaleCard = React.memo(function TaleCard({
 
       {/* ── Media ── */}
       {hasMedia && (
-        <DoubleTapLike onDoubleTap={handleDoubleTapLike}>
+        <DoubleTapLike onDoubleTap={handleDoubleTapLike} onSingleTap={isPhoto ? handleOpenImages : undefined}
+          edgeGuard={photoUrls.length > 1 ? { width: CARD_MEDIA_W, inset: 56 } : undefined}
+        >
           <View style={s.mediaWrap}>
             {post.media_type === 'video' && post.video_url ? (
               <Pressable
@@ -385,8 +426,9 @@ const TaleCard = React.memo(function TaleCard({
               </Pressable>
             ) : post.image_url ? (
               <ImageCarousel
-                images={post.image_urls && post.image_urls.length > 0 ? post.image_urls : [post.image_url!]}
+                images={photoUrls}
                 width={CARD_MEDIA_W}
+                onIndexChange={setImageIndex}
               />
             ) : null}
           </View>
@@ -465,6 +507,14 @@ export function TalesScreen() {
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
   const [filter, setFilter] = useState<PulseFilter>('all')
+  const [viewer, setViewer] = useState<{ images: string[]; index: number; author: string; caption: string } | null>(null)
+  // Stable so TaleCard's memo isn't defeated; takes the post's data from the card.
+  const handleOpenImages = useCallback((post: TalePost, images: string[], index: number) => {
+    const cap = post.caption ?? ''
+    const composed = pulseKind(post) === 'fare' ? parseComposerFare(cap) : null
+    setViewer({ images, index, author: getDisplayName(post), caption: composed ? composed.note : cap })
+  }, [])
+  const closeViewer = useCallback(() => setViewer(null), [])
   const visiblePosts = useMemo(
     () => (filter === 'all' ? posts : posts.filter((p) => pulseKind(p) === filter)),
     [posts, filter],
@@ -519,6 +569,7 @@ export function TalesScreen() {
         onDelete={() => deletePost(item.id)}
         onReport={() => handleReport(item.id)}
         onProfilePress={() => router.push(`/profile/${item.device_id}` as Href)}
+        onOpenImages={handleOpenImages}
         onVideoPress={item.media_type === 'video' && item.video_url ? () => {
           const dn = item.display_name || `User-${item.device_id.slice(-4).toUpperCase()}`
           const summary = reactionSummaries.get(item.id) || {}
@@ -529,7 +580,7 @@ export function TalesScreen() {
         } : undefined}
       />
     )
-  }, [isDark, reactionSummaries, userReactions, deviceId, handleReact, deletePost, handleReport, router])
+  }, [isDark, reactionSummaries, userReactions, deviceId, handleReact, deletePost, handleReport, router, handleOpenImages])
 
   const header = (
     <View>
@@ -676,6 +727,15 @@ export function TalesScreen() {
         postId={commentPostId}
         visible={commentPostId !== null}
         onClose={() => setCommentPostId(null)}
+      />
+
+      <ImageViewer
+        visible={viewer !== null}
+        images={viewer?.images ?? []}
+        initialIndex={viewer?.index ?? 0}
+        onClose={closeViewer}
+        author={viewer?.author}
+        caption={viewer?.caption}
       />
     </SafeAreaView>
   )
