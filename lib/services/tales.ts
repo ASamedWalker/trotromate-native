@@ -138,6 +138,21 @@ export async function fetchTales(params: {
   return { posts, nextCursor }
 }
 
+/**
+ * Likes belong to the signed-in ACCOUNT (migration 085: auth_user_id is set by
+ * a DB trigger, so inserts need no change). Signed in: "mine" = rows owned by
+ * the account on any phone, plus this phone's likes from before sign-in (no
+ * owner yet). Signed out: this phone's likes, as before.
+ */
+async function signedInUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession() // local, no network
+  return data.session?.user.id ?? null
+}
+
+function mineFilter(userId: string, deviceId: string): string {
+  return `auth_user_id.eq.${userId},and(device_id.eq.${deviceId},auth_user_id.is.null)`
+}
+
 export async function addReaction(
   postId: string,
   deviceId: string,
@@ -160,12 +175,9 @@ export async function removeReaction(
   deviceId: string,
   emoji: string
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from('tale_reactions')
-    .delete()
-    .eq('post_id', postId)
-    .eq('device_id', deviceId)
-    .eq('emoji', emoji)
+  const userId = await signedInUserId()
+  const del = supabase.from('tale_reactions').delete().eq('post_id', postId).eq('emoji', emoji)
+  const { error } = await (userId ? del.or(mineFilter(userId, deviceId)) : del.eq('device_id', deviceId))
 
   if (error) {
     console.error('Error removing reaction:', error)
@@ -181,11 +193,9 @@ export async function fetchUserReactions(
   const result = new Map<string, string[]>()
   if (postIds.length === 0) return result
 
-  const { data, error } = await supabase
-    .from('tale_reactions')
-    .select('post_id, emoji')
-    .eq('device_id', deviceId)
-    .in('post_id', postIds)
+  const userId = await signedInUserId()
+  const sel = supabase.from('tale_reactions').select('post_id, emoji').in('post_id', postIds)
+  const { data, error } = await (userId ? sel.or(mineFilter(userId, deviceId)) : sel.eq('device_id', deviceId))
 
   if (error) {
     console.error('Error fetching user reactions:', error)
