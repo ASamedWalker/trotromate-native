@@ -1,6 +1,10 @@
 # Account-owned likes (and posts) — plan
 
-Status: PLANNED (owner approved planning 2026-10-02). Not started.
+Status (2026-10-03):
+- Phase 1 DONE: migration 085 applied in production (dry run passed with a real account). Backfill owned 0 rows: only 1 account was linked, and it had no likes.
+- Phase 2 on the PREVIEW OTA (f59659e; iOS group 94ad3a1e, Android group 709fd4ea), awaiting the owner's device test.
+- Owner decision: signed-out users KEEP liking, commenting and posting (no sign-in gate). The "Sign in to like" sheet below is dropped.
+- The web has no rider sign-in, so it stays device-based.
 Context: migrations 083 (signed-in users can write) and 084 (signed-in
 parity for unlike/delete) are interim fixes. This plan is the real model.
 
