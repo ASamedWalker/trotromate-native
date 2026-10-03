@@ -17,6 +17,7 @@ import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { LEVELS } from '@/lib/constants/rewards'
 import { SpendingSummary } from '@/components/SpendingSummary'
@@ -28,6 +29,10 @@ export default function ProfileScreen() {
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { profile, deviceId } = useApp()
+  // Real sign-in state comes from the Supabase session, not onboarding: an
+  // onboarded phone can have no session (requests then go out signed out).
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthContext()
+  const phoneLabel = user?.phone ? formatPhone(user.phone) : null
   const { unreadCount } = useNotifications(deviceId)
   const insets = useSafeAreaInsets()
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
@@ -76,6 +81,11 @@ export default function ProfileScreen() {
           </View>
           <View style={s.avatarInfo}>
             <Text style={s.avatarName}>{profile?.display_name ?? 'Commuter'}</Text>
+            {!authLoading && (
+              <Text style={s.phoneLine} accessibilityLabel={phoneLabel ? `Signed in as ${phoneLabel}` : 'Not signed in'}>
+                {phoneLabel ?? 'Not signed in'}
+              </Text>
+            )}
             <View style={[s.levelPill, { backgroundColor: `${levelInfo.color}18` }]}>
               <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
               <Text style={[s.levelText, { color: levelInfo.color }]}>{levelInfo.name}</Text>
@@ -159,8 +169,10 @@ export default function ProfileScreen() {
           })}
         </Animated.View>
 
-        {/* Sign Out */}
+        {/* Sign in / Sign out: follows the real session */}
+        {!authLoading && (
         <Animated.View entering={FadeInDown.delay(440).duration(400)} style={{ paddingHorizontal: space.gutter, marginTop: space.md }}>
+          {isAuthenticated ? (
           <Button
             label="Sign Out"
             variant="danger"
@@ -177,13 +189,23 @@ export default function ProfileScreen() {
                     const AsyncStorage = require('@react-native-async-storage/async-storage').default
                     await supabase.auth.signOut()
                     await AsyncStorage.setItem('troski_signed_out', 'true')
-                    router.replace('/auth/phone' as any)
+                    router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as any)
                   },
                 },
               ])
             }}
           />
+          ) : (
+          <Button
+            label="Sign in"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              router.push('/auth/phone' as any)
+            }}
+          />
+          )}
         </Animated.View>
+        )}
 
         {/* App Info */}
         <Animated.View entering={FadeInDown.delay(480).duration(400)} style={s.footer}>
@@ -250,6 +272,7 @@ const getStyles = (isDark: boolean) =>
     },
     avatarInfo: { marginLeft: space.lg, flex: 1 },
     avatarName: { ...type.headline, fontSize: 20, color: isDark ? '#f5f5f4' : ui.text },
+    phoneLine: { fontFamily: font.medium, fontSize: 14, color: ui.textSecondary, marginTop: 2 },
     levelPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -334,3 +357,10 @@ const getStyles = (isDark: boolean) =>
     footerText: { ...type.caption, color: isDark ? '#78716c' : ui.textTertiary, marginTop: 4 },
     footerSub: { ...type.caption, color: isDark ? '#44403c' : ui.textTertiary, marginTop: 2 },
   })
+
+/** +233200000000 -> +233 20 000 0000 (other countries: as stored) */
+function formatPhone(raw: string): string {
+  const p = raw.startsWith('+') ? raw : `+${raw}`
+  const m = p.match(/^\+233(\d{2})(\d{3})(\d{4})$/)
+  return m ? `+233 ${m[1]} ${m[2]} ${m[3]}` : p
+}

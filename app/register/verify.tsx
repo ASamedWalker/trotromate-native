@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { OtpBoxes } from '@/components/OtpBoxes'
 import StepIndicator from '@/components/StepIndicator'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -19,10 +21,12 @@ export default function VerifyOTP() {
   const { phone, email } = useLocalSearchParams<{ phone: string; email?: string }>()
   const { verifyOtp, signInWithPhone } = useAuthContext()
 
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [timer, setTimer] = useState(60)
-  const refs = useRef<(TextInput | null)[]>([])
+  const inputRef = useRef<TextInput>(null)
+  // Set synchronously: iOS autofill can fire onChange twice before a re-render.
+  const verifying = useRef(false)
 
   useEffect(() => {
     if (timer <= 0) return
@@ -32,45 +36,33 @@ export default function VerifyOTP() {
 
   const fullPhone = phone?.startsWith('+') ? phone : `+233${(phone || '').replace(/^0/, '')}`
 
-  const handleChange = async (val: string, idx: number) => {
-    const newOtp = [...otp]
-    newOtp[idx] = val
-    setOtp(newOtp)
-
-    if (val && idx < OTP_LENGTH - 1) {
-      refs.current[idx + 1]?.focus()
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    }
-
-    if (newOtp.every(d => d !== '')) {
-      submitOtp(newOtp.join(''))
-    }
+  const handleChange = (next: string) => {
+    if (verifying.current) return
+    if (next.length > code.length) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setCode(next)
+    if (next.length === OTP_LENGTH) submitOtp(next)
   }
 
-  const submitOtp = async (code: string) => {
-    if (loading || code.length < OTP_LENGTH) return
+  const submitOtp = async (entered: string) => {
+    if (verifying.current || entered.length < OTP_LENGTH) return
+    verifying.current = true
     setLoading(true)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    const { success, error } = await verifyOtp(phone || '', code)
+    const { success, error } = await verifyOtp(phone || '', entered)
     setLoading(false)
+    verifying.current = false
 
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      // Signed in now: clear a flag left by an earlier sign-out, or the next
+      // launch would open the sign-in page again.
+      await AsyncStorage.removeItem('troski_signed_out')
       router.push({ pathname: '/register/profile', params: { phone, email } } as any)
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Invalid Code', error || 'Please try again')
-      setOtp(Array(OTP_LENGTH).fill(''))
-      refs.current[0]?.focus()
-    }
-  }
-
-  const handleKeyPress = (key: string, idx: number) => {
-    if (key === 'Backspace' && !otp[idx] && idx > 0) {
-      refs.current[idx - 1]?.focus()
-      const newOtp = [...otp]
-      newOtp[idx - 1] = ''
-      setOtp(newOtp)
+      setCode('')
+      inputRef.current?.focus()
     }
   }
 
@@ -97,28 +89,13 @@ export default function VerifyOTP() {
       </Animated.View>
 
       {/* OTP Grid */}
-      <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.otpRow}>
-        {otp.map((digit, i) => (
-          <TextInput
-            key={i}
-            ref={r => { refs.current[i] = r }}
-            style={[s.otpCell, digit && s.otpCellFilled]}
-            value={digit}
-            onChangeText={v => handleChange(v.slice(-1), i)}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
-            keyboardType="number-pad"
-            maxLength={1}
-            selectTextOnFocus
-            autoFocus={i === 0}
-            textContentType="oneTimeCode"
-            autoComplete="sms-otp"
-          />
-        ))}
+      <Animated.View entering={FadeInDown.delay(160).duration(350)}>
+        <OtpBoxes ref={inputRef} value={code} onChange={handleChange} length={OTP_LENGTH} autoFocus editable={!loading} />
       </Animated.View>
 
       {/* Resend */}
       <Animated.View entering={FadeInDown.delay(240).duration(350)} style={s.resendRow}>
-        <Text style={s.resendText}>Didn't receive code? </Text>
+        <Text style={s.resendText}>Didn&apos;t receive code? </Text>
         {timer > 0 ? (
           <Text style={s.resendTimer}>
             Resend code in <Text style={{ color: BRAND, fontFamily: font.semibold }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
@@ -135,15 +112,15 @@ export default function VerifyOTP() {
       {/* CTA */}
       <Animated.View entering={FadeInDown.delay(320).duration(400)} style={[s.ctaWrap, { paddingBottom: insets.bottom + 20 }]}>
         <Pressable
-          onPress={() => submitOtp(otp.join(''))}
-          disabled={loading || otp.some(d => !d)}
+          onPress={() => submitOtp(code)}
+          disabled={loading || code.length < OTP_LENGTH}
           style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
         >
           <LinearGradient
-            colors={(loading || otp.some(d => !d)) ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]}
+            colors={(loading || code.length < OTP_LENGTH) ? ['#E0E0E0', '#D0D0D0'] : [BRAND, BRAND]}
             style={s.btn}
           >
-            <Text style={[s.btnText, (loading || otp.some(d => !d)) && { color: '#999' }]}>
+            <Text style={[s.btnText, (loading || code.length < OTP_LENGTH) && { color: '#999' }]}>
               {loading ? 'Verifying...' : 'Verify'}
             </Text>
           </LinearGradient>
@@ -164,9 +141,6 @@ const s = StyleSheet.create({
   subtitle: { fontSize: 15, fontFamily: font.regular, color: '#888', marginTop: 10, lineHeight: 22 },
   changeLink: { fontSize: 14, fontFamily: font.semibold, color: BRAND, marginTop: 8 },
 
-  otpRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 32 },
-  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontFamily: font.bold, color: '#0A0A0A' },
-  otpCellFilled: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
 
   resendRow: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 13, color: '#888' },

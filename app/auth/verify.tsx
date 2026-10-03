@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { OtpBoxes } from '@/components/OtpBoxes'
 import { useApp } from '@/lib/contexts/AppContext'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -21,11 +22,14 @@ export default function VerifyOtpScreen() {
   const { verifyOtp, linkToDevice, signInWithPhone } = useAuthContext()
   const { deviceId } = useApp()
 
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [timer, setTimer] = useState(60)
   const [resending, setResending] = useState(false)
-  const refs = useRef<(TextInput | null)[]>([])
+  const inputRef = useRef<TextInput>(null)
+  // Set synchronously: iOS autofill can fire onChange twice before a re-render,
+  // and a second verify of a used code would show a false "Invalid Code".
+  const verifying = useRef(false)
 
   useEffect(() => {
     if (timer <= 0) return
@@ -35,21 +39,19 @@ export default function VerifyOtpScreen() {
 
   const fullPhone = phone?.startsWith('+') ? phone : `+233${(phone || '').replace(/^0/, '')}`
 
-  const handleChange = async (val: string, idx: number) => {
-    const newOtp = [...otp]
-    newOtp[idx] = val
-    setOtp(newOtp)
+  const handleChange = async (next: string) => {
+    if (verifying.current) return
+    if (next.length > code.length) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setCode(next)
+    const complete = next.length === OTP_LENGTH
 
-    if (val && idx < OTP_LENGTH - 1) {
-      refs.current[idx + 1]?.focus()
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    }
-
-    if (newOtp.every(d => d !== '')) {
+    if (complete && !verifying.current) {
+      verifying.current = true
       setLoading(true)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const { success, error } = await verifyOtp(phone || '', newOtp.join(''))
+      const { success, error } = await verifyOtp(phone || '', next)
       setLoading(false)
+      verifying.current = false
 
       if (success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -61,18 +63,9 @@ export default function VerifyOtpScreen() {
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         Alert.alert('Invalid Code', error || 'Please try again')
-        setOtp(Array(OTP_LENGTH).fill(''))
-        refs.current[0]?.focus()
+        setCode('')
+        inputRef.current?.focus()
       }
-    }
-  }
-
-  const handleKeyPress = (key: string, idx: number) => {
-    if (key === 'Backspace' && !otp[idx] && idx > 0) {
-      refs.current[idx - 1]?.focus()
-      const newOtp = [...otp]
-      newOtp[idx - 1] = ''
-      setOtp(newOtp)
     }
   }
 
@@ -98,28 +91,13 @@ export default function VerifyOtpScreen() {
       </Animated.View>
 
       {/* OTP Grid */}
-      <Animated.View entering={FadeInDown.delay(160).duration(350)} style={s.otpRow}>
-        {otp.map((digit, i) => (
-          <TextInput
-            key={i}
-            ref={r => { refs.current[i] = r }}
-            style={[s.otpCell, digit && s.otpCellFilled]}
-            value={digit}
-            onChangeText={v => handleChange(v.slice(-1), i)}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
-            keyboardType="number-pad"
-            maxLength={1}
-            selectTextOnFocus
-            autoFocus={i === 0}
-            textContentType="oneTimeCode"
-            autoComplete="sms-otp"
-          />
-        ))}
+      <Animated.View entering={FadeInDown.delay(160).duration(350)}>
+        <OtpBoxes ref={inputRef} value={code} onChange={handleChange} length={OTP_LENGTH} autoFocus editable={!loading} />
       </Animated.View>
 
       {/* Resend */}
       <Animated.View entering={FadeInDown.delay(240).duration(350)} style={s.resendRow}>
-        <Text style={s.resendText}>Didn't receive code? </Text>
+        <Text style={s.resendText}>Didn&apos;t receive code? </Text>
         {timer > 0 ? (
           <Text style={s.resendTimer}>
             Resend code in <Text style={{ color: BRAND, fontFamily: font.semibold }}>{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</Text>
@@ -166,9 +144,6 @@ const s = StyleSheet.create({
   subtitle: { fontSize: 15, fontFamily: font.regular, color: '#888', marginTop: 10, lineHeight: 22 },
   changeLink: { fontSize: 14, fontFamily: font.semibold, color: BRAND, marginTop: 8 },
 
-  otpRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginTop: 32 },
-  otpCell: { flex: 1, height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', textAlign: 'center', fontSize: 24, fontFamily: font.bold, color: '#0A0A0A' },
-  otpCellFilled: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
 
   resendRow: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 13, color: '#888' },

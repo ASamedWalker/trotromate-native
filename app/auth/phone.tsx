@@ -1,13 +1,14 @@
-import { useState } from 'react'
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView, Image } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView, Image, Keyboard, BackHandler } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const BRAND = '#FF4D1C'
 
@@ -15,6 +16,25 @@ export default function PhoneAuthScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { signInWithPhone } = useAuthContext()
+  // Arrived by signing out: no back arrow or swipe back into the app (it
+  // looked like you were still signed in). Guest use stays one tap away.
+  const { from } = useLocalSearchParams<{ from?: string }>()
+  const afterSignOut = from === 'signout'
+  // With the number pad open, the picture + footer pushed "Log In" under the
+  // keyboard (hidden on phones). Drop them while typing.
+  const [kbOpen, setKbOpen] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbOpen(true))
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbOpen(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
+  // Android hardware back after sign-out = the explicit guest choice, not a
+  // silent pop back into a screen that looked signed in.
+  useEffect(() => {
+    if (!afterSignOut) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { handleGuest(); return true })
+    return () => sub.remove()
+  })
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -38,6 +58,14 @@ export default function PhoneAuthScreen() {
     }
   }
 
+  // Guest by choice: clear the signed-out flag so the next launch doesn't
+  // open sign-in again. Likes and posts still work signed out (by phone).
+  const handleGuest = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    await AsyncStorage.removeItem('troski_signed_out')
+    router.replace('/(tabs)' as any)
+  }
+
   const handleCreateAccount = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     router.replace('/register/phone' as any)
@@ -50,8 +78,10 @@ export default function PhoneAuthScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
 
+          <Stack.Screen options={{ gestureEnabled: !afterSignOut }} />
           {/* Back — screen is replace-mounted from onboarding, so history can be
               empty; fall back to guest home instead of trapping the user here */}
+          {!afterSignOut && (
           <Pressable
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
             hitSlop={12}
@@ -61,14 +91,17 @@ export default function PhoneAuthScreen() {
           >
             <ArrowLeft size={20} color="#0A0A0A" />
           </Pressable>
+          )}
 
           {/* Logo + Brand */}
-          <Animated.View entering={FadeInDown.duration(300)} style={s.brandWrap}>
+          <Animated.View entering={FadeInDown.duration(300)} style={[s.brandWrap, kbOpen && { paddingTop: 8 }]}>
+            {!kbOpen && (
             <Image
               source={require('@/assets/images/onboarding/ob_busstop_redskies_image.png')}
               style={s.heroImage}
               resizeMode="contain"
             />
+            )}
             <Text style={s.brandName}>Troski</Text>
             <Text style={s.brandSub}>Ghana&apos;s Mobility Companion</Text>
           </Animated.View>
@@ -112,13 +145,24 @@ export default function PhoneAuthScreen() {
           <View style={{ flex: 1 }} />
         </ScrollView>
 
-        {/* Footer — Create Account link */}
-        <Animated.View entering={FadeInDown.delay(260).duration(400)} style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+        {/* Footer — Create Account link (hidden while typing, see kbOpen) */}
+        {!kbOpen && <Animated.View entering={FadeInDown.delay(260).duration(400)} style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
           <Text style={s.footerText}>
             Don&apos;t have an account?{' '}
             <Text style={s.footerLink} onPress={handleCreateAccount}>Sign Up</Text>
           </Text>
-        </Animated.View>
+          {afterSignOut && (
+            <Pressable
+              onPress={handleGuest}
+              style={s.guestBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Continue without signing in"
+            >
+              <Text style={s.guestText}>Continue without signing in</Text>
+            </Pressable>
+          )}
+        </Animated.View>}
       </KeyboardAvoidingView>
     </View>
   )
@@ -153,4 +197,6 @@ const s = StyleSheet.create({
   footer: { paddingHorizontal: 24, paddingTop: 8 },
   footerText: { textAlign: 'center', fontSize: 14, color: '#888' },
   footerLink: { color: BRAND, fontFamily: font.semibold },
+  guestBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, marginTop: 4 },
+  guestText: { fontSize: 15, color: '#57534E', fontFamily: font.semibold, textDecorationLine: 'underline' },
 })

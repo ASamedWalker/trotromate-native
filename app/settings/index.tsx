@@ -30,6 +30,7 @@ import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { LEVELS } from '@/lib/constants/rewards'
 import InitialsAvatar from '@/components/InitialsAvatar'
@@ -69,6 +70,8 @@ export default function SettingsScreen() {
     )
   }
 
+  const { isAuthenticated } = useAuthContext()
+
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -78,7 +81,7 @@ export default function SettingsScreen() {
         onPress: async () => {
           await supabase.auth.signOut()
           await AsyncStorage.setItem('troski_signed_out', 'true')
-          router.replace('/auth/phone' as Href)
+          router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
         },
       },
     ])
@@ -284,12 +287,12 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Sign Out */}
-        <View style={s.section}>
+        {/* Sign Out (only with a real session) */}
+        {isAuthenticated && <View style={s.section}>
           <TouchableOpacity onPress={handleSignOut} activeOpacity={0.8} style={s.signOutBtn}>
             <Text style={s.signOutLabel}>Sign Out</Text>
           </TouchableOpacity>
-        </View>
+        </View>}
 
         {/* Footer */}
         <View style={s.footer}>
