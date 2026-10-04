@@ -15,6 +15,7 @@ const ACCOUNT_KEYS = [
   'user-commutes',
   'troski-route-alerts',
   'troski-search-history',
+  '@troski_card_theme_v1',
 ]
 
 /**

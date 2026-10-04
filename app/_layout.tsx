@@ -230,6 +230,7 @@ function AppInner() {
         <Stack.Screen name="wallet/transaction-detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="wallet/ticket" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="wallet/tickets" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="wallet/card" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen
           name="reel"
           options={{

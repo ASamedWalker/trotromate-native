@@ -11,6 +11,7 @@ import { hasWalletPin } from '@/lib/services/walletPin'
 import { font, themed, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Button, Badge, SectionHeader } from '@/components/ui'
 import { WalletCard } from '@/components/WalletCard'
+import { useWalletCardTheme } from '@/lib/hooks/useWalletCardTheme'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
@@ -56,6 +57,7 @@ function groupByDay(txs: any[]): { key: string; label: string; items: any[] }[] 
 }
 
 export default function WalletScreen() {
+  const { theme: cardTheme } = useWalletCardTheme()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const { t: tr } = useLanguage()
@@ -305,6 +307,8 @@ export default function WalletScreen() {
         ) : (
           <Animated.View entering={FadeInDown.duration(400)} style={[s.section, { gap: space.sm }]}>
             <WalletCard
+              theme={cardTheme}
+              onPressCard={() => router.push('/wallet/card' as Href)}
               label={tr('wallet.balance')}
               balanceText={balanceText}
               balanceVisible={balanceVisible}

@@ -13,11 +13,30 @@ import { adinkraPatternXml, guillocheXml, landmarkSceneXml, type LandmarkScene }
  */
 export type WalletCardTheme = 'orange' | 'black' | 'green' | 'gold'
 
-const THEMES: Record<WalletCardTheme, { from: string; to: string; tier: string; scene: LandmarkScene; ink: string; line: string }> = {
-  orange: { from: '#FF5A24', to: '#D9400F', tier: 'Wallet', scene: 'gate', ink: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
-  black: { from: '#2A2522', to: '#141110', tier: 'Wallet', scene: 'lighthouse', ink: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
-  green: { from: '#1E8A4C', to: '#0F6634', tier: 'Wallet', scene: 'trotro', ink: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
-  gold: { from: '#E0B04A', to: '#B8862A', tier: 'Wallet', scene: 'star', ink: '#1C1917', line: 'rgba(28,25,23,0.30)' },
+// One card per Rewards tier (see lib/hooks/useWalletCardTheme.ts).
+export const CARD_THEMES: Record<WalletCardTheme, { from: string; to: string; tier: string; scene: LandmarkScene; ink: string; pin: string; line: string }> = {
+  orange: { from: '#FF5A24', to: '#D9400F', tier: 'Passenger', scene: 'gate', ink: '#FFFFFF', pin: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
+  green: { from: '#1E8A4C', to: '#0F6634', tier: 'Regular', scene: 'trotro', ink: '#FFFFFF', pin: '#F5A300', line: 'rgba(255,255,255,0.30)' },
+  black: { from: '#2A2522', to: '#141110', tier: 'Local Expert', scene: 'lighthouse', ink: '#FFFFFF', pin: '#F5A300', line: 'rgba(255,255,255,0.30)' },
+  gold: { from: '#E0B04A', to: '#B8862A', tier: 'Troski Legend', scene: 'star', ink: '#1C1917', pin: '#1C1917', line: 'rgba(28,25,23,0.30)' },
+}
+const THEMES = CARD_THEMES
+
+// troski.me wordmark: "tr" + map pin as the "o" + "ski"
+const PIN_PATH = 'M12 0C5.4 0 0 5.3 0 11.9 0 20.4 12 32 12 32s12-11.6 12-20.1C24 5.3 18.6 0 12 0zm0 6.6a5.3 5.3 0 1 1 0 10.6 5.3 5.3 0 0 1 0-10.6z'
+export function Wordmark({ size, ink, pin }: { size: number; ink: string; pin: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} accessibilityLabel="Troski">
+      <Text style={[s.wordmark, { fontSize: size, color: ink }]}>tr</Text>
+      <SvgXml
+        xml={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32"><path fill-rule="evenodd" fill="${pin}" d="${PIN_PATH}"/></svg>`}
+        width={size * 0.56}
+        height={size * 0.75}
+        style={{ marginHorizontal: 1, marginBottom: size * 0.2 }}
+      />
+      <Text style={[s.wordmark, { fontSize: size, color: ink }]}>ski</Text>
+    </View>
+  )
 }
 
 const ASPECT = 1.586 // ID-1 card ratio
@@ -47,6 +66,8 @@ export function WalletCard({
   onToggleBalance,
   footnote,
   theme = 'orange',
+  onPressCard,
+  compact = false,
 }: {
   balanceText: string
   label?: string
@@ -55,6 +76,10 @@ export function WalletCard({
   /** Small line under the balance, e.g. a stale-balance notice. */
   footnote?: string
   theme?: WalletCardTheme
+  /** Tap on the card body (not the eye) — opens "Your card". */
+  onPressCard?: () => void
+  /** Picker thumbnails: no balance row, no eye. */
+  compact?: boolean
 }) {
   const t = THEMES[theme]
   const [w, setW] = useState(0)
@@ -76,29 +101,36 @@ export function WalletCard({
       onLayout={onLayout}
       style={[s.card, { height: h || undefined, aspectRatio: w ? undefined : ASPECT, borderRadius: 16 * (fs || 1) }]}
     >
+      {art && onPressCard && (
+        <Pressable
+          onPress={onPressCard}
+          style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.tier} card. Change card`}
+        />
+      )}
       {art && (
         <>
           <LinearGradient
+            pointerEvents="none"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             colors={[t.from, t.to]} start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }} style={{ width: lw, height: h }}>
             <SvgXml xml={art.scene} width={lw} height={h} style={StyleSheet.absoluteFill} />
-            <View style={[s.brandRow, { left: 14 * fs, top: 12 * fs, gap: 5 * fs }]}>
-              <View style={[s.dotOuter, { width: 16 * fs, height: 16 * fs, borderRadius: 8 * fs, backgroundColor: t.ink }]}>
-                <View style={{ width: 7 * fs, height: 7 * fs, borderRadius: 3.5 * fs, backgroundColor: t.from }} />
-              </View>
-              <Text style={[s.wordmark, { fontSize: 19 * fs, color: t.ink }]}>troski</Text>
+            <View style={[s.brandRow, { left: 14 * fs, top: 10 * fs }]}>
+              <Wordmark size={20 * fs} ink={t.ink} pin={t.pin} />
             </View>
             <Text style={[s.tagline, { left: 14 * fs, bottom: 9 * fs, fontSize: 11 * fs, color: t.ink }]}>Ride Ghana&apos;s trotros</Text>
           </LinearGradient>
 
-          <View style={{ width: rw, height: h }}>
-            <View style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={{ width: rw, height: h }} pointerEvents="box-none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <SvgXml xml={art.pattern} width={rw} height={h} style={StyleSheet.absoluteFill} />
               <SvgXml xml={art.guilloche} width={rw} height={h} style={StyleSheet.absoluteFill} />
             </View>
-            <Text accessibilityElementsHidden importantForAccessibility="no" style={[s.tier, { right: 14 * fs, top: 12 * fs, fontSize: 14 * fs }]}>{t.tier}</Text>
-            <View style={{ position: 'absolute', left: 16 * fs, right: 10 * fs, bottom: (footnote ? 10 : 18) * fs }}>
+            <Text pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no" style={[s.tier, { right: 14 * fs, top: 12 * fs, fontSize: 14 * fs }]}>{t.tier}</Text>
+            {!compact && (
+            <View pointerEvents="box-none" style={{ position: 'absolute', left: 16 * fs, right: 10 * fs, bottom: (footnote ? 10 : 18) * fs }}>
               <Text style={[s.label, { fontSize: 12 * fs }]} accessibilityElementsHidden importantForAccessibility="no">{label}</Text>
               <View style={[s.balanceRow, { gap: 8 * fs }]}>
                 <Text
@@ -125,6 +157,7 @@ export function WalletCard({
                 </Text>
               ) : null}
             </View>
+            )}
           </View>
         </>
       )}
@@ -145,7 +178,6 @@ const s = StyleSheet.create({
     elevation: 6,
   },
   brandRow: { position: 'absolute', flexDirection: 'row', alignItems: 'center' },
-  dotOuter: { alignItems: 'center', justifyContent: 'center' },
   wordmark: { fontFamily: font.extrabold, letterSpacing: -0.3 },
   tagline: { position: 'absolute', fontFamily: font.bold, opacity: 0.95 },
   tier: { position: 'absolute', fontFamily: font.bold, color: '#1C1917' },

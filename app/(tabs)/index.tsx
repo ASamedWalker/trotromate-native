@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { WalletCard } from '@/components/WalletCard'
+import { useWalletCardTheme } from '@/lib/hooks/useWalletCardTheme'
 import { Card, SectionHeader, Badge, Tap } from '@/components/ui'
 import { useLanguage } from '@/lib/i18n'
 import { formatGHS } from '@/lib/utils/currency'
@@ -75,6 +76,7 @@ const QUICK_ACTIONS = [
 /* ── Component ── */
 
 export default function HomeScreen() {
+  const { theme: cardTheme } = useWalletCardTheme()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t } = useLanguage()
@@ -232,6 +234,8 @@ export default function HomeScreen() {
         {/* ── Wallet card — split Ghana transit-card design, actions underneath ── */}
         <View style={{ paddingHorizontal: space.gutter, marginBottom: space.gutter, gap: space.md }}>
           <WalletCard
+            theme={cardTheme}
+            onPressCard={() => router.push('/wallet/card' as Href)}
             label={t('home.walletBalance')}
             balanceText={formattedBalance}
             balanceVisible={balanceVisible}
