@@ -15,7 +15,7 @@ export type WalletCardTheme = 'orange' | 'black' | 'green' | 'gold'
 
 // One card per Rewards tier (see lib/hooks/useWalletCardTheme.ts).
 export const CARD_THEMES: Record<WalletCardTheme, { from: string; to: string; tier: string; scene: LandmarkScene; ink: string; pin: string; line: string }> = {
-  orange: { from: '#FF5A24', to: '#D9400F', tier: 'Passenger', scene: 'gate', ink: '#FFFFFF', pin: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
+  orange: { from: '#FF5A24', to: '#D9400F', tier: 'Passenger', scene: 'gateOnly', ink: '#FFFFFF', pin: '#FFFFFF', line: 'rgba(255,255,255,0.30)' },
   green: { from: '#1E8A4C', to: '#0F6634', tier: 'Regular', scene: 'trotro', ink: '#FFFFFF', pin: '#F5A300', line: 'rgba(255,255,255,0.30)' },
   black: { from: '#2A2522', to: '#141110', tier: 'Local Expert', scene: 'lighthouse', ink: '#FFFFFF', pin: '#F5A300', line: 'rgba(255,255,255,0.30)' },
   gold: { from: '#E0B04A', to: '#B8862A', tier: 'Troski Legend', scene: 'star', ink: '#1C1917', pin: '#1C1917', line: 'rgba(28,25,23,0.30)' },
