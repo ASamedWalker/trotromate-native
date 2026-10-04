@@ -80,7 +80,8 @@ function OnboardingRedirect({ action, onDone }: { action: 'register' | 'login' |
   const router = useRouter()
   useEffect(() => {
     if (!action) return
-    const route = action === 'register' ? '/register/phone' : '/auth/phone'
+    // One sign-in for new and returning users (3-screen sign-up, 2026-10-03)
+    const route = '/auth/phone'
     // Defer one tick so the root navigator is mounted before navigating
     // (replacing too early leaves a blank screen). replace, not push, so home
     // isn't left underneath. The full-screen (non-modal) auth screen covers
@@ -176,7 +177,6 @@ function AppInner() {
       <OfflineBanner />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="routes/search" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="routes/detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="routes/pick-location" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
@@ -213,6 +213,7 @@ function AppInner() {
             login" bug). slide_from_bottom keeps the upward feel. */}
         <Stack.Screen name="auth/phone" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="auth/verify" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth/name" options={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: false }} />
         <Stack.Screen name="booking/checkout" options={{ headerShown: false }} />
         <Stack.Screen name="booking/processing" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="booking/receipt" options={{ headerShown: false, gestureEnabled: false }} />

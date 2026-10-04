@@ -3,7 +3,6 @@ import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { OtpBoxes } from '@/components/OtpBoxes'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -11,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import { supabase } from '@/lib/supabase/client'
+import { ownProfiles, type NameRow } from '@/lib/services/profileName'
 
 const BRAND = '#FF4D1C'
 const OTP_LENGTH = 6
@@ -58,8 +59,9 @@ export default function VerifyOtpScreen() {
         if (deviceId) await linkToDevice(deviceId)
         // Clear signed-out flag
         await AsyncStorage.removeItem('troski_signed_out')
-        // Go to home — replace stack so back button doesn't return to auth
-        router.replace('/(tabs)' as any)
+        // New accounts pick a name (one screen); returning ones go home.
+        // replace, so Back doesn't return to the code screen.
+        router.replace((await needsName(deviceId)) ? '/auth/name' : '/(tabs)' as any)
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         Alert.alert('Invalid Code', error || 'Please try again')
@@ -153,3 +155,31 @@ const s = StyleSheet.create({
   loadingWrap: { alignItems: 'center', paddingBottom: 40 },
   loadingText: { fontSize: 15, fontFamily: font.semibold, color: BRAND },
 })
+
+const DEFAULT_NAME = /^Troski Fan #/
+/**
+ * After sign-in: does this person still need to pick a name?
+ * A real name = a display name that isn't the auto-made "Troski Fan #XXXX"
+ * (lib/services/rewards.ts), or a first name. Old sign-ups saved first_name
+ * but never display_name, so they showed as "Troski Fan #…": when a real name
+ * exists, copy it into their own display names still on the default.
+ * Errors never block sign-in.
+ */
+async function needsName(deviceId: string | null): Promise<boolean> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const rows = await ownProfiles(session?.user.id, deviceId)
+    if (!rows.length) return true
+    const real = (r: NameRow) =>
+      (r.display_name && !DEFAULT_NAME.test(r.display_name) ? r.display_name : null) || r.first_name || null
+    const name = rows.map(real).find(Boolean)
+    if (!name) return true
+    const stale = rows.filter((r) => !r.display_name || DEFAULT_NAME.test(r.display_name)).map((r) => r.id)
+    if (stale.length) {
+      await supabase.from('contributor_profiles').update({ display_name: name }).in('id', stale)
+    }
+    return false
+  } catch {
+    return false
+  }
+}

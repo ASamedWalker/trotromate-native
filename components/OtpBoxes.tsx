@@ -5,7 +5,7 @@ import { font } from '@/lib/theme'
 const BRAND = '#FF4D1C'
 
 /**
- * Six code boxes backed by ONE hidden input (auth/verify, register/verify).
+ * Six code boxes backed by ONE hidden input (auth/verify).
  *
  * The old six separate TextInputs moved focus box to box: fast typing landed
  * keys in a box before focus moved and digits were lost, and iOS SMS autofill

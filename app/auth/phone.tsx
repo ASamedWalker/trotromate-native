@@ -1,202 +1,168 @@
-import { useEffect, useState } from 'react'
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView, Image, Keyboard, BackHandler } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView, Keyboard, BackHandler } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import { ArrowLeft } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { HeroText } from '@/components/HeroText'
+import { Tap } from '@/components/ui'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const BRAND = '#FF4D1C'
+const INK = '#1C1917'
+const INK2 = '#44403C' // 9:1 on paper (the old #888 / #9A9A9A failed contrast)
+const PAPER = '#FAF6F2'
 
+/**
+ * One sign-in for everyone (owner-approved 3-screen sign-up, 2026-10-03):
+ * phone → code (auth/verify) → name, only for new accounts (auth/name).
+ * The same SMS code signs in an existing account or creates a new one, so
+ * there is no separate "Sign Up" path any more. Guests can skip.
+ */
 export default function PhoneAuthScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { signInWithPhone } = useAuthContext()
-  // Arrived by signing out: no back arrow or swipe back into the app (it
-  // looked like you were still signed in). Guest use stays one tap away.
+  // Arrived by signing out: no swipe back into the app (it looked like you
+  // were still signed in). "Skip for now" is the explicit guest choice.
   const { from } = useLocalSearchParams<{ from?: string }>()
   const afterSignOut = from === 'signout'
-  // With the number pad open, the picture + footer pushed "Log In" under the
-  // keyboard (hidden on phones). Drop them while typing.
+  const inputRef = useRef<TextInput>(null)
+
+  // While the number pad is open the intro copy hides so the field and the
+  // button stay above the keyboard on small phones.
   const [kbOpen, setKbOpen] = useState(false)
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbOpen(true))
     const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbOpen(false))
     return () => { show.remove(); hide.remove() }
   }, [])
-  // Android hardware back after sign-out = the explicit guest choice, not a
-  // silent pop back into a screen that looked signed in.
+  // Android hardware back after sign-out = skip (guest), not a silent pop
+  // back into a screen that looked signed in.
   useEffect(() => {
     if (!afterSignOut) return
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { handleGuest(); return true })
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { handleSkip(); return true })
     return () => sub.remove()
   })
+
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
+  const canContinue = phone.replace(/\D/g, '').length >= 9
 
   const handleSend = async () => {
-    if (phone.length < 9) {
-      Alert.alert('Invalid Number', 'Enter a valid Ghana phone number')
-      return
-    }
+    if (!canContinue || loading) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setLoading(true)
-
     const { success, error } = await signInWithPhone(phone)
     setLoading(false)
-
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.push({ pathname: '/auth/verify', params: { phone } } as any)
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      Alert.alert('Error', error || 'Failed to send OTP')
+      Alert.alert('Could not send the code', error || 'Please try again')
     }
   }
 
   // Guest by choice: clear the signed-out flag so the next launch doesn't
   // open sign-in again. Likes and posts still work signed out (by phone).
-  const handleGuest = async () => {
+  const handleSkip = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await AsyncStorage.removeItem('troski_signed_out')
     router.replace('/(tabs)' as any)
   }
 
-  const handleCreateAccount = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    router.replace('/register/phone' as any)
-  }
-
-  const canContinue = phone.length >= 9
-
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
+      <Stack.Screen options={{ gestureEnabled: !afterSignOut }} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={s.topBar}>
+            <Text style={s.wordmark} accessibilityRole="header" accessibilityLabel="Troski">
+              tr<Text style={{ color: '#F5A300' }}>o</Text>ski
+            </Text>
+            <Tap onPress={handleSkip} hitSlop={8} style={s.skip} accessibilityRole="button">
+              <Text style={s.skipText}>Skip for now</Text>
+            </Tap>
+          </View>
 
-          <Stack.Screen options={{ gestureEnabled: !afterSignOut }} />
-          {/* Back — screen is replace-mounted from onboarding, so history can be
-              empty; fall back to guest home instead of trapping the user here */}
-          {!afterSignOut && (
-          <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
-            hitSlop={12}
-            style={s.backBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeft size={20} color="#0A0A0A" />
-          </Pressable>
-          )}
-
-          {/* Logo + Brand */}
-          <Animated.View entering={FadeInDown.duration(300)} style={[s.brandWrap, kbOpen && { paddingTop: 8 }]}>
-            {!kbOpen && (
-            <Image
-              source={require('@/assets/images/onboarding/ob_busstop_redskies_image.png')}
-              style={s.heroImage}
-              resizeMode="contain"
-            />
-            )}
-            <Text style={s.brandName}>Troski</Text>
-            <Text style={s.brandSub}>Ghana&apos;s Mobility Companion</Text>
+          {/* Title always visible (the field autofocuses, so the keypad is
+              usually open); only the longer line hides while typing. */}
+          <Animated.View entering={FadeInDown.duration(300)} style={[s.intro, kbOpen && { marginTop: 16 }]}>
+            <HeroText size={kbOpen ? 28 : 34} style={{ color: INK, letterSpacing: -0.6 }}>Sign in with your phone</HeroText>
+            {!kbOpen && <Text style={s.lede}>Save your routes, keep your likes on every phone, and pay with your wallet.</Text>}
           </Animated.View>
 
-          {/* Phone input */}
-          <Animated.View entering={FadeInDown.delay(100).duration(350)} style={s.fields}>
-            <Text style={s.label}>Phone Number</Text>
-            <View style={[s.inputWrap, phone.length > 0 && s.inputWrapActive]}>
+          <Animated.View entering={FadeInDown.delay(80).duration(320)} style={s.fields}>
+            <Text style={s.label}>Phone number</Text>
+            {/* The whole box (incl. +233) opens the keypad */}
+            {/* Plain Pressable, no press state: re-rendering this row on press-in
+                cancelled the input's focus on iOS (as in Troski Pro). One plain
+                style object (NativeWind drops array/function styles). */}
+            <Pressable onPress={() => inputRef.current?.focus()} accessible={false} style={StyleSheet.flatten([s.field, phone.length > 0 && s.fieldActive])}>
               <Text style={s.prefix}>+233</Text>
+              <View style={s.divider} />
               <TextInput
+                ref={inputRef}
                 style={s.input}
-                placeholder="XX XXX XXXX"
-                placeholderTextColor="#C4C4C4"
+                placeholder="24 123 4567"
+                placeholderTextColor="#8A817A"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(v) => setPhone(v.replace(/[^\d ]/g, ''))}
                 keyboardType="phone-pad"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
+                maxLength={13}
                 autoFocus
+                accessibilityLabel="Phone number"
+                returnKeyType="done"
+                onSubmitEditing={handleSend}
               />
-            </View>
+            </Pressable>
           </Animated.View>
 
-          {/* Login CTA */}
-          <Animated.View entering={FadeInDown.delay(180).duration(350)} style={s.ctaSection}>
-            <Pressable
+          <Animated.View entering={FadeInDown.delay(140).duration(320)} style={s.cta}>
+            <Tap
               onPress={handleSend}
-              disabled={loading || !canContinue}
-              style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}
-            >
-              <LinearGradient
-                colors={canContinue ? [BRAND, BRAND] : ['#E0E0E0', '#D0D0D0']}
-                style={s.btn}
-              >
-                <Text style={[s.btnText, !canContinue && { color: '#999' }]}>
-                  {loading ? 'Sending code...' : 'Log In'}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-            <Text style={s.helperText}>We&apos;ll text you a 6-digit code to verify your number.</Text>
-          </Animated.View>
-
-          <View style={{ flex: 1 }} />
-        </ScrollView>
-
-        {/* Footer — Create Account link (hidden while typing, see kbOpen) */}
-        {!kbOpen && <Animated.View entering={FadeInDown.delay(260).duration(400)} style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <Text style={s.footerText}>
-            Don&apos;t have an account?{' '}
-            <Text style={s.footerLink} onPress={handleCreateAccount}>Sign Up</Text>
-          </Text>
-          {afterSignOut && (
-            <Pressable
-              onPress={handleGuest}
-              style={s.guestBtn}
-              hitSlop={8}
+              disabled={!canContinue || loading}
               accessibilityRole="button"
-              accessibilityLabel="Continue without signing in"
+              accessibilityState={{ disabled: !canContinue || loading }}
+              style={StyleSheet.flatten([s.btn, !canContinue && s.btnOff])}
             >
-              <Text style={s.guestText}>Continue without signing in</Text>
-            </Pressable>
-          )}
-        </Animated.View>}
+              <Text style={[s.btnText, !canContinue && { color: '#78716C' }]}>{loading ? 'Sending code…' : 'Send code'}</Text>
+            </Tap>
+            <Text style={s.helper}>New to Troski? The same code creates your account.</Text>
+          </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginTop: 8, marginLeft: 20 },
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: PAPER },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12 },
+  wordmark: { fontFamily: font.extrabold, fontSize: 30, color: INK, letterSpacing: -0.6 },
+  skip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  skipText: { fontFamily: font.bold, fontSize: 17, color: INK2 },
 
-  // Brand hero
-  brandWrap: { alignItems: 'center', paddingTop: 40, paddingBottom: 8 },
-  heroImage: { width: 140, height: 140, marginBottom: 16 },
-  brandName: { fontSize: 32, fontFamily: font.extrabold, color: '#0A0A0A', letterSpacing: -1.2 },
-  brandSub: { fontSize: 14, fontFamily: font.regular, color: '#888', marginTop: 4 },
+  intro: { marginTop: 28, gap: 8 },
+  lede: { fontFamily: font.regular, fontSize: 18, color: INK2 },
 
-  // Fields
-  fields: { paddingHorizontal: 24, marginTop: 28, gap: 10 },
-  label: { fontSize: 14, fontFamily: font.semibold, color: '#333' },
-  inputWrap: { height: 56, borderRadius: 14, borderWidth: 1.5, borderColor: '#E8E8E8', backgroundColor: '#FAFAFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
-  inputWrapActive: { borderColor: BRAND, backgroundColor: '#FFF8F5' },
-  prefix: { fontSize: 16, fontFamily: font.semibold, color: '#0A0A0A', marginRight: 8 },
-  input: { flex: 1, fontSize: 16, fontFamily: font.medium, color: '#0A0A0A', paddingVertical: 0 },
+  fields: { marginTop: 24, gap: 8 },
+  label: { fontFamily: font.bold, fontSize: 17, color: INK },
+  field: { height: 60, borderRadius: 16, borderWidth: 2, borderColor: '#D6D3D1', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
+  fieldActive: { borderColor: BRAND },
+  prefix: { fontFamily: font.bold, fontSize: 20, color: INK },
+  divider: { width: 1, height: 26, backgroundColor: '#D6D3D1' },
+  input: { flex: 1, alignSelf: 'stretch', fontFamily: font.bold, fontSize: 22, color: INK, paddingVertical: 0 },
 
-  // CTA section
-  ctaSection: { paddingHorizontal: 24, marginTop: 24, gap: 12 },
-  btn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: BRAND, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 4 },
-  btnText: { fontSize: 16, fontFamily: font.semibold, color: '#fff' },
-
-  helperText: { fontSize: 13, color: '#9A9A9A', textAlign: 'center', marginTop: 4, paddingHorizontal: 12 },
-
-  // Footer
-  footer: { paddingHorizontal: 24, paddingTop: 8 },
-  footerText: { textAlign: 'center', fontSize: 14, color: '#888' },
-  footerLink: { color: BRAND, fontFamily: font.semibold },
-  guestBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, marginTop: 4 },
-  guestText: { fontSize: 15, color: '#57534E', fontFamily: font.semibold, textDecorationLine: 'underline' },
+  cta: { marginTop: 18, gap: 12 },
+  btn: { height: 58, borderRadius: 16, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  btnOff: { backgroundColor: '#E7E5E4' },
+  btnText: { fontFamily: font.bold, fontSize: 20, color: '#FFFFFF' },
+  helper: { fontFamily: font.regular, fontSize: 16, color: INK2, textAlign: 'center' },
 })
