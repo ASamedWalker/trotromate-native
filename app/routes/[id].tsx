@@ -1,118 +1,82 @@
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  Modal,
-  useColorScheme,
-  StyleSheet,
-  Platform,
-} from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy, Heart, Receipt } from 'lucide-react-native'
-import { c, font } from '@/lib/theme'
-import { dur } from '@/lib/motion'
-import Animated, { FadeInDown, FadeIn, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
+import { MapPin, Plus, Heart, MessageCircle, Info, ChevronDown, ChevronUp, Receipt } from 'lucide-react-native'
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
+import { useQuery } from '@tanstack/react-query'
+import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
+import { LoadErrorState } from '@/components/StateViews'
+import { FareTrendChart } from '@/components/FareTrendChart'
+import { Button } from '@/components/ui'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { fetchRouteActivity } from '@/lib/services/route-activity'
-import { useQuery } from '@tanstack/react-query'
-import { fetchLineChampions } from '@/lib/services/reports'
-import InitialsAvatar from '@/components/InitialsAvatar'
+import { fetchRouteSegmentFares, resolveDropoffFareSync } from '@/lib/services/segment-fares'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
+import { useFavorites } from '@/lib/hooks/useFavorites'
+import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 import { timeAgo } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
-import { TripShareButton } from '@/components/TripShareButton'
-import { SOSButton } from '@/components/SOSButton'
-import { TrafficBadge } from '@/components/TrafficBadge'
-import { BusynessMeter } from '@/components/BusynessMeter'
-import { useTrafficInfo } from '@/lib/hooks/useTraffic'
-import { FareTrendChart } from '@/components/FareTrendChart'
-import { useHaptics } from '@/lib/hooks/useHaptics'
-import { RouteStopsTimeline } from '@/components/RouteStopsTimeline'
-import { useFavorites } from '@/lib/hooks/useFavorites'
-// GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
-import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
-import { LoadErrorState } from '@/components/StateViews'
-import { Button } from '@/components/ui'
 import { titleCase } from '@/lib/utils/title-case'
-import { useAuthContext } from '@/lib/contexts/AuthContext'
 
-const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
-  light: { light: '#059669', dark: '#34d399' },
-  moderate: { light: '#d97706', dark: '#fbbf24' },
-  heavy: { light: '#ea580c', dark: '#fb923c' },
-  severe: { light: '#dc2626', dark: '#f87171' },
-}
-
+/**
+ * Line page (Lines tab → route). Redesign approved 2026-10-04 (design canvas,
+ * "Lines route page redesign"): hero with an honest fare label, Book + Report,
+ * stops with stage fares, where to board, fares over time, Pulse, tips.
+ * Okada lines are fare information only — rides aren't live.
+ */
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
-  const s = useMemo(() => getStyles(isDark), [isDark])
-
   const router = useRouter()
-  const { isAuthenticated } = useAuthContext()
-  const haptics = useHaptics()
-  const { isFavorite, toggleFavorite } = useFavorites()
   const insets = useSafeAreaInsets()
+  const haptics = useHaptics()
+  const { isAuthenticated } = useAuthContext()
+  const { isFavorite, toggleFavorite } = useFavorites()
+  const [tipsOpen, setTipsOpen] = useState(false)
 
-  // Status-bar scrim: fades in once the hero has scrolled away so content
-  // never collides with the clock.
+  // Status-bar scrim fades in once the hero scrolls away.
   const scrollY = useSharedValue(0)
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y })
   const scrimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [200, 280], [0, 1], Extrapolation.CLAMP),
   }))
 
-  const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
-  const [showGprtuInfo, setShowGprtuInfo] = useState(false)
-
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
-
-  // Pulse posts from anywhere along this corridor — the rider's own words about
-  // this route, which is the freshest signal we have and the reason someone
-  // opens the page at all.
+  const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
+  const { data: segments = [] } = useQuery({
+    queryKey: ['segment-fares', id],
+    queryFn: () => fetchRouteSegmentFares(id!),
+    enabled: !!id,
+    staleTime: 10 * 60 * 1000,
+  })
   const placeNames = useMemo(() => {
     const names = [route?.from_location, route?.to_location]
     for (const st of route?.stops ?? []) names.push(st.stop_name)
     return names.filter(Boolean) as string[]
   }, [route?.from_location, route?.to_location, route?.stops])
-
-  const { data: routePosts = [] } = useQuery({
+  const { data: activity = [] } = useQuery({
     queryKey: ['route-activity', id, placeNames.join('|')],
     queryFn: () => fetchRouteActivity({ routeId: id!, placeNames, limit: 3 }),
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
-  })
-  const { data: traffic } = useTrafficInfo(id)
-  const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
-  const { data: champions = [] } = useQuery({
-    queryKey: ['line-champions', id],
-    queryFn: () => fetchLineChampions(id!),
-    enabled: !!id,
-    staleTime: 5 * 60 * 1000,
   })
   const liveTrips = useLiveTripPositions(id)
 
   if (isLoading) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
-        <SkeletonRouteDetail isDark={isDark} />
+        <SkeletonRouteDetail isDark={false} />
       </SafeAreaView>
     )
   }
-
-  // Load failure ≠ nonexistent route — offline users were told the route
-  // "doesn't exist" (UX-14). Gated on !route: react-query keeps data on a
-  // failed background refetch, and loaded data must stay visible.
+  // Load failure ≠ nonexistent route (UX-14); loaded data stays visible on a failed refetch.
   if (isError && !route) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
@@ -122,1200 +86,381 @@ export default function RouteDetailScreen() {
       </SafeAreaView>
     )
   }
-
   if (!route) {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <MapPin size={48} color="#b2acaa" />
-          <Text style={[s.emptyTitle, { marginTop: 16 }]}>Route not found</Text>
+        <View style={s.centered}>
+          <MapPin size={48} color={ui.textTertiary} />
+          <Text style={[s.h2, { marginTop: space.md }]}>Route not found</Text>
         </View>
       </SafeAreaView>
     )
   }
 
+  const isOkada = (route as { transport_type?: string }).transport_type === 'okada'
+  const from = titleCase(route.from_location)
+  const to = titleCase(route.to_location)
+
+  // ── Honest fare label: by the number actually shown (UX-18) ──
   const reportCount = route.fare_stats?.report_count ?? 0
-  // Only call a fare "reported" when recent reports back it; fare_stats can
-  // carry an average with a zero recent count.
-  const hasReportedFare = reportCount > 0 && route.fare_stats?.avg_reported_fare != null
-  const displayFare = hasReportedFare ? route.fare_stats!.avg_reported_fare! : route.official_fare
-  const lastUpdated = timeAgo(route.fare_stats?.last_report_at ?? null)
-  const maxFare = route.fare_stats?.max_reported_fare
-  const isOvercharge = route.is_gprtu_verified
-    && hasReportedFare
-    && route.fare_stats!.avg_reported_fare! > route.official_fare * 1.2
+  const officialFare = Number(route.official_fare) || 0
+  const avgReported = Number(route.fare_stats?.avg_reported_fare) || 0
+  const hasReportedFare = reportCount > 0 && avgReported > 0
+  const displayFare = hasReportedFare ? avgReported : officialFare
+  // Fare truth: on GPRTU-verified lines always show the official fare, and flag
+  // when riders report paying well above it (was the old overcharge banner).
+  const showOfficial = !!route.is_gprtu_verified && officialFare > 0 && hasReportedFare
+  const overchargePct = route.is_gprtu_verified && officialFare > 0 && hasReportedFare && avgReported > officialFare * 1.2
+    ? Math.round((avgReported / officialFare - 1) * 100)
+    : 0
+  const fareLabel = hasReportedFare ? 'rider-reported' : route.is_gprtu_verified ? 'official fare' : 'estimated'
+  const lastReport = route.fare_stats?.last_report_at ? timeAgo(route.fare_stats.last_report_at) : null
 
-  // Detect region for hero image
-  const regionKey = detectRegion(route.from_location)
-  const hero = REGION_HEROES.find(h => h.key === regionKey)
+  // ── Stops with stage fares (from the origin) ──
+  const stops = [...(route.stops ?? [])].sort((a, b) => a.stop_order - b.stop_order)
+  const firstOrder = stops[0]?.stop_order ?? 0
+  const stageFares = stops.map((st, i) => {
+    if (i === 0) return null
+    const f = resolveDropoffFareSync(segments, firstOrder, st.stop_order, stops, officialFare)
+    if (f.source === 'corridor' || !(f.fare > 0)) return null
+    // Distance-interpolated fares are guesses: round to Ghana's 50-pesewa steps.
+    return f.source === 'interpolated' ? { ...f, fare: Math.max(0.5, Math.round(f.fare * 2) / 2) } : f
+  })
+  const shownStages = stageFares.filter((f): f is NonNullable<typeof f> => !!f)
+  const isEst = (src: string) => src !== 'official' && src !== 'reported'
+  const allOfficial = shownStages.length > 0 && shownStages.every((f) => f.source === 'official')
+  const anyEstimate = shownStages.some((f) => isEst(f.source))
+  const stageNote = allOfficial
+    ? `Official fares from ${from}.`
+    : anyEstimate
+      ? `Fares from ${from}. "est." fares are estimates, not yet confirmed by riders.`
+      : `Fares from ${from}, from what riders report.`
 
+  const heroMeta = [
+    stops.length >= 3 ? `${stops.length} stops` : null,
+    hasReportedFare
+      ? `based on ${reportCount} recent report${reportCount !== 1 ? 's' : ''}${lastReport ? ` · ${lastReport}` : ''}`
+      : 'no recent rider reports',
+  ].filter(Boolean).join(' · ').replace(/^./, (ch) => ch.toUpperCase())
+
+  const hero = REGION_HEROES.find((h) => h.key === detectRegion(route.from_location))
   const favorited = isFavorite(id!)
+  const posts = activity
+
+  const goReport = () => {
+    haptics.light()
+    router.push({ pathname: '/report/fare', params: { route_id: id!, from: route.from_location, to: route.to_location, transport_type: isOkada ? 'okada' : 'trotro' } } as never)
+  }
+  const goPost = (location: string) =>
+    router.push(`/report/photo?mode=text&location=${encodeURIComponent(location)}` as Href)
+  const goBook = () => {
+    if (!isAuthenticated) { router.push('/auth/phone' as Href); return }
+    router.push({ pathname: '/booking/checkout', params: { from, to, route_id: route.id, fare: String(displayFare) } } as never)
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
-      {/* Floating back button */}
-      <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 52, left: 16, zIndex: 20 }}>
-        <GlassBackButton isDark={true} />
+      <View style={[s.topBtn, { left: 16, top: insets.top + 8 }]}>
+        <GlassBackButton isDark />
       </View>
-
-      {/* Floating favorite button — powers the "Saved" filter on the routes tab */}
-      <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 52, right: 16, zIndex: 20 }}>
+      <View style={[s.topBtn, { right: 16, top: insets.top + 8 }]}>
         <TouchableOpacity
-          onPress={() => {
-            haptics.light()
-            toggleFavorite({ id: id!, from: route.from_location, to: route.to_location })
-          }}
-          activeOpacity={0.6}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={s.favoriteBtn}
+          onPress={() => { haptics.light(); toggleFavorite({ id: id!, from: route.from_location, to: route.to_location }) }}
+          hitSlop={8}
+          style={s.favBtn}
+          accessibilityRole="button"
+          accessibilityLabel={favorited ? 'Remove from saved routes' : 'Save route'}
         >
-          <Heart size={20} color={favorited ? '#EF4444' : '#fafaf9'} fill={favorited ? '#EF4444' : 'transparent'} />
+          <Heart size={20} color={favorited ? '#EF4444' : '#FFFFFF'} fill={favorited ? '#EF4444' : 'transparent'} />
         </TouchableOpacity>
       </View>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: s.container.backgroundColor, zIndex: 15 }, scrimStyle]}
-      />
+      <Animated.View pointerEvents="none" style={[s.scrim, { height: insets.top }, scrimStyle]} />
 
       <Animated.ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* Stitch Hero — tall with cinematic image */}
-        <Animated.View entering={FadeIn.duration(dur.emphasized)} style={s.heroSection}>
-          {hero ? (
+        {/* ── Hero ── */}
+        <View style={[s.hero, { backgroundColor: hero?.placeholderColor ?? '#2A1D14' }]}>
+          {hero && <Image source={{ uri: hero.heroImage }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} cachePolicy="disk" />}
+          <LinearGradient colors={['rgba(18,11,6,0.25)', 'rgba(18,11,6,0.55)', 'rgba(18,11,6,0.92)']} style={StyleSheet.absoluteFillObject} />
+          <View style={s.heroBody}>
+            <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#F5A300' }]}>
+              <Text style={s.kindText}>{isOkada ? 'OKADA ROUTE' : 'TROTRO ROUTE'}</Text>
+            </View>
+            <Text style={s.heroTitle}>{from} → {to}</Text>
+            <View style={s.heroFareRow}>
+              {displayFare > 0 ? (
+                <>
+                  <HeroText size={40} style={{ color: '#FF6A3D', letterSpacing: -1 }}>{formatGHS(displayFare)}</HeroText>
+                  <Text style={s.heroFareLabel}>{fareLabel}</Text>
+                </>
+              ) : (
+                <Text style={s.heroFareLabel}>No fare yet. Be the first to report it.</Text>
+              )}
+            </View>
+            {showOfficial && (
+              <Text style={s.heroOfficial}>Official GPRTU fare {formatGHS(officialFare)}</Text>
+            )}
+            <Text style={s.heroMeta}>{heroMeta}</Text>
+            {overchargePct > 0 && (
+              <TouchableOpacity onPress={goReport} style={s.overPill} accessibilityRole="button" accessibilityLabel={`Riders report paying ${overchargePct} percent above the official fare. Report your fare`}>
+                <Text style={s.overText}>Riders report paying {overchargePct}% above the official fare</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <View style={s.body}>
+          {isOkada ? (
             <>
-              <Image
-                source={{ uri: hero.heroImage }}
-                style={[StyleSheet.absoluteFillObject, { backgroundColor: hero.placeholderColor }]}
-                contentFit="cover"
-                transition={400}
-                cachePolicy="disk"
-              />
-              <LinearGradient
-                colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
-                locations={[0, 0.4, 1]}
-                style={StyleSheet.absoluteFillObject}
-              />
+              <View style={s.notice} accessible>
+                <Info size={22} color={brand.orangeText} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.noticeTitle}>Okada rides on Troski are coming soon</Text>
+                  <Text style={s.noticeText}>For now this is the fare riders report paying. Agree the price with your rider before you go.</Text>
+                </View>
+              </View>
+              <Button label="Report what you paid" icon={Plus} size="lg" onPress={goReport} />
             </>
           ) : (
-            <LinearGradient
-              colors={['#815100', '#f8a010']}
-              style={StyleSheet.absoluteFillObject}
-            />
-          )}
-          <View style={s.heroContent}>
-            {/* Badges row */}
-            <View style={s.heroBadges}>
-              <View style={s.routeTypeBadge}>
-                <Text style={s.routeTypeBadgeText}>
-                  {(route as { transport_type?: string }).transport_type === 'okada' ? 'OKADA ROUTE' : 'TROTRO ROUTE'}
-                </Text>
-              </View>
-              {lastUpdated && (
-                <View style={s.lastUpdatedBadge}>
-                  <Clock size={10} color="#e5e5e5" />
-                  <Text style={s.lastUpdatedText}>{lastUpdated}</Text>
-                </View>
+            <View style={s.ctaRow}>
+              {displayFare > 0 && (
+                <View style={{ flex: 1 }}><Button label="Book this trip" size="lg" onPress={goBook} /></View>
               )}
+              <View style={{ flex: 1 }}><Button label="Report fare" icon={Plus} variant="outline" size="lg" onPress={goReport} /></View>
             </View>
-
-            {/* Route name — massive */}
-            <Text style={s.heroRouteTitle}>
-              {titleCase(route.from_location)} → {titleCase(route.to_location)}
-            </Text>
-
-            {/* Fare display */}
-            <View style={s.heroFareRow}>
-              <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
-              <Text style={s.heroFareLabel}>
-                {/* Label by the number actually shown: crowd average vs official vs unverified static fare (UX-18) */}
-                {hasReportedFare
-                  ? 'reported fare'
-                  : route.is_gprtu_verified ? 'official fare' : 'unverified fare'}
-              </Text>
-            </View>
-
-            {/* Trust signal — report count + freshness */}
-            <View style={s.heroMeta}>
-              <Users size={16} color="#f8a010" />
-              <Text style={s.heroMetaText}>
-                {reportCount > 0
-                  ? `Based on ${reportCount} recent report${reportCount !== 1 ? 's' : ''}${lastUpdated && lastUpdated !== 'No data' ? ` · ${lastUpdated}` : ''}`
-                  : 'No recent fare reports'}
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Primary CTA — book this trip (trotro only; okada booking isn't live).
-            Guests sign in first: checkout needs an account to pay. */}
-        {(route as { transport_type?: string }).transport_type !== 'okada' && displayFare > 0 && (
-          <View style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 32 }}>
-            <Button
-              label="Book this trip"
-              size="lg"
-              onPress={() => {
-                if (!isAuthenticated) { router.push('/auth/phone' as any); return }
-                router.push({
-                  pathname: '/booking/checkout',
-                  params: { from: titleCase(route.from_location), to: titleCase(route.to_location), route_id: route.id, fare: String(displayFare) },
-                } as any)
-              }}
-            />
-          </View>
-        )}
-
-        {/* Trust & Verification — overlaps hero */}
-        <Animated.View entering={FadeInDown.delay(200).duration(dur.entrance)} style={s.trustSection}>
-          {/* GPRTU Verified card */}
-          {route.is_gprtu_verified && (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowGprtuInfo(true)} style={s.gprtuCard}>
-              <View style={s.gprtuIconWrap}>
-                <ShieldCheck size={22} color="#059669" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.gprtuTitle}>GPRTU Verified</Text>
-                <Text style={s.gprtuSub}>Official union-approved fare</Text>
-              </View>
-              <ChevronRight size={20} color="#b2acaa" />
-            </TouchableOpacity>
           )}
 
-          {/* Overcharge Warning */}
-          {isOvercharge && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/report/fare')}
-              style={s.overchargeCard}
-            >
-              <AlertTriangle size={20} color="#b02500" />
-              <View style={{ flex: 1 }}>
-                <Text style={s.overchargeTitle}>Overcharge Warning</Text>
-                <Text style={s.overchargeDesc}>
-                  Community reports suggest fares up to{' '}
-                  <Text style={s.overchargeBold}>GH₵ {maxFare?.toFixed(2)}</Text>
-                  {' '}during peak hours. Avoid paying above the regulated rate.
-                </Text>
+          {/* ── Stops & stage fares ── */}
+          {!isOkada && stops.length >= 3 && (
+            <View style={s.section}>
+              <View style={s.sectionHead}>
+                <Text style={s.h2}>Stops &amp; fares</Text>
+                <Text style={s.muted}>{stops.length} stops</Text>
               </View>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-
-        {/* Tab pills — Stitch style */}
-        <View style={s.tabRow}>
-          {(['details', 'trend', 'reports'] as const).map((tab) => {
-            const isActive = activeTab === tab
-            const label = tab === 'details' ? 'Details' : tab === 'trend' ? 'Fare Trend' : 'Reports'
-            return isActive ? (
-              <TouchableOpacity key={tab} activeOpacity={0.9} onPress={() => setActiveTab(tab)}>
-                <LinearGradient
-                  colors={['#815100', '#f8a010']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={s.tabPillActive}
-                >
-                  <Text style={s.tabPillActiveText}>{label}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                key={tab}
-                activeOpacity={0.7}
-                onPress={() => setActiveTab(tab)}
-                style={s.tabPill}
-              >
-                <Text style={s.tabPillText}>{label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        {/* ── Details tab ── */}
-        {activeTab === 'details' && (
-          <>
-        {/* Real-time Pulse card — Stitch editorial */}
-        {traffic && (traffic.traffic_condition || traffic.busyness.confidence > 0) && (
-          <View style={s.pulseCard}>
-            <Text style={s.pulseHeading}>REAL-TIME PULSE</Text>
-
-            {/* Station Busyness */}
-            <View style={s.pulseRow}>
-              <Text style={s.pulseLabel}>Station Busyness</Text>
-              <BusynessMeter level={traffic.busyness.level} isDark={isDark} />
-            </View>
-
-            {/* Busyness bar */}
-            {traffic.busyness.level != null && (
-              <View style={s.pulseBarBg}>
-                <View style={[s.pulseBarFill, {
-                  width: `${traffic.busyness.level === 'very_busy' ? 90 : traffic.busyness.level === 'busy' ? 65 : traffic.busyness.level === 'moderate' ? 40 : 20}%` as `${number}%`,
-                  backgroundColor: traffic.busyness.level === 'very_busy' ? '#b02500' : traffic.busyness.level === 'busy' ? '#d97706' : '#059669',
-                }]} />
-              </View>
-            )}
-
-            {/* Traffic Condition */}
-            <View style={s.pulseRow}>
-              <Text style={s.pulseLabel}>Traffic Condition</Text>
-              <TrafficBadge
-                condition={traffic.traffic_condition}
-                delayMins={traffic.delay_mins}
-                isDark={isDark}
-              />
-            </View>
-
-            {/* Live trotros — crowdsourced from riders in GO Mode */}
-            {liveTrips.length > 0 && (
-              <View style={s.pulseRow}>
-                <Text style={s.pulseLabel}>Live Trotros</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' }} />
-                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#16a34a' }}>
-                    {liveTrips.length} riding now
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* ETA comparison */}
-            {traffic.duration_in_traffic_mins != null && traffic.typical_duration_mins != null && (
-              <View style={s.etaCompare}>
-                <View style={s.etaRow}>
-                  <Text style={s.etaLabel}>Typical: {traffic.typical_duration_mins} min</Text>
-                  <Text style={s.etaValue}>Now: {traffic.duration_in_traffic_mins} min</Text>
-                </View>
-                <View style={s.durationBarBg}>
-                  <View style={[s.durationBarFill, {
-                    backgroundColor: TRAFFIC_CONDITION_COLORS[traffic.traffic_condition || 'light'][isDark ? 'dark' : 'light'],
-                    width: `${Math.min(100, (traffic.duration_in_traffic_mins / (traffic.typical_duration_mins * 1.5)) * 100)}%` as `${number}%`,
-                  }]} />
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── From riders on this route ──
-            Pulse is the app's freshest data: what someone actually paid or saw,
-            in their words, minutes ago. Surfacing it where the rider is already
-            asking about this corridor beats leaving it in a separate feed. */}
-        {(
-          <View style={s.pulseCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Text style={s.pulseHeading}>RECENT RIDER ACTIVITY</Text>
-              {/* Only points at Pulse when there is actually a post to see —
-                  a fare report lives on the Reports tab, not in the feed. */}
-              {routePosts.some((it) => it.kind === 'post') && (
-                <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8}>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: c.amber600 }}>See all</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {routePosts.length === 0 ? (
-              /* No recent post for this corridor. Dead space here would read as
-                 a broken feature; an invitation turns it into the contribution
-                 that fills it. The composer opens pre-tagged with this route's
-                 origin so the post lands back on this page. */
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push(
-                    `/report/photo?mode=text&location=${encodeURIComponent(route.from_location)}` as Href
+              <View style={s.card}>
+                {stops.map((st, i) => {
+                  const terminal = i === 0 || i === stops.length - 1
+                  const f = stageFares[i]
+                  return (
+                    <View key={st.id ?? `${st.stop_order}`} style={s.stopRow} accessible accessibilityLabel={`${titleCase(st.stop_name)}${i === 0 ? ', board here' : i === stops.length - 1 ? ', end of line' : ''}${f ? `, ${formatGHS(f.fare)}${isEst(f.source) ? ' estimated' : ''}` : ''}`}>
+                      <View style={s.stopRail}>
+                        <View style={[s.stopDot, terminal && s.stopDotEnd]} />
+                        {i < stops.length - 1 && <View style={s.stopLine} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.stopName}>{titleCase(st.stop_name)}</Text>
+                        {i === 0 && <Text style={s.stopSub}>Board here</Text>}
+                        {i === stops.length - 1 && <Text style={s.stopSub}>End of line</Text>}
+                      </View>
+                      {f ? (
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={s.stopFare}>{formatGHS(f.fare)}</Text>
+                          {isEst(f.source) && <Text style={s.stopSub}>est.</Text>}
+                        </View>
+                      ) : null}
+                    </View>
                   )
-                }
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}
-              >
-                <View style={{
-                  width: 38, height: 38, borderRadius: 19,
-                  alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : '#FFF4EF',
-                }}>
-                  <MapPin size={17} color={c.amber600} />
+                })}
+                {shownStages.length > 0 && (
+                  <TouchableOpacity onPress={goReport} style={[s.stageNote, allOfficial && { backgroundColor: ui.successSoft }]} accessibilityRole="button" accessibilityLabel={`${stageNote}${!allOfficial ? ' Paid something different? Report your fare.' : ''}`}>
+                    <Text style={[s.stageNoteText, allOfficial && { color: '#166534' }]}>
+                      {stageNote}{!allOfficial ? <Text style={{ fontFamily: font.bold }}> Paid something different? Tell us.</Text> : null}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ── Where to board ── */}
+          {!isOkada && (
+            <View style={s.section}>
+              <Text style={s.h2}>Where to board</Text>
+              <View style={[s.card, s.rowCard]}>
+                <MapPin size={22} color={brand.orange} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.cardTitle}>{from} station</Text>
+                  <Text style={s.cardText}>Bay not shared yet. Seen it? Share the bay so the next rider finds it faster.</Text>
+                  <TouchableOpacity onPress={() => goPost(route.from_location)} style={s.link} accessibilityRole="button">
+                    <Text style={s.linkText}>Share the bay on Pulse</Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: isDark ? '#e5e7eb' : '#292524' }}>
-                    Nothing shared here lately
-                  </Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 12, lineHeight: 17, color: isDark ? '#9ca3af' : '#78716c', marginTop: 2 }}>
-                    Riding {route.from_location} → {route.to_location}? Tell others what you paid or saw.
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: c.amber600 }}>Post</Text>
-              </TouchableOpacity>
-            ) : routePosts.map((post, i) => (
-              <TouchableOpacity
-                key={post.id}
-                activeOpacity={0.7}
-                onPress={() => router.push('/tales' as Href)}
-                style={{
-                  paddingVertical: 10,
-                  borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
-                  borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  {post.kind === 'fare' ? (
-                    <Receipt size={11} color="#059669" />
-                  ) : (
-                    <MapPin size={11} color={c.amber600} />
-                  )}
-                  <Text style={{
-                    fontFamily: font.semibold, fontSize: 11.5,
-                    color: post.kind === 'fare' ? '#059669' : c.amber600,
-                  }}>
-                    {post.kind === 'fare' ? 'Fare reported' : post.location_name}
-                  </Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 11, color: isDark ? '#9ca3af' : '#9a918b' }}>
-                    · {timeAgo(post.created_at)}
-                  </Text>
-                </View>
-                <Text
-                  numberOfLines={2}
-                  style={{ fontFamily: font.regular, fontSize: 13.5, lineHeight: 19, color: isDark ? '#e5e7eb' : '#292524' }}
-                >
-                  {post.kind === 'fare'
-                    ? `A rider paid ${formatGHS(post.fare)} on this route.`
-                    : post.caption || 'Shared a photo'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+              {liveTrips.length > 0 && (
+                <Text style={s.muted}>{liveTrips.length} rider{liveTrips.length !== 1 ? 's' : ''} sharing this trip live now</Text>
+              )}
+            </View>
+          )}
+
+          {/* ── Fares over time (was the Fare Trend + Reports tabs) ── */}
+          <View style={s.section}>
+            <Text style={s.h2}>{isOkada ? 'Latest reports' : 'Fares over time'}</Text>
+            {!isOkada && (trendLoading || trend.length > 0) && (
+              <View style={s.card}>
+                <FareTrendChart
+                  data={trend}
+                  officialFare={officialFare}
+                  isLoading={trendLoading}
+                  selectedPeriod={trendDays}
+                  onPeriodChange={setTrendDays}
+                  routeName={`${from} → ${to}`}
+                />
+              </View>
+            )}
+            {recentReports.length > 0 ? (
+              <View style={s.card}>
+                {recentReports.slice(0, 4).map((r, i) => (
+                  <View key={r.id} style={[s.reportRow, i > 0 && s.divider]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.cardTitle}>{formatGHS(r.reported_fare)}</Text>
+                      <Text style={s.cardText}>Reported {timeAgo(r.reported_at)}</Text>
+                    </View>
+                    <View style={s.reportPill}><Text style={s.reportPillText}>Rider report</Text></View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={s.card}>
+                <Text style={s.cardText}>No one has reported this fare yet. Your report helps every rider on this line.</Text>
+                {!isOkada && (
+                  <View style={{ marginTop: space.md }}>
+                    <Button label="Report what you paid" icon={Plus} variant="outline" onPress={goReport} />
+                  </View>
+                )}
+              </View>
+            )}
           </View>
-        )}
 
-        {/* Route Stops Timeline */}
-        {route.stops && route.stops.length >= 3 && (
-          <View style={s.pulseCard}>
-            <RouteStopsTimeline stops={route.stops} />
-          </View>
-        )}
-          </>
-        )}
-
-        {/* ── Fare Trend tab ── */}
-        {activeTab === 'trend' && (
-          <FareTrendChart
-            data={trend}
-            officialFare={route.official_fare}
-            isLoading={trendLoading}
-            selectedPeriod={trendDays}
-            onPeriodChange={setTrendDays}
-            routeName={`${route.from_location} → ${route.to_location}`}
-          />
-        )}
-
-        {/* ── Reports tab ── */}
-        {activeTab === 'reports' && (
-          <View style={s.reportsSection}>
-            <View style={s.reportsTitleRow}>
-              <Text style={s.sectionTitle}>Recent Fare Reports</Text>
-              {reportCount > 0 && (
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={s.viewAllBtn}>View all</Text>
+          {/* ── Pulse ── */}
+          <View style={s.section}>
+            <View style={s.sectionHead}>
+              <Text style={s.h2}>On Pulse</Text>
+              {posts.length > 0 && (
+                <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={8} accessibilityRole="link" accessibilityLabel="See all Pulse posts">
+                  <Text style={s.linkText}>See all</Text>
                 </TouchableOpacity>
               )}
             </View>
-            {recentReports.length > 0 ? (
-              recentReports.map((report) => (
-                <View key={report.id} style={s.reportCard}>
-                  <View style={s.reportAvatar}>
-                    <Text style={s.reportAvatarText}>
-                      {(report as any).reporter_name?.[0]?.toUpperCase() ?? '?'}
+            <View style={s.card}>
+              {posts.length === 0 ? (
+                <>
+                  <View style={s.rowCard}>
+                    <MessageCircle size={22} color={brand.orange} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={s.cardTitle}>Nothing posted on this line yet</Text>
+                      <Text style={s.cardText}>Queues, fares, road updates: riders share them on Pulse.</Text>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: space.md }}>
+                    <Button label="Post on Pulse" variant="outline" onPress={() => goPost(route.from_location)} />
+                  </View>
+                </>
+              ) : posts.map((p, i) => (
+                <TouchableOpacity key={p.id} onPress={() => router.push('/tales' as Href)} style={[s.postRow, i > 0 && s.divider]} accessibilityRole="button">
+                  <View style={s.postMeta}>
+                    {p.kind === 'fare' ? <Receipt size={13} color={ui.success} /> : <MapPin size={13} color={brand.orangeText} />}
+                    <Text style={[s.postMetaText, { color: p.kind === 'fare' ? ui.success : brand.orangeText }]}>
+                      {p.kind === 'fare' ? 'Fare reported' : p.location_name}
                     </Text>
+                    <Text style={s.cardText}>· {timeAgo(p.created_at)}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.reporterName}>
-                      {(report as any).reporter_name ?? 'Anonymous'}
-                    </Text>
-                    <Text style={s.reportTime}>{timeAgo(report.reported_at)}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={s.reportFare}>GH₵ {report.reported_fare.toFixed(2)}</Text>
-                    {route.official_fare && Math.abs(report.reported_fare - route.official_fare) < 0.5 ? (
-                      <View style={s.exactBadge}>
-                        <Text style={s.exactBadgeText}>Exact</Text>
-                      </View>
-                    ) : report.reported_fare > (route.official_fare || 0) ? (
-                      <View style={s.overBadge}>
-                        <Text style={s.overBadgeText}>
-                          + GH₵ {(report.reported_fare - (route.official_fare || 0)).toFixed(2)}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={s.emptyCard}>
-                <TrendingUp size={32} color="#b2acaa" />
-                <Text style={s.emptyTitle}>No recent reports yet</Text>
-                <Text style={s.emptySubtitle}>Be the first to report!</Text>
+                  <Text style={s.postText} numberOfLines={2}>
+                    {p.kind === 'fare' ? `A rider paid ${formatGHS(p.fare)} on this route.` : p.caption || 'Shared a photo'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* ── Tips (collapsed) ── */}
+          <View style={s.card}>
+            <TouchableOpacity
+              onPress={() => setTipsOpen((v) => !v)}
+              style={s.tipsHead}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: tipsOpen }}
+            >
+              <Text style={s.cardTitle}>Rider tips</Text>
+              {tipsOpen ? <ChevronUp size={20} color={ui.textSecondary} /> : <ChevronDown size={20} color={ui.textSecondary} />}
+            </TouchableOpacity>
+            {tipsOpen && (
+              <View style={{ gap: space.md, marginTop: space.sm }}>
+                {(isOkada
+                  ? ['Agree the fare with your rider before you set off.', 'Ask for a helmet. Report unsafe riding on Pulse so others know.']
+                  : ['Confirm the fare with the mate before you board.', 'Overcharged? Report it in two taps so other riders know what to pay.']
+                ).map((tip) => (
+                  <Text key={tip} style={s.cardText}>• {tip}</Text>
+                ))}
               </View>
             )}
-
-            {/* Report Fare inline CTA */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => {
-                haptics.light()
-                router.push('/report/fare')
-              }}
-              style={s.reportCta}
-            >
-              <Plus size={18} color="#815100" />
-              <Text style={s.reportCtaText}>Report a Fare</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Safety Row — always visible */}
-        <View style={s.safetyRow}>
-          <TripShareButton
-            routeId={id}
-            from={route.from_location}
-            to={route.to_location}
-            estimatedMins={route.estimated_duration_mins}
-          />
-          <SOSButton from={route.from_location} to={route.to_location} />
-        </View>
-
-        {/* ─── Rider Tips — static app guidance. Was branded "GPRTU Bulletins",
-             which read as a live official union feed it never was (UX-18).
-             Restore that name only if a real GPRTU data channel exists. ─── */}
-        <View style={s.bulletinSection}>
-          <View style={s.bulletinHeader}>
-            <ShieldCheck size={18} color="#15803d" />
-            <Text style={s.bulletinTitle}>Rider Tips</Text>
-          </View>
-
-          <View style={[s.bulletinCard, { borderLeftColor: '#15803d' }]}>
-            <Text style={[s.bulletinType, { color: '#15803d' }]}>FARE NOTICE</Text>
-            <Text style={s.bulletinText}>
-              Always confirm your fare before boarding. Drivers must display official fares at all GPRTU-approved stations.
-            </Text>
-          </View>
-
-          <View style={[s.bulletinCard, { borderLeftColor: '#815100' }]}>
-            <Text style={[s.bulletinType, { color: '#815100' }]}>PASSENGER SAFETY</Text>
-            <Text style={s.bulletinText}>
-              Report overcharging or unsafe driving to GPRTU. Your reports help keep fares fair and roads safe for everyone.
-            </Text>
-          </View>
-
-          <View style={[s.bulletinCard, { borderLeftColor: '#0891b2' }]}>
-            <Text style={[s.bulletinType, { color: '#0891b2' }]}>SERVICE UPDATE</Text>
-            <Text style={s.bulletinText}>
-              Some routes may experience fare adjustments during peak hours. Check Troski for the latest community-reported fares.
-            </Text>
           </View>
         </View>
-
-        {/* ─── Line Champions — top reporters on this corridor ─── */}
-        {champions.length > 0 && (
-          <View style={s.championsSection}>
-            <View style={s.bulletinHeader}>
-              <Trophy size={18} color="#d97706" />
-              <Text style={s.bulletinTitle}>Line Champions</Text>
-            </View>
-            <View style={s.championsCard}>
-              {champions.map((champ, i) => (
-                <View key={champ.deviceId} style={[s.championRow, i > 0 && s.championRowBorder]}>
-                  <Text style={s.championMedal}>{['🥇', '🥈', '🥉'][i] ?? '🏅'}</Text>
-                  <InitialsAvatar name={champ.displayName} size={36} />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={s.championName} numberOfLines={1}>{champ.displayName}</Text>
-                    <Text style={s.championSub}>
-                      {champ.reportCount} fare report{champ.reportCount !== 1 ? 's' : ''} on this line
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => { haptics.light(); router.push('/leaderboard') }}
-                style={s.championsCta}
-              >
-                <Text style={s.championsCtaText}>View full leaderboard</Text>
-                <ChevronRight size={16} color="#d97706" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        <View style={{ height: 16 }} />
       </Animated.ScrollView>
-
-      {/* GPRTU Info Modal */}
-      <Modal visible={showGprtuInfo} transparent animationType="slide">
-        <View style={s.modalContainer}>
-          <TouchableWithoutFeedback onPress={() => setShowGprtuInfo(false)}>
-            <View style={s.modalOverlay} />
-          </TouchableWithoutFeedback>
-          <View style={s.modalSheet}>
-            <View style={s.modalHandle} />
-
-            {/* Header */}
-            <View style={s.modalHeader}>
-              <View style={s.modalShieldWrap}>
-                <ShieldCheck size={28} color="#059669" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle}>GPRTU Verified Route</Text>
-                <Text style={s.modalSub}>Ghana Private Road Transport Union</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowGprtuInfo(false)} hitSlop={8}>
-                <X size={20} color={isDark ? 'rgba(255,255,255,0.4)' : '#8e8e8e'} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Official Fare */}
-            <View style={s.modalFareCard}>
-              <Text style={s.modalFareLabel}>OFFICIAL FARE</Text>
-              <HeroText size={36} style={s.modalFareValue}>GH₵ {route.official_fare.toFixed(2)}</HeroText>
-              <Text style={s.modalFareSub}>Set and regulated by GPRTU</Text>
-            </View>
-
-            {/* Info Points */}
-            <View style={s.modalInfoList}>
-              <View style={s.modalInfoRow}>
-                <View style={s.modalBullet} />
-                <Text style={s.modalInfoText}>This route's fare is officially set by the Ghana Private Road Transport Union</Text>
-              </View>
-              <View style={s.modalInfoRow}>
-                <View style={s.modalBullet} />
-                <Text style={s.modalInfoText}>Drivers at GPRTU-approved stations must charge the official fare</Text>
-              </View>
-              <View style={s.modalInfoRow}>
-                <View style={s.modalBullet} />
-                <Text style={s.modalInfoText}>If you're charged more than the official rate, you can report it</Text>
-              </View>
-            </View>
-
-            {/* Report Overcharge Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                setShowGprtuInfo(false)
-                router.push('/report/fare')
-              }}
-              style={s.modalReportBtn}
-            >
-              <AlertTriangle size={16} color="#fff" />
-              <Text style={s.modalReportBtnText}>Report Overcharge</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   )
 }
 
-const getStyles = (isDark: boolean) => {
-  // Stitch M3 tokens
-  const surface = isDark ? '#1c1c1e' : '#fcf5f2'
-  const surfaceLowest = isDark ? '#1c1c1e' : '#ffffff'
-  const surfaceLow = isDark ? 'rgba(255,255,255,0.04)' : '#f6efed'
-  const surfaceHigh = isDark ? 'rgba(255,255,255,0.08)' : '#e8e1de'
-  const onSurface = isDark ? '#f5f5f4' : '#312e2d'
-  const onSurfaceVariant = isDark ? 'rgba(255,255,255,0.5)' : '#5f5b59'
-  const outlineVariant = isDark ? 'rgba(255,255,255,0.1)' : '#b2acaa'
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FAF6F2' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  topBtn: { position: 'absolute', zIndex: 20 },
+  favBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(28,25,23,0.45)', alignItems: 'center', justifyContent: 'center' },
+  scrim: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#FAF6F2', zIndex: 15 },
 
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: surface },
+  hero: { height: 320, overflow: 'hidden', justifyContent: 'flex-end' },
+  heroBody: { paddingHorizontal: space.gutter, paddingBottom: 22, gap: 6 },
+  kindPill: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
+  kindText: { fontSize: 13, fontFamily: font.bold, letterSpacing: 1, color: '#1C1917' },
+  heroTitle: { fontSize: 30, fontFamily: font.extrabold, color: '#FFFFFF', letterSpacing: -0.5 },
+  heroFareRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  heroFareLabel: { fontSize: 16, fontFamily: font.semibold, color: '#E7E0DA' },
+  heroMeta: { fontSize: 15, fontFamily: font.medium, color: '#D6CFC8' },
+  heroOfficial: { fontSize: 15, fontFamily: font.semibold, color: '#FFFFFF' },
+  overPill: { alignSelf: 'flex-start', marginTop: 4, backgroundColor: '#FDE68A', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4, minHeight: 32, justifyContent: 'center' },
+  overText: { fontSize: 14, fontFamily: font.bold, color: '#78350F' },
 
-    favoriteBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: 'rgba(28,25,23,0.75)',
-      borderWidth: 0.5,
-      borderColor: 'rgba(0,0,0,0.08)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 4,
-    },
+  body: { paddingHorizontal: space.gutter, paddingTop: 18, gap: 24 },
+  ctaRow: { flexDirection: 'row', gap: 10 },
+  notice: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: brand.orangeSoft, borderRadius: radius.lg, padding: 14 },
+  noticeTitle: { fontSize: 17, fontFamily: font.bold, color: ui.text },
+  noticeText: { ...type.label, color: ui.textSecondary },
 
-    // ── Hero — tall cinematic ──
-    heroSection: {
-      height: 340,
-      overflow: 'hidden' as const,
-    },
-    heroContent: {
-      flex: 1,
-      justifyContent: 'flex-end' as const,
-      paddingHorizontal: 24,
-      paddingBottom: 28,
-      gap: 10,
-    },
-    heroBadges: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 10,
-    },
-    routeTypeBadge: {
-      backgroundColor: '#815100',
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 20,
-    },
-    routeTypeBadgeText: {
-      color: '#fff',
-      fontSize: 10,
-      fontFamily: font.bold,
-      letterSpacing: 1.5,
-    },
-    lastUpdatedBadge: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 4,
-    },
-    lastUpdatedText: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: '#e5e5e5',
-    },
-    heroRouteTitle: {
-      fontSize: 34,
-      fontFamily: font.extrabold,
-      color: '#fff',
-      textShadowColor: 'rgba(0,0,0,0.5)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 6,
-      letterSpacing: -0.5,
-    },
-    heroFareRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-end' as const,
-      gap: 10,
-    },
-    heroFareValue: {
-      color: '#f8a010',
-    },
-    heroFareLabel: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.85)',
-      paddingBottom: 6,
-    },
-    heroMeta: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 6,
-      marginTop: 4,
-    },
-    heroMetaText: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.85)',
-    },
+  section: { gap: 10 },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  h2: { fontSize: 22, fontFamily: font.extrabold, color: ui.text },
+  muted: { ...type.label, color: ui.textSecondary },
+  card: { backgroundColor: ui.card, borderRadius: radius.lg, padding: space.md, ...cardShadow },
+  rowCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  cardTitle: { fontSize: 17, fontFamily: font.bold, color: ui.text },
+  cardText: { ...type.label, color: ui.textSecondary },
+  link: { minHeight: 44, justifyContent: 'center' },
+  linkText: { ...type.labelStrong, color: brand.orangeText },
 
-    // ── Tab pills ──
-    tabRow: {
-      flexDirection: 'row' as const,
-      gap: 8,
-      paddingHorizontal: 24,
-      marginTop: 20,
-      marginBottom: 4,
-    },
-    tabPillActive: {
-      paddingHorizontal: 22,
-      paddingVertical: 10,
-      borderRadius: 24,
-    },
-    tabPillActiveText: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: '#fff',
-    },
-    tabPill: {
-      paddingHorizontal: 22,
-      paddingVertical: 10,
-      borderRadius: 24,
-      backgroundColor: surfaceHigh,
-    },
-    tabPillText: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: onSurfaceVariant,
-    },
+  stopRow: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 52 },
+  stopRail: { width: 16, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  stopDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: brand.orange, backgroundColor: '#FFFFFF', zIndex: 1 },
+  stopDotEnd: { width: 16, height: 16, borderRadius: 8, backgroundColor: brand.orange },
+  stopLine: { position: 'absolute', top: '50%', bottom: -26, width: 3, backgroundColor: '#F5C9B8' },
+  stopName: { fontSize: 17, fontFamily: font.bold, color: ui.text },
+  stopSub: { ...type.caption, color: ui.textSecondary },
+  stopFare: { fontSize: 17, fontFamily: font.extrabold, color: ui.text, fontVariant: ['tabular-nums'] },
+  stageNote: { marginTop: space.sm, padding: 12, borderRadius: radius.md, backgroundColor: '#FFF7E6' },
+  stageNoteText: { ...type.label, color: '#7A4B00' },
 
-    // ── Trust & Verification — overlaps hero ──
-    trustSection: {
-      paddingHorizontal: 24,
-      marginTop: -16,
-      gap: 12,
-    },
-    gprtuCard: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: surfaceLowest,
-      padding: 16,
-      borderRadius: 20,
-      gap: 12,
-      shadowColor: '#312e2d',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 12,
-      elevation: isDark ? 0 : 3,
-    },
-    gprtuIconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    gprtuTitle: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: onSurface,
-    },
-    gprtuSub: {
-      fontSize: 11,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      marginTop: 1,
-    },
+  reportRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  reportPill: { backgroundColor: ui.successSoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
+  reportPillText: { fontSize: 13, fontFamily: font.bold, color: '#166534' },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.surfaceStrong },
 
-    // Overcharge Warning — Stitch error banner with left border
-    overchargeCard: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      gap: 12,
-      backgroundColor: isDark ? 'rgba(176,37,0,0.12)' : 'rgba(176,37,0,0.06)',
-      borderLeftWidth: 4,
-      borderLeftColor: '#b02500',
-      padding: 16,
-      borderRadius: 16,
-    },
-    overchargeTitle: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: '#b02500',
-    },
-    overchargeDesc: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      marginTop: 4,
-      lineHeight: 18,
-    },
-    overchargeBold: {
-      fontFamily: font.bold,
-      color: onSurface,
-    },
+  postRow: { paddingVertical: 10, gap: 4 },
+  postMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  postMetaText: { fontSize: 14, fontFamily: font.semibold },
+  postText: { ...type.body, color: ui.text },
 
-    // ── Real-time Pulse card (Live Traffic + Busyness) ──
-    pulseCard: {
-      marginHorizontal: 24,
-      marginTop: 20,
-      padding: 24,
-      borderRadius: 28,
-      backgroundColor: surfaceLow,
-      borderLeftWidth: 4,
-      borderLeftColor: '#815100',
-      gap: 16,
-    },
-    pulseHeading: {
-      fontSize: 11,
-      fontFamily: font.bold,
-      color: onSurfaceVariant,
-      letterSpacing: 3,
-    },
-    pulseRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    pulseLabel: {
-      fontSize: 14,
-      fontFamily: font.medium,
-      color: onSurface,
-    },
-    pulseBarBg: {
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: surfaceHigh,
-      overflow: 'hidden' as const,
-    },
-    pulseBarFill: {
-      height: 10,
-      borderRadius: 5,
-    },
-    etaCompare: {
-      gap: 8,
-    },
-    etaRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    etaLabel: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-    },
-    etaValue: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: onSurface,
-    },
-    durationBarBg: {
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: surfaceHigh,
-      overflow: 'hidden' as const,
-    },
-    durationBarFill: {
-      height: 8,
-      borderRadius: 4,
-    },
-
-    // ── Reports section ──
-    reportsSection: {
-      paddingHorizontal: 24,
-      marginTop: 28,
-    },
-    reportsTitleRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      marginBottom: 16,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: onSurface,
-    },
-    viewAllBtn: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: '#815100',
-    },
-    reportCard: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: surfaceLowest,
-      padding: 16,
-      borderRadius: 20,
-      marginBottom: 10,
-      gap: 12,
-      shadowColor: '#312e2d',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0 : 0.04,
-      shadowRadius: 8,
-      elevation: isDark ? 0 : 2,
-    },
-    reportAvatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: surfaceHigh,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    reportAvatarText: {
-      fontSize: 16,
-      fontFamily: font.bold,
-      color: onSurfaceVariant,
-    },
-    reporterName: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: onSurface,
-    },
-    reportTime: {
-      fontSize: 10,
-      fontFamily: font.medium,
-      color: onSurfaceVariant,
-      marginTop: 2,
-    },
-    reportFare: {
-      fontSize: 15,
-      fontFamily: font.extrabold,
-      color: onSurface,
-    },
-    exactBadge: {
-      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
-      marginTop: 4,
-    },
-    exactBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#059669',
-    },
-    overBadge: {
-      backgroundColor: isDark ? 'rgba(217,119,6,0.15)' : '#fffbeb',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
-      marginTop: 4,
-    },
-    overBadgeText: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#d97706',
-    },
-
-    // Report CTA — dashed outline
-    reportCta: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 8,
-      marginTop: 16,
-      paddingVertical: 14,
-      borderRadius: 16,
-      borderWidth: 1.5,
-      borderColor: outlineVariant,
-      borderStyle: 'dashed' as const,
-    },
-    reportCtaText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: '#815100',
-    },
-
-    // Safety row
-    safetyRow: {
-      flexDirection: 'row' as const,
-      gap: 12,
-      marginHorizontal: 24,
-      marginTop: 20,
-      marginBottom: 24,
-    },
-
-    // Empty state
-    emptyCard: {
-      padding: 24,
-      borderRadius: 20,
-      alignItems: 'center' as const,
-      backgroundColor: surfaceLow,
-    },
-    emptyTitle: {
-      marginTop: 12,
-      fontFamily: font.medium,
-      color: onSurfaceVariant,
-    },
-    emptySubtitle: {
-      fontSize: 14,
-      marginTop: 4,
-      color: outlineVariant,
-    },
-
-    // ── Line Champions ──
-    championsSection: {
-      marginHorizontal: 24,
-      marginTop: 24,
-    },
-    championsCard: {
-      backgroundColor: surfaceLowest,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingTop: 6,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 3,
-    },
-    championRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      paddingVertical: 12,
-    },
-    championRowBorder: {
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
-    },
-    championMedal: {
-      fontSize: 20,
-      marginRight: 10,
-    },
-    championName: {
-      fontFamily: font.bold,
-      fontSize: 14,
-      color: onSurface,
-    },
-    championSub: {
-      fontFamily: font.medium,
-      fontSize: 12,
-      color: onSurfaceVariant,
-      marginTop: 1,
-    },
-    championsCta: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 4,
-      paddingVertical: 12,
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3eeec',
-    },
-    championsCtaText: {
-      fontFamily: font.semibold,
-      fontSize: 13,
-      color: '#d97706',
-    },
-
-    // ── GPRTU Bulletins ──
-    bulletinSection: {
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      gap: 12,
-    },
-    bulletinHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 8,
-      marginBottom: 4,
-    },
-    bulletinTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: onSurface,
-      letterSpacing: -0.3,
-    },
-    bulletinCard: {
-      backgroundColor: surfaceLow,
-      borderRadius: 16,
-      padding: 16,
-      borderLeftWidth: 4,
-    },
-    bulletinType: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      letterSpacing: 1.5,
-      marginBottom: 4,
-    },
-    bulletinText: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: onSurface,
-      lineHeight: 20,
-    },
-
-    // ── GPRTU Info Modal ──
-    modalContainer: {
-      flex: 1,
-      justifyContent: 'flex-end' as const,
-    },
-    modalOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    modalSheet: {
-      backgroundColor: isDark ? '#1c1c1e' : '#fff',
-      borderTopLeftRadius: 40,
-      borderTopRightRadius: 40,
-      padding: 24,
-      paddingBottom: Platform.OS === 'ios' ? 40 : 28,
-    },
-    modalHandle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
-      alignSelf: 'center' as const,
-      marginBottom: 20,
-    },
-    modalHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 12,
-      marginBottom: 24,
-    },
-    modalShieldWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: isDark ? 'rgba(5,150,105,0.15)' : '#ecfdf5',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    modalTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: onSurface,
-    },
-    modalSub: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      marginTop: 2,
-    },
-    modalFareCard: {
-      backgroundColor: isDark ? 'rgba(5,150,105,0.08)' : '#f0fdf4',
-      borderRadius: 20,
-      padding: 20,
-      alignItems: 'center' as const,
-      marginBottom: 20,
-    },
-    modalFareLabel: {
-      fontSize: 10,
-      fontFamily: font.bold,
-      color: '#059669',
-      letterSpacing: 1.5,
-      marginBottom: 6,
-    },
-    modalFareValue: {
-      color: '#059669',
-    },
-    modalFareSub: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: onSurfaceVariant,
-      marginTop: 4,
-    },
-    modalInfoList: {
-      gap: 14,
-      marginBottom: 24,
-    },
-    modalInfoRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      gap: 12,
-    },
-    modalBullet: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: '#059669',
-      marginTop: 7,
-    },
-    modalInfoText: {
-      flex: 1,
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: onSurface,
-      lineHeight: 20,
-    },
-    modalReportBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 8,
-      paddingVertical: 14,
-      borderRadius: 16,
-      backgroundColor: '#b02500',
-    },
-    modalReportBtnText: {
-      fontSize: 15,
-      fontFamily: font.bold,
-      color: '#fff',
-    },
-  })
-}
+  tipsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 },
+})
