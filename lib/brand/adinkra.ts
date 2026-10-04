@@ -160,7 +160,8 @@ const gate = (c: string, sw = 1.6) => `<g fill="none" stroke="${c}" stroke-width
 const lighthouse = (c: string, sw = 1.6) => `<g fill="none" stroke="${c}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"><path d="M88,128 L94,48 H106 L112,128 Z"/><path d="M89.5,108 L110.5,108 M91,88 L109,88 M92.6,68 L107.4,68"/><path d="M90.3,98 L109.7,98 L109,88 L91,88 Z M91.8,78 L108.2,78 L107.4,68 L92.6,68 Z" fill="${c}" fill-opacity="0.35"/><rect x="90" y="44" width="20" height="4"/><rect x="94" y="32" width="12" height="12"/><path d="M94,32 Q100,22 106,32"/><line x1="100" y1="22" x2="100" y2="18"/><path d="M106,37 L150,24 M106,39 L152,48" opacity="0.7"/><path d="M94,37 L56,26 M94,39 L54,48" opacity="0.7"/><path d="M80,128 h40 M70,128 h-56 M130,128 h56"/><path d="M18,134 q8,-4 16,0 t16,0 t16,0 M120,134 q8,-4 16,0 t16,0 t16,0 t16,0"/></g>`
 const trotro = (c: string, sw = 1.6, x = 0, y = 0, s = 1) => `<g transform="translate(${x},${y}) scale(${s})" fill="none" stroke="${c}" stroke-width="${(sw / s).toFixed(2)}" stroke-linejoin="round" stroke-linecap="round"><path d="M14,40 V22 Q14,10 26,8 L40,6 H120 Q130,6 132,14 L134,40 Z"/><path d="M30,0 H110 M34,0 V6 M70,0 V6 M106,0 V6"/><rect x="40" y="-9" width="22" height="9" rx="1.5"/><rect x="66" y="-7" width="16" height="7" rx="1.5"/><rect x="86" y="-10" width="18" height="10" rx="1.5"/><path d="M16,22 L28,12 H36 V24 H16"/><rect x="42" y="12" width="18" height="12" rx="2"/><rect x="64" y="12" width="18" height="12" rx="2"/><rect x="86" y="12" width="18" height="12" rx="2"/><rect x="108" y="12" width="18" height="12" rx="2"/><line x1="38" y1="12" x2="38" y2="40"/><line x1="14" y1="30" x2="134" y2="30"/><circle cx="36" cy="40" r="7"/><circle cx="112" cy="40" r="7"/><circle cx="36" cy="40" r="2.5"/><circle cx="112" cy="40" r="2.5"/><path d="M12,34 h4 M132,34 h4"/></g>`
 
-export type LandmarkScene = 'gate' | 'lighthouse' | 'trotro' | 'star'
+/** 'gate' is the card scene (gate with a trotro in front); 'gateOnly' is the monument alone. */
+export type LandmarkScene = 'gate' | 'gateOnly' | 'lighthouse' | 'trotro' | 'star'
 
 /** Bottom-anchored scene for the card's colour panel (w × h). */
 export function landmarkSceneXml(kind: LandmarkScene, w: number, h: number, color: string): string {
@@ -169,6 +170,7 @@ export function landmarkSceneXml(kind: LandmarkScene, w: number, h: number, colo
   let inner: string
   switch (kind) {
     case 'gate': inner = gate(color) + trotro(color, 1.6, 58, 104, 0.62); break
+    case 'gateOnly': inner = gate(color); break
     case 'lighthouse': inner = lighthouse(color); break
     case 'trotro': inner = trotro(color, 1.6, 26, 80) + `<line x1="8" y1="128" x2="192" y2="128" stroke="${color}" stroke-width="1.6"/>`; break
     case 'star':
