@@ -10,7 +10,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { hasWalletPin } from '@/lib/services/walletPin'
 import { font, themed, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Button, Badge, SectionHeader } from '@/components/ui'
-import { HeroText } from '@/components/HeroText'
+import { WalletCard } from '@/components/WalletCard'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
@@ -216,7 +216,9 @@ export default function WalletScreen() {
       {/* Header */}
       <View style={s.header}>
         <Text style={[s.headerTitle, { color: t.text }]}>{tr('wallet.title')}</Text>
-        <TouchableOpacity
+        {/* Balance eye lives on the card; under a ticket (slim strip) it stays here. */}
+        {isAuthenticated && activePass && (
+          <TouchableOpacity
           onPress={toggleBalance}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
@@ -227,6 +229,7 @@ export default function WalletScreen() {
             : <EyeOff size={22} color={isDark ? '#78716c' : ui.textTertiary} />
           }
         </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -300,20 +303,19 @@ export default function WalletScreen() {
             </View>
           </View>
         ) : (
-          <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
-            <LinearGradient colors={[brand.orange, brand.orangePressed]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.balanceCard}>
-              <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
-              <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: -1 }}>{balanceText}</HeroText>
-              {isAuthenticated && (
-                <View style={s.trustRow}>
-                  <ShieldCheck size={15} color="#FFFFFF" />
-                  <Text style={s.trustText}>
-                    {hasPin ? 'PIN on · Secured by Paystack' : 'Secured by Paystack'}
-                  </Text>
-                </View>
-              )}
-              <View style={s.balanceDecor} />
-            </LinearGradient>
+          <Animated.View entering={FadeInDown.duration(400)} style={[s.section, { gap: space.sm }]}>
+            <WalletCard
+              label={tr('wallet.balance')}
+              balanceText={balanceText}
+              balanceVisible={balanceVisible}
+              onToggleBalance={toggleBalance}
+            />
+            {isAuthenticated && (
+              <View style={s.trustRow}>
+                <ShieldCheck size={15} color={ui.textSecondary} />
+                <Text style={s.trustText}>{hasPin ? 'PIN on · Secured by Paystack' : 'Secured by Paystack'}</Text>
+              </View>
+            )}
           </Animated.View>
         )}
 
@@ -463,18 +465,9 @@ const s = StyleSheet.create({
   },
   headerTitle: { ...type.title },
 
-  // Balance card — same bold orange card as Home (A)
-  balanceCard: {
-    borderRadius: radius.xl, padding: space.gutter, overflow: 'hidden', gap: 2,
-    shadowColor: brand.orange, shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 6,
-  },
-  balanceLabelText: { ...type.label, color: 'rgba(255,255,255,0.92)' },
-  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space.sm },
-  trustText: { ...type.caption, fontFamily: font.semibold, color: 'rgba(255,255,255,0.95)' },
-  balanceDecor: {
-    position: 'absolute', right: -40, top: -40,
-    width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.08)',
-  },
+  // Trust line under the card
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trustText: { ...type.caption, fontFamily: font.semibold, color: ui.textSecondary },
   creditedBanner: {
     flexDirection: 'row',
     alignItems: 'center',

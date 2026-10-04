@@ -16,11 +16,11 @@ import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin,
-  Bell, Eye, EyeOff, Compass, BusFront as BusIcon, Users,
+  Bell, Compass, BusFront as BusIcon, Users,
   ScanLine, Plus, Trophy,
 } from 'lucide-react-native'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
-import { HeroText } from '@/components/HeroText'
+import { WalletCard } from '@/components/WalletCard'
 import { Card, SectionHeader, Badge, Tap } from '@/components/ui'
 import { useLanguage } from '@/lib/i18n'
 import { formatGHS } from '@/lib/utils/currency'
@@ -229,77 +229,47 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Wallet card — one solid brand card ── */}
-        <View style={{ paddingHorizontal: space.gutter, marginBottom: space.gutter }}>
-          <View
-            style={{
-              backgroundColor: brand.orange,
-              borderRadius: radius.xl,
-              padding: space.gutter,
-              overflow: 'hidden',
-              ...cardShadow,
-            }}
-          >
-            {/* One soft disc for depth */}
-            <View style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.08)' }} />
-
-            {/* Top: label + eye toggle */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={[type.label, { color: 'rgba(255,255,255,0.8)' }]}>{t('home.walletBalance')}</Text>
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel={balanceVisible ? 'Hide balance' : 'Show balance'}
-                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' }}
-              >
-                {balanceVisible ? <Eye size={18} color={ui.onBrand} /> : <EyeOff size={18} color={ui.onBrand} />}
-              </Pressable>
-            </View>
-
-            {/* Balance — HeroText carries Baloo-safe line metrics */}
-            <HeroText size={40} style={{ color: ui.onBrand, letterSpacing: -1.5, marginTop: space.sm, marginBottom: balanceFailed ? space.xs : space.lg }}>
-              {formattedBalance}
-            </HeroText>
-            {balanceFailed && (
-              <Text style={[type.caption, { color: 'rgba(255,255,255,0.85)', marginBottom: space.md }]}>
-                Couldn&apos;t update — {walletBalance != null ? 'showing last known balance' : 'check your connection'}
-              </Text>
-            )}
-
-            {/* Actions */}
-            <View style={{ flexDirection: 'row', gap: space.md }}>
-              <Tap
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
-                accessibilityRole="button"
-                accessibilityLabel={t('home.topupWallet')}
-                style={{
-                  flex: 1, height: 52, borderRadius: radius.md, backgroundColor: ui.card,
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
-                }}
-              >
-                <Plus size={18} color={brand.orange} strokeWidth={2.6} />
-                <Text style={[type.labelStrong, { fontSize: 15, color: ui.text }]}>{t('home.topupWallet')}</Text>
-              </Tap>
-              <Tap
-                // Scan-to-pay is a non-functional mock (accepts any PIN, no real debit) —
-                // gated coming-soon like the other not-yet-live services below.
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'Scan to Pay is coming soon!') }}
-                accessibilityRole="button"
-                accessibilityLabel={`${t('home.scanToPay')}, coming soon`}
-                style={{
-                  flex: 1, height: 52, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.16)',
-                  borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
-                }}
-              >
-                <ScanLine size={17} color={ui.onBrand} />
-                <Text style={[type.labelStrong, { fontSize: 15, color: ui.onBrand }]}>{t('home.scanToPay')}</Text>
-                <View style={{ position: 'absolute', top: -8, right: -6 }}>
-                  <Badge label="Soon" tone="dark" />
-                </View>
-              </Tap>
-            </View>
+        {/* ── Wallet card — split Ghana transit-card design, actions underneath ── */}
+        <View style={{ paddingHorizontal: space.gutter, marginBottom: space.gutter, gap: space.md }}>
+          <WalletCard
+            label={t('home.walletBalance')}
+            balanceText={formattedBalance}
+            balanceVisible={balanceVisible}
+            onToggleBalance={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setBalanceVisible(!balanceVisible) }}
+            footnote={balanceFailed ? (walletBalance != null ? 'Offline · last known balance' : 'Offline · check connection') : undefined}
+          />
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <Tap
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(isAuthenticated ? '/wallet/fund' as Href : '/auth/phone' as Href) }}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.topupWallet')}
+              style={{
+                flex: 1, height: 52, borderRadius: radius.md, backgroundColor: brand.orange,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
+              }}
+            >
+              <Plus size={18} color={ui.onBrand} strokeWidth={2.6} />
+              <Text style={[type.labelStrong, { fontSize: 15, color: ui.onBrand }]}>{t('home.topupWallet')}</Text>
+            </Tap>
+            <Tap
+              // Scan-to-pay is a non-functional mock (accepts any PIN, no real debit) —
+              // gated coming-soon like the other not-yet-live services below.
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'Scan to Pay is coming soon!') }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('home.scanToPay')}, coming soon`}
+              accessibilityState={{ disabled: true }}
+              style={{
+                flex: 1, height: 52, borderRadius: radius.md, backgroundColor: ui.card,
+                borderWidth: 1.5, borderColor: ui.surfaceStrong, opacity: 0.75,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
+              }}
+            >
+              <ScanLine size={17} color={ui.text} />
+              <Text style={[type.labelStrong, { fontSize: 15, color: ui.text }]}>{t('home.scanToPay')}</Text>
+              <View style={{ position: 'absolute', top: -8, right: -6 }}>
+                <Badge label="Soon" tone="dark" />
+              </View>
+            </Tap>
           </View>
         </View>
 
