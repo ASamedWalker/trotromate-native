@@ -30,7 +30,7 @@ let current: WalletCardTheme | null = null
 const listeners = new Set<(t: WalletCardTheme) => void>()
 
 export function useWalletCardTheme() {
-  const { profile } = useApp()
+  const { profile, isProfileLoading } = useApp()
   const points = profile?.total_points ?? 0
   const [picked, setPicked] = useState<WalletCardTheme>(current ?? 'orange')
 
@@ -40,6 +40,8 @@ export function useWalletCardTheme() {
     if (current == null) {
       AsyncStorage.getItem(CARD_THEME_KEY)
         .then((v) => {
+          // A pick made while this read was in flight wins over the stored value.
+          if (current != null) return
           if (v === 'orange' || v === 'green' || v === 'black' || v === 'gold') {
             current = v
             listeners.forEach((l) => l(v))
@@ -56,6 +58,15 @@ export function useWalletCardTheme() {
     try { await AsyncStorage.setItem(CARD_THEME_KEY, t) } catch { /* best-effort */ }
   }, [])
 
-  const theme: WalletCardTheme = isCardUnlocked(picked, points) ? picked : 'orange'
+  // While the profile is still loading, keep the pick (no orange flash on cold start).
+  const unlocked = profile ? isCardUnlocked(picked, points) : isProfileLoading || picked === 'orange'
+  const theme: WalletCardTheme = unlocked ? picked : 'orange'
   return { theme, picked, points, choose }
+}
+
+/** Sign-out: forget the pick in memory and on disk; every mounted card goes back to Passenger. */
+export async function resetWalletCardTheme(): Promise<void> {
+  current = 'orange'
+  listeners.forEach((l) => l('orange'))
+  try { await AsyncStorage.removeItem(CARD_THEME_KEY) } catch { /* ignore */ }
 }

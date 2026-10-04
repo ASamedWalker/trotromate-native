@@ -131,9 +131,10 @@ export function WalletCard({
             <Text pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no" style={[s.tier, { right: 14 * fs, top: 12 * fs, fontSize: 14 * fs }]}>{t.tier}</Text>
             {!compact && (
             <View pointerEvents="box-none" style={{ position: 'absolute', left: 16 * fs, right: 10 * fs, bottom: (footnote ? 10 : 18) * fs }}>
-              <Text style={[s.label, { fontSize: 12 * fs }]} accessibilityElementsHidden importantForAccessibility="no">{label}</Text>
+              <Text pointerEvents="none" style={[s.label, { fontSize: 12 * fs }]} accessibilityElementsHidden importantForAccessibility="no">{label}</Text>
               <View style={[s.balanceRow, { gap: 8 * fs }]}>
                 <Text
+                  pointerEvents="none"
                   style={[s.balance, { fontSize: 27 * fs }]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -152,7 +153,7 @@ export function WalletCard({
                 </Pressable>
               </View>
               {footnote ? (
-                <Text style={[s.footnote, { fontSize: 11 * fs }]} numberOfLines={2} accessibilityElementsHidden importantForAccessibility="no">
+                <Text pointerEvents="none" style={[s.footnote, { fontSize: 11 * fs }]} numberOfLines={2} accessibilityElementsHidden importantForAccessibility="no">
                   {footnote}
                 </Text>
               ) : null}

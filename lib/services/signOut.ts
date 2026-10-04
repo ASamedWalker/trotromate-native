@@ -5,6 +5,7 @@ import { clearCachedPasses } from '@/lib/services/ticketCache'
 import { clearWalletPin } from '@/lib/services/walletPin'
 import { setBiometricEnabled } from '@/lib/services/biometric'
 import { cancelDepartureReminder, getDepartureReminders } from '@/lib/services/trainReminders'
+import { resetWalletCardTheme } from '@/lib/hooks/useWalletCardTheme'
 
 // Personal trip data the next person on the phone shouldn't inherit.
 // Device-level settings (language, onboarding, preferences) are kept.
@@ -15,7 +16,6 @@ const ACCOUNT_KEYS = [
   'user-commutes',
   'troski-route-alerts',
   'troski-search-history',
-  '@troski_card_theme_v1',
 ]
 
 /**
@@ -44,6 +44,7 @@ export async function signOutAndWipe(
     clearCachedPasses(),
     clearWalletPin(),
     setBiometricEnabled(false),
+    resetWalletCardTheme(),
     AsyncStorage.multiRemove(ACCOUNT_KEYS).catch(() => {}),
   ])
   await resetIdentity()
