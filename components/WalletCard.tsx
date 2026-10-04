@@ -23,16 +23,18 @@ export const CARD_THEMES: Record<WalletCardTheme, { from: string; to: string; ti
 const THEMES = CARD_THEMES
 
 // troski.me wordmark: "tr" + map pin as the "o" + "ski"
+// Pin's head sits on the lowercase letters, point at the baseline (Baloo 2 metrics).
+const PIN_DROP = -0.08
 const PIN_PATH = 'M12 0C5.4 0 0 5.3 0 11.9 0 20.4 12 32 12 32s12-11.6 12-20.1C24 5.3 18.6 0 12 0zm0 6.6a5.3 5.3 0 1 1 0 10.6 5.3 5.3 0 0 1 0-10.6z'
 export function Wordmark({ size, ink, pin }: { size: number; ink: string; pin: string }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} accessibilityLabel="Troski">
+    <View style={{ flexDirection: 'row', alignItems: 'center' }} accessibilityLabel="Troski">
       <Text style={[s.wordmark, { fontSize: size, color: ink }]}>tr</Text>
       <SvgXml
         xml={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32"><path fill-rule="evenodd" fill="${pin}" d="${PIN_PATH}"/></svg>`}
         width={size * 0.56}
         height={size * 0.75}
-        style={{ marginHorizontal: 1, marginBottom: size * 0.2 }}
+        style={{ marginHorizontal: 1, transform: [{ translateY: size * PIN_DROP }] }}
       />
       <Text style={[s.wordmark, { fontSize: size, color: ink }]}>ski</Text>
     </View>
