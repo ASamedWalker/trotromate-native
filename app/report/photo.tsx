@@ -18,7 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import { Camera, Image as ImageIcon, MapPin, X, Send, Plus, Video, Type, Banknote, HelpCircle, Users } from 'lucide-react-native'
 import * as VideoThumbnails from 'expo-video-thumbnails'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, brand } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
@@ -299,7 +299,7 @@ export default function TrotroTalesPostScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header Card */}
           <View style={s.newPostHeader}>
             <View style={{ flex: 1 }}>
@@ -447,6 +447,7 @@ export default function TrotroTalesPostScreen() {
               <>
                 {/* Thumbnail strip */}
                 <FlatList
+                  keyboardShouldPersistTaps="handled"
                   data={[...imageUris, ...(canAddMore ? ['__add__'] : [])]}
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -603,7 +604,9 @@ export default function TrotroTalesPostScreen() {
                 {isSubmitting
                   ? mediaType === 'video'
                     ? `Uploading video${uploadProgress ? ` ${Math.round(uploadProgress * 100)}%` : ''}...`
-                    : `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
+                    : imageUris.length > 0
+                      ? `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
+                      : 'Posting\u2026'
                   : 'Post to Pulse'}
               </Text>
             </TouchableOpacity>
@@ -800,7 +803,7 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
       paddingVertical: 16,
       borderRadius: 16,
-      backgroundColor: c.pink500,
+      backgroundColor: brand.orange,
     },
     submitBtnDisabled: { backgroundColor: c.stone400 },
     submitText: { marginLeft: 8, color: c.white, fontFamily: font.semibold, fontSize: 16 },

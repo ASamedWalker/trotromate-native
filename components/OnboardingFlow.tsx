@@ -36,8 +36,8 @@ const SLIDES: Slide[] = [
   {
     id: 'queue',
     image: require('@/assets/images/onboarding/ob_illustrator_image.png'),
-    title: 'Know Your Queue\nBefore You Leave',
-    subtitle: 'Live queue depths, bay status and departure times for every terminal across Accra.',
+    title: 'Know Your Fare\nBefore You Leave',
+    subtitle: 'Real trotro fares, routes and stations across Accra.',
   },
   {
     id: 'wallet',
@@ -92,6 +92,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [agreed, setAgreed] = useState(false)
+  const [showConsentHint, setShowConsentHint] = useState(false)
 
   const isLastSlide = currentIndex === SLIDES.length - 1
   const isFirstSlide = currentIndex === 0
@@ -117,9 +118,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, [])
 
   const createAccount = useCallback(() => {
+    if (!agreed) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      setShowConsentHint(true)
+      return
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     onComplete('register')
-  }, [onComplete])
+  }, [agreed, onComplete])
 
   const login = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -189,28 +195,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {/* Action buttons */}
         {showAuth ? (
           <View style={s.authActions}>
-            {/* Primary CTA — phone-first sign-up, gated on consent.
-                Greyed out until the consent box is checked. */}
-            <Pressable onPress={createAccount} disabled={!agreed} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
-              <LinearGradient colors={agreed ? [BRAND, BRAND_DEEP] : ['#D9D9D9', '#CFCFCF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
-                <Text style={[s.btnPrimaryLabel, !agreed && { color: '#8A8A8A' }]}>Create an Account</Text>
-              </LinearGradient>
-            </Pressable>
-
-            {/* Login link */}
-            <Text style={s.loginText}>
-              Already have an account?{' '}
-              <Text style={s.loginLink} onPress={login}>Login</Text>
-            </Text>
-
-            {/* Guest path — no account needed for fares/routes/queues */}
-            <Pressable onPress={exploreAsGuest} hitSlop={8} accessibilityRole="button" accessibilityLabel="Explore without an account">
-              <Text style={s.guestLink}>Explore fares without an account</Text>
-            </Pressable>
-
             {/* Consent — active clickwrap checkbox (enforceable; gates the CTA) */}
             <Pressable
-              onPress={() => setAgreed(v => !v)}
+              onPress={() => { setAgreed(v => !v); setShowConsentHint(false) }}
               style={s.consentRow}
               hitSlop={6}
               accessibilityRole="checkbox"
@@ -225,6 +212,27 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 {' '}and{' '}
                 <Text style={s.consentLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy Policy</Text>
               </Text>
+            </Pressable>
+            {showConsentHint && !agreed && <Text style={s.consentHint}>Tick the box to agree first</Text>}
+
+            {/* Primary CTA — phone-first sign-up, gated on consent.
+                Greyed out until the consent box is checked; tapping while
+                unchecked shows a hint instead of navigating. */}
+            <Pressable onPress={createAccount} accessibilityRole="button" accessibilityState={{ disabled: !agreed }} accessibilityHint={agreed ? undefined : "Tick the box to agree to the Terms first"} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+              <LinearGradient colors={agreed ? [BRAND, BRAND_DEEP] : ['#D9D9D9', '#CFCFCF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
+                <Text style={[s.btnPrimaryLabel, !agreed && { color: '#8A8A8A' }]}>Create an Account</Text>
+              </LinearGradient>
+            </Pressable>
+
+            {/* Login link */}
+            <Text style={s.loginText}>
+              Already have an account?{' '}
+              <Text style={s.loginLink} onPress={login}>Login</Text>
+            </Text>
+
+            {/* Guest path — no account needed for fares/routes/queues */}
+            <Pressable onPress={exploreAsGuest} hitSlop={8} accessibilityRole="button" accessibilityLabel="Explore without an account">
+              <Text style={s.guestLink}>Explore fares without an account</Text>
             </Pressable>
           </View>
         ) : (
@@ -418,6 +426,15 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: '#9A9A9A',
+  },
+  consentHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: font.semibold,
+    color: BRAND,
+    paddingHorizontal: 4,
+    marginTop: 4,
+    marginBottom: 6,
   },
   consentLink: {
     color: '#5A5A5A',

@@ -188,10 +188,10 @@ export default function ReceiptScreen() {
 
       {/* Bottom actions */}
       <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, gap: 10 }}>
-        {/* Track your bus — live position + ETA toward your stop. Pass the assigned
+        {/* Track your bus (only when a van was actually assigned) — live position + ETA toward your stop. Pass the assigned
             van so the passenger locks onto their exact bus's broadcast, not just
             any trotro on the route. */}
-        {(!!params.route_id || !!params.van) && (
+        {!!params.van && (
           <TouchableOpacity
             activeOpacity={0.9}
             style={s.trackBtn}

@@ -21,10 +21,10 @@ const METHODS: {
   route: Href | null
   soon?: boolean
 }[] = [
-  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: null, soon: true },
   { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, network: 'mtn', route: '/wallet/momo?provider=mtn' as Href },
   { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, network: 'atl', route: '/wallet/momo?provider=atl' as Href },
   { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, network: 'tgo', route: '/wallet/momo?provider=tgo' as Href },
+  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: null, soon: true },
   { id: 'card', label: 'Add Debit Card', Icon: CreditCard, route: null, soon: true },
 ]
 
@@ -62,7 +62,7 @@ export default function TopUpWalletScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={s.iconBtn}>
           <ArrowLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>Top Up Wallet</Text>
+        <Text style={[s.headerTitle, { color: t.text }]}>Topup Wallet</Text>
         <View style={{ width: 40 }} />
       </View>
 

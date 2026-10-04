@@ -345,10 +345,12 @@ const TaleCard = React.memo(function TaleCard({
         <>
           <Pressable style={s.menuOverlay} onPress={() => setShowMenu(false)} />
           <View style={s.menuDropdown}>
-            <TouchableOpacity onPress={handleReport} activeOpacity={0.7} style={s.menuItem}>
-              <Flag size={16} color={ui.textSecondary} />
-              <Text style={s.menuItemText}>Report</Text>
-            </TouchableOpacity>
+            {!isOwn && (
+              <TouchableOpacity onPress={handleReport} activeOpacity={0.7} style={s.menuItem}>
+                <Flag size={16} color={ui.textSecondary} />
+                <Text style={s.menuItemText}>Report</Text>
+              </TouchableOpacity>
+            )}
             {isOwn && onDelete && (
               <TouchableOpacity onPress={handleDelete} activeOpacity={0.7} style={s.menuItem}>
                 <Trash2 size={16} color={ui.danger} />
@@ -596,7 +598,7 @@ export function TalesScreen() {
     <View>
       <View style={s.titleWrap}>
         <Text style={s.title}>Pulse</Text>
-        <Text style={s.subtitle}>Live from the road, by commuters</Text>
+        <Text style={s.subtitle}>From the road, by commuters</Text>
       </View>
       <ScrollView
         horizontal
@@ -645,7 +647,7 @@ export function TalesScreen() {
         accessibilityLabel="Write a post"
         style={s.composeInput}
       >
-        <Text style={s.composePlaceholder}>What&apos;s happening on your route?</Text>
+        <Text style={s.composePlaceholder}>What&apos;s happening?</Text>
       </TouchableOpacity>
       <TouchableOpacity
         onPress={() => router.push('/report/photo' as Href)}
@@ -880,7 +882,7 @@ const cardStyles = () => {
     answerBtn: {
       height: 46,
       borderRadius: 14,
-      backgroundColor: '#1D4ED8',
+      backgroundColor: brand.orange,
       alignItems: 'center',
       justifyContent: 'center',
     },

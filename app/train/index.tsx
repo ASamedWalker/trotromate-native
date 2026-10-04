@@ -472,6 +472,15 @@ export default function TrainLinesScreen() {
     setPicker(null)
   }
 
+  // Scroll the result card into view once a From+To pair is chosen
+  useEffect(() => {
+    if (!result) return
+    const id = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, findY.current + 120), animated: true })
+    }, 350)
+    return () => clearTimeout(id)
+  }, [result])
+
   const swapStations = () => {
     setFromName(toName)
     setToName(fromName)
@@ -591,10 +600,13 @@ export default function TrainLinesScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
+      {/* Status-bar scrim so content never collides with the clock */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: PAPER, zIndex: 10 }} />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 24 }}
         refreshControl={
           <RefreshControl
             refreshing={false}
@@ -612,7 +624,7 @@ export default function TrainLinesScreen() {
           </View>
           <View style={s.clockPill} accessibilityLabel={`Ghana time ${currentTime}`}>
             <Clock size={14} color="#44403C" />
-            <Text style={s.clockPillText}>{currentTime}</Text>
+            <Text style={s.clockPillText}>Accra {currentTime}</Text>
           </View>
         </View>
 
@@ -1000,7 +1012,9 @@ export default function TrainLinesScreen() {
             lines.map((item) => {
               const sch = TRAIN_SCHEDULES[item.code] ?? []
               const departs = sch.map((x) => x.stops[0].depart!).sort()
-              const stationCount = item.station_count ?? sch[0]?.stops.length ?? 0
+              // Same list the station picker uses, so the card and the picker agree
+              const pickerCount = lineStationNames(item.code).length
+              const stationCount = pickerCount || (item.station_count ?? sch[0]?.stops.length ?? 0)
               return (
                 <Tap
                   key={item.id}
@@ -1096,7 +1110,7 @@ export default function TrainLinesScreen() {
                     <View style={[s.pickerBar, { backgroundColor: LINE_COLORS[code]?.main ?? INK }]} />
                     <Text style={s.pickerGroupTitle}>{LINE_NAMES[code]}</Text>
                   </View>
-                  {lineStationNames(code).map((name) => (
+                  {lineStationNames(code).filter((name) => name !== (picker === 'from' ? toName : fromName)).map((name) => (
                     <Tap
                       key={`${code}-${name}`}
                       onPress={() => pickStation(name)}

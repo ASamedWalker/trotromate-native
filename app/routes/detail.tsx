@@ -182,7 +182,7 @@ export default function RouteDetailScreen() {
     cameraRef.current.fitBounds(
       [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
       [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-      [insets.top + 96, 52, SCREEN_H * 0.44, 52],
+      [insets.top + 150, 52, SCREEN_H * 0.44, 52],
       duration,
     )
   }
@@ -356,7 +356,7 @@ export default function RouteDetailScreen() {
             bounds: {
               ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
               sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-              paddingTop: insets.top + 96,
+              paddingTop: insets.top + 150,
               paddingBottom: SCREEN_H * 0.44,
               paddingLeft: 52,
               paddingRight: 52,

@@ -449,7 +449,9 @@ export default function PlanTripScreen() {
           </View>
 
           {/* Saved-place shortcuts (Your Trip style) — hidden once routes show */}
-          {!showingResults && (
+          {/* Hidden while typing so the matching stations below sit right
+              under the inputs instead of behind the keyboard. */}
+          {!showingResults && (activeInput === 'from' ? from : to).length === 0 && (
             <View style={{ marginTop: 12 }}>
               {SHORTCUTS.map((sc, i) => (
                 <TouchableOpacity

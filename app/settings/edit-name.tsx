@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useQueryClient } from '@tanstack/react-query'
-import { c, themed, font } from '@/lib/theme'
+import { c, themed, font, brand } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
 
@@ -76,7 +76,7 @@ export default function EditNameScreen() {
           maxLength={30}
           autoFocus
         />
-        <Text style={s.hint}>This is how you appear on the leaderboard and in Trotro Tales.</Text>
+        <Text style={s.hint}>This is how you appear on the leaderboard and in Pulse.</Text>
         {touched && name.trim().length === 0 && (
           <Text style={s.error}>Name cannot be empty.</Text>
         )}
@@ -145,7 +145,7 @@ const getStyles = (isDark: boolean) => {
     },
     saveBtn: {
       marginTop: 24,
-      backgroundColor: c.amber500,
+      backgroundColor: brand.orange,
       borderRadius: 16,
       paddingVertical: 14,
       alignItems: 'center',

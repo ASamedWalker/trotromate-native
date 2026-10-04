@@ -139,6 +139,7 @@ export default function CheckoutScreen() {
     if (!user?.id) { setBalanceLoading(false); return }
     try {
       const res = await authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      if (!res.ok) throw new Error(`wallet ${res.status}`)
       const data = await res.json()
       if (data.balance != null) setWalletBalance(Number(data.balance))
     } catch { /* leave null → "Tap to check" */ }
@@ -151,13 +152,17 @@ export default function CheckoutScreen() {
   // After a shortfall top-up the MoMo credit lands a few seconds later (webhook),
   // so keep re-checking for up to a minute instead of leaving "Top up" stuck.
   const awaitingTopupRef = useRef(false)
+  const goTopup = (amount?: number) => {
+    awaitingTopupRef.current = true
+    router.push({ pathname: '/wallet/fund', params: { ...(amount ? { amount: String(Math.ceil(amount)) } : {}), return: 'checkout' } } as never)
+  }
   useFocusEffect(useCallback(() => {
     if (!awaitingTopupRef.current) return
     let n = 0
     const id = setInterval(() => {
       n += 1
+      if (!awaitingTopupRef.current || n > 20) { clearInterval(id); awaitingTopupRef.current = false; return }
       fetchBalance()
-      if (n >= 20) { clearInterval(id); awaitingTopupRef.current = false }
     }, 3000)
     return () => clearInterval(id)
   }, [fetchBalance]))
@@ -168,6 +173,8 @@ export default function CheckoutScreen() {
     { id: 'wallet', label: 'Troski Wallet', sub: balanceLoading ? 'Checking balance…' : walletBalance != null ? formatGHS(walletBalance) : "Couldn't load balance — tap to retry" },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
+  // Credit landed: stop the post-topup polling.
+  useEffect(() => { if (!insufficient) awaitingTopupRef.current = false }, [insufficient])
   const shortfall = insufficient ? total - (walletBalance ?? 0) : 0
   // Don't let the user pay from the wallet until we know the balance — avoids a
   // silent overdraw path when the balance fetch is slow, timed out, or failed.
@@ -201,7 +208,7 @@ export default function CheckoutScreen() {
     bookingRef.current = false
     if (result.ok) {
       // Home/Wallet paint from this snapshot on focus, so the debit shows at once.
-      cacheWalletBalance(result.newBalance, user.id)
+      if (Number.isFinite(result.newBalance)) cacheWalletBalance(result.newBalance, user.id)
       router.push({
         pathname: '/booking/processing',
         params: {
@@ -216,7 +223,7 @@ export default function CheckoutScreen() {
     } else if (result.reason === 'insufficient_balance') {
       Alert.alert('Insufficient balance', 'Top up your wallet to complete this booking.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Top up', onPress: () => router.push('/wallet/fund' as never) },
+        { text: 'Topup', onPress: () => goTopup() },
       ])
     } else {
       Alert.alert('Booking failed', result.message || 'Could not complete the booking. Please try again.')
@@ -377,8 +384,8 @@ export default function CheckoutScreen() {
                 </>
               ) : (
                 <View style={{ flex: 1 }}>
-                  <Text style={s.driverName}>Assigning your bus</Text>
-                  <Text style={s.driverRole}>Driver &amp; plate shown shortly</Text>
+                  <Text style={s.driverName}>Board any trotro on this route</Text>
+                  <Text style={s.driverRole}>Show your QR ticket to the mate</Text>
                 </View>
               )}
             </Card>
@@ -452,12 +459,11 @@ export default function CheckoutScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 // Pre-fill the top-up with the shortfall (rounded up to a clean cedi).
-                awaitingTopupRef.current = true
-                router.push({ pathname: '/wallet/fund', params: { amount: String(Math.ceil(shortfall)), return: 'checkout' } } as never)
+                goTopup(shortfall)
               }}
               style={s.payBtn}
             >
-              <Text style={s.payBtnText}>Top up {formatGHS(Math.ceil(shortfall))} to pay</Text>
+              <Text style={s.payBtnText}>Topup {formatGHS(Math.ceil(shortfall))} to pay</Text>
             </TouchableOpacity>
           </>
         ) : (

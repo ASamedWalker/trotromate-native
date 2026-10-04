@@ -30,6 +30,7 @@ export default function PhoneAuthScreen() {
   // were still signed in). "Skip for now" is the explicit guest choice.
   const { from } = useLocalSearchParams<{ from?: string }>()
   const afterSignOut = from === 'signout'
+  const isRegister = from === 'register'
   const inputRef = useRef<TextInput>(null)
 
   // While the number pad is open the intro copy hides so the field and the
@@ -92,7 +93,7 @@ export default function PhoneAuthScreen() {
           {/* Title always visible (the field autofocuses, so the keypad is
               usually open); only the longer line hides while typing. */}
           <Animated.View entering={FadeInDown.duration(300)} style={[s.intro, kbOpen && { marginTop: 16 }]}>
-            <HeroText size={kbOpen ? 28 : 34} style={{ color: INK, letterSpacing: -0.6 }}>Sign in with your phone</HeroText>
+            <HeroText size={kbOpen ? 28 : 34} style={{ color: INK, letterSpacing: -0.6 }}>{isRegister ? 'Create your account' : 'Sign in with your phone'}</HeroText>
             {!kbOpen && <Text style={s.lede}>Save your routes, keep your likes on every phone, and pay with your wallet.</Text>}
           </Animated.View>
 

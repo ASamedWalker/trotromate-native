@@ -87,7 +87,7 @@ function OnboardingRedirect({ action, onDone }: { action: 'register' | 'login' |
     // isn't left underneath. The full-screen (non-modal) auth screen covers
     // home, so this no longer flashes the way the old modal did.
     const t = setTimeout(() => {
-      router.replace(route as any)
+      router.replace((action === 'register' ? { pathname: route, params: { from: 'register' } } : route) as any)
       onDone()
     }, 0)
     return () => clearTimeout(t)

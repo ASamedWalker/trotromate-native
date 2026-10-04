@@ -55,6 +55,7 @@ export default function WalletScreen() {
     if (!user?.id) return
     try {
       const res = await authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      if (!res.ok) throw new Error(`wallet ${res.status}`)
       const data = await res.json()
       if (data.balance != null) {
         const next = Number(data.balance)
@@ -89,6 +90,14 @@ export default function WalletScreen() {
   // on mount (passes for the QR; balance + transactions to avoid the blank
   // empty-state flash). The live fetch then refreshes everything.
   useEffect(() => {
+    // The tab stays mounted across sign-out/sign-in: drop the previous
+    // account's numbers before seeding for this one.
+    setBalance(0)
+    setTransactions([])
+    setPasses([])
+    setHydrated(false)
+    prevBalanceRef.current = null
+    if (!user?.id) return
     getCachedPasses().then((cached) => {
       if (cached.length) setPasses((cur) => (cur.length ? cur : cached))
     })
@@ -184,12 +193,6 @@ export default function WalletScreen() {
         {/* ── Balance Card ── */}
         <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
           <View style={[s.balanceCard, isDark && s.balanceCardDark]}>
-            {/* Coming Soon badge — only when not funded */}
-            {!isAuthenticated && (
-              <View style={{ marginBottom: space.md }}>
-                <Badge label="Coming soon" tone="brand" />
-              </View>
-            )}
 
             <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
             <View style={s.balanceAmountRow}>
@@ -370,7 +373,7 @@ export default function WalletScreen() {
           /* ── Empty State (Stitch Page 3 — "Your wallet is quiet") ── */
           <Animated.View entering={FadeIn.delay(200).duration(500)} style={s.emptyContainer}>
             <View style={s.emptyWalletBox}>
-              <MaterialIcons name="account-balance-wallet" size={48} color={brand.orange} />
+              <MaterialIcons name="account-balance-wallet" size={36} color={brand.orange} />
             </View>
 
             {/* Text */}
@@ -381,7 +384,7 @@ export default function WalletScreen() {
 
             {/* CTA Buttons */}
             <View style={s.emptyCTAs}>
-              <Button label="Add money now" icon={Plus} onPress={handleAuthAction} />
+              <Button label="Topup now" icon={Plus} onPress={handleAuthAction} />
               <Button label="Connect MoMo account" variant="outline" onPress={handleAuthAction} />
             </View>
           </Animated.View>
@@ -492,14 +495,14 @@ const s = StyleSheet.create({
   skelCard: { height: 72, borderRadius: radius.lg, backgroundColor: ui.surface },
 
   // Empty state
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.gutter, paddingVertical: space.xl },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.gutter, paddingVertical: space.md },
   emptyWalletBox: {
-    width: 96, height: 96, borderRadius: radius.xl, justifyContent: 'center', alignItems: 'center',
+    width: 72, height: 72, borderRadius: radius.xl, justifyContent: 'center', alignItems: 'center',
     backgroundColor: brand.orangeSoft, marginBottom: space.gutter,
   },
   emptyTitle: { ...type.title, marginBottom: 10 },
   emptySub: { fontSize: 15, fontFamily: font.regular, textAlign: 'center', lineHeight: 22 },
-  emptyCTAs: { width: '100%', marginTop: space.section, gap: 10 },
+  emptyCTAs: { width: '100%', marginTop: space.gutter, gap: 10 },
 
   // Empty transactions
   txEmptyBox: {

@@ -10,7 +10,8 @@ import {
 // and caches decoded bitmaps. RN's Image decoded these at full source
 // resolution, which is how six small icons cost ~195 MB of RAM on this screen.
 import { Image } from 'expo-image'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
@@ -75,6 +76,7 @@ const QUICK_ACTIONS = [
 
 export default function HomeScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { t } = useLanguage()
   const { profile, deviceId } = useApp()
   const { user: authUser, isAuthenticated } = useAuthContext()
@@ -100,7 +102,7 @@ export default function HomeScreen() {
       getCachedWallet(authUser.id).then((snap) => { if (snap) setWalletBalance(snap.balance) })
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
       authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error(`wallet ${r.status}`); return r.json() })
         .then(data => {
           if (data.balance != null) { setWalletBalance(data.balance); setBalanceFailed(false); cacheWalletBalance(Number(data.balance), authUser.id) }
         })
@@ -142,7 +144,8 @@ export default function HomeScreen() {
   }, [location?.latitude, location?.longitude])
 
   const displayName = profile?.display_name || 'Commuter'
-  const firstName = displayName.split(' ')[0]
+  // Auto-assigned names ("Troski Fan #CD13") aren't a person's name — greet plainly.
+  const firstName = /^Troski Fan #/.test(displayName) ? null : displayName.split(' ')[0]
   // null = never loaded and no cache: show a dash, never a fake GH₵ 0.00 (UX-13)
   const formattedBalance = !balanceVisible
     ? '******'
@@ -164,7 +167,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: ui.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}>
 
         {/* ── Header ── */}
         <View style={{ paddingHorizontal: space.gutter, paddingTop: space.md, paddingBottom: space.gutter }}>
@@ -180,7 +183,7 @@ export default function HomeScreen() {
               </Pressable>
               <View style={{ flex: 1 }}>
                 <Text style={[type.title, { color: ui.text }]} numberOfLines={1}>
-                  {t('home.hello')}, {firstName}
+                  {firstName ? `${t('home.hello')}, ${firstName}` : t('home.hello')}
                 </Text>
                 {/* Static label — was a dead Pressable with a chevron affordance (UX-26) */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -309,7 +312,7 @@ export default function HomeScreen() {
               return (
                 <Card key={action.id} onPress={() => handleQuickAction(action.id)} accessibilityLabel={actionLabel} style={{ flex: 1 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[type.bodyMedium, { fontFamily: font.bold, color: ui.text }]}>{actionLabel}</Text>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[type.bodyMedium, { fontFamily: font.bold, color: ui.text }]}>{actionLabel}</Text>
                     <Text style={[type.label, { fontFamily: font.regular, color: ui.textSecondary, marginBottom: space.md }]}>{t(action.subKey)}</Text>
                     <View style={{
                       width: 40, height: 40, borderRadius: 20,
@@ -367,7 +370,6 @@ export default function HomeScreen() {
         {/* ── What's On in Accra (events + ad placements) ── */}
         <WhatsOnAccra />
 
-        <View style={{ height: 120 }} />
       </ScrollView>
     </SafeAreaView>
   )

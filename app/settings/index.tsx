@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   useColorScheme,
   StyleSheet,
   Linking,
+  AppState,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLanguage } from '@/lib/i18n'
@@ -28,6 +29,7 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
+import Constants from 'expo-constants'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { signOutAndWipe } from '@/lib/services/signOut'
@@ -71,7 +73,23 @@ export default function SettingsScreen() {
     )
   }
 
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user } = useAuthContext()
+  const phone = user?.phone ? (user.phone.startsWith('+') ? user.phone : `+${user.phone}`) : null
+
+  // OS permission is the real gate for push; null until read.
+  const [osPushGranted, setOsPushGranted] = useState<boolean | null>(null)
+  useEffect(() => {
+    const check = () => {
+      import('expo-notifications')
+        .then((N) => N.getPermissionsAsync())
+        .then(({ status }) => setOsPushGranted(status === 'granted'))
+        .catch(() => setOsPushGranted(null))
+    }
+    check()
+    // Re-check when returning from the OS Settings app.
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') check() })
+    return () => sub.remove()
+  }, [])
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -80,7 +98,7 @@ export default function SettingsScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await signOutAndWipe(resetIdentity)
+          await signOutAndWipe(deviceId, resetIdentity)
           router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
         },
       },
@@ -112,6 +130,7 @@ export default function SettingsScreen() {
               />
               <View style={s.profileInfo}>
                 <Text style={s.profileName}>{profile?.display_name ?? 'Commuter'}</Text>
+                {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
                 <Text style={s.profileSub}>{levelInfo.emoji} {levelInfo.name}</Text>
               </View>
               <ChevronRight size={18} color={t.textTertiary} />
@@ -155,10 +174,12 @@ export default function SettingsScreen() {
                 <Text style={s.settingDesc}>Get notified about fare drops and alerts</Text>
               </View>
               <Switch
-                value={prefs.pushNotifications}
+                value={prefs.pushNotifications && osPushGranted !== false}
                 onValueChange={async (v) => {
-                  updatePref('pushNotifications', v)
-                  if (!v) return
+                  if (!v) {
+                    updatePref('pushNotifications', false)
+                    return
+                  }
                   // The pref alone can't deliver anything — the OS permission
                   // is the real gate. Request it here so the toggle is honest.
                   const Notifications = await import('expo-notifications')
@@ -167,6 +188,8 @@ export default function SettingsScreen() {
                     status === 'granted'
                       ? status
                       : (await Notifications.requestPermissionsAsync()).status
+                  setOsPushGranted(final === 'granted')
+                  updatePref('pushNotifications', final === 'granted')
                   if (final !== 'granted') {
                     Alert.alert(
                       'Notifications are off in Settings',
@@ -296,7 +319,7 @@ export default function SettingsScreen() {
 
         {/* Footer */}
         <View style={s.footer}>
-          <Text style={s.version}>Troski v{Updates.runtimeVersion ?? '?'}</Text>
+          <Text style={s.version}>Troski v{Constants.expoConfig?.version ?? '?'}</Text>
           <Text style={s.footerText}>Made with love in Accra</Text>
           {!__DEV__ && (
             <Text style={s.footerText}>

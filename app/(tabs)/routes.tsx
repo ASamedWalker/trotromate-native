@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -42,6 +42,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
+import { titleCase } from '@/lib/utils/title-case'
 import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 
@@ -114,6 +115,12 @@ export default function RoutesScreen() {
     return result
   }, [routes, activeFilter, searchQuery, favorites])
 
+  // Reset scroll when the query/filter changes so the first match isn't half-hidden
+  const listRef = useRef<FlatList<RouteWithStats>>(null)
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false })
+  }, [searchQuery, activeFilter, activeRegion])
+
   // Anticipatory prefetch (Uber "work ahead of the user" pattern): warm the
   // detail queries for the cards on screen so /routes/[id] opens instantly.
   // prefetchQuery is a no-op while the cached copy is still fresh.
@@ -181,7 +188,7 @@ export default function RoutesScreen() {
             <View style={s.cardTopLeft}>
               <Badge label={isOkada ? 'Okada' : 'Trotro'} tone={isOkada ? 'brand' : 'neutral'} />
               <Text style={s.routeName} numberOfLines={1}>
-                {item.from_location} → {item.to_location}
+                {titleCase(item.from_location)} → {titleCase(item.to_location)}
               </Text>
             </View>
             <View style={s.fareWrap}>
@@ -317,10 +324,11 @@ export default function RoutesScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={filteredRoutes}
           renderItem={renderRoute}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: 90 }}
+          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingTop: 8, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={activeRegion !== 'all' ? (() => {
                 const hero = REGION_HEROES.find(h => h.key === activeRegion)

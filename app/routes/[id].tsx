@@ -13,11 +13,11 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MapPin, Clock, TrendingUp, Users, Plus, AlertTriangle, ShieldCheck, ChevronRight, X, Trophy, Heart, Receipt } from 'lucide-react-native'
 import { c, font } from '@/lib/theme'
 import { dur } from '@/lib/motion'
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
+import Animated, { FadeInDown, FadeIn, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
@@ -41,6 +41,9 @@ import { useFavorites } from '@/lib/hooks/useFavorites'
 // GPRTUBadge replaced with inline ShieldCheck in Stitch redesign
 import { detectRegion, REGION_HEROES } from '@/lib/config/regions'
 import { LoadErrorState } from '@/components/StateViews'
+import { Button } from '@/components/ui'
+import { titleCase } from '@/lib/utils/title-case'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 
 const TRAFFIC_CONDITION_COLORS: Record<string, { light: string; dark: string }> = {
   light: { light: '#059669', dark: '#34d399' },
@@ -56,8 +59,19 @@ export default function RouteDetailScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const router = useRouter()
+  const { isAuthenticated } = useAuthContext()
   const haptics = useHaptics()
   const { isFavorite, toggleFavorite } = useFavorites()
+  const insets = useSafeAreaInsets()
+
+  // Status-bar scrim: fades in once the hero has scrolled away so content
+  // never collides with the clock.
+  const scrollY = useSharedValue(0)
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y })
+  const scrimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [200, 280], [0, 1], Extrapolation.CLAMP),
+  }))
+
   const [activeTab, setActiveTab] = useState<'details' | 'trend' | 'reports'>('details')
   const [showGprtuInfo, setShowGprtuInfo] = useState(false)
 
@@ -159,7 +173,18 @@ export default function RouteDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <Animated.View
+        pointerEvents="none"
+        style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: s.container.backgroundColor, zIndex: 15 }, scrimStyle]}
+      />
+
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
         {/* Stitch Hero — tall with cinematic image */}
         <Animated.View entering={FadeIn.duration(dur.emphasized)} style={s.heroSection}>
           {hero ? (
@@ -172,7 +197,7 @@ export default function RouteDetailScreen() {
                 cachePolicy="disk"
               />
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.25)', isDark ? 'rgba(28,28,30,0.95)' : 'rgba(252,245,242,0.95)']}
+                colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
                 locations={[0, 0.4, 1]}
                 style={StyleSheet.absoluteFillObject}
               />
@@ -193,7 +218,7 @@ export default function RouteDetailScreen() {
               </View>
               {lastUpdated && (
                 <View style={s.lastUpdatedBadge}>
-                  <Clock size={10} color={isDark ? '#e5e5e5' : '#5f5b59'} />
+                  <Clock size={10} color="#e5e5e5" />
                   <Text style={s.lastUpdatedText}>{lastUpdated}</Text>
                 </View>
               )}
@@ -201,7 +226,7 @@ export default function RouteDetailScreen() {
 
             {/* Route name — massive */}
             <Text style={s.heroRouteTitle}>
-              {route.from_location} → {route.to_location}
+              {titleCase(route.from_location)} → {titleCase(route.to_location)}
             </Text>
 
             {/* Fare display */}
@@ -217,7 +242,7 @@ export default function RouteDetailScreen() {
 
             {/* Trust signal — report count + freshness */}
             <View style={s.heroMeta}>
-              <Users size={16} color="#815100" />
+              <Users size={16} color="#f8a010" />
               <Text style={s.heroMetaText}>
                 {reportCount > 0
                   ? `Based on ${reportCount} recent report${reportCount !== 1 ? 's' : ''}${lastUpdated && lastUpdated !== 'No data' ? ` · ${lastUpdated}` : ''}`
@@ -226,6 +251,24 @@ export default function RouteDetailScreen() {
             </View>
           </View>
         </Animated.View>
+
+        {/* Primary CTA — book this trip (trotro only; okada booking isn't live).
+            Guests sign in first: checkout needs an account to pay. */}
+        {(route as { transport_type?: string }).transport_type !== 'okada' && displayFare > 0 && (
+          <View style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 32 }}>
+            <Button
+              label="Book this trip"
+              size="lg"
+              onPress={() => {
+                if (!isAuthenticated) { router.push('/auth/phone' as any); return }
+                router.push({
+                  pathname: '/booking/checkout',
+                  params: { from: titleCase(route.from_location), to: titleCase(route.to_location), route_id: route.id, fare: String(displayFare) },
+                } as any)
+              }}
+            />
+          </View>
+        )}
 
         {/* Trust & Verification — overlaps hero */}
         <Animated.View entering={FadeInDown.delay(200).duration(dur.entrance)} style={s.trustSection}>
@@ -605,7 +648,7 @@ export default function RouteDetailScreen() {
         )}
 
         <View style={{ height: 16 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* GPRTU Info Modal */}
       <Modal visible={showGprtuInfo} transparent animationType="slide">
@@ -738,12 +781,15 @@ const getStyles = (isDark: boolean) => {
     lastUpdatedText: {
       fontSize: 11,
       fontFamily: font.medium,
-      color: onSurfaceVariant,
+      color: '#e5e5e5',
     },
     heroRouteTitle: {
       fontSize: 34,
       fontFamily: font.extrabold,
-      color: isDark ? '#f5f5f4' : '#1c1917',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 6,
       letterSpacing: -0.5,
     },
     heroFareRow: {
@@ -757,7 +803,7 @@ const getStyles = (isDark: boolean) => {
     heroFareLabel: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#44403c',
+      color: 'rgba(255,255,255,0.85)',
       paddingBottom: 6,
     },
     heroMeta: {
@@ -769,7 +815,7 @@ const getStyles = (isDark: boolean) => {
     heroMetaText: {
       fontSize: 13,
       fontFamily: font.medium,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#44403c',
+      color: 'rgba(255,255,255,0.85)',
     },
 
     // ── Tab pills ──

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView, Keyboard, Platform, InputAccessoryView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
@@ -20,6 +20,9 @@ const PROVIDERS = [
   { id: 'tgo', label: 'Telecel Cash', color: '#E60000', textColor: '#fff' },
   { id: 'atl', label: 'AirtelTigo', color: '#ED1C24', textColor: '#fff' },
 ]
+
+// Shared iOS keyboard toolbar id (decimal/phone pads have no Done key)
+const DONE_ACCESSORY_ID = 'momo-done'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
@@ -117,7 +120,12 @@ export default function MomoTopUpScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Amount selection */}
         <Animated.View entering={FadeInDown.duration(400)}>
           <Text style={[s.sectionLabel, { color: t.textSecondary }]}>SELECT AMOUNT</Text>
@@ -149,6 +157,7 @@ export default function MomoTopUpScreen() {
               placeholder="Other amount"
               placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
               keyboardType="decimal-pad"
+              inputAccessoryViewID={DONE_ACCESSORY_ID}
               value={customAmount}
               onChangeText={(v) => { setCustomAmount(v); setAmount(null) }}
             />
@@ -169,6 +178,7 @@ export default function MomoTopUpScreen() {
               placeholder="24 XXX XXXX"
               placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
               keyboardType="phone-pad"
+              inputAccessoryViewID={DONE_ACCESSORY_ID}
               maxLength={10}
               value={phone}
               onChangeText={setPhone}
@@ -223,7 +233,7 @@ export default function MomoTopUpScreen() {
           </Animated.View>
         )}
 
-        {/* Fund button */}
+        {/* Top up button */}
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
           <TouchableOpacity
             onPress={handleFund}
@@ -233,13 +243,23 @@ export default function MomoTopUpScreen() {
           >
             <MaterialIcons name="add-circle" size={20} color="#fff" />
             <Text style={s.fundBtnText}>
-              {loading ? 'Processing...' : `Fund ${formatGHS(effectiveAmount)}`}
+              {loading ? 'Processing...' : `Topup ${formatGHS(effectiveAmount)}`}
             </Text>
           </TouchableOpacity>
         </Animated.View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={DONE_ACCESSORY_ID}>
+          <View style={s.accessoryBar}>
+            <TouchableOpacity onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done" hitSlop={8}>
+              <Text style={s.accessoryDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
 
       <WalletTopUpAnimation
         visible={anim !== null}
@@ -250,7 +270,7 @@ export default function MomoTopUpScreen() {
           setAnim(null)
           // Shortfall top-up from checkout: pop momo + fund, back to Confirm
           // Booking, which polls the balance until the credit lands.
-          if (returnTo === 'checkout') { router.dismiss(2); return }
+          if (returnTo === 'checkout' && router.canDismiss()) { router.dismiss(2); return }
           // Exit the top-up stack and land on the Wallet tab, where the new
           // balance + transaction appear once the MoMo prompt is approved.
           if (router.canDismiss()) router.dismissAll()
@@ -310,6 +330,13 @@ const s = StyleSheet.create({
   summaryValue: { fontSize: 14, fontFamily: font.bold },
   summaryDivider: { height: 1, marginVertical: 4 },
   summaryTotal: { fontSize: 20, fontFamily: font.extrabold },
+
+  // iOS keyboard Done bar
+  accessoryBar: {
+    flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: '#f5f5f4', borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
+  },
+  accessoryDone: { fontSize: 16, fontFamily: font.bold, color: BRAND },
 
   // Fund button
   fundBtn: {

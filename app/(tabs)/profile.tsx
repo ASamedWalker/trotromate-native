@@ -186,7 +186,7 @@ export default function ProfileScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     const { signOutAndWipe } = require('@/lib/services/signOut')
-                    await signOutAndWipe(resetIdentity)
+                    await signOutAndWipe(deviceId, resetIdentity)
                     router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as any)
                   },
                 },

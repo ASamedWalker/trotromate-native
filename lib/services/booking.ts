@@ -49,7 +49,7 @@ export async function cancelBooking(authUserId: string, tripCode: string): Promi
       return {
         ok: true,
         refunded: Number(data.refunded ?? 0),
-        newBalance: Number(data.new_balance ?? 0),
+        newBalance: data.new_balance != null ? Number(data.new_balance) : NaN,
         alreadyCancelled: !!data.already_cancelled,
       }
     }
@@ -80,7 +80,7 @@ export async function createBooking(req: BookingRequest): Promise<BookingResult>
       return {
         ok: true,
         bookingId: data.booking?.id,
-        newBalance: Number(data.new_balance ?? 0),
+        newBalance: data.new_balance != null ? Number(data.new_balance) : NaN,
         ticket: {
           trip_code: data.ticket.trip_code,
           expires_at: data.ticket.expires_at,
