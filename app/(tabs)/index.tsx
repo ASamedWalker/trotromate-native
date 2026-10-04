@@ -28,8 +28,9 @@ import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import WhatsOnAccra from '@/components/WhatsOnAccra'
-import { getCachedWallet } from '@/lib/services/walletCache'
+import { getCachedWallet, cacheWalletBalance } from '@/lib/services/walletCache'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 // Approx Ghana bounding box — used only to guard against implausible
 // reverse-geocode results (e.g. simulator default location showing
@@ -84,20 +85,24 @@ export default function HomeScreen() {
   // Seed from the wallet cache so a fetch failure never renders a funded
   // wallet as GH₵ 0.00 (UX-13; same cache the Wallet tab uses).
   useEffect(() => {
-    getCachedWallet().then((snap) => {
+    setWalletBalance(null)
+    getCachedWallet(authUser?.id).then((snap) => {
       if (snap) setWalletBalance((prev) => prev ?? snap.balance)
     })
-  }, [])
+  }, [authUser?.id])
   // Refetch on focus (not just mount) so the balance reflects a top-up or
   // booking debit the moment the user returns Home.
   useFocusEffect(
     useCallback(() => {
       if (!authUser?.id) return
+      // Paint the latest snapshot first (checkout writes the post-debit balance
+      // there), then confirm with the server.
+      getCachedWallet(authUser.id).then((snap) => { if (snap) setWalletBalance(snap.balance) })
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-      fetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
+      authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${authUser.id}`)
         .then(r => r.json())
         .then(data => {
-          if (data.balance != null) { setWalletBalance(data.balance); setBalanceFailed(false) }
+          if (data.balance != null) { setWalletBalance(data.balance); setBalanceFailed(false); cacheWalletBalance(Number(data.balance), authUser.id) }
         })
         .catch(() => setBalanceFailed(true))
     }, [authUser?.id]),

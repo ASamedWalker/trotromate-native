@@ -19,11 +19,13 @@ export default function WalletTopUpAnimation({
   state,
   message,
   onDone,
+  doneLabel = 'View Wallet',
 }: {
   visible: boolean
   state: 'loading' | 'success'
   message: string
   onDone: () => void
+  doneLabel?: string
 }) {
   const drops = useRef(COIN_X.map(() => new Animated.Value(0))).current
   const bounce = useRef(new Animated.Value(0)).current
@@ -106,7 +108,7 @@ export default function WalletTopUpAnimation({
 
           {state === 'success' ? (
             <TouchableOpacity activeOpacity={0.9} onPress={onDone} style={s.doneBtn}>
-              <Text style={s.doneText}>View Wallet</Text>
+              <Text style={s.doneText}>{doneLabel}</Text>
             </TouchableOpacity>
           ) : (
             <ActivityIndicator color={BRAND} style={{ marginTop: 18 }} />

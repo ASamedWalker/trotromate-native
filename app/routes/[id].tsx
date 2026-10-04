@@ -120,13 +120,16 @@ export default function RouteDetailScreen() {
     )
   }
 
-  const displayFare = route.fare_stats?.avg_reported_fare ?? route.official_fare
   const reportCount = route.fare_stats?.report_count ?? 0
+  // Only call a fare "reported" when recent reports back it; fare_stats can
+  // carry an average with a zero recent count.
+  const hasReportedFare = reportCount > 0 && route.fare_stats?.avg_reported_fare != null
+  const displayFare = hasReportedFare ? route.fare_stats!.avg_reported_fare! : route.official_fare
   const lastUpdated = timeAgo(route.fare_stats?.last_report_at ?? null)
   const maxFare = route.fare_stats?.max_reported_fare
   const isOvercharge = route.is_gprtu_verified
-    && route.fare_stats?.avg_reported_fare != null
-    && route.fare_stats.avg_reported_fare > route.official_fare * 1.2
+    && hasReportedFare
+    && route.fare_stats!.avg_reported_fare! > route.official_fare * 1.2
 
   // Detect region for hero image
   const regionKey = detectRegion(route.from_location)
@@ -206,7 +209,7 @@ export default function RouteDetailScreen() {
               <HeroText size={44} style={s.heroFareValue}>GH₵ {displayFare.toFixed(2)}</HeroText>
               <Text style={s.heroFareLabel}>
                 {/* Label by the number actually shown: crowd average vs official vs unverified static fare (UX-18) */}
-                {route.fare_stats?.avg_reported_fare != null
+                {hasReportedFare
                   ? 'reported fare'
                   : route.is_gprtu_verified ? 'official fare' : 'unverified fare'}
               </Text>
@@ -216,8 +219,9 @@ export default function RouteDetailScreen() {
             <View style={s.heroMeta}>
               <Users size={16} color="#815100" />
               <Text style={s.heroMetaText}>
-                Based on {reportCount} report{reportCount !== 1 ? 's' : ''}
-                {lastUpdated && lastUpdated !== 'No data' ? ` · ${lastUpdated}` : ''}
+                {reportCount > 0
+                  ? `Based on ${reportCount} recent report${reportCount !== 1 ? 's' : ''}${lastUpdated && lastUpdated !== 'No data' ? ` · ${lastUpdated}` : ''}`
+                  : 'No recent fare reports'}
               </Text>
             </View>
           </View>
@@ -233,7 +237,7 @@ export default function RouteDetailScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.gprtuTitle}>GPRTU Verified</Text>
-                <Text style={s.gprtuSub}>Official union-approved station</Text>
+                <Text style={s.gprtuSub}>Official union-approved fare</Text>
               </View>
               <ChevronRight size={20} color="#b2acaa" />
             </TouchableOpacity>

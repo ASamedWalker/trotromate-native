@@ -30,6 +30,7 @@ import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
+import { signOutAndWipe } from '@/lib/services/signOut'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { LEVELS } from '@/lib/constants/rewards'
@@ -43,7 +44,7 @@ export default function SettingsScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { lang, setLanguage, languages } = useLanguage()
 
-  const { profile, deviceId } = useApp()
+  const { profile, deviceId, resetIdentity } = useApp()
   const { prefs, updatePref } = usePreferences()
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
 
@@ -79,8 +80,7 @@ export default function SettingsScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await supabase.auth.signOut()
-          await AsyncStorage.setItem('troski_signed_out', 'true')
+          await signOutAndWipe(resetIdentity)
           router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
         },
       },

@@ -73,7 +73,6 @@ export function RoutePlannerResults({
         const primaryType = plan.legs[0]?.transport_type || 'trotro'
         const config = getConfig(primaryType)
         const isSelected = selectedPlanIndex === i
-        const etaMins = Math.max(3, Math.round(plan.total_duration_mins * 0.15))
 
         return (
           <TouchableOpacity
@@ -124,7 +123,7 @@ export function RoutePlannerResults({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Clock size={12} color="#6B7280" />
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                  {etaMins} min away · {plan.total_duration_mins} min ride
+                  ~{plan.total_duration_mins} min ride
                 </Text>
               </View>
               {/* A transfer means changing vehicle somewhere — say where, or the

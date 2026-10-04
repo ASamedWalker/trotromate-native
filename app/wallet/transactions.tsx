@@ -10,6 +10,7 @@ import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { LoadErrorState, StaleDataBanner } from '@/components/StateViews'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 const BRAND = '#FF4D1C'
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -51,7 +52,7 @@ export default function TransactionsScreen() {
   const fetchPage = useCallback(async (offset: number) => {
     if (!user?.id) return { rows: [] as Tx[], more: false, failed: false }
     try {
-      const res = await fetch(`${API_URL}/api/wallet/transactions?auth_user_id=${user.id}&limit=${PAGE}&offset=${offset}`)
+      const res = await authedFetch(`${API_URL}/api/wallet/transactions?auth_user_id=${user.id}&limit=${PAGE}&offset=${offset}`)
       const data = await res.json()
       return { rows: (Array.isArray(data.transactions) ? data.transactions : []) as Tx[], more: !!data.hasMore, failed: false }
     } catch {

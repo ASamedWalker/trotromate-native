@@ -11,6 +11,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { formatGHS } from '@/lib/utils/currency'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 const BRAND = '#FF4D1C'
 const AMOUNTS = [5, 10, 20, 50]
@@ -27,7 +28,7 @@ export default function MomoTopUpScreen() {
   const t = themed(isDark)
   const router = useRouter()
   const { user } = useAuthContext()
-  const { provider: providerParam, amount: amountParam } = useLocalSearchParams<{ provider?: string; amount?: string }>()
+  const { provider: providerParam, amount: amountParam, return: returnTo } = useLocalSearchParams<{ provider?: string; amount?: string; return?: string }>()
   const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
   // Normalise the stored auth phone to a clean local number (strip +233 / 233 / leading 0)
   const initialPhone = (user?.phone || '').replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
@@ -72,7 +73,7 @@ export default function MomoTopUpScreen() {
     setAnim({ state: 'loading', message: `Requesting ${formatGHS(effectiveAmount)} top-up…` })
 
     try {
-      const res = await fetch(`${API_URL}/api/wallet/topup`, {
+      const res = await authedFetch(`${API_URL}/api/wallet/topup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -244,8 +245,12 @@ export default function MomoTopUpScreen() {
         visible={anim !== null}
         state={anim?.state ?? 'loading'}
         message={anim?.message ?? ''}
+        doneLabel={returnTo === 'checkout' ? 'Back to booking' : 'View Wallet'}
         onDone={() => {
           setAnim(null)
+          // Shortfall top-up from checkout: pop momo + fund, back to Confirm
+          // Booking, which polls the balance until the credit lands.
+          if (returnTo === 'checkout') { router.dismiss(2); return }
           // Exit the top-up stack and land on the Wallet tab, where the new
           // balance + transaction appear once the MoMo prompt is approved.
           if (router.canDismiss()) router.dismissAll()

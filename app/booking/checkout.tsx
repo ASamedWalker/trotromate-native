@@ -21,8 +21,10 @@ import { fetchAssignedVehicle, type AssignedVehicle } from '@/lib/services/fleet
 import { fetchDriverRatingStats, fetchDriverReviews, fetchDriverRides, type DriverReview } from '@/lib/services/driver-ratings'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
+import { cacheWalletBalance } from '@/lib/services/walletCache'
 import PinModal from '@/components/PinModal'
 import { Bus, Clock, Users as UsersIcon } from 'lucide-react-native'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 const BRAND = '#FF4D1C'
 
@@ -136,7 +138,7 @@ export default function CheckoutScreen() {
   const fetchBalance = useCallback(async () => {
     if (!user?.id) { setBalanceLoading(false); return }
     try {
-      const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      const res = await authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
       const data = await res.json()
       if (data.balance != null) setWalletBalance(Number(data.balance))
     } catch { /* leave null → "Tap to check" */ }
@@ -146,6 +148,19 @@ export default function CheckoutScreen() {
   // Re-check the balance when returning to checkout (e.g. after topping up) so
   // the button flips from "Top up" to "Pay" without a manual reload.
   useFocusEffect(useCallback(() => { fetchBalance() }, [fetchBalance]))
+  // After a shortfall top-up the MoMo credit lands a few seconds later (webhook),
+  // so keep re-checking for up to a minute instead of leaving "Top up" stuck.
+  const awaitingTopupRef = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!awaitingTopupRef.current) return
+    let n = 0
+    const id = setInterval(() => {
+      n += 1
+      fetchBalance()
+      if (n >= 20) { clearInterval(id); awaitingTopupRef.current = false }
+    }, 3000)
+    return () => clearInterval(id)
+  }, [fetchBalance]))
 
   // Wallet is the only wired payment method. MoMo was listed here before but
   // silently charged the wallet regardless — removed until actually wired (UX-15).
@@ -185,6 +200,8 @@ export default function CheckoutScreen() {
     setBooking(false)
     bookingRef.current = false
     if (result.ok) {
+      // Home/Wallet paint from this snapshot on focus, so the debit shows at once.
+      cacheWalletBalance(result.newBalance, user.id)
       router.push({
         pathname: '/booking/processing',
         params: {
@@ -435,7 +452,8 @@ export default function CheckoutScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 // Pre-fill the top-up with the shortfall (rounded up to a clean cedi).
-                router.push({ pathname: '/wallet/fund', params: { amount: String(Math.ceil(shortfall)) } } as never)
+                awaitingTopupRef.current = true
+                router.push({ pathname: '/wallet/fund', params: { amount: String(Math.ceil(shortfall)), return: 'checkout' } } as never)
               }}
               style={s.payBtn}
             >

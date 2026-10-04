@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView, Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
+import { replaceStackWith } from '@/lib/navigation'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
@@ -44,7 +45,7 @@ export default function NameScreen() {
 
   const finish = async () => {
     await completeOnboarding().catch(() => {})
-    router.replace('/(tabs)' as any)
+    replaceStackWith(router, '/(tabs)')
   }
 
   const handleSave = async () => {

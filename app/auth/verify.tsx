@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { replaceStackWith } from '@/lib/navigation'
 import { ArrowLeft } from 'lucide-react-native'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { OtpBoxes } from '@/components/OtpBoxes'
@@ -21,7 +22,7 @@ export default function VerifyOtpScreen() {
   const router = useRouter()
   const { phone } = useLocalSearchParams<{ phone: string }>()
   const { verifyOtp, linkToDevice, signInWithPhone } = useAuthContext()
-  const { deviceId } = useApp()
+  const { deviceId, refreshProfile } = useApp()
 
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -61,7 +62,11 @@ export default function VerifyOtpScreen() {
         await AsyncStorage.removeItem('troski_signed_out')
         // New accounts pick a name (one screen); returning ones go home.
         // replace, so Back doesn't return to the code screen.
-        router.replace((await needsName(deviceId)) ? '/auth/name' : '/(tabs)' as any)
+        // The device profile may have just picked up the account's real name
+        // (needsName copies it over); refetch so Home/Pulse show it.
+        const goName = await needsName(deviceId)
+        refreshProfile().catch(() => {})
+        replaceStackWith(router, goName ? '/auth/name' : '/(tabs)')
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         Alert.alert('Invalid Code', error || 'Please try again')

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -54,5 +54,14 @@ export function useDeviceId() {
     initDeviceId()
   }, [])
 
-  return { deviceId, isLoading }
+  // Sign-out on a shared phone: start a fresh anonymous identity so the next
+  // person doesn't inherit the previous user's device-linked profile, likes
+  // or reports.
+  const rotateDeviceId = useCallback(async () => {
+    const id = generateDeviceId()
+    await storeDeviceId(id)
+    setDeviceId(id)
+  }, [])
+
+  return { deviceId, isLoading, rotateDeviceId }
 }

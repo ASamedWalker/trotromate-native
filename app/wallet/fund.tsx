@@ -33,7 +33,7 @@ export default function TopUpWalletScreen() {
   const t = themed(isDark)
   const router = useRouter()
   // A booking checkout can deep-link here with the exact shortfall to pre-fill.
-  const { amount: amountParam } = useLocalSearchParams<{ amount?: string }>()
+  const { amount: amountParam, return: returnTo } = useLocalSearchParams<{ amount?: string; return?: string }>()
   const [selected, setSelected] = useState<MethodId>('mtn')
 
   const handleProceed = () => {
@@ -50,6 +50,8 @@ export default function TopUpWalletScreen() {
     if (amountParam && typeof dest === 'string' && dest.includes('/wallet/momo')) {
       dest = `${dest}&amount=${amountParam}` as Href
     }
+    // Came from checkout's shortfall: let the MoMo screen send the rider back to pay.
+    if (returnTo === 'checkout' && typeof dest === 'string') dest = `${dest}&return=checkout` as Href
     router.push(dest)
   }
 

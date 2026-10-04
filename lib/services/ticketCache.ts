@@ -25,3 +25,7 @@ export async function getCachedPasses(): Promise<ActivePass[]> {
     return []
   }
 }
+
+export async function clearCachedPasses(): Promise<void> {
+  try { await AsyncStorage.removeItem(KEY) } catch { /* ignore */ }
+}

@@ -6,6 +6,8 @@
  *   200:  { success, booking:{id,status,route_label,fare,vehicle_type}, ticket:{trip_code,expires_at}, new_balance }
  *   400:  { error: 'Insufficient balance', balance } | other validation
  */
+import { authedFetch } from '@/lib/services/authedFetch'
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
 export interface BookingRequest {
@@ -37,7 +39,7 @@ export type CancelResult =
 /** Cancel an active (unscanned) ticket and refund the fare to the wallet. */
 export async function cancelBooking(authUserId: string, tripCode: string): Promise<CancelResult> {
   try {
-    const res = await fetch(`${API_URL}/api/bookings/cancel`, {
+    const res = await authedFetch(`${API_URL}/api/bookings/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ auth_user_id: authUserId, trip_code: tripCode }),
@@ -59,7 +61,7 @@ export async function cancelBooking(authUserId: string, tripCode: string): Promi
 
 export async function createBooking(req: BookingRequest): Promise<BookingResult> {
   try {
-    const res = await fetch(`${API_URL}/api/bookings/create`, {
+    const res = await authedFetch(`${API_URL}/api/bookings/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { useProfile } from '@/lib/hooks/useRewards'
 import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
@@ -28,12 +29,15 @@ interface AppContextValue {
 
   // Actions
   refreshProfile: () => Promise<void>
+  /** Sign-out: new anonymous device id + empty query cache. */
+  resetIdentity: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { deviceId, isLoading: deviceLoading } = useDeviceId()
+  const { deviceId, isLoading: deviceLoading, rotateDeviceId } = useDeviceId()
+  const queryClient = useQueryClient()
   const { profile, badges, rank, isLoading: profileLoading, refetch } = useProfile(deviceId)
   const { isOnline, pendingCount, queueReport } = useOfflineQueue()
   const [lastReward, setLastReward] = useState<RewardResult | null>(null)
@@ -43,6 +47,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     await refetch()
   }, [refetch])
+
+  const resetIdentity = useCallback(async () => {
+    queryClient.clear()
+    setLastReward(null)
+    await rotateDeviceId()
+  }, [queryClient, rotateDeviceId])
 
   // Memoised: an object literal here is a new reference on every provider
   // render, which re-renders every useApp() consumer — most of the app — even
@@ -62,6 +72,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pendingReports: pendingCount,
       queueReport,
       refreshProfile,
+      resetIdentity,
     }),
     [
       deviceId,
@@ -77,6 +88,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pendingCount,
       queueReport,
       refreshProfile,
+      resetIdentity,
     ],
   )
 

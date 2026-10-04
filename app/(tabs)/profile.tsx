@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
-  const { profile, deviceId } = useApp()
+  const { profile, deviceId, resetIdentity } = useApp()
   // Real sign-in state comes from the Supabase session, not onboarding: an
   // onboarded phone can have no session (requests then go out signed out).
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext()
@@ -185,10 +185,8 @@ export default function ProfileScreen() {
                   text: 'Sign Out',
                   style: 'destructive',
                   onPress: async () => {
-                    const { supabase } = require('@/lib/supabase/client')
-                    const AsyncStorage = require('@react-native-async-storage/async-storage').default
-                    await supabase.auth.signOut()
-                    await AsyncStorage.setItem('troski_signed_out', 'true')
+                    const { signOutAndWipe } = require('@/lib/services/signOut')
+                    await signOutAndWipe(resetIdentity)
                     router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as any)
                   },
                 },

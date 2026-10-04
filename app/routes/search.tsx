@@ -23,6 +23,7 @@ import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 const BRAND = '#FF4D1C'
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -140,7 +141,7 @@ export default function PlanTripScreen() {
     if (label === 'Home') setHomeAddress(addr); else setWorkAddress(addr)
     setAddressSuggestions([]); setAddressInput(''); setAddressModal(null)
     if (authUser?.id) {
-      fetch(`${API_URL}/api/addresses`, {
+      authedFetch(`${API_URL}/api/addresses`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ auth_user_id: authUser.id, label, address: addr }),
       }).catch(() => {})
@@ -166,7 +167,7 @@ export default function PlanTripScreen() {
   // Load saved Home/Work addresses
   useEffect(() => {
     if (!authUser?.id) return
-    fetch(`${API_URL}/api/addresses?auth_user_id=${authUser.id}`)
+    authedFetch(`${API_URL}/api/addresses?auth_user_id=${authUser.id}`)
       .then(r => r.json())
       .then(data => {
         if (data.addresses) data.addresses.forEach((a: { label: string; address: string }) => {

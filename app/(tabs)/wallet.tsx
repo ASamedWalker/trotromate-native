@@ -20,6 +20,7 @@ import { useLanguage } from '@/lib/i18n'
 import { SkeletonActivityItem } from '@/components/Skeleton'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
+import { authedFetch } from '@/lib/services/authedFetch'
 
 export default function WalletScreen() {
   const isDark = useColorScheme() === 'dark'
@@ -53,7 +54,7 @@ export default function WalletScreen() {
   const fetchWallet = useCallback(async () => {
     if (!user?.id) return
     try {
-      const res = await fetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      const res = await authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
       const data = await res.json()
       if (data.balance != null) {
         const next = Number(data.balance)
@@ -74,7 +75,7 @@ export default function WalletScreen() {
       // this response omitted them (partial/timed-out body) — never clobber a
       // good cache with an empty list.
       if (data.balance != null) {
-        cacheWallet({ balance: Number(data.balance), transactions: txs ?? transactions })
+        cacheWallet({ balance: Number(data.balance), transactions: txs ?? transactions }, user.id)
       }
       // passes ride the same authenticated wallet response (see lib/services/tickets.ts)
       const active = normalizeActivePasses(data.passes, Date.now())
@@ -91,13 +92,13 @@ export default function WalletScreen() {
     getCachedPasses().then((cached) => {
       if (cached.length) setPasses((cur) => (cur.length ? cur : cached))
     })
-    getCachedWallet().then((snap) => {
+    getCachedWallet(user?.id).then((snap) => {
       if (!snap) return
       setBalance((cur) => (cur > 0 ? cur : snap.balance))
       setTransactions((cur) => (cur.length ? cur : snap.transactions))
       if (snap.balance > 0 || snap.transactions.length) setHydrated(true)
     })
-  }, [])
+  }, [user?.id])
 
   useEffect(() => { fetchWallet() }, [fetchWallet])
 
@@ -193,9 +194,10 @@ export default function WalletScreen() {
             <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
             <View style={s.balanceAmountRow}>
               <HeroText size={44} style={{ color: isDark ? '#eee0d3' : ui.text, letterSpacing: -0.5 }}>
-                {balanceVisible
-                  ? formatGHS(balance)
-                  : 'GH₵ ••••••'
+                {!balanceVisible
+                  ? 'GH₵ ••••••'
+                  // Never flash GH₵ 0.00 before the real balance arrives (or for a guest).
+                  : isAuthenticated && hydrated ? formatGHS(balance) : 'GH₵ —'
                 }
               </HeroText>
             </View>
