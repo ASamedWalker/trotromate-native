@@ -9,6 +9,7 @@ import {
   Platform,
   Image,
   Modal,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -299,6 +300,12 @@ export default function PlanTripScreen() {
 
   const selectService = (id: string, mode: TransportMode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    // Pragya and Courier have no routes or rides yet: be honest, don't switch
+    // to an empty "check your spelling" result.
+    if (id === 'pragya' || id === 'courier') {
+      Alert.alert(id === 'pragya' ? 'Pragya' : 'Courier', `${id === 'pragya' ? 'Pragya' : 'Courier'} is coming soon!`)
+      return
+    }
     setSelectedService(id)
     setTransportMode(mode === 'all' ? 'all' : mode)
     // Don't reset hasSearched — useRoutePlanner re-queries on the new mode

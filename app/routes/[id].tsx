@@ -213,7 +213,7 @@ export default function RouteDetailScreen() {
             <View style={s.heroBadges}>
               <View style={s.routeTypeBadge}>
                 <Text style={s.routeTypeBadgeText}>
-                  TROTRO ROUTE
+                  {(route as { transport_type?: string }).transport_type === 'okada' ? 'OKADA ROUTE' : 'TROTRO ROUTE'}
                 </Text>
               </View>
               {lastUpdated && (

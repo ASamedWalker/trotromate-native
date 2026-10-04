@@ -192,8 +192,11 @@ export default function CheckoutScreen() {
   // The actual booking: debits the wallet + issues a ticket on the backend,
   // then hands the real ticket to the processing/receipt flow.
   const bookingRef = useRef(false)
+  // Only trotro trips are bookable (okada/pragya rides aren't live).
+  const notBookable = !!route?.transport_type && route.transport_type !== 'trotro'
+
   const doBooking = async () => {
-    if (!user?.id || bookingRef.current) return
+    if (!user?.id || bookingRef.current || notBookable) return
     bookingRef.current = true
     setBooking(true)
     const result = await createBooking({
@@ -238,6 +241,23 @@ export default function CheckoutScreen() {
         <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>Route details missing</Text>
         <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
           Pick a route first, then book from its page.
+        </Text>
+        <TouchableOpacity
+          onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)' as never) }}
+          style={{ marginTop: 20, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, backgroundColor: BRAND }}
+        >
+          <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
+  if (notBookable) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>Rides on this route are coming soon</Text>
+        <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+          You can book trotro trips today. The fares shown for this route are what riders report.
         </Text>
         <TouchableOpacity
           onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)' as never) }}

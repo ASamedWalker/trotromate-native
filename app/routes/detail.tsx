@@ -67,7 +67,8 @@ function timeAgo(iso: string): string {
 
 const TRANSPORT_OPTIONS = [
   { id: 'trotro', label: 'Trotro', image: require('@/assets/images/home/bus_icon_bg_removed.png'), fareMultiplier: 1 },
-  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), fareMultiplier: 1.3 },
+  // Okada routes carry their own (okada) fares; never mark them up again.
+  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), fareMultiplier: 1 },
   { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), fareMultiplier: 1.5 },
 ]
 
@@ -268,10 +269,16 @@ export default function RouteDetailScreen() {
   // Square · updates live" from hardcoded data that never updated. Sheet 3
   // shows an honest placeholder until real route_stops + positions exist.
 
-  const durationText = duration >= 60
-    ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
-    : `${duration} min`
-  const arrivalTime = new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  // Some routes (e.g. okada corridors) have no duration: show a dash, not "NaN min".
+  const hasDuration = Number.isFinite(duration) && duration > 0
+  const durationText = !hasDuration
+    ? '—'
+    : duration >= 60
+      ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
+      : `${duration} min`
+  const arrivalTime = hasDuration
+    ? new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : null
   const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
 
   // ── Crowdsourced fare: show an honest avg + range, not a single "fixed" price.
@@ -643,7 +650,7 @@ export default function RouteDetailScreen() {
           <View style={{ marginHorizontal: 24, marginBottom: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-start' }}>
             <View>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>arrives {arrivalTime}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{arrivalTime ? `arrives ${arrivalTime}` : 'Ride time not known yet'}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{formatGHS(Number(displayFare))}</Text>
@@ -731,21 +738,33 @@ export default function RouteDetailScreen() {
                 <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151' }}>Information</Text>
               </View>
             </TouchableOpacity>
+            {/* Only trotro trips can be booked. Okada/Pragya rides don't exist yet —
+                Go Now would otherwise sell a trotro ticket for an okada corridor. */}
+            {selectedTransport === 'trotro' ? (
             <TouchableOpacity
-              style={{ flex: 1 }}
-              activeOpacity={0.85}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                // Start the booking flow: Confirm Booking -> Pay -> Receipt -> Arrived.
-                // Carry the exact fare (drop-off aware) + duration so checkout matches.
-                router.push({ pathname: '/booking/checkout', params: { from, to: dropoffName || to, route_id: routeId, fare: displayFare, duration: String(duration) } } as any)
-              }}
-            >
-              <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Navigation size={18} color="#fff" />
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
+                style={{ flex: 1 }}
+                activeOpacity={0.85}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  // Start the booking flow: Confirm Booking -> Pay -> Receipt -> Arrived.
+                  // Carry the exact fare (drop-off aware) + duration so checkout matches.
+                  router.push({ pathname: '/booking/checkout', params: { from, to: dropoffName || to, route_id: routeId, fare: displayFare, duration: String(duration) } } as any)
+                }}
+              >
+                <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Navigation size={18} color="#fff" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={{ flex: 1, height: 52, borderRadius: 16, backgroundColor: '#FFF4EF', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }}
+                accessible
+                accessibilityLabel={`${selectedOption.label} rides are coming soon`}
+              >
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{selectedOption.label} rides coming soon</Text>
               </View>
-            </TouchableOpacity>
+            )}
           </View>
 
           {/* ── REAL-TIME PULSE card ── */}

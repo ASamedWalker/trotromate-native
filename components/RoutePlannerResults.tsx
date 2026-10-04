@@ -123,7 +123,7 @@ export function RoutePlannerResults({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Clock size={12} color="#6B7280" />
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                  ~{plan.total_duration_mins} min ride
+                  {plan.total_duration_mins ? `~${plan.total_duration_mins} min ride` : 'Ride time not known yet'}
                 </Text>
               </View>
               {/* A transfer means changing vehicle somewhere — say where, or the
