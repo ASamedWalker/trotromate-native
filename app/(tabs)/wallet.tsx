@@ -4,8 +4,10 @@ import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, R
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Eye, EyeOff, QrCode, ChevronRight, Plus, CheckCircle2, History } from 'lucide-react-native'
+import { Eye, EyeOff, Plus, CheckCircle2, History, ShieldCheck, Ticket, ScanLine, Landmark, Undo2, Bus } from 'lucide-react-native'
+import QRCode from 'react-native-qrcode-svg'
 import { MaterialIcons } from '@expo/vector-icons'
+import { hasWalletPin } from '@/lib/services/walletPin'
 import { font, themed, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Button, Badge, SectionHeader } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
@@ -21,6 +23,37 @@ import { SkeletonActivityItem } from '@/components/Skeleton'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { authedFetch } from '@/lib/services/authedFetch'
+
+// Tickets last hours, so today's expiry reads as a time ("2:46 AM").
+function validUntil(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return formatPassExpiry(iso)
+  const time = d.toLocaleTimeString('en-GH', { hour: 'numeric', minute: '2-digit' })
+  const tomorrow = new Date(Date.now() + 86400000)
+  if (d.toDateString() === new Date().toDateString()) return time
+  if (d.toDateString() === tomorrow.toDateString()) return `tomorrow ${time}`
+  return `${d.toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })} ${time}`
+}
+
+// "Today" / "Yesterday" / "3 Oct" buckets, newest first (input is newest first).
+function groupByDay(txs: any[]): { key: string; label: string; items: any[] }[] {
+  const dayKey = (d: Date) => d.toDateString()
+  const today = new Date()
+  const yesterday = new Date(Date.now() - 86400000)
+  const groups: { key: string; label: string; items: any[] }[] = []
+  for (const tx of txs) {
+    const d = new Date(tx.created_at)
+    if (isNaN(d.getTime())) continue
+    const label = dayKey(d) === dayKey(today) ? 'Today'
+      : dayKey(d) === dayKey(yesterday) ? 'Yesterday'
+      : d.toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })
+    const key = dayKey(d)
+    const existing = groups.find((g) => g.key === key)
+    if (existing) existing.items.push(tx)
+    else groups.push({ key, label, items: [tx] })
+  }
+  return groups
+}
 
 export default function WalletScreen() {
   const isDark = useColorScheme() === 'dark'
@@ -111,8 +144,13 @@ export default function WalletScreen() {
 
   useEffect(() => { fetchWallet() }, [fetchWallet])
 
-  // Refetch when returning from fund screen
-  useFocusEffect(useCallback(() => { fetchWallet() }, [fetchWallet]))
+  // Refetch when returning from fund screen; reopen at the top so an active
+  // ticket is the first thing the rider sees.
+  const scrollRef = useRef<ScrollView>(null)
+  useFocusEffect(useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false })
+    fetchWallet()
+  }, [fetchWallet]))
 
   const [cancelling, setCancelling] = useState(false)
   const confirmCancel = (pass: ActivePass) => {
@@ -160,6 +198,14 @@ export default function WalletScreen() {
     setRefreshing(false)
   }
 
+  const activePass = passes[0] ?? null
+  // Never flash GH₵ 0.00 before the real balance arrives (or for a guest).
+  const balanceText = !balanceVisible
+    ? 'GH₵ ••••••'
+    : isAuthenticated && hydrated ? formatGHS(balance) : 'GH₵ —'
+  const [hasPin, setHasPin] = useState(false)
+  useFocusEffect(useCallback(() => { hasWalletPin().then(setHasPin).catch(() => {}) }, []))
+
   const toggleBalance = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setBalanceVisible(!balanceVisible)
@@ -184,183 +230,184 @@ export default function WalletScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.orange} colors={[brand.orange]} />
         }
       >
-        {/* ── Balance Card ── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
-          <View style={[s.balanceCard, isDark && s.balanceCardDark]}>
-
-            <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
-            <View style={s.balanceAmountRow}>
-              <HeroText size={44} style={{ color: isDark ? '#eee0d3' : ui.text, letterSpacing: -0.5 }}>
-                {!balanceVisible
-                  ? 'GH₵ ••••••'
-                  // Never flash GH₵ 0.00 before the real balance arrives (or for a guest).
-                  : isAuthenticated && hydrated ? formatGHS(balance) : 'GH₵ —'
-                }
-              </HeroText>
-            </View>
-
-            {/* Credit celebration — appears when a top-up lands */}
-            {credited != null && (
-              <Animated.View entering={FadeInDown.duration(300)} style={s.creditedBanner}>
-                <CheckCircle2 size={16} color={ui.success} />
-                <Text style={s.creditedText}>{formatGHS(credited)} added to your wallet</Text>
-              </Animated.View>
-            )}
-
-            {/* Add Money — fund the wallet to pay for bookings */}
-            {isAuthenticated && (
-              <View style={s.balanceCardBtns}>
-                <Button
-                  label={tr('wallet.addMoney')}
-                  icon={Plus}
-                  onPress={() => router.push('/wallet/fund' as Href)}
-                />
+        {/* ── Active ticket first: what a rider at the stop needs (B) ── */}
+        {isAuthenticated && activePass && (
+          <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
+            <View style={[s.ticketCard, isDark && s.ticketCardDark]}>
+              <LinearGradient colors={[brand.orange, brand.orangePressed]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ticketHead}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ticketKicker}>{tr('wallet.activePass').toUpperCase()} · READY TO BOARD</Text>
+                  <Text style={s.ticketRoute} numberOfLines={1}>{activePass.route_label}</Text>
+                </View>
+                <Text style={s.ticketFare}>{formatGHS(activePass.fare)}</Text>
+              </LinearGradient>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => { Haptics.selectionAsync(); router.push({ pathname: '/wallet/ticket', params: { trip_code: activePass.trip_code } } as Href) }}
+                style={s.ticketBody}
+                accessibilityRole="button"
+                accessibilityLabel={`Ticket ${activePass.route_label}. Open full screen to show the mate`}
+              >
+                {activePass.trip_code ? (
+                  <View style={s.qrWrap}>
+                    <QRCode value={activePass.trip_code} size={168} quietZone={8} backgroundColor="#FFFFFF" />
+                  </View>
+                ) : null}
+                <Text style={[s.ticketCode, { color: isDark ? t.text : ui.text }]}>{activePass.trip_code}</Text>
+                <Text style={s.ticketHint}>
+                  Show this to the mate when you board{activePass.expires_at ? ` · valid until ${validUntil(activePass.expires_at)}` : ''}
+                  {activePass.van_plate ? ` · Van ${activePass.van_plate}` : ''}
+                </Text>
+                <Text style={s.ticketFull}>Tap for full screen</Text>
+              </TouchableOpacity>
+              <View style={s.ticketActions}>
+                <TouchableOpacity onPress={() => router.push('/wallet/tickets' as Href)} style={s.ticketLink} accessibilityRole="button">
+                  <Text style={s.ticketLinkText}>{passes.length > 1 ? `${tr('wallet.myTickets')} (${passes.length})` : tr('wallet.myTickets')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={cancelling}
+                  onPress={() => confirmCancel(activePass)}
+                  style={s.ticketLink}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: cancelling }}
+                >
+                  <Text style={s.cancelPassText}>{cancelling ? 'Cancelling…' : 'Cancel & refund'}</Text>
+                </TouchableOpacity>
               </View>
-            )}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Balance: bold card like Home's (A), or a slim strip under a ticket ── */}
+        {isAuthenticated && activePass ? (
+          <View style={s.section}>
+            <View style={[s.balanceStrip, isDark && s.ticketCardDark]}>
+              <View>
+                <Text style={s.stripLabel}>{tr('wallet.balance')}</Text>
+                <Text style={[s.stripAmount, { color: isDark ? t.text : ui.text }]}>{balanceText}</Text>
+              </View>
+              <TouchableOpacity onPress={handleAuthAction} style={s.stripBtn} accessibilityRole="button" accessibilityLabel={tr('wallet.addMoney')}>
+                <Plus size={18} color="#FFFFFF" />
+                <Text style={s.stripBtnText}>{tr('wallet.addMoney')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
+            <LinearGradient colors={[brand.orange, brand.orangePressed]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.balanceCard}>
+              <Text style={s.balanceLabelText}>{tr('wallet.balance')}</Text>
+              <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: -1 }}>{balanceText}</HeroText>
+              {isAuthenticated && (
+                <View style={s.trustRow}>
+                  <ShieldCheck size={15} color="#FFFFFF" />
+                  <Text style={s.trustText}>
+                    {hasPin ? 'PIN on · Secured by Paystack' : 'Secured by Paystack'}
+                  </Text>
+                </View>
+              )}
+              <View style={s.balanceDecor} />
+            </LinearGradient>
+          </Animated.View>
+        )}
 
-        {(isAuthenticated && (balance > 0 || hasTransactions)) ? (
-          /* ── Active Pass + Transactions (funded state) ── */
-          <>
-            {/* My Tickets — full ticket history (active/used/expired/cancelled) */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => { Haptics.selectionAsync(); router.push('/wallet/tickets' as Href) }}
-              style={s.myTicketsRow}
-              accessibilityRole="button"
-              accessibilityLabel={tr('wallet.myTickets')}
-            >
-              <View style={s.myTicketsIcon}><QrCode size={18} color={brand.orange} /></View>
-              <Text style={s.myTicketsText}>{tr('wallet.myTickets')}</Text>
-              <View style={{ flex: 1 }} />
-              <ChevronRight size={18} color={ui.textTertiary} />
-            </TouchableOpacity>
-
-            {/* Active Pass — real tickets from the wallet backend; hidden when
-                the user has none (no more mock pass) */}
-            {passes.length > 0 && (() => {
-              const pass = passes[0]
-              return (
-                <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.section}>
-                  <View style={s.passHeader}>
-                    <Text style={[s.sectionTitle, { color: isDark ? t.text : ui.text }]}>{tr('wallet.activePass')}</Text>
-                    {passes.length > 1 && <Text style={s.viewAll}>{passes.length} passes</Text>}
-                  </View>
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => { Haptics.selectionAsync(); router.push({ pathname: '/wallet/ticket', params: { trip_code: pass.trip_code } } as Href) }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Active pass, ${pass.route_label}`}
-                  >
-                  <LinearGradient
-                    colors={[brand.orange, brand.orangePressed]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={s.passCard}
-                  >
-                    <View style={s.passTop}>
-                      <View style={{ flex: 1 }}>
-                        <View style={s.passLiveRow}>
-                          <View style={s.passLiveDot} />
-                          <Text style={s.passLiveText}>Active pass</Text>
-                        </View>
-                        <Text style={s.passRoute} numberOfLines={1}>{pass.route_label}</Text>
-                      </View>
-                      <MaterialIcons name="directions-bus" size={32} color="rgba(255,255,255,0.4)" />
-                    </View>
-                    <View style={s.passBottom}>
-                      <View>
-                        <Text style={s.passFieldLabel}>Expires</Text>
-                        <Text style={s.passFieldValue}>{formatPassExpiry(pass.expires_at)}</Text>
-                      </View>
-                      <View style={s.passTripsLeft}>
-                        <Text style={s.passTripsText}>{pass.trip_code}</Text>
-                      </View>
-                    </View>
-                    {pass.van_plate && (
-                      <Text style={s.passPlate}>Van {pass.van_plate} · {formatGHS(pass.fare)}</Text>
-                    )}
-                    {/* Decorative circle */}
-                    <View style={s.passDecorCircle} />
-                  </LinearGradient>
-                  </TouchableOpacity>
-                  {/* Cancel an unused ticket → full refund to wallet */}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    disabled={cancelling}
-                    onPress={() => confirmCancel(pass)}
-                    style={s.cancelPass}
-                    accessibilityRole="button"
-                    accessibilityLabel="Cancel booking and refund"
-                    accessibilityState={{ disabled: cancelling }}
-                  >
-                    <Text style={s.cancelPassText}>{cancelling ? 'Cancelling…' : 'Cancel booking & refund'}</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              )
-            })()}
-
-            {/* Transactions */}
-            <Animated.View entering={FadeInDown.delay(240).duration(400)} style={s.section}>
-              <SectionHeader
-                title={tr('wallet.recentTransactions')}
-                action={transactions.length > 5 ? 'See all' : undefined}
-                onAction={() => router.push('/wallet/transactions' as Href)}
-                style={{ marginBottom: space.md }}
-              />
-              {!hydrated ? (
-                [0, 1, 2, 3].map((i) => (
-                  <Animated.View key={`tx-skeleton-${i}`} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
-                    <SkeletonActivityItem isDark={isDark} />
-                  </Animated.View>
-                ))
-              ) : transactions.slice(0, 5).map((tx: any, i: number) => {
-                const isTopup = tx.type === 'topup'
-                const credit = tx.type === 'topup' || tx.type === 'refund'
-                const icon = isTopup ? 'account-balance' as const : tx.type === 'refund' ? 'undo' as const : 'commute' as const
-                const amountStr = `${credit ? '+' : '-'}${formatGHS(Number(tx.amount))}`
-                const amountColor = credit ? ui.success : (isDark ? t.text : ui.text)
-                const statusLabel = tx.status === 'success'
-                  ? (isTopup ? 'MoMo pay' : tx.type === 'refund' ? 'Refunded' : 'Completed')
-                  : String(tx.status).charAt(0).toUpperCase() + String(tx.status).slice(1).toLowerCase()
-                const statusTone = tx.status === 'success'
-                  ? 'success' as const
-                  : tx.status === 'pending' ? 'warning' as const
-                  : tx.status === 'failed' ? 'danger' as const
-                  : 'neutral' as const
-                const date = new Date(tx.created_at).toLocaleDateString('en-GH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                return (
-                <Animated.View key={tx.id} entering={FadeInDown.delay(280 + i * 50).duration(300)}>
-                  <View style={[s.txRow, isDark && s.txRowDark]} accessible accessibilityLabel={`${tx.type} ${formatGHS(Number(tx.amount))}`}>
-                    <View style={[s.txIcon, { backgroundColor: isDark ? '#3c332b' : ui.surface }]}>
-                      <MaterialIcons name={icon} size={20} color={brand.orange} />
-                    </View>
-                    <View style={s.txInfo}>
-                      <Text style={[s.txLabel, { color: isDark ? t.text : ui.text }]}>{(tx.description || (isTopup ? 'MoMo Top-up' : 'Payment')).replace(/\bGHS\b/g, 'GH₵')}</Text>
-                      <Text style={s.txDate}>{date}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Text style={[s.txAmount, { color: amountColor }]}>{amountStr}</Text>
-                      <Badge label={statusLabel} tone={statusTone} />
-                    </View>
-                  </View>
-                </Animated.View>
-                )
-              })}
+        {/* Credit celebration — appears when a top-up lands */}
+        {credited != null && (
+          <View style={s.section}>
+            <Animated.View entering={FadeInDown.duration(300)} style={s.creditedBanner}>
+              <CheckCircle2 size={16} color={ui.success} />
+              <Text style={s.creditedText}>{formatGHS(credited)} added to your wallet</Text>
             </Animated.View>
+          </View>
+        )}
 
-            {/* Promo banner removed (UX-04): "Get 5% Back" had no backing promo
-                system — an unfulfillable money promise. Reinstate only when a
-                real promo engine credits it. */}
-          </>
-        ) : (isAuthenticated && !hydrated) ? (
+        {/* ── Quick actions (hidden under a ticket: the strip carries Topup) ── */}
+        {isAuthenticated && !activePass && (
+          <View style={[s.section, s.actionsRow]}>
+            {[
+              { key: 'topup', label: tr('wallet.addMoney'), Icon: Plus, onPress: handleAuthAction },
+              { key: 'tickets', label: tr('wallet.myTickets'), Icon: Ticket, onPress: () => router.push('/wallet/tickets' as Href) },
+              { key: 'history', label: 'History', Icon: History, onPress: () => router.push('/wallet/transactions' as Href) },
+              { key: 'pay', label: 'Pay', Icon: ScanLine, soon: true, onPress: () => Alert.alert('Coming soon', 'Scan to pay is on the way. For now, book a trip and show your QR ticket.') },
+            ].map((a) => (
+              <TouchableOpacity
+                key={a.key}
+                onPress={() => { Haptics.selectionAsync(); a.onPress() }}
+                style={[s.action, a.soon && { opacity: 0.55 }]}
+                accessibilityRole="button"
+                accessibilityLabel={a.soon ? `${a.label}, coming soon` : a.label}
+                accessibilityState={{ disabled: !!a.soon }}
+              >
+                <View style={[s.actionCircle, isDark && s.ticketCardDark]}>
+                  <a.Icon size={22} color={brand.orange} />
+                  {a.soon && <View style={s.soonPill}><Text style={s.soonText}>Soon</Text></View>}
+                </View>
+                <Text style={[s.actionLabel, { color: isDark ? t.text : ui.text }]}>{a.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {(isAuthenticated && hasTransactions) ? (
+          /* ── Activity: one grouped list, badges only for pending/failed ── */
+          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={s.section}>
+            <SectionHeader
+              title={tr('wallet.recentTransactions')}
+              action={transactions.length > (activePass ? 3 : 6) ? 'See all' : undefined}
+              onAction={() => router.push('/wallet/transactions' as Href)}
+              style={{ marginBottom: space.sm }}
+            />
+            {!hydrated ? (
+              [0, 1, 2].map((i) => <SkeletonActivityItem key={`tx-skeleton-${i}`} isDark={isDark} />)
+            ) : groupByDay(transactions.slice(0, activePass ? 3 : 6)).map((g) => (
+              <View key={g.key} style={{ marginBottom: space.md }}>
+                <Text style={s.dayLabel}>{g.label}</Text>
+                <View style={[s.txGroup, isDark && s.ticketCardDark]}>
+                  {g.items.map((tx: any, i: number) => {
+                    const credit = tx.type === 'topup' || tx.type === 'refund'
+                    const Icon = tx.type === 'topup' ? Landmark : tx.type === 'refund' ? Undo2 : Bus
+                    const title = tx.type === 'topup'
+                      ? 'MoMo top-up'
+                      : String(tx.description || 'Payment').replace(/^(Booking|Refund):\s*/i, '').replace(/\bGHS\b/g, 'GH₵')
+                    const kind = tx.type === 'topup' ? 'Top-up' : tx.type === 'refund' ? 'Refund' : 'Trotro ticket'
+                    const time = new Date(tx.created_at).toLocaleTimeString('en-GH', { hour: 'numeric', minute: '2-digit' })
+                    const badge = tx.status && tx.status !== 'success'
+                      ? String(tx.status).charAt(0).toUpperCase() + String(tx.status).slice(1).toLowerCase()
+                      : null
+                    return (
+                      <View
+                        key={tx.id}
+                        style={[s.txRow, i < g.items.length - 1 && s.txDivider]}
+                        accessible
+                        accessibilityLabel={`${title}, ${credit ? 'plus' : 'minus'} ${formatGHS(Number(tx.amount))}, ${time}${badge ? `, ${badge}` : ''}`}
+                      >
+                        <View style={[s.txIcon, { backgroundColor: credit ? '#ECFDF3' : brand.orangeSoft }]}>
+                          <Icon size={19} color={credit ? ui.success : brand.orange} />
+                        </View>
+                        <View style={s.txInfo}>
+                          <Text style={[s.txLabel, { color: isDark ? t.text : ui.text }]} numberOfLines={1}>{title}</Text>
+                          <View style={s.txSubRow}>
+                            <Text style={s.txDate}>{time} · {kind}</Text>
+                            {badge && <Badge label={badge} tone={tx.status === 'pending' ? 'warning' : 'danger'} />}
+                          </View>
+                        </View>
+                        <Text style={[s.txAmount, { color: credit ? ui.success : (isDark ? t.text : ui.text) }]}>
+                          {`${credit ? '+' : '−'}${formatGHS(Number(tx.amount))}`}
+                        </Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              </View>
+            ))}
+          </Animated.View>
+        ) : (isAuthenticated && (activePass || balance > 0)) ? null : (isAuthenticated && !hydrated) ? (
           /* ── Loading skeleton — shown until the first fetch (or cache) lands,
                 so we never flash the "quiet" empty state while still loading ── */
           <View style={s.skeletonWrap}>
@@ -416,18 +463,18 @@ const s = StyleSheet.create({
   },
   headerTitle: { ...type.title },
 
-  // Balance card
+  // Balance card — same bold orange card as Home (A)
   balanceCard: {
-    borderRadius: radius.lg, padding: space.gutter, alignItems: 'center', overflow: 'hidden',
-    backgroundColor: ui.card, ...cardShadow,
+    borderRadius: radius.xl, padding: space.gutter, overflow: 'hidden', gap: 2,
+    shadowColor: brand.orange, shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
-  balanceCardDark: {
-    backgroundColor: 'rgba(60,51,43,0.2)', shadowOpacity: 0, elevation: 0,
-    borderWidth: 1, borderColor: 'rgba(255,77,28,0.1)',
+  balanceLabelText: { ...type.label, color: 'rgba(255,255,255,0.92)' },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space.sm },
+  trustText: { ...type.caption, fontFamily: font.semibold, color: 'rgba(255,255,255,0.95)' },
+  balanceDecor: {
+    position: 'absolute', right: -40, top: -40,
+    width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  balanceLabelText: { ...type.label, color: ui.textSecondary, marginBottom: space.xs },
-  balanceCardBtns: { width: '100%', marginTop: space.xs },
-  balanceAmountRow: { marginBottom: space.lg },
   creditedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -437,57 +484,65 @@ const s = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
     paddingVertical: 6,
-    marginBottom: 14,
   },
   creditedText: { ...type.labelStrong, color: ui.success },
 
-  // Section
-  sectionTitle: { ...type.title },
-  viewAll: { ...type.labelStrong, color: brand.orangeText },
-  passHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
-
-  // Active Pass
-  passCard: { borderRadius: radius.lg, padding: space.xl, overflow: 'hidden', gap: space.gutter },
-  passTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  passLiveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  passLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ui.onBrand },
-  passLiveText: { ...type.caption, color: 'rgba(255,255,255,0.85)' },
-  passRoute: { fontSize: 22, fontFamily: font.extrabold, color: ui.onBrand, letterSpacing: -0.5 },
-  passBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  passFieldLabel: { ...type.caption, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
-  passFieldValue: { fontSize: 15, fontFamily: font.bold, color: ui.onBrand },
-  passTripsLeft: {
-    backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: radius.pill,
+  // Quick actions
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  action: { flex: 1, alignItems: 'center', gap: 6, minHeight: 44 },
+  actionCircle: {
+    width: 54, height: 54, borderRadius: 27, backgroundColor: ui.card,
+    alignItems: 'center', justifyContent: 'center', ...cardShadow,
   },
-  passTripsText: { ...type.caption, fontFamily: font.bold, color: ui.onBrand },
-  passPlate: { fontSize: 12, fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginTop: -12 },
-  cancelPass: { alignSelf: 'center', marginTop: space.md, paddingVertical: 6, paddingHorizontal: space.md },
+  actionLabel: { ...type.labelStrong },
+  soonPill: {
+    position: 'absolute', top: -6, right: -10, backgroundColor: ui.text,
+    borderRadius: radius.pill, paddingHorizontal: 6, paddingVertical: 1,
+  },
+  soonText: { fontSize: 10, fontFamily: font.bold, color: ui.onBrand },
+
+  // Active ticket (B) — leads the screen when there is one
+  ticketCard: { backgroundColor: ui.card, borderRadius: radius.xl, overflow: 'hidden', ...cardShadow },
+  ticketCardDark: { backgroundColor: 'rgba(60,51,43,0.35)', shadowOpacity: 0, elevation: 0 },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: 14 },
+  ticketKicker: { ...type.caption, fontFamily: font.bold, color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 },
+  ticketRoute: { fontSize: 21, fontFamily: font.extrabold, color: ui.onBrand, letterSpacing: -0.3 },
+  ticketFare: { fontSize: 17, fontFamily: font.extrabold, color: ui.onBrand },
+  ticketBody: { alignItems: 'center', gap: 6, paddingTop: space.lg, paddingHorizontal: space.lg },
+  qrWrap: { backgroundColor: '#FFFFFF', borderRadius: radius.md, padding: 6 },
+  ticketCode: { fontSize: 17, fontFamily: font.extrabold, letterSpacing: 1, marginTop: 4 },
+  ticketHint: { ...type.caption, color: ui.textSecondary, textAlign: 'center' },
+  ticketFull: { ...type.labelStrong, color: brand.orangeText },
+  ticketActions: { flexDirection: 'row', justifyContent: 'center', gap: space.lg, paddingVertical: space.sm },
+  ticketLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.sm },
+  ticketLinkText: { ...type.labelStrong, color: brand.orangeText },
   cancelPassText: { ...type.labelStrong, color: ui.danger },
-  myTicketsRow: {
-    flexDirection: 'row', alignItems: 'center', gap: space.md,
-    marginHorizontal: space.gutter, marginBottom: space.section,
-    backgroundColor: ui.card, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: 14,
+
+  // Slim balance strip under an active ticket
+  balanceStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: ui.card, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md,
     ...cardShadow,
   },
-  myTicketsIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
-  myTicketsText: { ...type.bodyMedium, color: ui.text },
-  passDecorCircle: {
-    position: 'absolute', left: -20, bottom: -20,
-    width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.08)',
+  stripLabel: { ...type.caption, color: ui.textSecondary },
+  stripAmount: { fontSize: 24, fontFamily: font.extrabold },
+  stripBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44,
+    backgroundColor: brand.orange, borderRadius: radius.md, paddingHorizontal: space.lg,
   },
+  stripBtnText: { ...type.labelStrong, color: '#FFFFFF' },
 
-  // Transactions
-  txRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, padding: space.lg,
-    borderRadius: radius.lg, marginBottom: space.sm, backgroundColor: ui.card, ...cardShadow,
-  },
-  txRowDark: { backgroundColor: 'rgba(60,51,43,0.2)', shadowOpacity: 0, elevation: 0 },
+  // Activity — one grouped list per day
+  dayLabel: { ...type.caption, fontFamily: font.bold, color: ui.textSecondary, letterSpacing: 0.4, marginBottom: 6, textTransform: 'uppercase' },
+  txGroup: { backgroundColor: ui.card, borderRadius: radius.lg, overflow: 'hidden', ...cardShadow },
+  txRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: space.md, paddingVertical: 12 },
+  txDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ui.surfaceStrong },
   txIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  txInfo: { flex: 1 },
-  txLabel: { ...type.bodyMedium },
-  txDate: { ...type.caption, color: ui.textSecondary, marginTop: 2 },
-  txAmount: { ...type.bodyMedium, fontFamily: font.bold },
+  txInfo: { flex: 1, minWidth: 0 },
+  txLabel: { ...type.bodyMedium, fontFamily: font.bold },
+  txSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  txDate: { ...type.caption, color: ui.textSecondary },
+  txAmount: { ...type.bodyMedium, fontFamily: font.extrabold, fontVariant: ['tabular-nums'] },
 
   // Loading skeleton
   skeletonWrap: { paddingHorizontal: space.gutter, paddingTop: space.gutter },
