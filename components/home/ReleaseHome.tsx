@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SvgXml } from 'react-native-svg'
-import { MapPin, Bell, Trophy, Search, Users, Compass, MessageCircle } from 'lucide-react-native'
+import { MapPin, Bell, Trophy, Search, Users, MessageCircle } from 'lucide-react-native'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -230,7 +230,7 @@ export default function ReleaseHome() {
       {/* ── Search bar overlapping the band ── */}
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/routes/search' as any) }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/routes/search?focus=to' as any) }}
         accessibilityRole="button"
         accessibilityLabel="Where to? Search a stop"
         style={{
@@ -250,7 +250,7 @@ export default function ReleaseHome() {
 
       <View style={{ flexDirection: 'row', gap: 12, marginHorizontal: 20, marginTop: 18 }}>
         <ActionTile title="Queue status" sub="How long is the line?" Icon={Users} onPress={() => router.push('/queue/status' as any)} />
-        <ActionTile title="Plan a trip" sub="Routes and transfers" Icon={Compass} onPress={() => router.push('/routes/search' as any)} />
+        <ActionTile title="Stations" sub="Trotro and train stops" Icon={MapPin} onPress={() => router.push('/stations' as any)} />
       </View>
 
       <AdinkraStrip />

@@ -141,6 +141,8 @@ export default function PlanTripScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{
     from?: string; to?: string
+    /** 'to' when opened from Home's "Where to?": cursor starts in the destination field */
+    focus?: 'to'
     picked_target?: 'from' | 'to'; picked_label?: string
     picked_lat?: string; picked_lng?: string
   }>()
@@ -273,11 +275,27 @@ export default function PlanTripScreen() {
   useEffect(() => { setHasSearched(false) }, [from, to])
   useEffect(() => { if (plans.length > 0 && selectedPlanIndex === null) setSelectedPlanIndex(0) }, [plans])
 
-  // Auto-focus from input on mount
+  // Auto-focus on mount: the destination when opened from "Where to?", else the origin
   useEffect(() => {
-    const t = setTimeout(() => fromRef.current?.focus(), 400)
+    const t = setTimeout(() => (params.focus === 'to' ? toRef : fromRef).current?.focus(), 400)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // "Where to?" flow: prefill the origin with the nearest known station (≤1.5 km)
+  // so the rider only types the destination. Station names are what the planner
+  // matches, so a geocoded street name would dead-end.
+  const prefilledFrom = useRef(false)
+  useEffect(() => {
+    if (params.focus !== 'to' || prefilledFrom.current || from || !location) return
+    let best: { name: string; d: number } | null = null
+    for (const [name, c] of Object.entries(FALLBACK_STATION_COORDS)) {
+      const d = haversineKm(location.latitude, location.longitude, c.latitude, c.longitude)
+      if (!best || d < best.d) best = { name, d }
+    }
+    prefilledFrom.current = true
+    if (best && best.d <= 1.5) setFrom(best.name)
+  }, [params.focus, location, from])
 
   const walkingEstimate = useMemo<WalkingEstimate | null>(() => {
     const f = from.trim(), t2 = to.trim()
