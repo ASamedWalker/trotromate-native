@@ -7,8 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
-  DeviceEventEmitter,
   Animated,
+  type GestureResponderEvent,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
@@ -22,7 +22,8 @@ import {
   MessageCircle,
   Share2,
   MapPin,
-  Music,
+  Volume2,
+  VolumeX,
   Plus,
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
@@ -30,6 +31,9 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { addReaction, removeReaction, fetchUserReactions } from '@/lib/services/tales'
 import { useFollow } from '@/lib/hooks/useFollow'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { formatGHS } from '@/lib/utils/currency'
+import { useReelRoute } from '@/components/reels/useReelRoute'
+import SoundHint from '@/components/reels/SoundHint'
 
 export interface ReelPost {
   postId: string
@@ -53,10 +57,17 @@ interface ReelItemProps {
   shouldLoad: boolean
   muted: boolean
   onToggleMute: () => void
+  /** Open the pager-level comments sheet for this post (viewer stays open, video keeps playing) */
+  onOpenComments: (postId: string) => void
+  /** Fresher comment count from the pager (after posting), overrides post.commentCount */
+  commentCountOverride?: number
+  /** Show the one-time "Tap for sound" pill on this item */
+  showSoundHint?: boolean
+  onSoundHintDone?: () => void
   height: number
 }
 
-export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMute, height }: ReelItemProps) {
+export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMute, onOpenComments, commentCountOverride, showSoundHint, onSoundHintDone, height }: ReelItemProps) {
   const router = useRouter()
   const { deviceId: myDeviceId } = useApp()
 
@@ -73,25 +84,16 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
   // Like animation
   const likeScale = useRef(new Animated.Value(1)).current
 
-  // Music disk rotation (only spins while this item is the active one)
-  const diskRotation = useRef(new Animated.Value(0)).current
-  useEffect(() => {
-    if (!isActive) return
-    const spin = Animated.loop(
-      Animated.timing(diskRotation, {
-        toValue: 1,
-        duration: 4000,
-        useNativeDriver: true,
-      })
-    )
-    spin.start()
-    return () => spin.stop()
-  }, [diskRotation, isActive])
+  // Route chip (caption → from/to → routes row). Lookup only for loaded items.
+  const route = useReelRoute(post.caption, shouldLoad)
 
-  const diskSpin = diskRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  })
+  // Double-tap heart burst (core Animated)
+  const burstScale = useRef(new Animated.Value(0)).current
+  const burstOpacity = useRef(new Animated.Value(0)).current
+  const [burstPos, setBurstPos] = useState({ x: 0, y: 0 })
+  const lastTapAt = useRef(0)
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current) }, [])
 
   const insets = useSafeAreaInsets()
   // Caption collapsed to 2 lines; tap to read it all.
@@ -193,6 +195,38 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
     }
   }, [myDeviceId, post.postId, isLiked, likeScale])
 
+  // A pending single tap must not toggle a reel the user already swiped away from.
+  useEffect(() => {
+    if (!isActive && tapTimer.current) { clearTimeout(tapTimer.current); tapTimer.current = null }
+  }, [isActive])
+
+  const DOUBLE_TAP_MS = 300
+  const handleVideoPress = useCallback((e: GestureResponderEvent) => {
+    const now = Date.now()
+    if (now - lastTapAt.current < DOUBLE_TAP_MS) {
+      lastTapAt.current = 0
+      if (tapTimer.current) { clearTimeout(tapTimer.current); tapTimer.current = null }
+      // Like only — never unlike (Instagram behaviour). No burst if a like
+      // can't actually be sent (no device id yet).
+      if (!myDeviceId) return
+      if (!isLiked) toggleLike()
+      setBurstPos({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY })
+      burstScale.setValue(0.3)
+      burstOpacity.setValue(1)
+      Animated.parallel([
+        Animated.spring(burstScale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 14 }),
+        Animated.sequence([
+          Animated.delay(350),
+          Animated.timing(burstOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        ]),
+      ]).start()
+      return
+    }
+    lastTapAt.current = now
+    if (tapTimer.current) clearTimeout(tapTimer.current)
+    tapTimer.current = setTimeout(() => { tapTimer.current = null; togglePlayPause() }, DOUBLE_TAP_MS)
+  }, [isLiked, myDeviceId, toggleLike, togglePlayPause, burstScale, burstOpacity])
+
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
@@ -201,7 +235,7 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
     } catch { /* user cancelled */ }
   }, [post.locationName])
 
-  const commentCount = post.commentCount
+  const commentCount = commentCountOverride ?? post.commentCount
   const userName = post.displayName || `User-${(post.deviceId ?? '').slice(-4).toUpperCase()}`
 
   return (
@@ -237,7 +271,9 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
       {/* Tap to play/pause */}
       <Pressable
         style={StyleSheet.absoluteFillObject}
-        onPress={togglePlayPause}
+        onPress={handleVideoPress}
+        accessibilityLabel="Video. Activate to pause or play."
+        accessibilityRole="button"
       >
         {isPaused && (
           <View style={styles.playOverlay}>
@@ -246,6 +282,15 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
             </View>
           </View>
         )}
+        <Animated.View
+          pointerEvents="none"
+          style={StyleSheet.flatten([
+            styles.burst,
+            { left: burstPos.x - 55, top: burstPos.y - 55, opacity: burstOpacity, transform: [{ scale: burstScale }] },
+          ])}
+        >
+          <Heart size={110} color="#ef4444" fill="#ef4444" />
+        </Animated.View>
       </Pressable>
 
       {/* Bottom gradient */}
@@ -284,6 +329,8 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
           onPress={toggleLike}
           activeOpacity={0.7}
           style={styles.actionItem}
+          accessibilityRole="button"
+          accessibilityLabel={isLiked ? `Unlike. ${likeCount} likes` : `Like. ${likeCount} likes`}
         >
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
             <Heart
@@ -297,12 +344,11 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
 
         {/* Comment */}
         <TouchableOpacity
-          onPress={() => {
-            DeviceEventEmitter.emit('openComment', post.postId)
-            router.back()
-          }}
+          onPress={() => onOpenComments(post.postId)}
           activeOpacity={0.7}
           style={styles.actionItem}
+          accessibilityRole="button"
+          accessibilityLabel={`Comments. ${commentCount} comments`}
         >
           <MessageCircle size={28} color="#fff" />
           <Text style={styles.actionLabel}>{commentCount}</Text>
@@ -313,16 +359,25 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
           onPress={handleShare}
           activeOpacity={0.7}
           style={styles.actionItem}
+          accessibilityRole="button"
+          accessibilityLabel="Share"
         >
           <Share2 size={26} color="#fff" />
         </TouchableOpacity>
 
-        {/* Music disk — tap to toggle mute */}
-        <TouchableOpacity onPress={onToggleMute} activeOpacity={0.7}>
-          <Animated.View style={StyleSheet.flatten([styles.musicDisk, { transform: [{ rotate: diskSpin }] }, muted && styles.musicDiskMuted])}>
-            <Music size={16} color={muted ? 'rgba(255,255,255,0.4)' : '#fff'} />
-          </Animated.View>
-        </TouchableOpacity>
+        {/* Sound toggle */}
+        <View>
+          <TouchableOpacity
+            onPress={onToggleMute}
+            activeOpacity={0.7}
+            style={styles.soundBtn}
+            accessibilityRole="button"
+            accessibilityLabel={muted ? 'Turn sound on' : 'Turn sound off'}
+          >
+            {muted ? <VolumeX size={20} color="#fff" /> : <Volume2 size={20} color="#fff" />}
+          </TouchableOpacity>
+          {showSoundHint && isActive && onSoundHintDone ? <SoundHint onDone={onSoundHintDone} /> : null}
+        </View>
       </Animated.View>
 
       {/* ─── Bottom overlay ─── */}
@@ -339,6 +394,8 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
               activeOpacity={0.7}
               onPress={toggleFollow}
               disabled={followLoading}
+              accessibilityRole="button"
+              accessibilityLabel={isFollowing ? `Unfollow ${userName}` : `Follow ${userName}`}
             >
               <Text style={StyleSheet.flatten([styles.followText, isFollowing && styles.followingText])}>
                 {isFollowing ? 'Following' : 'Follow'}
@@ -376,13 +433,27 @@ export default function ReelItem({ post, isActive, shouldLoad, muted, onToggleMu
           <Text style={styles.captionMore} onPress={() => setCaptionOpen(true)} suppressHighlighting>…more</Text>
         ) : null}
 
-        {/* Music ticker */}
-        <View style={styles.musicTicker}>
-          <Music size={12} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.musicText} numberOfLines={1}>
-            Original sound — {userName}
-          </Text>
-        </View>
+        {/* Route chip — from the caption, fare only if a real route row resolved */}
+        {route ? (
+          route.routeId ? (
+            <TouchableOpacity
+              style={styles.routeChip}
+              activeOpacity={0.8}
+              onPress={() => router.push({ pathname: '/routes/[id]', params: { id: route.routeId as string } })}
+              accessibilityRole="button"
+              accessibilityLabel={`View route ${route.from} to ${route.to}`}
+            >
+              <Text style={styles.routeChipText} numberOfLines={1}>
+                📍 {route.from} → {route.to}
+                {route.officialFare != null ? ` · ${formatGHS(route.officialFare)}` : ''} · View route
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.routeChip}>
+              <Text style={styles.routeChipText} numberOfLines={1}>{route.from} → {route.to}</Text>
+            </View>
+          )
+        ) : null}
       </Animated.View>
 
       {/* ─── Amber progress bar ─── */}
@@ -472,7 +543,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: font.semibold,
   },
-  musicDisk: {
+  soundBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -483,8 +554,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
-  musicDiskMuted: {
-    opacity: 0.5,
+  burst: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
   },
 
   // ─── Bottom content overlay ───
@@ -564,16 +637,18 @@ const styles = StyleSheet.create({
     fontFamily: font.regular,
     marginBottom: 8,
   },
-  musicTicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  routeChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245,158,11,0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    maxWidth: '100%',
   },
-  musicText: {
-    color: 'rgba(255,255,255,0.6)',
+  routeChipText: {
+    color: '#1c1917',
     fontSize: 12,
-    fontFamily: font.medium,
-    flex: 1,
+    fontFamily: font.semibold,
   },
 
   // ─── Amber progress bar ───

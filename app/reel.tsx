@@ -15,6 +15,9 @@ import {
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronUp } from 'lucide-react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { supabase } from '@/lib/supabase'
+import CommentSheet from '@/components/CommentSheet'
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { timeAgo } from '@/lib/utils/time'
@@ -130,7 +133,43 @@ export default function ReelScreen() {
     [pageH]
   )
 
-  const toggleMute = useCallback(() => setIsMuted((m) => !m), [])
+  // One-time "Tap for sound" hint (shown on first ever open; persisted immediately)
+  const [soundHint, setSoundHint] = useState(false)
+  useEffect(() => {
+    let alive = true
+    AsyncStorage.getItem(SOUND_HINT_KEY).then((v) => {
+      if (v || !alive) return
+      AsyncStorage.setItem(SOUND_HINT_KEY, '1').catch(() => {})
+      setSoundHint(true)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const hideSoundHint = useCallback(() => setSoundHint(false), [])
+
+  const toggleMute = useCallback(() => {
+    setSoundHint(false)
+    setIsMuted((m) => !m)
+  }, [])
+
+  // Comments: ONE CommentSheet (self-contained RN Modal) at pager level. The
+  // video keeps playing — comment state is NOT folded into isActive/playing.
+  const [commentPostId, setCommentPostId] = useState<string | null>(null)
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
+  const openComments = useCallback((postId: string) => setCommentPostId(postId), [])
+  const closeComments = useCallback(() => {
+    const id = commentPostId
+    setCommentPostId(null)
+    if (!id) return
+    // Refresh the count (DB trigger keeps tale_posts.comment_count current)
+    supabase.from('tale_posts').select('comment_count').eq('id', id).maybeSingle()
+      .then(({ data }) => {
+        if (data && typeof data.comment_count === 'number') {
+          setCommentCounts((c) => ({ ...c, [id]: data.comment_count }))
+          // Keep the Pulse feed behind the reel in step
+          queryClient.invalidateQueries({ queryKey: ['tales'] })
+        }
+      }, () => { /* count stays as shown */ })
+  }, [commentPostId, queryClient])
 
   // Release hint animation work on unmount
   useEffect(() => () => hintOpacity.stopAnimation(), [hintOpacity])
@@ -144,10 +183,14 @@ export default function ReelScreen() {
         shouldLoad={index === activeIndex || index === activeIndex + 1}
         muted={isMuted}
         onToggleMute={toggleMute}
+        onOpenComments={openComments}
+        commentCountOverride={commentCounts[item.postId]}
+        showSoundHint={soundHint}
+        onSoundHintDone={hideSoundHint}
         height={pageH}
       />
     ),
-    [activeIndex, playing, isMuted, toggleMute, pageH]
+    [activeIndex, playing, isMuted, toggleMute, pageH, openComments, commentCounts, soundHint, hideSoundHint]
   )
 
   return (
@@ -158,7 +201,7 @@ export default function ReelScreen() {
         data={posts}
         keyExtractor={(p) => p.postId}
         renderItem={renderItem}
-        extraData={`${activeIndex}-${playing}-${isMuted}-${pageH}`}
+        extraData={`${activeIndex}-${playing}-${isMuted}-${pageH}-${soundHint}-${JSON.stringify(commentCounts)}`}
         pagingEnabled
         snapToInterval={pageH}
         onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== pageH) setPageH(h) }}
@@ -196,9 +239,13 @@ export default function ReelScreen() {
           <Text style={styles.hintText}>Swipe up for more</Text>
         </Animated.View>
       )}
+
+      <CommentSheet postId={commentPostId} visible={commentPostId !== null} onClose={closeComments} />
     </View>
   )
 }
+
+const SOUND_HINT_KEY = '@troski_reel_sound_hint_v1'
 
 const styles = StyleSheet.create({
   container: {
