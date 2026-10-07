@@ -62,6 +62,13 @@ Don't "fix" the internal tale naming.
 Pulse post kinds come from lib/utils/pulse-extract.ts (copy of trotromate/lib/services/pulse-extract.ts, keep in sync); composer fare captions are "Paid ₵X from A to B" + newline + note.
 
 ## Rewards (4 sub-tabs, June 2026 — game-feel + Transit-style recognition)
+**REDESIGN 2026-10-07 (approved canvas https://claude.ai/artifact/QZTi46yT9yPkz4zc7puh8E, row "Rewards"):**
+Coins tab = gauge card (no floating Bob coins; Rank shows "Report once / to get ranked" when unranked)
+→ Earn card (Report a fare primary + Queue/Pulse) → "Badges up next" (3 closest, progress from
+profile counters; "All N" toggles the full grid) → Tier journey (drawn icons, no emoji) → Community
+Impact / weekly recap → leaderboard row. Missions + tier icons = components/RewardIcons.tsx (no emoji).
+History: no "Redeemed" card. Referrals: code + Share directly under the hero; referral = 50 coins each,
+awarded at sign-up via web /api/referrals. Details below are the June baseline.
 `(tabs)/rewards.tsx` — segmented Coins / Earn / History / Referrals (brand pills).
 **DELIBERATE DECISION (owner, June 2026): NO money/cash framing on this screen.**
 Coins are recognition + tier progress only (modeled on Transit app's GO/Royale:

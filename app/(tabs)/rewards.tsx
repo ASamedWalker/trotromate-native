@@ -35,7 +35,7 @@ import {
   Check,
   Copy,
   Share2,
-  Banknote,
+  Minus,
   Star,
   Map,
   Sunrise,
@@ -43,15 +43,19 @@ import {
   Shield,
   CalendarDays,
   Lock,
+  MapPin,
+  ChevronRight,
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter, type Href } from 'expo-router'
 import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
-import { Chip, SectionHeader, Button } from '@/components/ui'
+import { Chip, SectionHeader } from '@/components/ui'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
 import TroskiCoin from '@/components/TroskiCoin'
+import { FareIcon, QueueIcon, IncidentIcon, FlameIcon, GiftIcon, TicketIcon } from '@/components/RewardIcons'
+import { LinesIcon, PulseIcon } from '@/components/TabIcons'
 import { BackButton } from '@/components/BackButton'
 import { useProfile, usePointsHistory, useAllBadges } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -66,7 +70,7 @@ import {
   calculateLevel,
   getNextLevel,
 } from '@/lib/constants/rewards'
-import type { PointsHistoryEntry, LevelSlug } from '@/lib/types'
+import type { PointsHistoryEntry, LevelSlug, Badge, ContributorProfile } from '@/lib/types'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 /* ── Constants ──────────────────────────────────────── */
@@ -286,6 +290,49 @@ function gaugeScaleStyle(isDark: boolean) {
   return { fontFamily: font.extrabold, fontSize: 17, letterSpacing: -0.3, color: isDark ? 'rgba(255,255,255,0.7)' : ui.textSecondary } as const
 }
 
+/* ── Icon helpers ────────────────────────────────────── */
+
+type MissionIconProps = { color: string; size?: number; fill?: string }
+
+// PulseIcon (tab bar) takes `active` for its soft fill instead of a fill prop
+function PulseMissionIcon({ color, size }: MissionIconProps) {
+  return <PulseIcon color={color} size={size} active />
+}
+
+// Tier emoji in lib/constants/rewards.ts is used by other screens, so the
+// rewards screen maps level slug -> icon locally.
+function TierIcon({ slug, color, size }: { slug: LevelSlug; color: string; size: number }) {
+  switch (slug) {
+    case 'passenger': return <TicketIcon color={color} size={size} />
+    case 'regular': return <LinesIcon color={color} size={size} />
+    case 'local_expert': return <MapPin color={color} size={size} />
+    default: return <Trophy color={color} size={size} />
+  }
+}
+
+// Progress toward a badge from data the profile already carries. Returns null
+// for criteria we can't measure client-side (time / route / unknown).
+function badgeProgress(b: Badge, p: ContributorProfile | null | undefined): { cur: number; target: number } | null {
+  if (!p) return null
+  const c = b.criteria_value as Record<string, unknown>
+  let cur: number | null = null
+  let target: number | null = null
+  if (b.criteria_type === 'count' && typeof c.total_reports === 'number') {
+    cur = p.total_reports; target = c.total_reports
+  } else if (b.criteria_type === 'streak' && typeof c.days === 'number') {
+    cur = p.current_streak; target = c.days
+  } else if (b.criteria_type === 'type' && typeof c.count === 'number') {
+    target = c.count
+    if (c.type === 'fare') cur = p.fare_reports
+    else if (c.type === 'queue') cur = p.queue_reports
+    else if (c.type === 'incident') cur = p.incident_reports
+  }
+  if (target === null || target <= 0) return null
+  const n = Number(cur)
+  if (cur === null || !Number.isFinite(n)) return null
+  return { cur: Math.min(n, target), target }
+}
+
 /* ── Tier journey strip ──────────────────────────────── */
 
 function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: boolean; s: ReturnType<typeof getStyles> }) {
@@ -304,13 +351,13 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
               <View style={{ alignItems: 'center', width: 64 }}>
                 {current ? (
                   <Bob dy={4}>
-                    <View style={[s.tierDot, s.tierDotReached, s.tierDotCurrent]}>
-                      <Text style={{ fontSize: 16 }}>{lvl.emoji}</Text>
+                    <View style={[s.tierDot, s.tierDotCurrent]}>
+                      <TierIcon slug={slug} color={brand.orange} size={18} />
                     </View>
                   </Bob>
                 ) : (
-                  <View style={[s.tierDot, reached && s.tierDotReached]}>
-                    <Text style={{ fontSize: 16 }}>{lvl.emoji}</Text>
+                  <View style={s.tierDot}>
+                    <TierIcon slug={slug} color={ui.textSecondary} size={18} />
                   </View>
                 )}
                 <Text style={[s.tierName, reached && s.tierNameReached]} numberOfLines={2}>
@@ -329,7 +376,7 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
 /* ── History row meta ────────────────────────────────── */
 
 function historyMeta(entry: PointsHistoryEntry): { label: string; Icon: typeof Bus } {
-  if (entry.points < 0) return { label: entry.reason || 'Coin Redeemed', Icon: Banknote }
+  if (entry.points < 0) return { label: entry.reason || 'Coins adjusted', Icon: Minus }
   switch (entry.report_type) {
     case 'fare': return { label: 'Fare Payment Reward', Icon: Bus }
     case 'queue': return { label: 'Queue Status Report', Icon: Clock }
@@ -359,6 +406,7 @@ export default function RewardsScreen() {
   const [tab, setTab] = useState<Tab>('Coins')
   const [refreshing, setRefreshing] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
+  const [showAllBadges, setShowAllBadges] = useState(false)
 
   // Referral state
   const [referralCode, setReferralCode] = useState<string | null>(null)
@@ -462,7 +510,6 @@ export default function RewardsScreen() {
 
     let todayPoints = 0
     let monthEarned = 0
-    let redeemed = 0
     let weekReports = 0
     let weekCoins = 0
     const groups: { title: string; items: PointsHistoryEntry[] }[] = [
@@ -478,7 +525,6 @@ export default function RewardsScreen() {
       else if (ds === yestStr) groups[1].items.push(h)
       else groups[2].items.push(h)
       if (t >= monthStart && h.points > 0) monthEarned += h.points
-      if (h.points < 0) redeemed += Math.abs(h.points)
       if (nowMs - t < 7 * dayMs && h.points > 0) {
         weekCoins += h.points
         if (h.report_type) weekReports += 1
@@ -487,22 +533,37 @@ export default function RewardsScreen() {
     return {
       todayPoints,
       monthEarned,
-      redeemed,
       weekReports,
       weekCoins,
       groups: groups.filter((g) => g.items.length > 0),
     }
   }, [history])
 
+  /* Badges up next: 3 unearned badges closest to completion */
+  const upNext = useMemo(() => {
+    const earnedIds = new Set(earnedBadges.map((e) => e.id))
+    return allBadges
+      .filter((b) => !earnedIds.has(b.id))
+      .map((b, idx) => {
+        const prog = badgeProgress(b, profile)
+        return { badge: b, prog, ratio: prog ? prog.cur / prog.target : 0, idx }
+      })
+      .sort((a, b) => b.ratio - a.ratio || a.idx - b.idx)
+      .slice(0, 3)
+  }, [allBadges, earnedBadges, profile])
+
   /* ── Earn missions (real point values) ── */
   const earnActions = useMemo(() => [
-    { label: 'Report a fare', emoji: '🚌', pts: REPORT_POINTS.fare, route: '/report/fare' },
-    { label: 'Queue status', emoji: '🚏', pts: REPORT_POINTS.queue, route: '/report/queue' },
-    { label: 'Report incidents', emoji: '🚨', pts: REPORT_POINTS.incident, route: '/report/incident' },
-    { label: 'Share to Pulse', emoji: '📸', pts: REPORT_POINTS.tale, route: '/report/photo' },
-    { label: '7-day streak', emoji: '🔥', pts: STREAK_CONFIG.BONUS_POINTS, route: null },
-    { label: 'Refer a friend', emoji: '🎁', pts: REFERRAL_POINTS, route: 'tab:Referrals' },
+    { label: 'Report a fare', Icon: FareIcon, pts: REPORT_POINTS.fare, route: '/report/fare' },
+    { label: 'Queue status', Icon: QueueIcon, pts: REPORT_POINTS.queue, route: '/report/queue' },
+    { label: 'Report incidents', Icon: IncidentIcon, pts: REPORT_POINTS.incident, route: '/report/incident' },
+    { label: 'Share to Pulse', Icon: PulseMissionIcon, pts: REPORT_POINTS.tale, route: '/report/photo' },
+    { label: '7-day streak', Icon: FlameIcon, pts: STREAK_CONFIG.BONUS_POINTS, route: null },
+    { label: 'Refer a friend', Icon: GiftIcon, pts: REFERRAL_POINTS, route: 'tab:Referrals' },
   ], [])
+  const fareAction = earnActions.find((a) => a.route === '/report/fare')!
+  const queueAction = earnActions.find((a) => a.route === '/report/queue')!
+  const pulseAction = earnActions.find((a) => a.route === '/report/photo')!
 
   const handleCopy = async () => {
     if (!referralCode) return
@@ -568,24 +629,11 @@ export default function RewardsScreen() {
                 <View style={s.card}>
                   {/* Current tier */}
                   <View style={[s.tierPill, { backgroundColor: `${level.color}1A` }]}>
-                    <Text style={{ fontSize: 13 }}>{level.emoji}</Text>
+                    <TierIcon slug={levelSlug} color={level.color} size={14} />
                     <Text style={[s.tierPillText, { color: level.color }]}>{level.name}</Text>
                   </View>
 
                   <View style={{ alignItems: 'center', marginTop: 14 }}>
-                    {/* Floating coins — Sonic-ring energy */}
-                    <Bob delay={0} dy={7} rotate style={{ position: 'absolute', left: 6, top: 18 }}>
-                      <TroskiCoin size={26} />
-                    </Bob>
-                    <Bob delay={650} dy={9} rotate style={{ position: 'absolute', right: 4, top: 54 }}>
-                      <TroskiCoin size={20} />
-                    </Bob>
-                    <Bob delay={1150} dy={6} rotate style={{ position: 'absolute', left: 16, top: 108, opacity: 0.9 }}>
-                      <TroskiCoin size={15} />
-                    </Bob>
-                    <Bob delay={400} dy={8} rotate style={{ position: 'absolute', right: 22, top: 4, opacity: 0.9 }}>
-                      <TroskiCoin size={14} />
-                    </Bob>
                     <CoinGauge
                       value={coins}
                       levelMin={level.min_points}
@@ -596,21 +644,133 @@ export default function RewardsScreen() {
 
                   <Text style={s.nextTierText}>
                     {nextLevel
-                      ? `${coinsToNext.toLocaleString()} coins to ${nextLevel.name} ${nextLevel.emoji}`
-                      : 'Top tier reached — Troski Legend 🏆'}
+                      ? `${coinsToNext.toLocaleString()} coins to ${nextLevel.name}`
+                      : 'Top tier reached — Troski Legend'}
                   </Text>
 
                   <View style={s.statRow}>
                     <Stat label="Today" value={derived.todayPoints > 0 ? `+${derived.todayPoints}` : `${derived.todayPoints}`} isDark={isDark} />
                     <View style={s.statDivider} />
-                    <Stat label="Streak" value={`${streak}`} isDark={isDark} />
+                    <Stat label="Streak" value={`${streak} day${streak === 1 ? '' : 's'}`} isDark={isDark} />
                     <View style={s.statDivider} />
-                    <Stat label="Rank" value={rank ? `#${rank}` : '--'} isDark={isDark} onPress={() => router.push('/leaderboard' as Href)} />
+                    <Stat
+                      label={rank ? 'Rank' : 'to get ranked'}
+                      value={rank ? `#${rank}` : 'Report once'}
+                      valueSize={rank ? 18 : 14}
+                      isDark={isDark}
+                      onPress={() => router.push('/leaderboard' as Href)}
+                    />
                   </View>
                 </View>
 
+                {/* Earn card (actions looked up by route, not position) */}
+                <View style={s.earnCard}>
+                  <Text style={s.earnTitle}>
+                    {coins === 0 ? 'Earn your first coins' : streak > 0 ? 'Keep your streak going' : 'Earn more coins'}
+                  </Text>
+                  <Text style={s.earnSub}>Every report helps the next rider pay the right fare.</Text>
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => goEarn(fareAction.route)} style={s.earnPrimary} accessibilityRole="button">
+                    <FareIcon color="#FFFFFF" size={20} />
+                    <Text style={s.earnPrimaryText}>Report a fare · +{fareAction.pts}</Text>
+                  </TouchableOpacity>
+                  <View style={s.earnSecondaryRow}>
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => goEarn(queueAction.route)} style={s.earnSecondary} accessibilityRole="button">
+                      <Text style={s.earnSecondaryText} numberOfLines={1}>Queue status +{queueAction.pts}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => goEarn(pulseAction.route)} style={s.earnSecondary} accessibilityRole="button">
+                      <Text style={s.earnSecondaryText} numberOfLines={1}>Share to Pulse +{pulseAction.pts}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Badges up next (hidden when every badge is earned) */}
+                {upNext.length > 0 && (
+                  <View style={s.upNextCard}>
+                    <View style={s.upNextHead}>
+                      <Text style={s.upNextTitle}>Badges up next</Text>
+                      <TouchableOpacity activeOpacity={0.6} onPress={() => setShowAllBadges((v) => !v)} accessibilityRole="button" accessibilityLabel={showAllBadges ? 'Show fewer badges' : `Show all ${allBadges.length} badges`} hitSlop={8}>
+                        <Text style={s.refHistoryLink}>{showAllBadges ? 'Show less' : `All ${allBadges.length}`}</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {upNext.map(({ badge: b, prog, ratio }) => {
+                      const IconComponent = BADGE_ICONS[b.icon] || Star
+                      return (
+                        <View key={b.id} style={s.upNextRow}>
+                          <View style={s.upNextTile}>
+                            <IconComponent size={22} color={ui.textSecondary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={s.upNextTop}>
+                              <Text style={s.upNextName} numberOfLines={1}>{b.name}</Text>
+                              {prog && <Text style={s.upNextCount}>{prog.cur} / {prog.target}</Text>}
+                            </View>
+                            {!prog && <Text style={s.upNextDesc} numberOfLines={2}>{b.description}</Text>}
+                            {prog && (
+                              <View
+                                style={s.upNextTrack}
+                                accessibilityRole="progressbar"
+                                accessibilityLabel={`${b.name} progress`}
+                                accessibilityValue={{ min: 0, max: prog.target, now: prog.cur }}
+                              >
+                                {prog.cur > 0 && <View style={[s.upNextFill, { width: `${Math.max(3, ratio * 100)}%` }]} />}
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                )}
+
+                {/* Full badge case — Local Guides-style typed achievements (real backend badges) */}
+                {showAllBadges && allBadges.length > 0 && (
+                  <>
+                    <SectionHeader title="Badges" style={s.sectionHead} />
+                    <Text style={s.sectionSub}>{earnedBadges.length} of {allBadges.length} earned</Text>
+                    <View style={s.badgeGrid}>
+                      {allBadges.map((b) => {
+                        const earned = earnedBadges.some((e) => e.id === b.id)
+                        const IconComponent = BADGE_ICONS[b.icon] || Star
+                        const color = BADGE_COLORS[b.color] || ui.warning
+                        return (
+                          <View key={b.id} style={s.badgeCard} accessible accessibilityLabel={`${b.name}, ${earned ? 'earned' : 'locked'}. ${b.description}`}>
+                            <View style={[s.badgeIconCircle, { backgroundColor: earned ? `${color}1F` : (isDark ? 'rgba(255,255,255,0.06)' : ui.surface) }]}>
+                              <IconComponent size={22} color={earned ? color : (isDark ? 'rgba(255,255,255,0.4)' : ui.textTertiary)} />
+                              {!earned && (
+                                <View style={s.badgeLock}>
+                                  <Lock size={10} color="#FFFFFF" strokeWidth={2.5} />
+                                </View>
+                              )}
+                            </View>
+                            <Text style={s.badgeName} numberOfLines={1}>{b.name}</Text>
+                            <Text style={s.badgeDesc} numberOfLines={2}>{b.description}</Text>
+                          </View>
+                        )
+                      })}
+                    </View>
+                    {upNext.length === 0 && (
+                      <TouchableOpacity activeOpacity={0.6} onPress={() => setShowAllBadges(false)} style={{ alignSelf: 'center', marginTop: 10 }}>
+                        <Text style={s.refHistoryLink}>Show less</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+
                 {/* Tier journey */}
                 <TierJourney levelSlug={levelSlug} isDark={isDark} s={s} />
+
+                {/* Community impact — Transit-style civic framing, real data */}
+                {(profile?.total_reports ?? 0) > 0 && (
+                  <View style={s.impactCard}>
+                    <View style={s.impactIconWrap}>
+                      <Users size={20} color={brand.orange} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.impactValue}>{(profile?.total_reports ?? 0).toLocaleString()} reports shared</Text>
+                      <Text style={s.impactSub}>Your fare, queue & incident reports help fellow riders plan smarter trips</Text>
+                    </View>
+                  </View>
+                )}
 
                 {/* Weekly recap — Waze-style impact rhythm, computed from real history */}
                 {derived.weekCoins > 0 && (
@@ -638,49 +798,17 @@ export default function RewardsScreen() {
                   </View>
                 )}
 
-                {/* Community impact — Transit-style civic framing, real data */}
-                {(profile?.total_reports ?? 0) > 0 && (
-                  <View style={s.impactCard}>
-                    <View style={s.impactIconWrap}>
-                      <Users size={20} color={brand.orange} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.impactValue}>{(profile?.total_reports ?? 0).toLocaleString()} reports shared</Text>
-                      <Text style={s.impactSub}>Your fare, queue & incident reports help fellow riders plan smarter trips</Text>
-                    </View>
+                {/* Leaderboard row */}
+                <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/leaderboard' as Href)} style={s.lbRow}>
+                  <View style={s.lbTile}>
+                    <Trophy size={22} color="#B7791F" />
                   </View>
-                )}
-
-                {/* Badge case — Local Guides-style typed achievements (real backend badges) */}
-                {allBadges.length > 0 && (
-                  <>
-                    <SectionHeader title="Badges" style={s.sectionHead} />
-                    <Text style={s.sectionSub}>{earnedBadges.length} of {allBadges.length} earned</Text>
-                    <View style={s.badgeGrid}>
-                      {allBadges.map((b) => {
-                        const earned = earnedBadges.some((e) => e.id === b.id)
-                        const IconComponent = BADGE_ICONS[b.icon] || Star
-                        const color = BADGE_COLORS[b.color] || ui.warning
-                        return (
-                          <View key={b.id} style={s.badgeCard} accessible accessibilityLabel={`${b.name}, ${earned ? 'earned' : 'locked'}. ${b.description}`}>
-                            <View style={[s.badgeIconCircle, { backgroundColor: earned ? `${color}1F` : (isDark ? 'rgba(255,255,255,0.06)' : ui.surface) }]}>
-                              <IconComponent size={22} color={earned ? color : (isDark ? 'rgba(255,255,255,0.4)' : ui.textTertiary)} />
-                              {!earned && (
-                                <View style={s.badgeLock}>
-                                  <Lock size={10} color="#FFFFFF" strokeWidth={2.5} />
-                                </View>
-                              )}
-                            </View>
-                            <Text style={s.badgeName} numberOfLines={1}>{b.name}</Text>
-                            <Text style={s.badgeDesc} numberOfLines={2}>{b.description}</Text>
-                          </View>
-                        )
-                      })}
-                    </View>
-                  </>
-                )}
-
-                <Button label="View leaderboard" icon={Trophy} style={{ marginTop: 12 }} onPress={() => router.push('/leaderboard' as Href)} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.lbTitle}>{"This week's leaderboard"}</Text>
+                    <Text style={s.lbSub}>{"See who's reporting the most"}</Text>
+                  </View>
+                  <ChevronRight size={20} color={ui.textSecondary} />
+                </TouchableOpacity>
               </>
             )}
 
@@ -722,8 +850,8 @@ export default function RewardsScreen() {
                         {streakAtRisk
                           ? `🔥 Your ${streak}-day streak is on the line — report within ${hoursLeft}h to keep it!`
                           : bonusJustDone
-                            ? `Streak bonus earned — +${STREAK_CONFIG.BONUS_POINTS} pts! Keep it rolling 🎉`
-                            : `Complete ${STREAK_CONFIG.THRESHOLD_DAYS} days and earn +${STREAK_CONFIG.BONUS_POINTS} bonus pts — ${daysToBonus} day${daysToBonus === 1 ? '' : 's'} left!`}
+                            ? `Streak bonus earned — +${STREAK_CONFIG.BONUS_POINTS} coins! Keep it rolling 🎉`
+                            : `Complete ${STREAK_CONFIG.THRESHOLD_DAYS} days and earn +${STREAK_CONFIG.BONUS_POINTS} bonus coins — ${daysToBonus} day${daysToBonus === 1 ? '' : 's'} left!`}
                       </Text>
                     </BlurView>
                   </View>
@@ -741,7 +869,7 @@ export default function RewardsScreen() {
                       style={s.missionCard}
                     >
                       <View style={s.missionEmojiWrap}>
-                        <Text style={{ fontSize: 30, lineHeight: 40 }}>{a.emoji}</Text>
+                        <a.Icon color="#E8461A" size={28} fill="#FFC9B5" />
                       </View>
                       <Text style={s.missionLabel} numberOfLines={1}>{a.label}</Text>
                       <View style={s.missionPts}>
@@ -767,15 +895,9 @@ export default function RewardsScreen() {
                 </View>
 
                 <View style={s.summaryRow}>
-                  <View style={[s.summaryCard, { marginRight: 6 }]}>
+                  <View style={s.summaryCard}>
                     <Text style={s.summaryLabel}>This month</Text>
                     <Text style={[s.summaryValue, { color: ui.success }]}>+{derived.monthEarned}</Text>
-                  </View>
-                  <View style={[s.summaryCard, { marginLeft: 6 }]}>
-                    <Text style={s.summaryLabel}>Redeemed</Text>
-                    <Text style={[s.summaryValue, { color: derived.redeemed > 0 ? ui.danger : (isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary) }]}>
-                      {derived.redeemed > 0 ? `-${derived.redeemed}` : '0'}
-                    </Text>
                   </View>
                 </View>
 
@@ -818,23 +940,6 @@ export default function RewardsScreen() {
             {/* ═══════════ REFERRALS ═══════════ */}
             {tab === 'Referrals' && (
               <>
-                <View style={s.refTopCard}>
-                  <View style={s.refAvatars}>
-                    {[0, 1, 2, 3].map((i) => (
-                      <View key={i} style={[s.refAvatar, { marginLeft: i === 0 ? 0 : -10, backgroundColor: brand.orangeSoft }]}>
-                        <Users size={14} color={brand.orange} />
-                      </View>
-                    ))}
-                  </View>
-                  <TouchableOpacity onPress={() => Alert.alert('Referral History', referralCount > 0 ? `${referralCount} friend${referralCount === 1 ? '' : 's'} have joined with your code.` : 'No referrals yet. Share your code to get started!')}>
-                    <Text style={s.refHistoryLink}>View history</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={s.refCountRow}>
-                  <Text style={s.refCountLabel}>Total completed referrals</Text>
-                  <Text style={s.refCountValue}>{referralCount} Friend{referralCount === 1 ? '' : 's'}</Text>
-                </View>
-
                 {/* Gift graphic */}
                 <View style={s.giftWrap}>
                   <Spin duration={30000} style={{ position: 'absolute' }}>
@@ -861,6 +966,20 @@ export default function RewardsScreen() {
                   <Text style={s.refRewardText}>+{REFERRAL_POINTS} coins each</Text>
                 </View>
 
+                <View style={s.codeRow}>
+                  <View style={s.codeBox}>
+                    <Text style={s.codeLabel}>Your referral code</Text>
+                    <Text style={s.codeText}>{referralCode ?? '—'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy}>
+                    {copied ? <Check size={18} color={ui.success} /> : <Copy size={18} color={brand.orange} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={s.codeShare}>
+                    <Share2 size={16} color={ui.onBrand} />
+                    <Text style={s.codeShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+
                 {/* How it works */}
                 <View style={s.stepsCard}>
                   {[
@@ -875,17 +994,14 @@ export default function RewardsScreen() {
                   ))}
                 </View>
 
-                <View style={s.codeRow}>
-                  <View style={s.codeBox}>
-                    <Text style={s.codeLabel}>Your referral code</Text>
-                    <Text style={s.codeText}>{referralCode ?? '—'}</Text>
+                {/* Completed referrals */}
+                <View style={s.refCountRow}>
+                  <View>
+                    <Text style={s.refCountLabel}>Total completed referrals</Text>
+                    <Text style={s.refCountValue}>{referralCount} Friend{referralCount === 1 ? '' : 's'}</Text>
                   </View>
-                  <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy}>
-                    {copied ? <Check size={18} color={ui.success} /> : <Copy size={18} color={brand.orange} />}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={s.codeShare}>
-                    <Share2 size={16} color={ui.onBrand} />
-                    <Text style={s.codeShareText}>Share</Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Referral History', referralCount > 0 ? `${referralCount} friend${referralCount === 1 ? '' : 's'} have joined with your code.` : 'No referrals yet. Share your code to get started!')}>
+                    <Text style={s.refHistoryLink}>View history</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -915,10 +1031,10 @@ export default function RewardsScreen() {
 
 /* ── Small stat cell ─────────────────────────────────── */
 
-function Stat({ label, value, isDark, onPress }: { label: string; value: string; isDark: boolean; onPress?: () => void }) {
+function Stat({ label, value, isDark, onPress, valueSize = 18 }: { label: string; value: string; isDark: boolean; onPress?: () => void; valueSize?: number }) {
   const body = (
     <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-      <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: isDark ? ui.onBrand : ui.text }}>{value}</Text>
+      <Text style={{ fontFamily: font.extrabold, fontSize: valueSize, color: isDark ? ui.onBrand : ui.text }}>{value}</Text>
       <Text style={{ fontFamily: font.medium, fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : ui.textSecondary }}>{label}</Text>
     </View>
   )
@@ -971,12 +1087,40 @@ const getStyles = (isDark: boolean) => {
     tierTitle: { fontFamily: font.bold, fontSize: 15, color: ui.text },
     tierRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
     tierLine: { flex: 1, height: 3, borderRadius: 2, marginTop: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : ui.hairline },
-    tierDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : ui.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-    tierDotReached: { backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft },
-    tierDotCurrent: { borderColor: brand.orange },
+    tierDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F5F4', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+    tierDotCurrent: { backgroundColor: '#FFE9E1', borderColor: brand.orange },
     tierName: { fontFamily: font.semibold, fontSize: 10, color: subText, textAlign: 'center', marginTop: 6, lineHeight: 13 },
     tierNameReached: { color: ui.text },
     tierPts: { fontFamily: font.medium, fontSize: 9, color: subText, marginTop: 1 },
+
+    /* earn card */
+    earnCard: { backgroundColor: '#FFF7F3', borderWidth: 1, borderColor: '#FFE1D4', borderRadius: 20, padding: 18, marginTop: 14 },
+    earnTitle: { fontFamily: font.bold, fontSize: 18, color: '#111111' },
+    earnSub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 4, marginBottom: 14 },
+    earnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: radius.md, backgroundColor: brand.orange },
+    earnPrimaryText: { fontFamily: font.bold, fontSize: 15, color: '#FFFFFF' },
+    earnSecondaryRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+    earnSecondary: { flex: 1, height: 40, borderRadius: radius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FFD6C7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+    earnSecondaryText: { fontFamily: font.semibold, fontSize: 13, color: '#111111' },
+
+    /* badges up next */
+    upNextCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EFEDEB', borderRadius: 20, padding: 18, marginTop: 14 },
+    upNextHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+    upNextTitle: { fontFamily: font.bold, fontSize: 16, color: '#111111' },
+    upNextRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+    upNextTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F5F5F4', alignItems: 'center', justifyContent: 'center' },
+    upNextTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    upNextName: { flex: 1, fontFamily: font.semibold, fontSize: 15, color: '#111111' },
+    upNextCount: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
+    upNextDesc: { fontFamily: font.regular, fontSize: 13, color: '#6B7280' },
+    upNextTrack: { height: 6, borderRadius: 3, backgroundColor: '#F0EEEC', marginTop: 6, overflow: 'hidden' },
+    upNextFill: { height: 6, borderRadius: 3, backgroundColor: brand.orange },
+
+    /* leaderboard row */
+    lbRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EFEDEB', borderRadius: 20, padding: 16, marginTop: 14 },
+    lbTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF4D6', alignItems: 'center', justifyContent: 'center' },
+    lbTitle: { fontFamily: font.bold, fontSize: 16, color: '#111111' },
+    lbSub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 2 },
 
     /* weekly recap */
     weekCard: {
@@ -1044,8 +1188,8 @@ const getStyles = (isDark: boolean) => {
       ...lift,
     },
     missionEmojiWrap: {
-      width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(255,77,28,0.12)' : brand.orangeSoft,
+      width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#FFF1EC',
     },
     missionLabel: { fontFamily: font.semibold, fontSize: 13.5, color: ui.text, marginTop: 10, paddingHorizontal: 8 },
     missionPts: {
@@ -1074,13 +1218,10 @@ const getStyles = (isDark: boolean) => {
     emptyHistoryText: { fontFamily: font.medium, fontSize: 13, color: subText, textAlign: 'center', paddingHorizontal: 40 },
 
     /* referrals */
-    refTopCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: surface, borderRadius: 16, padding: 16, borderWidth: isDark ? 1 : 0, borderColor: border },
-    refAvatars: { flexDirection: 'row', alignItems: 'center' },
-    refAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: surface },
     refHistoryLink: { fontFamily: font.bold, fontSize: 13, color: brand.orange },
-    refCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 4 },
+    refCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, paddingHorizontal: 4 },
     refCountLabel: { fontFamily: font.medium, fontSize: 14, color: subText },
-    refCountValue: { fontFamily: font.bold, fontSize: 14, color: ui.text },
+    refCountValue: { fontFamily: font.bold, fontSize: 14, color: ui.text, marginTop: 2 },
 
     giftWrap: { alignItems: 'center', justifyContent: 'center', height: 220, marginTop: 10 },
     orbit: { borderWidth: 1.5, borderColor: border, borderStyle: 'dashed' },
@@ -1104,7 +1245,7 @@ const getStyles = (isDark: boolean) => {
     stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: isDark ? 'rgba(255,77,28,0.14)' : brand.orangeSoft, alignItems: 'center', justifyContent: 'center' },
     stepNumText: { fontFamily: font.bold, fontSize: 13, color: brand.orange },
     stepText: { flex: 1, fontFamily: font.medium, fontSize: 13.5, color: ui.text },
-    codeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    codeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     codeBox: { flex: 1, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: border },
     codeLabel: { fontFamily: font.regular, fontSize: 11, color: subText },
     codeText: { fontFamily: font.extrabold, fontSize: 18, color: ui.text, letterSpacing: 2, marginTop: 2 },
