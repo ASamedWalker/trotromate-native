@@ -12,15 +12,18 @@ import {
   Platform,
   UIManager,
   Dimensions,
+  Share,
   StyleSheet,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone, Route as RouteIcon, Share as ShareIcon } from 'lucide-react-native'
 import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
 const { height: SCREEN_H } = Dimensions.get('window')
+// First sheet snap as a fraction of screen height (map padding + recenter FAB follow it).
+const FIRST_SNAP = 0.6
 // Calm pale Mapbox Light by day (stops + route pop on it); stock dark-v11 after
 // dark (navigation-night bakes traffic colours in, defeating the Traffic toggle).
 const MAP_STYLE_DAY = 'mapbox://styles/mapbox/light-v11'
@@ -118,7 +121,7 @@ export default function RouteDetailScreen() {
   const [fabHidden, setFabHidden] = useState(false)
   useDerivedValue(() => {
     runOnJS(setOverlayHidden)(sheetPos.value < insets.top + 96)
-    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * 0.42)
+    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * (1 - FIRST_SNAP - 0.03))
   }, [insets.top])
   // Real road distance from the Directions response — feeds the floating ETA pill.
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
@@ -185,7 +188,7 @@ export default function RouteDetailScreen() {
     cameraRef.current.fitBounds(
       [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
       [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-      [insets.top + 120, 84, SCREEN_H * 0.55 + 24, 52],
+      [insets.top + 120, 110, SCREEN_H * FIRST_SNAP + 48, 52],
       duration,
     )
   }
@@ -226,7 +229,7 @@ export default function RouteDetailScreen() {
   }, [routeLine])
 
 
-  const snapPoints = useMemo(() => ['55%', '74%', '90%'], [])
+  const snapPoints = useMemo(() => [`${Math.round(FIRST_SNAP * 100)}%`, '74%', '90%'], [])
 
 
   // Fabricated stop timeline removed (UX-06): it rendered "Now at Market
@@ -362,6 +365,11 @@ export default function RouteDetailScreen() {
 
   // Fare actually shown / charged: drop-off stage fare when available, else corridor.
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
+  // Not exact/official (matches the "estimate" badge) → show rounded with a tilde.
+  const isEstimate = !!(hasStops && dropoffFare != null && !dropoffResult?.isOfficial)
+  const fareText = isEstimate
+    ? `~${formatGHS(Math.round(Number(displayFare) * 10) / 10)}`
+    : formatGHS(Number(displayFare))
   const dropoffName = hasStops ? stops.find((s) => s.stop_order === effectiveDropoff)?.stop_name : undefined
   const [alightPickerOpen, setAlightPickerOpen] = useState(false)
   // Intermediate stops as map dots (origin/destination have their own pins).
@@ -407,9 +415,9 @@ export default function RouteDetailScreen() {
               ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
               sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
               paddingTop: insets.top + 120,
-              paddingBottom: SCREEN_H * 0.55 + 24,
+              paddingBottom: SCREEN_H * FIRST_SNAP + 48,
               paddingLeft: 52,
-              paddingRight: 84,
+              paddingRight: 110,
             },
           } : {
             centerCoordinate: [centerLon, centerLat],
@@ -639,17 +647,11 @@ export default function RouteDetailScreen() {
       )}
 
       {/* ── Floating ETA · distance pill (glanceable trip summary) ── */}
-      {hasCoords && !overlayHidden && (
+      {hasCoords && !overlayHidden && (routeDistanceKm ?? route?.distance_km) != null && (
         <View style={{ position: 'absolute', top: insets.top + 10, alignSelf: 'center', zIndex: 10 }}>
           <View style={mapPinStyles.etaPill}>
-            <Clock size={15} color="#fff" strokeWidth={2.4} />
-            <Text style={mapPinStyles.etaText}>{durationText}</Text>
-            {(routeDistanceKm ?? route?.distance_km) != null && (
-              <>
-                <View style={mapPinStyles.etaDot} />
-                <Text style={mapPinStyles.etaSub}>{(routeDistanceKm ?? route?.distance_km ?? 0).toFixed(1)} km</Text>
-              </>
-            )}
+            <RouteIcon size={15} color="#fff" strokeWidth={2.4} />
+            <Text style={mapPinStyles.etaText}>{(routeDistanceKm ?? route?.distance_km ?? 0).toFixed(1)} km</Text>
           </View>
         </View>
       )}
@@ -657,7 +659,7 @@ export default function RouteDetailScreen() {
       {/* ── Recenter FAB — sits just above the collapsed sheet; hidden once the
             sheet is dragged up so it never floats inside the card ── */}
       {hasCoords && !fabHidden && (
-        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.55 + 16, zIndex: 10 }}>
+        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * FIRST_SNAP + 16, zIndex: 10 }}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => { Haptics.selectionAsync(); fitRoute(900) }}
@@ -734,6 +736,9 @@ export default function RouteDetailScreen() {
                 </View>
                 <ChevronDown size={18} color="#6B7280" />
               </TouchableOpacity>
+              {stopsGeojson.features.length > 0 && (
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 7 }}>or tap a stop on the map</Text>
+              )}
             </View>
           )}
 
@@ -746,7 +751,7 @@ export default function RouteDetailScreen() {
               )}
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{formatGHS(Number(displayFare))}</Text>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{fareText}</Text>
               {dropoffName ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
@@ -794,8 +799,8 @@ export default function RouteDetailScreen() {
               }}
               style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}
             >
-              <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>Paid a different fare? Report it</Text>
-              <ChevronRight size={15} color={BRAND} />
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151' }}>Paid a different fare? Report it</Text>
+              <ChevronRight size={15} color="#374151" />
             </TouchableOpacity>
           )}
 
@@ -849,18 +854,42 @@ export default function RouteDetailScreen() {
                   <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
                 </View>
               </TouchableOpacity>
+            ) : selectedTransport === 'trotro' ? (
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Share fare"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  const src = isEstimate ? ' (estimate)' : gprtuVerified ? ' (official GPRTU)' : ' (reported by commuters)'
+                  Share.share({
+                    message: `Trotro fare ${from} → ${dropoffName || to}: ${fareText}${src}. Check any trotro fare free on Troski: https://troski.me`,
+                  }).catch(() => {})
+                }}
+              >
+                <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <ShareIcon size={18} color="#fff" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Share fare</Text>
+                </View>
+              </TouchableOpacity>
             ) : (
               <View
                 style={{ flex: 1, height: 52, borderRadius: 16, backgroundColor: '#FFF4EF', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }}
                 accessible
                 accessibilityRole="text"
                 accessibilityState={{ disabled: true }}
-                accessibilityLabel={selectedTransport === 'trotro' ? 'Tickets are coming soon' : `${selectedOption.label} rides are coming soon`}
+                accessibilityLabel={`${selectedOption.label} rides are coming soon`}
               >
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{selectedTransport === 'trotro' ? 'Tickets coming soon' : `${selectedOption.label} rides coming soon`}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{`${selectedOption.label} rides coming soon`}</Text>
               </View>
             )}
           </View>
+          {selectedTransport === 'trotro' && !TROTRO_BOOKING_ENABLED && (
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: -6, marginBottom: 16 }}>
+              Tickets coming soon — pay the mate as usual
+            </Text>
+          )}
 
           {/* ── REAL-TIME PULSE card ── hidden when there is no traffic data
               (an "Unavailable" card with an empty bar tells the rider nothing) */}
