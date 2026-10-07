@@ -72,10 +72,16 @@ export default function NameScreen() {
       // row may belong to someone else).
       const rows = await ownProfiles(user?.id, deviceId)
       if (!rows.length) throw new Error('Your profile was not found. Please try again.')
-      const fields = { display_name: trimmed, first_name: trimmed.split(' ')[0], city: city === 'Other' ? null : city }
-      const { data, error } = await supabase.from('contributor_profiles').update(fields).in('id', rows.map((r) => r.id)).select('id')
+      if (!deviceId) throw new Error('Your profile was not found. Please try again.')
+      // RPC, not a table update: first_name/city writes are checked server-side (migration 092)
+      const { data: ok, error } = await supabase.rpc('update_my_profile', {
+        p_device_id: deviceId,
+        p_display_name: trimmed,
+        p_first_name: trimmed.split(' ')[0],
+        p_city: city === 'Other' ? '' : city,
+      })
       if (error) throw error
-      if (!data?.length) throw new Error('Your profile was not found. Please try again.')
+      if (ok !== true) throw new Error('Your profile was not found. Please try again.')
 
       if (referrerDevice && deviceId && referrerDevice !== deviceId) {
         const { error: refErr } = await supabase.from('referrals').insert({ referrer_device_id: referrerDevice, referred_device_id: deviceId, referral_code: code })

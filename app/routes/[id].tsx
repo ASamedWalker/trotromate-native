@@ -10,7 +10,7 @@ import { MapPin, Plus, Heart, MessageCircle, Info, ChevronDown, ChevronUp, Recei
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
 import { LoadErrorState } from '@/components/StateViews'
@@ -36,10 +36,11 @@ import { titleCase } from '@/lib/utils/title-case'
  */
 // Hero = the brand adinkra print on dark (approved canvas design), not a stock photo.
 const HERO_H = 320
-const heroPatternCache = new Map<number, string>()
-function heroPattern(w: number): string {
-  let xml = heroPatternCache.get(w)
-  if (!xml) { xml = adinkraPatternXml(w, HERO_H, 26, 'rgba(255,255,255,0.07)'); heroPatternCache.set(w, xml) }
+const heroPatternCache = new Map<string, string>()
+function heroPattern(w: number, h: number): string {
+  const key = `${w}x${h}`
+  let xml = heroPatternCache.get(key)
+  if (!xml) { xml = adinkraPatternXml(w, h, 26, 'rgba(255,255,255,0.07)'); heroPatternCache.set(key, xml) }
   return xml
 }
 
@@ -52,6 +53,7 @@ export default function RouteDetailScreen() {
   const { isFavorite, toggleFavorite } = useFavorites()
   const [tipsOpen, setTipsOpen] = useState(false)
   const [heroW, setHeroW] = useState(0)
+  const [heroH, setHeroH] = useState(HERO_H)
 
   // Status-bar scrim fades in once the hero scrolls away.
   const scrollY = useSharedValue(0)
@@ -174,7 +176,7 @@ export default function RouteDetailScreen() {
       {/* Light status-bar icons over the dark adinkra hero. */}
       <StatusBar style="light" />
       <View style={[s.topBtn, { left: 16, top: insets.top + 8 }]}>
-        <GlassBackButton isDark />
+        <BackButton variant="floating" tone="dark" />
       </View>
       <View style={[s.topBtn, { right: 16, top: insets.top + 8 }]}>
         <TouchableOpacity
@@ -197,11 +199,19 @@ export default function RouteDetailScreen() {
         scrollEventThrottle={16}
       >
         {/* ── Hero ── */}
-        <View style={s.hero} onLayout={(e) => setHeroW(Math.round(e.nativeEvent.layout.width))}>
+        {/* Content starts below the floating back/save buttons (top inset + 8 + 44 + 12),
+            so tall-notch phones don't slide the route pill under the back button. */}
+        <View
+          style={[s.hero, { paddingTop: insets.top + 64 }]}
+          onLayout={(e) => {
+            setHeroW(Math.round(e.nativeEvent.layout.width))
+            setHeroH(Math.round(e.nativeEvent.layout.height))
+          }}
+        >
           <LinearGradient colors={['#2A1D14', '#16110D']} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }} style={StyleSheet.absoluteFillObject} />
           {heroW > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <SvgXml xml={heroPattern(heroW)} width={heroW} height={HERO_H} />
+              <SvgXml xml={heroPattern(heroW, heroH)} width={heroW} height={heroH} />
             </View>
           )}
           <View style={s.heroBody}>
@@ -429,7 +439,7 @@ const s = StyleSheet.create({
   favBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(28,25,23,0.45)', alignItems: 'center', justifyContent: 'center' },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#16110D', zIndex: 15 },
 
-  hero: { height: HERO_H, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: '#16110D' },
+  hero: { minHeight: HERO_H, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: '#16110D' },
   heroBody: { paddingHorizontal: space.gutter, paddingBottom: 22, gap: 6 },
   kindPill: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
   kindText: { fontSize: 13, fontFamily: font.bold, letterSpacing: 1, color: '#1C1917' },

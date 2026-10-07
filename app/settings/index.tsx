@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, type ReactNode } from 'react'
 import {
   View,
   Text,
@@ -6,10 +6,10 @@ import {
   ScrollView,
   Switch,
   Alert,
-  useColorScheme,
   StyleSheet,
   Linking,
   AppState,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLanguage } from '@/lib/i18n'
@@ -19,32 +19,37 @@ import {
   Bell,
   FileText,
   Shield,
-  HelpCircle,
   Trash2,
-  Camera,
   Globe,
-  Megaphone,
+  SlidersHorizontal,
+  MessageCircle,
+  Mail,
+  LogOut,
+  Instagram,
+  Facebook,
 } from 'lucide-react-native'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { supabase } from '@/lib/supabase/client'
 import * as Updates from 'expo-updates'
 import Constants from 'expo-constants'
-import { c, themed, font } from '@/lib/theme'
+import { themed, font, brand } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { signOutAndWipe } from '@/lib/services/signOut'
+import { deleteAccount } from '@/lib/services/account'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { usePreferences } from '@/lib/hooks/usePreferences'
 import { LEVELS } from '@/lib/constants/rewards'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { LanguageSheet } from '@/components/LanguageSheet'
+import { SUPPORT_WHATSAPP } from '@/lib/config/support'
 
 export default function SettingsScreen() {
   const router = useRouter()
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
-  const t = themed(isDark)
-  const s = useMemo(() => getStyles(isDark), [isDark])
-  const { lang, setLanguage, languages } = useLanguage()
+  const s = useMemo(() => getStyles(), [])
+  const { lang, languages } = useLanguage()
+  const [langOpen, setLangOpen] = useState(false)
+  const [showBuild, setShowBuild] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const { profile, deviceId, resetIdentity } = useApp()
   const { prefs, updatePref } = usePreferences()
@@ -52,8 +57,8 @@ export default function SettingsScreen() {
 
   const handleClearData = () => {
     Alert.alert(
-      'Clear Local Data',
-      'This will clear your cached data, preferences, and dismissed items. Your reports and points are safe on the server.',
+      'Clear cached data',
+      'This clears cached data, preferences, and dismissed items on this phone. You stay signed in, and your reports and coins are safe.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -64,9 +69,8 @@ export default function SettingsScreen() {
               '@troski_preferences_v2',
               'activity_dismissed_ids',
               'troski-favorite-routes',
-              'troski_onboarding_complete',
             ])
-            Alert.alert('Done', 'Local data cleared.')
+            Alert.alert('Done', 'Cached data cleared.')
           },
         },
       ]
@@ -91,6 +95,16 @@ export default function SettingsScreen() {
     return () => sub.remove()
   }, [])
 
+  const handleEmailSupport = async () => {
+    const url = 'mailto:support@troski.me?subject=Troski%20Help%20%26%20Support'
+    // No canOpenURL: iOS returns false unless mailto is in LSApplicationQueriesSchemes.
+    try {
+      await Linking.openURL(url)
+    } catch {
+      Alert.alert('Email support', 'Email us at support@troski.me')
+    }
+  }
+
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -105,299 +119,398 @@ export default function SettingsScreen() {
     ])
   }
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete your account?',
+      'This removes your profile, phone number and coins. Your fare reports and Pulse posts stay, shown as "Former rider". Wallet money must be withdrawn first. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true)
+            try {
+              const { error, code } = await deleteAccount(resetIdentity)
+              if (code === 'session_ended') {
+                // The phone was already wiped; leave the signed-in screens.
+                router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
+                Alert.alert('Signed out', error ?? undefined)
+                return
+              }
+              if (error) {
+                Alert.alert(code === 'wallet_not_empty' ? 'Withdraw your balance first' : 'Could not delete account', error)
+                return
+              }
+              router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
+            } catch {
+              Alert.alert('Could not delete account', 'Please check your connection and try again.')
+            } finally {
+              setDeleting(false)
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  const langNative = languages.find((l) => l.code === lang)?.native ?? 'English'
+
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
         {/* Header */}
         <View style={s.header}>
-          <GlassBackButton isDark={isDark} />
+          <BackButton />
           <Text style={s.headerTitle}>Settings</Text>
         </View>
 
-        {/* Profile Section */}
+        {/* Profile card */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Profile</Text>
-          <View style={s.card}>
-            <TouchableOpacity
-              onPress={() => router.push('/settings/edit-name' as Href)}
-              activeOpacity={0.7}
-              style={s.profileRow}
-            >
-              <InitialsAvatar
-                name={profile?.display_name}
-                deviceId={deviceId ?? undefined}
-                size={48}
-              />
-              <View style={s.profileInfo}>
-                <Text style={s.profileName}>{profile?.display_name ?? 'Commuter'}</Text>
-                {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
-                <Text style={s.profileSub}>{levelInfo.emoji} {levelInfo.name}</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings/edit-name' as Href)}
+            activeOpacity={0.7}
+            style={[s.card, s.profileRow]}
+            accessibilityRole="button"
+            accessibilityLabel="Edit your name"
+          >
+            <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={56} />
+            <View style={s.profileInfo}>
+              <Text style={s.profileName} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
+              {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
+              <View style={s.tierRow}>
+                <View style={s.tierPill}>
+                  <Text style={s.tierText}>{levelInfo.name}</Text>
+                </View>
+                {typeof profile?.total_points === 'number' ? (
+                  <Text style={s.profileSub}> · {profile.total_points} coins</Text>
+                ) : null}
               </View>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Language (i18n scaffold) */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Language</Text>
-          <View style={s.card}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={s.linkRow}
-              onPress={() => {
-                Alert.alert('Language', 'Choose your language', [
-                  ...languages.map((l) => ({
-                    text: `${l.native}${l.code === lang ? '  ✓' : ''}`,
-                    onPress: () => setLanguage(l.code),
-                  })),
-                  { text: 'Cancel', style: 'cancel' as const },
-                ])
-              }}
-            >
-              <Text style={s.linkLabel}>App Language</Text>
-              <Text style={[s.linkLabel, { color: t.textSecondary }]}>
-                {languages.find((l) => l.code === lang)?.native ?? 'English'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Notifications */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Notifications</Text>
-          <View style={s.card}>
-            <View style={s.settingRow}>
-              <Bell size={18} color={t.textSecondary} />
-              <View style={s.settingInfo}>
-                <Text style={s.settingLabel}>Push Notifications</Text>
-                <Text style={s.settingDesc}>Get notified about fare drops and alerts</Text>
-              </View>
-              <Switch
-                value={prefs.pushNotifications && osPushGranted !== false}
-                onValueChange={async (v) => {
-                  if (!v) {
-                    updatePref('pushNotifications', false)
-                    return
-                  }
-                  // The pref alone can't deliver anything — the OS permission
-                  // is the real gate. Request it here so the toggle is honest.
-                  const Notifications = await import('expo-notifications')
-                  const { status } = await Notifications.getPermissionsAsync()
-                  const final =
-                    status === 'granted'
-                      ? status
-                      : (await Notifications.requestPermissionsAsync()).status
-                  setOsPushGranted(final === 'granted')
-                  updatePref('pushNotifications', final === 'granted')
-                  if (final !== 'granted') {
-                    Alert.alert(
-                      'Notifications are off in Settings',
-                      'Your phone is blocking Troski notifications. Turn them on in system Settings to receive alerts.',
-                      [
-                        { text: 'Not now', style: 'cancel' },
-                        { text: 'Open Settings', onPress: () => Linking.openSettings() },
-                      ],
-                    )
-                  }
-                }}
-                trackColor={{ false: isDark ? c.stone700 : c.stone300, true: c.amber500 }}
-                thumbColor={c.white}
-              />
             </View>
-            <View style={s.divider} />
-            <TouchableOpacity
-              onPress={() => router.push('/settings/notifications' as Href)}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <View style={{ width: 18 }} />
-              <Text style={s.linkLabel}>Notification Preferences</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Preview Features (internal — remove before partnership launch) */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Preview Features</Text>
-          <View style={s.card}>
-            <TouchableOpacity
-              onPress={() => router.push('/bulletin' as Href)}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <Megaphone size={18} color={c.amber500} />
-              <View style={s.settingInfo}>
-                <Text style={s.settingLabel}>Transport Pulse</Text>
-                <Text style={s.settingDesc}>Official announcements from GPRTU & GRDA (preview)</Text>
-              </View>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* About */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>About</Text>
-          <View style={s.card}>
-            <TouchableOpacity
-              onPress={() => router.push('/terms' as Href)}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <FileText size={18} color={t.textSecondary} />
-              <Text style={s.linkLabel}>Terms of Service</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-            <View style={s.divider} />
-            <TouchableOpacity
-              onPress={() => router.push('/privacy' as Href)}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <Shield size={18} color={t.textSecondary} />
-              <Text style={s.linkLabel}>Privacy Policy</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-            <View style={s.divider} />
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={s.linkRow}
-              onPress={() => Linking.openURL('mailto:support@troski.me?subject=Troski%20Help%20%26%20Support').catch(() => {})}
-            >
-              <HelpCircle size={18} color={t.textSecondary} />
-              <Text style={s.linkLabel}>Help & Support</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Data */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Data</Text>
-          <View style={s.card}>
-            <TouchableOpacity onPress={handleClearData} activeOpacity={0.7} style={s.linkRow}>
-              <Trash2 size={18} color={c.red500} />
-              <Text style={[s.linkLabel, { color: c.red500 }]}>Clear Local Data</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Follow Us */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Follow Us</Text>
-          <View style={s.card}>
-            <TouchableOpacity
-              onPress={() => Linking.openURL('https://www.instagram.com/troski.app/')}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <Camera size={18} color="#E4405F" />
-              <Text style={s.linkLabel}>Instagram</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-            <View style={s.divider} />
-            <TouchableOpacity
-              onPress={() => Linking.openURL('https://www.facebook.com/troski.me')}
-              activeOpacity={0.7}
-              style={s.linkRow}
-            >
-              <Globe size={18} color="#1877F2" />
-              <Text style={s.linkLabel}>Facebook</Text>
-              <ChevronRight size={18} color={t.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Sign Out (only with a real session) */}
-        {isAuthenticated && <View style={s.section}>
-          <TouchableOpacity onPress={handleSignOut} activeOpacity={0.8} style={s.signOutBtn}>
-            <Text style={s.signOutLabel}>Sign Out</Text>
+            <Text style={s.editText}>Edit</Text>
           </TouchableOpacity>
-        </View>}
+        </View>
+
+        {/* Preferences */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Preferences</Text>
+          <View style={s.card}>
+            <Row
+              s={s}
+              icon={<Globe size={18} color="#111111" />}
+              label="Language"
+              value={langNative}
+              onPress={() => setLangOpen(true)}
+            />
+            <View style={s.divider} />
+            <Row
+              s={s}
+              icon={<Bell size={18} color="#111111" />}
+              label="Push notifications"
+              sub="Fare changes, alerts, Pulse replies"
+              right={
+                <Switch
+                  accessibilityLabel="Push notifications"
+                  value={prefs.pushNotifications && osPushGranted !== false}
+                  onValueChange={async (v) => {
+                    if (!v) {
+                      updatePref('pushNotifications', false)
+                      return
+                    }
+                    // The pref alone can't deliver anything — the OS permission
+                    // is the real gate. Request it here so the toggle is honest.
+                    const Notifications = await import('expo-notifications')
+                    const { status } = await Notifications.getPermissionsAsync()
+                    const final =
+                      status === 'granted'
+                        ? status
+                        : (await Notifications.requestPermissionsAsync()).status
+                    setOsPushGranted(final === 'granted')
+                    updatePref('pushNotifications', final === 'granted')
+                    if (final !== 'granted') {
+                      Alert.alert(
+                        'Notifications are off in Settings',
+                        'Your phone is blocking Troski notifications. Turn them on in system Settings to receive alerts.',
+                        [
+                          { text: 'Not now', style: 'cancel' },
+                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                        ],
+                      )
+                    }
+                  }}
+                  trackColor={{ false: '#D6D3D1', true: brand.orange }}
+                  thumbColor="#FFFFFF"
+                />
+              }
+            />
+            <View style={s.divider} />
+            <Row
+              s={s}
+              icon={<SlidersHorizontal size={18} color="#111111" />}
+              label="Choose what you get"
+              onPress={() => router.push('/settings/notifications' as Href)}
+              chevron
+            />
+          </View>
+        </View>
+
+        {/* Help */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Help</Text>
+          <View style={s.card}>
+            {SUPPORT_WHATSAPP ? (
+              <>
+                <Row
+                  s={s}
+                  icon={<MessageCircle size={18} color="#15803D" />}
+                  tileBg="#DCFCE7"
+                  label="Chat on WhatsApp"
+                  sub="Talk to the Troski team"
+                  onPress={() => Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`).catch(() => {})}
+                  chevron
+                />
+                <View style={s.divider} />
+              </>
+            ) : null}
+            <Row
+              s={s}
+              icon={<Mail size={18} color="#111111" />}
+              label="Email support"
+              sub="support@troski.me"
+              onPress={handleEmailSupport}
+              chevron
+            />
+          </View>
+        </View>
+
+        {/* Legal & data */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Legal & data</Text>
+          <View style={s.card}>
+            <Row
+              s={s}
+              icon={<FileText size={18} color="#111111" />}
+              label="Terms of Service"
+              onPress={() => router.push('/terms' as Href)}
+              chevron
+            />
+            <View style={s.divider} />
+            <Row
+              s={s}
+              icon={<Shield size={18} color="#111111" />}
+              label="Privacy Policy"
+              onPress={() => router.push('/privacy' as Href)}
+              chevron
+            />
+            <View style={s.divider} />
+            <Row
+              s={s}
+              icon={<Trash2 size={18} color="#111111" />}
+              label="Clear cached data"
+              sub="Frees space. Account, reports and coins stay."
+              onPress={handleClearData}
+            />
+          </View>
+        </View>
+
+        {/* Sign out (only with a real session) */}
+        {isAuthenticated && (
+          <View style={s.section}>
+            <TouchableOpacity
+              onPress={handleSignOut}
+              activeOpacity={0.8}
+              style={s.signOutBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <LogOut size={18} color="#111111" />
+              <Text style={s.signOutLabel}>Sign out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              disabled={deleting}
+              activeOpacity={0.7}
+              style={s.deleteBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              {deleting ? <ActivityIndicator color="#B91C1C" /> : <Text style={s.deleteLabel}>Delete account</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Footer */}
         <View style={s.footer}>
-          <Text style={s.version}>Troski v{Constants.expoConfig?.version ?? '?'}</Text>
-          <Text style={s.footerText}>Made with love in Accra</Text>
-          {!__DEV__ && (
-            <Text style={s.footerText}>
+          <View style={s.socialRow}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://www.instagram.com/troski.app/')}
+              activeOpacity={0.7}
+              style={s.socialBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Troski on Instagram"
+            >
+              <Instagram size={20} color="#111111" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://www.facebook.com/troski.me')}
+              activeOpacity={0.7}
+              style={s.socialBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Troski on Facebook"
+            >
+              <Facebook size={20} color="#111111" />
+            </TouchableOpacity>
+          </View>
+          <Text
+            style={s.version}
+            onLongPress={() => setShowBuild((v) => !v)}
+            suppressHighlighting
+          >
+            Troski {Constants.expoConfig?.version ?? '?'} · Made in Accra
+          </Text>
+          {showBuild && !__DEV__ && (
+            <Text style={s.buildText}>
               {Updates.isEmbeddedLaunch ? 'Embedded' : `OTA ${Updates.updateId?.slice(0, 8) ?? '—'}`}
               {' · '}{Updates.channel ?? 'no-channel'}
             </Text>
           )}
         </View>
       </ScrollView>
+
+      <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
     </SafeAreaView>
   )
 }
 
-const getStyles = (isDark: boolean) => {
-  const t = themed(isDark)
+type Styles = ReturnType<typeof getStyles>
+
+function Row({
+  s,
+  icon,
+  tileBg,
+  label,
+  sub,
+  value,
+  right,
+  chevron,
+  onPress,
+}: {
+  s: Styles
+  icon: ReactNode
+  tileBg?: string
+  label: string
+  sub?: string
+  value?: string
+  right?: ReactNode
+  chevron?: boolean
+  onPress?: () => void
+}) {
+  const inner = (
+    <>
+      <View style={[s.tile, tileBg ? { backgroundColor: tileBg } : null]}>{icon}</View>
+      <View style={s.rowInfo}>
+        <Text style={s.rowLabel}>{label}</Text>
+        {sub ? <Text style={s.rowSub}>{sub}</Text> : null}
+      </View>
+      {value ? <Text style={s.rowValue}>{value}</Text> : null}
+      {right}
+      {value || chevron ? <ChevronRight size={18} color="#9CA3AF" /> : null}
+    </>
+  )
+  if (!onPress) return <View style={s.row}>{inner}</View>
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={s.row} accessibilityRole="button">
+      {inner}
+    </TouchableOpacity>
+  )
+}
+
+const getStyles = () => {
+  const t = themed(false)
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bg },
+    scrollContent: { paddingBottom: 24 },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       paddingTop: 12,
-      paddingBottom: 8,
+      paddingBottom: 0,
     },
-    headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
-    section: { paddingHorizontal: 20, marginBottom: 24 },
+    headerTitle: { fontSize: 24, fontFamily: font.bold, color: '#111111', letterSpacing: -0.5 },
+    section: { paddingHorizontal: 24, marginTop: 28 },
     sectionLabel: {
-      fontSize: 13,
-      fontFamily: font.bold,
-      color: t.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
+      fontSize: 14,
+      fontFamily: font.medium,
+      color: '#6B7280',
+      marginLeft: 4,
       marginBottom: 8,
     },
     card: {
-      borderRadius: 20,
-      backgroundColor: t.card,
-      overflow: 'hidden',
-    },
-    profileRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-    },
-    profileInfo: { marginLeft: 14, flex: 1 },
-    profileName: { fontSize: 16, fontFamily: font.semibold, color: t.text },
-    profileSub: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
-    settingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-    },
-    settingInfo: { marginLeft: 14, flex: 1 },
-    settingLabel: { fontSize: 15, fontFamily: font.medium, color: t.text },
-    settingDesc: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
-    linkRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-    },
-    linkLabel: { fontSize: 15, fontFamily: font.medium, color: t.text, marginLeft: 14, flex: 1 },
-    divider: {
-      height: 1,
-      backgroundColor: isDark ? c.stone800 : c.stone100,
-      marginHorizontal: 16,
-    },
-    signOutBtn: {
-      height: 52,
-      borderRadius: 14,
-      backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2',
+      borderRadius: 16,
+      backgroundColor: '#FFFFFF',
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FECACA',
+      borderColor: '#EFEDEB',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    profileRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+    profileInfo: { marginLeft: 14, flex: 1 },
+    profileName: { fontSize: 18, fontFamily: font.semibold, color: '#111111' },
+    profileSub: { fontSize: 13, fontFamily: font.regular, color: '#6B7280' },
+    tierRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    tierPill: { backgroundColor: '#FFEDD5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
+    tierText: { fontSize: 12, fontFamily: font.semibold, color: '#9A3412' },
+    editText: { fontSize: 14, fontFamily: font.semibold, color: '#C2361A', marginLeft: 8 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 56,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    tile: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: '#F5F5F4',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    signOutLabel: { fontSize: 15, fontFamily: font.semibold, color: '#EF4444' },
-    footer: { alignItems: 'center', paddingVertical: 32 },
-    version: { fontSize: 13, fontFamily: font.semibold, color: c.amber500 },
-    footerText: { fontSize: 12, color: t.textTertiary, marginTop: 4 },
+    rowInfo: { marginLeft: 14, flex: 1 },
+    rowLabel: { fontSize: 16, fontFamily: font.medium, color: '#111111' },
+    rowSub: { fontSize: 13, fontFamily: font.regular, color: '#6B7280' },
+    rowValue: { fontSize: 15, fontFamily: font.regular, color: '#6B7280', marginRight: 6 },
+    divider: { height: 1, backgroundColor: '#F2F1EF', marginLeft: 64 },
+    signOutBtn: {
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: '#E7E5E4',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    deleteBtn: { height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    deleteLabel: { fontSize: 15, fontFamily: font.semibold, color: '#B91C1C' },
+    signOutLabel: { fontSize: 16, fontFamily: font.semibold, color: '#111111' },
+    footer: { alignItems: 'center', paddingTop: 28, paddingBottom: 8 },
+    socialRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+    socialBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: '#E7E5E4',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    version: { fontSize: 13, fontFamily: font.regular, color: '#6B7280' },
+    buildText: { fontSize: 12, fontFamily: font.regular, color: '#6B7280', marginTop: 4 },
   })
 }

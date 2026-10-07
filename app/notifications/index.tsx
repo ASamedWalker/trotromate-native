@@ -22,7 +22,7 @@ import {
   Users,
 } from 'lucide-react-native'
 import { router, type Href } from 'expo-router'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -116,7 +116,7 @@ export default function NotificationsScreen() {
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLeft}>
-          <GlassBackButton isDark={isDark} />
+          <BackButton />
           <Text style={s.headerTitle}>Notifications</Text>
         </View>
         {unreadCount > 0 && (

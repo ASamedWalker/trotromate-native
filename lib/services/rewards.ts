@@ -12,10 +12,13 @@ import type {
 } from '@/lib/types'
 
 // Get or create a contributor profile by device ID
-// Every profile column except push_token, which callers must not read back
-// (migration 090 revokes it). Keep in sync with contributor_profiles.
+// Every profile column anon/authenticated may read. Migration 092 revokes
+// push_token, phone, phone_verified_at, email, last_name and gender from them,
+// so selecting any of those (or select('*')) fails the whole query. first_name
+// stays readable (old store builds need it) but the app no longer uses it.
+// Keep in sync with the 092 GRANT SELECT list.
 const PROFILE_COLUMNS =
-  'id, device_id, auth_user_id, display_name, first_name, last_name, email, phone, phone_verified_at, gender, bio, avatar_url, city, is_public, total_points, current_level, current_streak, longest_streak, view_streak, longest_view_streak, last_report_date, last_checkin_date, total_reports, fare_reports, queue_reports, incident_reports, follower_count, following_count, referral_code, referral_count, referral_source, home_route_id, home_route_label, created_at, updated_at'
+  'id, device_id, auth_user_id, display_name, bio, avatar_url, city, is_public, total_points, current_level, current_streak, longest_streak, view_streak, longest_view_streak, last_report_date, last_checkin_date, total_reports, fare_reports, queue_reports, incident_reports, follower_count, following_count, referral_code, referral_count, referral_source, home_route_id, home_route_label, created_at, updated_at'
 
 export async function getOrCreateProfile(deviceId: string): Promise<ContributorProfile | null> {
   // Guard: never query/create with a missing device id (early-mount race would

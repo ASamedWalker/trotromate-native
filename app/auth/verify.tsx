@@ -165,9 +165,8 @@ const DEFAULT_NAME = /^Troski Fan #/
 /**
  * After sign-in: does this person still need to pick a name?
  * A real name = a display name that isn't the auto-made "Troski Fan #XXXX"
- * (lib/services/rewards.ts), or a first name. Old sign-ups saved first_name
- * but never display_name, so they showed as "Troski Fan #…": when a real name
- * exists, copy it into their own display names still on the default.
+ * (lib/services/rewards.ts). first_name is no longer readable (migration 092,
+ * which also copied legacy first names into display_name).
  * Errors never block sign-in.
  */
 async function needsName(deviceId: string | null): Promise<boolean> {
@@ -175,14 +174,8 @@ async function needsName(deviceId: string | null): Promise<boolean> {
     const { data: { session } } = await supabase.auth.getSession()
     const rows = await ownProfiles(session?.user.id, deviceId)
     if (!rows.length) return true
-    const real = (r: NameRow) =>
-      (r.display_name && !DEFAULT_NAME.test(r.display_name) ? r.display_name : null) || r.first_name || null
-    const name = rows.map(real).find(Boolean)
-    if (!name) return true
-    const stale = rows.filter((r) => !r.display_name || DEFAULT_NAME.test(r.display_name)).map((r) => r.id)
-    if (stale.length) {
-      await supabase.from('contributor_profiles').update({ display_name: name }).in('id', stale)
-    }
+    const real = (r: NameRow) => (r.display_name && !DEFAULT_NAME.test(r.display_name) ? r.display_name : null)
+    if (!rows.some(real)) return true
     return false
   } catch {
     return false

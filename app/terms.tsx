@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { themed, font } from '@/lib/theme'
 
 const LAST_UPDATED = 'February 6, 2026'
@@ -20,7 +20,7 @@ export default function TermsScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <GlassBackButton isDark={isDark} />
+        <BackButton />
         <Text style={s.headerTitle}>Terms of Service</Text>
       </View>
 

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, useColorScheme, StyleSheet, A
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { MapPin, Calendar, Award, Star, Flame, Map, Sunrise, Moon, Shield, Coins, Users, Trophy, CalendarDays, Bus, FileText, Zap, Radio, ChevronRight } from 'lucide-react-native'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { usePublicProfile } from '@/lib/hooks/usePublicProfile'
@@ -70,9 +70,9 @@ export default function PublicProfileScreen() {
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
-          <GlassBackButton isDark={isDark} />
+          <BackButton />
           <Text style={s.headerTitle} numberOfLines={1}>{displayName}</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 38 }} />
         </View>
 
         {/* Avatar + Name + Level */}

@@ -21,7 +21,7 @@ import {
   Info,
   BarChart3,
 } from 'lucide-react-native'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { c, themed, font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase/client'
 import { timeAgo } from '@/lib/utils/time'
@@ -165,7 +165,7 @@ export default function BulletinScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <View style={s.headerLeft}>
-          <GlassBackButton isDark={isDark} />
+          <BackButton />
           <View style={s.headerTitleWrap}>
             <View style={s.headerTitleRow}>
               <Megaphone size={22} color={c.amber500} />
@@ -243,7 +243,7 @@ const getStyles = (isDark: boolean) => {
       paddingTop: 8,
       paddingBottom: 12,
     },
-    headerLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    headerLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
     headerTitleWrap: { flex: 1, marginTop: 2 },
     headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerTitle: { fontSize: 22, fontFamily: font.bold, color: t.text },

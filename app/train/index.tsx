@@ -31,6 +31,9 @@ import {
   X,
 } from 'lucide-react-native'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
+import { SvgXml } from 'react-native-svg'
+import { LinearGradient } from 'expo-linear-gradient'
+import { adinkraPatternXml } from '@/lib/brand/adinkra'
 import { Badge, Tap } from '@/components/ui'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -395,6 +398,7 @@ export default function TrainLinesScreen() {
 
   // Live clock — ticks every second (Ghana time)
   const [tick, setTick] = useState(0)
+  const [boardSize, setBoardSize] = useState({ w: 0, h: 0 })
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
@@ -635,7 +639,24 @@ export default function TrainLinesScreen() {
         {!trip && (
         <>
         <Animated.View entering={FadeInDown.delay(150).duration(dur.entrance)} style={s.board}>
-          <View style={s.boardGlow} />
+          <View
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            onLayout={(e) => setBoardSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) })}
+          >
+            {boardSize.w > 0 && (
+              <SvgXml xml={boardPattern(boardSize.w, boardSize.h)} width={boardSize.w} height={boardSize.h} />
+            )}
+            {/* Fade the print out down the card: texture around the header and
+                countdown, clean navy behind the route/time text so it stays readable. */}
+            <LinearGradient
+              colors={['rgba(12,18,32,0)', 'rgba(12,18,32,0.35)', '#0c1220']}
+              locations={[0, 0.3, 0.55]}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
 
           {/* Top row */}
           <View style={s.boardTopRow}>
@@ -1133,6 +1154,16 @@ export default function TrainLinesScreen() {
 
 // ─── Styles ──────────────────────────────────────────────
 
+// Board backdrop: the brand adinkra print (same tile as the route hero and the
+// Troski card), faint enough that the countdown digits stay the focus.
+const boardPatternCache = new Map<string, string>()
+function boardPattern(w: number, h: number): string {
+  const key = `${w}x${h}`
+  let xml = boardPatternCache.get(key)
+  if (!xml) { xml = adinkraPatternXml(w, h, 26, 'rgba(255,255,255,0.07)'); boardPatternCache.set(key, xml) }
+  return xml
+}
+
 const BOARD_ACCENT = '#0ea5e9' // departure-board sky blue — board-only, keeps the station-display look
 
 const getStyles = (isDark: boolean) => {
@@ -1399,15 +1430,6 @@ const getStyles = (isDark: boolean) => {
       overflow: 'hidden',
       ...cardShadow,
     },
-    boardGlow: {
-      position: 'absolute',
-      top: -30,
-      right: -30,
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: 'rgba(14,165,233,0.06)',
-    },
     boardTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1431,12 +1453,12 @@ const getStyles = (isDark: boolean) => {
     scheduleText: {
       fontSize: 12,
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.5)',
+      color: 'rgba(255,255,255,0.72)',
     },
     boardLabel: {
       fontSize: 12,
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.4)',
+      color: 'rgba(255,255,255,0.65)',
     },
 
     // ── Flip Clock ──
@@ -1477,7 +1499,7 @@ const getStyles = (isDark: boolean) => {
     clockUnit: {
       fontSize: 9,
       fontFamily: font.bold,
-      color: 'rgba(255,255,255,0.3)',
+      color: 'rgba(255,255,255,0.6)',
       letterSpacing: 2,
       marginTop: 6,
     },
@@ -1503,7 +1525,7 @@ const getStyles = (isDark: boolean) => {
     depLabel: {
       fontSize: 14,
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.85)',
+      color: 'rgba(255,255,255,0.94)',
     },
     depRoute: {
       flexDirection: 'row',
@@ -1514,7 +1536,7 @@ const getStyles = (isDark: boolean) => {
     depStation: {
       fontSize: 13,
       fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.5)',
+      color: 'rgba(255,255,255,0.72)',
     },
     depFooter: {
       flexDirection: 'row',
@@ -1524,7 +1546,7 @@ const getStyles = (isDark: boolean) => {
     depTime: {
       fontSize: 12,
       fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.4)',
+      color: 'rgba(255,255,255,0.65)',
     },
     scheduledBadge: {
       flexDirection: 'row',
@@ -1538,7 +1560,7 @@ const getStyles = (isDark: boolean) => {
     scheduledText: {
       fontSize: 12,
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.5)',
+      color: 'rgba(255,255,255,0.72)',
     },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
 
@@ -1608,18 +1630,18 @@ const getStyles = (isDark: boolean) => {
     transitEndpoint: {
       fontSize: 12,
       fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.35)',
+      color: 'rgba(255,255,255,0.6)',
     },
     transitDetails: { gap: 6, marginBottom: 12 },
     transitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     transitText: {
       fontSize: 13,
       fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.5)',
+      color: 'rgba(255,255,255,0.72)',
     },
     transitHighlight: {
       fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.85)',
+      color: 'rgba(255,255,255,0.94)',
     },
     transitBadge: {
       flexDirection: 'row',
@@ -1646,7 +1668,7 @@ const getStyles = (isDark: boolean) => {
     noServiceSub: {
       fontSize: 13,
       fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.3)',
+      color: 'rgba(255,255,255,0.6)',
     },
 
     // ── Board info strip ──
@@ -1663,7 +1685,7 @@ const getStyles = (isDark: boolean) => {
     stripText: {
       fontSize: 12,
       fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.3)',
+      color: 'rgba(255,255,255,0.6)',
     },
     stripDot: {
       width: 3,

@@ -84,24 +84,13 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
 /**
  * Store this phone's Expo token on its profile via save_push_token (migration
- * 089). A plain UPDATE is anon-only under RLS, so for a signed-in rider it
- * matched 0 rows without an error and the token was never saved.
+ * 089). Direct writes to push_token are denied for app roles after migration 092.
  */
 async function savePushToken(deviceId: string, token: string): Promise<void> {
   const { data, error } = await supabase.rpc('save_push_token', {
     p_device_id: deviceId,
     p_token: token,
   })
-
-  // 089 not applied yet → old path (still works for signed-out phones)
-  if (error?.code === 'PGRST202') {
-    const { error: updError } = await supabase
-      .from('contributor_profiles')
-      .update({ push_token: token })
-      .eq('device_id', deviceId)
-    if (updError) console.warn('Failed to save push token:', updError.message)
-    return
-  }
 
   if (error) {
     console.warn('Failed to save push token:', error.message)
@@ -125,7 +114,7 @@ export function usePushNotifications(deviceId: string | null, enabled: boolean =
       if (token) {
         setExpoPushToken(token)
         setIsRegistered(true)
-        savePushToken(deviceId, token)
+        savePushToken(deviceId, token).catch(() => { /* transport failure; retried next launch */ })
       }
     })
 

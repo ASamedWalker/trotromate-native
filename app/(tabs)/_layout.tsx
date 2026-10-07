@@ -1,9 +1,7 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native'
-import {
-  Home, Route, Wallet, Radio, TrainFront,
-} from 'lucide-react-native'
+import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { HomeIcon, LinesIcon, TrainIcon, WalletIcon, PulseIcon, type TabIconProps } from '@/components/TabIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import * as Haptics from 'expo-haptics'
@@ -11,6 +9,8 @@ import { font } from '@/lib/theme'
 import { useLanguage } from '@/lib/i18n'
 
 const BRAND = '#FF4D1C'
+const BRAND_SOFT = '#FFE9E1' // pill behind the selected tab's icon
+const INACTIVE = '#6B7280' // 4.8:1 on white — the old 45% black was 3.3:1
 
 // Floating pill tab bar's total footprint (bar paddingVertical 20 + tab
 // paddingVertical 12 + icon 22 + gap 4 + label ~14 ≈ 72px) plus breathing
@@ -19,12 +19,12 @@ const BRAND = '#FF4D1C'
 // clearance so content never sits under the floating bar.
 export const TAB_BAR_CLEARANCE = 96
 
-const TAB_ICONS: Record<string, typeof Home> = {
-  index: Home,
-  lines: Route,
-  train: TrainFront,
-  wallet: Wallet,
-  tales: Radio,
+const TAB_ICONS: Record<string, (p: TabIconProps) => React.JSX.Element> = {
+  index: HomeIcon,
+  lines: LinesIcon,
+  train: TrainIcon,
+  wallet: WalletIcon,
+  tales: PulseIcon,
 }
 
 // route name → i18n key (also used to decide which tabs are visible)
@@ -38,22 +38,17 @@ const TAB_KEYS: Record<string, string> = {
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
-  const isDark = useColorScheme() === 'dark'
 
   const { t } = useLanguage()
   // Only render visible tabs (filter out hidden ones)
   const visibleRoutes = state.routes.filter(r => TAB_KEYS[r.name])
 
   return (
-    <View style={[
-      styles.bar,
-      { bottom: Math.max(insets.bottom, 16) },
-      isDark ? styles.barDark : styles.barLight,
-    ]}>
+    <View style={[styles.bar, { bottom: Math.max(insets.bottom, 16) }]}>
       {visibleRoutes.map((route) => {
         const realIndex = state.routes.indexOf(route)
         const isFocused = state.index === realIndex
-        const Icon = TAB_ICONS[route.name] || Home
+        const Icon = TAB_ICONS[route.name] || HomeIcon
         const label = t(TAB_KEYS[route.name] || 'nav.home')
 
         const onPress = () => {
@@ -77,23 +72,10 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityLabel={label}
             accessibilityState={{ selected: isFocused }}
           >
-            <Icon
-              size={22}
-              strokeWidth={isFocused ? 2.2 : 1.6}
-              color={isFocused ? BRAND : isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'}
-            />
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: isFocused
-                    ? (isDark ? '#fff' : '#1c1917')
-                    : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)'),
-                },
-              ]}
-            >
-              {label}
-            </Text>
+            <View style={[styles.pill, isFocused && styles.pillActive]}>
+              <Icon color={isFocused ? BRAND : INACTIVE} active={isFocused} />
+            </View>
+            <Text style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
           </Pressable>
         )
       })}
@@ -123,6 +105,7 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  // Solid white: the old 92% white let list rows bleed through the bar.
   bar: {
     position: 'absolute',
     left: 16,
@@ -130,33 +113,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 28,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.25,
-    shadowRadius: 40,
-    elevation: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-  },
-  barDark: {
-    backgroundColor: 'rgba(12,10,9,0.92)',
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  barLight: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
     borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 10,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 4,
+    paddingVertical: 4,
+    gap: 2,
   },
+  pill: {
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillActive: { backgroundColor: BRAND_SOFT },
   label: {
     fontSize: 12,
-    fontFamily: font.bold,
+    fontFamily: font.semibold,
     letterSpacing: 0.1,
+    color: INACTIVE,
   },
+  labelActive: { fontFamily: font.bold, color: '#111111' },
 })

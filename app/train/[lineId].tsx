@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar'
 import { Bell, BellRing, Plus, Info, TrainFront } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { LoadErrorState } from '@/components/StateViews'
 import { useTrainLineDetail } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
@@ -194,7 +194,7 @@ export default function LineDetailScreen() {
             </View>
           )}
           <View style={{ gap: 10 }}>
-            <GlassBackButton isDark />
+            <BackButton variant="floating" tone="dark" />
             <View style={s.kindPill}><Text style={s.kindText}>GRDA TRAIN</Text></View>
             <Text style={s.heroTitle}>{title}</Text>
             <Text style={s.heroMeta}>{[stationCount > 0 ? `${stationCount} stations` : null, days, fareText].filter(Boolean).join(' · ')}</Text>

@@ -35,7 +35,14 @@ export async function signOutAndWipe(
     // RPC, not UPDATE: a plain UPDATE is anon-only under RLS and matched 0 rows here
     try { await supabase.rpc('save_push_token', { p_device_id: deviceId, p_token: null }) } catch { /* best-effort */ }
   }
-  try { await supabase.auth.signOut() } catch { /* still wipe locally */ }
+  // supabase-js keeps the local session when the server call fails for reasons
+  // other than 401/403/404 (e.g. offline), so fall back to a local-only sign-out.
+  try {
+    const { error } = await supabase.auth.signOut()
+    if (error) await supabase.auth.signOut({ scope: 'local' })
+  } catch {
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* still wipe below */ }
+  }
   try {
     const reminders = await getDepartureReminders()
     await Promise.all(Object.keys(reminders).map((id) => cancelDepartureReminder(id)))

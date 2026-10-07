@@ -10,7 +10,7 @@ import {
 import { useState, useMemo, useCallback } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Medal } from 'lucide-react-native'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useLeaderboard } from '@/lib/hooks/useRewards'
@@ -74,7 +74,7 @@ export default function LeaderboardScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <GlassBackButton isDark={isDark} />
+        <BackButton />
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>Weekly Leaderboard</Text>
           {userRank && (

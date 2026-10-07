@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { Layers, BusFront, TrainFront, Car } from 'lucide-react-native'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import Mapbox from '@rnmapbox/maps'
 import * as Haptics from 'expo-haptics'
 import { c, themed } from '@/lib/theme'
@@ -734,7 +734,7 @@ export default function StationsScreen() {
 
       {/* Floating back button */}
       <View style={{ position: 'absolute', top: 56, left: 16 }}>
-        <GlassBackButton isDark={isDark} size={44} />
+        <BackButton variant="floating" />
       </View>
 
       {/* Floating layer toggle */}

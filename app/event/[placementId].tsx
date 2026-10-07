@@ -10,7 +10,7 @@ import {
 } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 
 const BRAND = '#FF4D1C'
 
@@ -93,7 +93,7 @@ export default function EventDetailScreen() {
   const heroInner = (
     <View style={{ flex: 1, justifyContent: 'space-between', padding: 20, paddingTop: insets.top + 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <GlassBackButton isDark color="#fff" />
+        <BackButton variant="floating" tone="dark" />
         {item.sponsored && (
           <View style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#fff', letterSpacing: 0.5 }}>SPONSORED</Text>

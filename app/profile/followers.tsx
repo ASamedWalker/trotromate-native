@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, FlatList, useColorScheme, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams } from 'expo-router'
-import { GlassBackButton } from '@/components/GlassBackButton'
+import { BackButton } from '@/components/BackButton'
 import { c, font, themed } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
@@ -107,9 +107,9 @@ export default function FollowersScreen() {
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Header */}
       <View style={s.header}>
-        <GlassBackButton isDark={isDark} />
+        <BackButton />
         <Text style={s.headerTitle}>{tab === 'followers' ? 'Followers' : 'Following'}</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 38 }} />
       </View>
 
       {/* Tabs */}
