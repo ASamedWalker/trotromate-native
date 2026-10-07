@@ -41,6 +41,7 @@ import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bot
 import { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
+import { RELEASE_MODE, FEATURES } from '@/lib/config/release'
 
 const BRAND = '#FF4D1C'
 
@@ -69,12 +70,17 @@ function timeAgo(iso: string): string {
 
 /* ── Transport options ── */
 
-const TRANSPORT_OPTIONS = [
+const ALL_TRANSPORT_OPTIONS = [
   { id: 'trotro', label: 'Trotro', image: require('@/assets/images/home/bus_icon_bg_removed.png'), fareMultiplier: 1 },
   // Okada routes carry their own (okada) fares; never mark them up again.
   { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), fareMultiplier: 1 },
   { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), fareMultiplier: 1.5 },
 ]
+
+// Release mode: okada/pragya rides aren't offered yet, so only trotro is pickable.
+const TRANSPORT_OPTIONS = FEATURES.okadaPragyaServices
+  ? ALL_TRANSPORT_OPTIONS
+  : ALL_TRANSPORT_OPTIONS.filter((o) => o.id === 'trotro')
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -133,7 +139,7 @@ export default function RouteDetailScreen() {
   const mapStyleURL = isNight ? MAP_STYLE_NIGHT : MAP_STYLE_DAY
 
   // Live vehicles on this route — fallback to mock if none
-  const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined)
+  const { vehicles: liveVehicles, activeCount, loading: loadingVehicles } = useVehiclePositions(routeId || undefined, FEATURES.liveBuses) // FEATURES.liveBuses off: no fetch, no polling
 
   // Full route record (fare stats, stops, GPRTU flag) for the card. Degrades
   // gracefully to the params when routeId isn't a real route (e.g. deep link).
@@ -806,7 +812,7 @@ export default function RouteDetailScreen() {
 
           {/* Live availability — the moving-vehicle reassurance: who's on this
               route right now (operator vehicles + riders sharing GO Mode). */}
-          {liveOnRoute > 0 && (
+          {FEATURES.liveBuses && liveOnRoute > 0 && (
             <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(255,77,28,0.1)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND }} />
@@ -821,6 +827,8 @@ export default function RouteDetailScreen() {
 
           {/* Two actions: Information + Go Now */}
           <View style={{ paddingHorizontal: 24, marginBottom: 18, flexDirection: 'row', gap: 12 }}>
+            {/* Information opens the Available Buses sheet (Pro driver data) — FEATURES.liveBuses */}
+            {FEATURES.liveBuses && (
             <TouchableOpacity
               style={{ flex: 1 }}
               activeOpacity={0.85}
@@ -836,9 +844,10 @@ export default function RouteDetailScreen() {
                 <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151' }}>Information</Text>
               </View>
             </TouchableOpacity>
+            )}
             {/* Only trotro trips can be booked. Okada/Pragya rides don't exist yet —
                 Go Now would otherwise sell a trotro ticket for an okada corridor. */}
-            {selectedTransport === 'trotro' && TROTRO_BOOKING_ENABLED ? (
+            {selectedTransport === 'trotro' && TROTRO_BOOKING_ENABLED && !RELEASE_MODE ? (
             <TouchableOpacity
                 style={{ flex: 1 }}
                 activeOpacity={0.85}
@@ -885,7 +894,7 @@ export default function RouteDetailScreen() {
               </View>
             )}
           </View>
-          {selectedTransport === 'trotro' && !TROTRO_BOOKING_ENABLED && (
+          {selectedTransport === 'trotro' && !TROTRO_BOOKING_ENABLED && !RELEASE_MODE && (
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: -6, marginBottom: 16 }}>
               Tickets coming soon — pay the mate as usual
             </Text>
@@ -962,7 +971,7 @@ export default function RouteDetailScreen() {
           )}
 
           {/* ── Sheet 2: Available Buses (shows after Go Now) ── */}
-          {showVehicles && !selectedVehicle && (
+          {FEATURES.liveBuses && showVehicles && !selectedVehicle && (
             <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
               {/* Header + back */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -1066,7 +1075,7 @@ export default function RouteDetailScreen() {
           )}
 
           {/* ── Sheet 3: Bus Stop Timeline ── */}
-          {showVehicles && selectedVehicle && (
+          {FEATURES.liveBuses && showVehicles && selectedVehicle && (
             <View style={{ flex: 1 }}>
               {/* Orange header */}
               <View style={{

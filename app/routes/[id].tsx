@@ -26,6 +26,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { timeAgo } from '@/lib/utils/time'
 import { formatGHS } from '@/lib/utils/currency'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
+import { RELEASE_MODE } from '@/lib/config/release'
 import { titleCase } from '@/lib/utils/title-case'
 
 /**
@@ -255,7 +256,7 @@ export default function RouteDetailScreen() {
             </>
           ) : (
             <View style={s.ctaRow}>
-              {TROTRO_BOOKING_ENABLED && displayFare > 0 && (
+              {TROTRO_BOOKING_ENABLED && !RELEASE_MODE && displayFare > 0 && (
                 <View style={{ flex: 1 }}><Button label="Book this trip" size="lg" onPress={goBook} /></View>
               )}
               <View style={{ flex: 1 }}><Button label="Report fare" icon={Plus} variant="outline" size="lg" onPress={goReport} /></View>

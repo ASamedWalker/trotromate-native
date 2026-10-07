@@ -31,7 +31,11 @@ import {
   Heart,
   Send,
   Play,
+  X,
 } from 'lucide-react-native'
+import { SvgXml } from 'react-native-svg'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { adinkraXml } from '@/lib/brand/adinkra'
 import { brand, ui, radius, space, font } from '@/lib/theme'
 import { Button, Tap } from '@/components/ui'
 import ReanimatedAnimated, { FadeInDown } from 'react-native-reanimated'
@@ -47,11 +51,15 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import ImageCarousel from '@/components/ImageCarousel'
 import ImageViewer from '@/components/ImageViewer'
-import { LEVELS } from '@/lib/constants/rewards'
+import { LEVELS, REPORT_POINTS } from '@/lib/constants/rewards'
 import type { TalePost } from '@/lib/types'
 import { pulseKind, extractRoute, extractAmount, parseComposerFare } from '@/lib/utils/pulse-extract'
 import { fetchBotAnswer, type BotAnswer } from '@/lib/services/pulse-bot'
 import { LoadErrorState } from '@/components/StateViews'
+
+const HELPER_DISMISSED_KEY = '@troski_pulse_helper_dismissed_v1'
+const helperGlyph = adinkraXml('nyansapo', 56, '#E8461A')
+const emptyGlyph = adinkraXml('nteasee', 44, '#D6CFC8')
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
@@ -594,6 +602,17 @@ export function TalesScreen() {
     )
   }, [isDark, reactionSummaries, userReactions, deviceId, handleReact, deletePost, handleReport, router, handleOpenImages])
 
+  const [helperDismissed, setHelperDismissed] = useState(true) // hidden until storage is read, avoids a flash
+  useEffect(() => {
+    AsyncStorage.getItem(HELPER_DISMISSED_KEY)
+      .then((v) => setHelperDismissed(v === '1'))
+      .catch(() => setHelperDismissed(false))
+  }, [])
+  const dismissHelper = useCallback(() => {
+    setHelperDismissed(true)
+    AsyncStorage.setItem(HELPER_DISMISSED_KEY, '1').catch(() => {})
+  }, [])
+
   const header = (
     <View>
       <View style={s.titleWrap}>
@@ -659,6 +678,26 @@ export function TalesScreen() {
         <Camera size={20} color={isDark ? '#a8a29e' : ui.textSecondary} />
       </TouchableOpacity>
     </ReanimatedAnimated.View>
+    {!helperDismissed && (
+      <View style={s.helperCard}>
+        <SvgXml xml={helperGlyph} width={56} height={56} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.helperTitle}>Know the way? Share it.</Text>
+          <Text style={s.helperBody}>
+            Nyansapo, the wisdom knot. Answer a rider&apos;s question and earn +{REPORT_POINTS.tale} coins.
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={dismissHelper}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss tip"
+          style={s.helperClose}
+        >
+          <X size={16} color={ui.textSecondary} />
+        </TouchableOpacity>
+      </View>
+    )}
     </View>
   )
 
@@ -678,7 +717,7 @@ export function TalesScreen() {
         </View>
       ) : posts.length === 0 ? (
         <View style={s.centered}>
-          <Camera size={48} color={isDark ? '#57534e' : ui.textTertiary} />
+          <SvgXml xml={emptyGlyph} width={44} height={44} />
           <Text style={s.emptyTitle}>No posts yet</Text>
           <Text style={s.emptySub}>Share a fare, a queue update, or a trotro moment!</Text>
           <View style={{ marginTop: 20 }}>
@@ -995,6 +1034,14 @@ const getStyles = (isDark: boolean) => {
     container: { flex: 1, backgroundColor: surface },
 
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+    helperCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: '#FFF7F3', borderWidth: 1, borderColor: '#FFE1D4', borderRadius: 18,
+      padding: 14, marginHorizontal: 16, marginTop: 12,
+    },
+    helperTitle: { fontFamily: font.bold, fontSize: 15, color: '#111111' },
+    helperBody: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 2 },
+    helperClose: { alignSelf: 'flex-start' },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: onSurfaceVariant, marginTop: 16 },
     emptySub: { fontSize: 14, fontFamily: font.regular, color: onSurfaceVariant, marginTop: 4, textAlign: 'center' },
 

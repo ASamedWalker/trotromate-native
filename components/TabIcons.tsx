@@ -1,4 +1,4 @@
-import Svg, { Path, Circle } from 'react-native-svg'
+import Svg, { Path, Circle, Text as SvgText } from 'react-native-svg'
 
 // Troski tab icons (design canvas "Tab bar" row, option B, approved 2026-10-07).
 // 24px grid, 1.7 stroke (2 when active). Active icons also fill their main
@@ -80,6 +80,28 @@ export function PulseIcon({ color, active, size = 24 }: TabIconProps) {
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path {...st} stroke={color} fill={active ? ACTIVE_FILL : 'none'} d="M4.5 4.5h15A1.5 1.5 0 0 1 21 6v9.5a1.5 1.5 0 0 1-1.5 1.5H11l-4.5 3.5V17h-2A1.5 1.5 0 0 1 3 15.5V6a1.5 1.5 0 0 1 1.5-1.5z" />
       <Path {...st} stroke={color} d="M6.5 11H9l1.5-3 3 6 1.5-3h2.5" />
+    </Svg>
+  )
+}
+
+/** Receipt with a cedi sign (Fares tab). */
+export function FaresIcon({ color, active, size = 24 }: TabIconProps) {
+  const st = strokeProps(active)
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path {...st} stroke={color} fill={active ? ACTIVE_FILL : 'none'} d="M6 2.5h12V21l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z" />
+      <SvgText x={12} y={15} fontSize={10} fontWeight="bold" fill={color} textAnchor="middle">₵</SvgText>
+    </Svg>
+  )
+}
+
+/** Coin with a T mark (Rewards tab). */
+export function RewardsIcon({ color, active, size = 24 }: TabIconProps) {
+  const st = strokeProps(active)
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle {...st} stroke={color} fill={active ? ACTIVE_FILL : 'none'} cx={12} cy={12} r={9} />
+      <Path {...st} stroke={color} d="M8.5 8.5h7M12 8.5v8" />
     </Svg>
   )
 }

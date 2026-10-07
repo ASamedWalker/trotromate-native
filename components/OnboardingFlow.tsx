@@ -1,3 +1,4 @@
+import { FEATURES } from '@/lib/config/release'
 import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
   View,
@@ -32,7 +33,7 @@ interface Slide {
   subtitle: string
 }
 
-const SLIDES: Slide[] = [
+const ALL_SLIDES: Slide[] = [
   {
     id: 'queue',
     image: require('@/assets/images/onboarding/ob_illustrator_image.png'),
@@ -52,6 +53,8 @@ const SLIDES: Slide[] = [
     subtitle: 'Smart departure windows and alternative routes when things get heavy.',
   },
 ]
+// Release mode hides the wallet, so don't promise it during onboarding.
+const SLIDES = FEATURES.wallet ? ALL_SLIDES : ALL_SLIDES.filter((sl) => sl.id !== 'wallet')
 
 // ─── Google 4-color SVG ─────────────────────────────────────
 

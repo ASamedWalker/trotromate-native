@@ -12,7 +12,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   Search,
@@ -32,6 +32,11 @@ import {
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
+import { SvgXml } from 'react-native-svg'
+import { adinkraPatternXml } from '@/lib/brand/adinkra'
+import { RELEASE_MODE } from '@/lib/config/release'
+import { REPORT_POINTS } from '@/lib/constants/rewards'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Chip, Badge, Button } from '@/components/ui'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -50,10 +55,21 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
 
+// Fare-of-the-day backdrop: faint brand adinkra print, cached per card size.
+const fotdPatternCache = new Map<string, string>()
+function fotdPattern(w: number, h: number): string {
+  const key = `${w}x${h}`
+  let xml = fotdPatternCache.get(key)
+  if (!xml) { xml = adinkraPatternXml(w, h, 26, 'rgba(255,255,255,0.07)'); fotdPatternCache.set(key, xml) }
+  return xml
+}
+
 type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
 
 export default function RoutesScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
+  const [fotdSize, setFotdSize] = useState({ w: 0, h: 0 })
   const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
@@ -114,6 +130,24 @@ export default function RoutesScreen() {
 
     return result
   }, [routes, activeFilter, searchQuery, favorites])
+
+  // Fare of the day: one route per calendar day (day-of-year index into a
+  // stable id-sorted pool) that has BOTH a GPRTU-verified official fare and at
+  // least one rider report. Real numbers only; null hides the card.
+  const fareOfDay = useMemo(() => {
+    const pool = routes
+      .filter((r) =>
+        (r.transport_type ?? 'trotro') === 'trotro' &&
+        r.is_gprtu_verified &&
+        r.official_fare > 0 &&
+        (r.fare_stats?.report_count ?? 0) > 0 &&
+        (r.fare_stats?.avg_reported_fare ?? 0) > 0)
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+    if (pool.length === 0) return null
+    const now = new Date()
+    const dayOfYear = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(now.getFullYear(), 0, 0)) / 86400000)
+    return pool[dayOfYear % pool.length]
+  }, [routes])
 
   // Reset scroll when the query/filter changes so the first match isn't half-hidden
   const listRef = useRef<FlatList<RouteWithStats>>(null)
@@ -236,9 +270,14 @@ export default function RoutesScreen() {
               </View>
             )}
             {item.is_gprtu_verified && (
-              <View style={s.metaItem}>
-                <ShieldCheck size={14} color={ui.success} />
-                <Text style={s.gprtuText}>GPRTU verified</Text>
+              <View style={s.sourceBadgeOfficial}>
+                <ShieldCheck size={12} color="#166534" />
+                <Text style={s.sourceBadgeOfficialText}>GPRTU verified</Text>
+              </View>
+            )}
+            {hasFareReports && (
+              <View style={s.sourceBadgeRider}>
+                <Text style={s.sourceBadgeRiderText}>Rider-reported</Text>
               </View>
             )}
           </View>
@@ -254,10 +293,13 @@ export default function RoutesScreen() {
       {/* Editorial Header */}
       <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
         <View style={s.headerRow}>
-          <View>
-            <Text style={s.headerLabel}>Urban mobility</Text>
-            <Text style={s.headerTitle}>Find your route</Text>
-          </View>
+          {/* Release mode: the Fares tab header (lines.tsx) already titles this screen */}
+          {RELEASE_MODE ? <View /> : (
+            <View>
+              <Text style={s.headerLabel}>Urban mobility</Text>
+              <Text style={s.headerTitle}>Find your route</Text>
+            </View>
+          )}
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
@@ -330,7 +372,46 @@ export default function RoutesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: space.gutter, paddingTop: 8, paddingBottom: 90 }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={activeRegion !== 'all' ? (() => {
+          ListHeaderComponent={(
+            <>
+              {RELEASE_MODE && fareOfDay && activeRegion === 'all' && !searchQuery && activeFilter === 'all' && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Fare of the day, ${titleCase(fareOfDay.from_location)} to ${titleCase(fareOfDay.to_location)}. Official GH₵ ${fareOfDay.official_fare.toFixed(2)}, riders paid GH₵ ${(fareOfDay.fare_stats?.avg_reported_fare ?? 0).toFixed(2)}`}
+                  onPress={() => router.push({ pathname: '/routes/[id]', params: { id: fareOfDay.id } })}
+                  style={s.fotdCard}
+                  onLayout={(e) => setFotdSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) })}
+                >
+                  {fotdSize.w > 0 && (
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <SvgXml xml={fotdPattern(fotdSize.w, fotdSize.h)} width={fotdSize.w} height={fotdSize.h} />
+                    </View>
+                  )}
+                  <LinearGradient
+                    colors={['#16110D', 'rgba(22,17,13,0.88)', 'rgba(22,17,13,0.25)']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFill}
+                    pointerEvents="none"
+                  />
+                  <Text style={s.fotdLabel}>FARE OF THE DAY</Text>
+                  <Text style={s.fotdRoute} numberOfLines={2}>
+                    {titleCase(fareOfDay.from_location)} → {titleCase(fareOfDay.to_location)}
+                  </Text>
+                  <View style={s.fotdCols}>
+                    <View style={s.fotdCol}>
+                      <Text style={s.fotdColLabel}>Official</Text>
+                      <Text style={s.fotdAmount}>GH₵ {fareOfDay.official_fare.toFixed(2)}</Text>
+                    </View>
+                    <View style={s.fotdCol}>
+                      <Text style={s.fotdColLabel}>Riders paid</Text>
+                      <Text style={[s.fotdAmount, { color: '#FF7A50' }]}>GH₵ {(fareOfDay.fare_stats?.avg_reported_fare ?? 0).toFixed(2)}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+              {activeRegion !== 'all' ? (() => {
                 const hero = REGION_HEROES.find(h => h.key === activeRegion)
                 if (!hero) return null
                 return (
@@ -353,6 +434,8 @@ export default function RoutesScreen() {
                   </View>
                 )
               })() : null}
+            </>
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -398,6 +481,19 @@ export default function RoutesScreen() {
             ) : null
           }
         />
+      )}
+
+      {RELEASE_MODE && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Report a fare"
+          onPress={() => router.push('/report/fare' as Href)}
+          style={[s.reportFab, { bottom: TAB_BAR_CLEARANCE + insets.bottom - 8 }]}
+        >
+          <Plus size={18} color="#fff" />
+          <Text style={s.reportFabText}>Report a fare · +{REPORT_POINTS.fare}</Text>
+        </TouchableOpacity>
       )}
 
       {/* Region Picker Modal */}
@@ -568,6 +664,8 @@ const getStyles = () => {
 
     // Meta row (last element in the card now that View Details is gone)
     metaRow: {
+      flexWrap: 'wrap',
+      rowGap: 6,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
@@ -586,10 +684,56 @@ const getStyles = () => {
       ...type.label,
       color: ui.textSecondary,
     },
-    gprtuText: {
-      ...type.caption,
-      color: ui.success,
+    sourceBadgeOfficial: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: '#DCFCE7',
     },
+    sourceBadgeOfficialText: { fontSize: 11, fontFamily: font.semibold, color: '#166534' },
+    sourceBadgeRider: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: '#FFEDD5',
+    },
+    sourceBadgeRiderText: { fontSize: 11, fontFamily: font.semibold, color: '#9A3412' },
+
+    // Fare of the day (release mode)
+    fotdCard: {
+      backgroundColor: '#16110D',
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 14,
+      overflow: 'hidden',
+    },
+    fotdLabel: { fontSize: 12, fontFamily: font.bold, color: '#F5A300', letterSpacing: 1 },
+    fotdRoute: { fontSize: 18, fontFamily: font.bold, color: '#fff', marginTop: 6 },
+    fotdCols: { flexDirection: 'row', gap: 24, marginTop: 14 },
+    fotdCol: { flexShrink: 1 },
+    fotdColLabel: { fontSize: 12, fontFamily: font.medium, color: 'rgba(255,255,255,0.65)' },
+    fotdAmount: { fontSize: 22, fontFamily: font.displayHeavy, color: '#fff', marginTop: 2 },
+
+    reportFab: {
+      position: 'absolute',
+      alignSelf: 'center',
+      height: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 20,
+      borderRadius: 24,
+      backgroundColor: '#FF4D1C',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    reportFabText: { fontSize: 15, fontFamily: font.bold, color: '#fff' },
 
     // View Details button
 

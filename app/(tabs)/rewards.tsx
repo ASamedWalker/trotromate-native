@@ -16,7 +16,8 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import Svg, { Path, Line } from 'react-native-svg'
+import Svg, { Path, Line, SvgXml } from 'react-native-svg'
+import { adinkraXml, type AdinkraName } from '@/lib/brand/adinkra'
 import ConfettiCannon from 'react-native-confetti-cannon'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
@@ -43,7 +44,6 @@ import {
   Shield,
   CalendarDays,
   Lock,
-  MapPin,
   ChevronRight,
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -54,9 +54,10 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
 import TroskiCoin from '@/components/TroskiCoin'
-import { FareIcon, QueueIcon, IncidentIcon, FlameIcon, GiftIcon, TicketIcon } from '@/components/RewardIcons'
-import { LinesIcon, PulseIcon } from '@/components/TabIcons'
+import { FareIcon, QueueIcon, IncidentIcon, FlameIcon, GiftIcon } from '@/components/RewardIcons'
+import { PulseIcon } from '@/components/TabIcons'
 import { BackButton } from '@/components/BackButton'
+import { RELEASE_MODE } from '@/lib/config/release'
 import { useProfile, usePointsHistory, useAllBadges } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { SkeletonRewards } from '@/components/Skeleton'
@@ -300,14 +301,20 @@ function PulseMissionIcon({ color, size }: MissionIconProps) {
 }
 
 // Tier emoji in lib/constants/rewards.ts is used by other screens, so the
-// rewards screen maps level slug -> icon locally.
+// rewards screen maps level slug -> Adinkra symbol (+ meaning) locally.
+const TIER_ART: Record<LevelSlug, { symbol: AdinkraName; symbolName: string; meaning: string }> = {
+  passenger: { symbol: 'sankofa', symbolName: 'Sankofa', meaning: 'Learning the routes' },
+  regular: { symbol: 'owo_foro_adobe', symbolName: 'Owo Foro Adobe', meaning: 'Perseverance' },
+  local_expert: { symbol: 'nyansapo', symbolName: 'Nyansapo', meaning: 'Wisdom' },
+  troski_legend: { symbol: 'adinkrahene', symbolName: 'Adinkrahene', meaning: 'Greatness' },
+}
+
+const tierGlyphCache: Record<string, string> = {} // plain object: lucide's `Map` icon shadows the global Map here
 function TierIcon({ slug, color, size }: { slug: LevelSlug; color: string; size: number }) {
-  switch (slug) {
-    case 'passenger': return <TicketIcon color={color} size={size} />
-    case 'regular': return <LinesIcon color={color} size={size} />
-    case 'local_expert': return <MapPin color={color} size={size} />
-    default: return <Trophy color={color} size={size} />
-  }
+  const key = `${slug}|${color}|${size}`
+  let xml = tierGlyphCache[key]
+  if (!xml) { xml = adinkraXml(TIER_ART[slug].symbol, size, color); tierGlyphCache[key] = xml }
+  return <SvgXml xml={xml} width={size} height={size} />
 }
 
 // Progress toward a badge from data the profile already carries. Returns null
@@ -340,6 +347,7 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
   return (
     <View style={s.tierCard}>
       <Text style={s.tierTitle}>Tier journey</Text>
+      <Text style={s.tierSub}>Each tier carries an Adinkra symbol and its meaning.</Text>
       <View style={s.tierRow}>
         {LEVEL_ORDER.map((slug, i) => {
           const lvl = LEVELS[slug]
@@ -351,19 +359,19 @@ function TierJourney({ levelSlug, isDark, s }: { levelSlug: LevelSlug; isDark: b
               <View style={{ alignItems: 'center', width: 64 }}>
                 {current ? (
                   <Bob dy={4}>
-                    <View style={[s.tierDot, s.tierDotCurrent]}>
-                      <TierIcon slug={slug} color={brand.orange} size={18} />
+                    <View style={[s.tierDot, s.tierDotCurrent]} accessible accessibilityLabel={`${lvl.name}, current tier, ${TIER_ART[slug].symbolName}`}>
+                      <TierIcon slug={slug} color="#E8461A" size={28} />
                     </View>
                   </Bob>
                 ) : (
-                  <View style={s.tierDot}>
-                    <TierIcon slug={slug} color={ui.textSecondary} size={18} />
+                  <View style={s.tierDot} accessible accessibilityLabel={`${lvl.name}, ${reached ? 'reached' : 'locked'}, ${TIER_ART[slug].symbolName}`}>
+                    <TierIcon slug={slug} color="#A8A29E" size={28} />
                   </View>
                 )}
                 <Text style={[s.tierName, reached && s.tierNameReached]} numberOfLines={2}>
                   {lvl.name}
                 </Text>
-                <Text style={s.tierPts}>{lvl.min_points === 0 ? '0' : `${lvl.min_points}+`}</Text>
+                <Text style={s.tierPts}>{`${lvl.min_points === 0 ? '0' : `${lvl.min_points}+`} · ${TIER_ART[slug].meaning}`}</Text>
               </View>
             </Fragment>
           )
@@ -599,7 +607,8 @@ export default function RewardsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <BackButton />
+        {/* In release mode Rewards is a tab: nothing to go back to */}
+        {!RELEASE_MODE && <BackButton />}
         <Text style={s.headerTitle}>Rewards</Text>
       </View>
 
@@ -628,9 +637,9 @@ export default function RewardsScreen() {
               <>
                 <View style={s.card}>
                   {/* Current tier */}
-                  <View style={[s.tierPill, { backgroundColor: `${level.color}1A` }]}>
+                  <View style={[s.tierPill, { backgroundColor: `${level.color}1A` }]} accessible accessibilityLabel={`${level.name} tier, ${TIER_ART[levelSlug].symbolName}`}>
                     <TierIcon slug={levelSlug} color={level.color} size={14} />
-                    <Text style={[s.tierPillText, { color: level.color }]}>{level.name}</Text>
+                    <Text style={[s.tierPillText, { color: level.color }]}>{level.name} · {TIER_ART[levelSlug].symbolName}</Text>
                   </View>
 
                   <View style={{ alignItems: 'center', marginTop: 14 }}>
@@ -1085,13 +1094,14 @@ const getStyles = (isDark: boolean) => {
       ...lift,
     },
     tierTitle: { fontFamily: font.bold, fontSize: 15, color: ui.text },
+    tierSub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 },
     tierRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
-    tierLine: { flex: 1, height: 3, borderRadius: 2, marginTop: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : ui.hairline },
-    tierDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F5F4', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+    tierLine: { flex: 1, height: 3, borderRadius: 2, marginTop: 25, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : ui.hairline },
+    tierDot: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#F5F5F4', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
     tierDotCurrent: { backgroundColor: '#FFE9E1', borderColor: brand.orange },
-    tierName: { fontFamily: font.semibold, fontSize: 10, color: subText, textAlign: 'center', marginTop: 6, lineHeight: 13 },
+    tierName: { fontFamily: font.bold, fontSize: 12, color: subText, textAlign: 'center', marginTop: 6 },
     tierNameReached: { color: ui.text },
-    tierPts: { fontFamily: font.medium, fontSize: 9, color: subText, marginTop: 1 },
+    tierPts: { fontFamily: font.medium, fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 1 },
 
     /* earn card */
     earnCard: { backgroundColor: '#FFF7F3', borderWidth: 1, borderColor: '#FFE1D4', borderRadius: 20, padding: 18, marginTop: 14 },

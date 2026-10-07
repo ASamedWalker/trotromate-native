@@ -8,7 +8,8 @@ const REFRESH_INTERVAL_MS = 60_000 // 60 seconds auto-refresh
  * Fetches once on mount, auto-refreshes every 60s, supports manual refresh.
  * Data-efficient: single API call, no streaming.
  */
-export function useVehiclePositions(routeId?: string) {
+/** enabled=false: no fetch and no polling (release mode hides live buses). */
+export function useVehiclePositions(routeId?: string, enabled = true) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([])
   const [loading, setLoading] = useState(true)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
@@ -23,13 +24,14 @@ export function useVehiclePositions(routeId?: string) {
 
   // Initial fetch + auto-refresh
   useEffect(() => {
+    if (!enabled) { setLoading(false); return }
     fetch()
 
     intervalRef.current = setInterval(fetch, REFRESH_INTERVAL_MS)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [fetch])
+  }, [fetch, enabled])
 
   return {
     vehicles,

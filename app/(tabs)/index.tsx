@@ -33,6 +33,8 @@ import WhatsOnAccra from '@/components/WhatsOnAccra'
 import { getCachedWallet, cacheWalletBalance } from '@/lib/services/walletCache'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { RELEASE_MODE } from '@/lib/config/release'
+import ReleaseHome from '@/components/home/ReleaseHome'
 
 // Approx Ghana bounding box — used only to guard against implausible
 // reverse-geocode results (e.g. simulator default location showing
@@ -75,7 +77,12 @@ const QUICK_ACTIONS = [
 
 /* ── Component ── */
 
+// Store release shows the slim home; the full home below is untouched.
 export default function HomeScreen() {
+  return RELEASE_MODE ? <ReleaseHome /> : <FullHomeScreen />
+}
+
+function FullHomeScreen() {
   const { theme: cardTheme } = useWalletCardTheme()
   const router = useRouter()
   const insets = useSafeAreaInsets()

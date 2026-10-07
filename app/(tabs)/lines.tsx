@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { font, ui, space } from '@/lib/theme'
+import { RELEASE_MODE } from '@/lib/config/release'
 import { dur } from '@/lib/motion'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 
@@ -15,7 +16,8 @@ export default function LinesScreen() {
     <View style={s.container}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: ui.bg }}>
         <Animated.View entering={FadeInDown.duration(dur.base)} style={s.header}>
-          <Text style={s.title}>Lines</Text>
+          <Text style={s.title}>{RELEASE_MODE ? 'Fares' : 'Lines'}</Text>
+          {RELEASE_MODE && <Text style={s.sub}>Official GPRTU fares + what riders paid</Text>}
         </Animated.View>
       </SafeAreaView>
 
@@ -37,5 +39,6 @@ const getStyles = () => {
       color: ui.text,
       letterSpacing: 0,
     },
+    sub: { fontSize: 14, fontFamily: font.regular, color: ui.textSecondary },
   })
 }
