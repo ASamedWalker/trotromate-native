@@ -17,6 +17,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   GestureResponderEvent,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
@@ -426,12 +427,24 @@ const TaleCard = React.memo(function TaleCard({
                 style={s.videoTile}
               >
                 {post.video_thumbnail_url ? (
-                  <ExpoImage
-                    source={{ uri: post.video_thumbnail_url }}
-                    style={StyleSheet.absoluteFillObject}
-                    contentFit="cover"
-                    cachePolicy="disk"
-                  />
+                  <>
+                    {/* Phone videos are portrait: show the WHOLE frame (contain) over a
+                        blurred copy of itself, instead of cropping a strip from the middle. */}
+                    <ExpoImage
+                      source={{ uri: post.video_thumbnail_url }}
+                      style={StyleSheet.absoluteFillObject}
+                      contentFit="cover"
+                      blurRadius={Platform.OS === 'android' ? 0 : 24}
+                      cachePolicy="disk"
+                    />
+                    <View style={s.videoBackdropDim} />
+                    <ExpoImage
+                      source={{ uri: post.video_thumbnail_url }}
+                      style={StyleSheet.absoluteFillObject}
+                      contentFit="contain"
+                      cachePolicy="disk"
+                    />
+                  </>
                 ) : null}
                 <View style={s.videoPlayOverlay}>
                   <View style={s.videoPlayBtn}>
@@ -933,16 +946,22 @@ const cardStyles = () => {
       overflow: 'hidden',
       backgroundColor: ui.bg,
     },
+    // 4:5 like Instagram's feed: tall enough for portrait phone videos without
+    // taking over the whole screen; landscape videos letterbox over the blur.
     videoTile: {
       width: '100%',
-      aspectRatio: 16 / 9,
+      aspectRatio: 4 / 5,
       backgroundColor: '#1C1917',
+    },
+    videoBackdropDim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.35)',
     },
     videoPlayOverlay: {
       ...StyleSheet.absoluteFillObject,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(0,0,0,0.25)',
+      backgroundColor: 'rgba(0,0,0,0.12)',
       gap: 8,
     },
     videoPlayBtn: {

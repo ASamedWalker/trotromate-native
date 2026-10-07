@@ -1,38 +1,34 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
-  Pressable,
   StyleSheet,
   StatusBar,
-  ActivityIndicator,
-  Share,
-  DeviceEventEmitter,
+  FlatList,
   Animated,
+  Platform,
+  useWindowDimensions,
+  AppState,
+  type ViewToken,
 } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { useVideoPlayer, VideoView } from 'expo-video'
-import { safePlayer } from '@/lib/utils/safe-player'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Image } from 'expo-image'
-import {
-  Play,
-  Heart,
-  MessageCircle,
-  Share2,
-  MapPin,
-  Music,
-  Plus,
-} from 'lucide-react-native'
+import { useQueryClient } from '@tanstack/react-query'
+import { ChevronUp } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
-import { addReaction, removeReaction, fetchUserReactions } from '@/lib/services/tales'
-import { useFollow } from '@/lib/hooks/useFollow'
-import InitialsAvatar from '@/components/InitialsAvatar'
+import { timeAgo } from '@/lib/utils/time'
+import type { TalePost } from '@/lib/types'
+import ReelItem, { type ReelPost } from '@/components/reels/ReelItem'
+
+type CachedFeed = { posts: (TalePost & { reaction_summary?: Record<string, number> })[] } | undefined
 
 export default function ReelScreen() {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { height } = useWindowDimensions()
+  // Page = the list's real height (a modal sheet can be shorter than the window).
+  const [pageH, setPageH] = useState(height)
   const params = useLocalSearchParams<{
     postId: string
     videoUrl: string
@@ -49,165 +45,136 @@ export default function ReelScreen() {
 
   const { deviceId: myDeviceId } = useApp()
 
-  const [isMuted, setIsMuted] = useState(true)
-  const [isPaused, setIsPaused] = useState(false)
-  const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [isLiked, setIsLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(parseInt(params.likeCount ?? '0', 10))
+  // Fallback single item built from URL params (deep link / notification / empty cache)
+  const paramPost = useMemo<ReelPost>(() => ({
+    postId: params.postId,
+    videoUrl: params.videoUrl,
+    thumbnailUrl: params.thumbnailUrl || undefined,
+    durationSecs: params.durationSecs ? parseInt(params.durationSecs, 10) : undefined,
+    displayName: params.displayName,
+    deviceId: params.deviceId,
+    locationName: params.locationName,
+    caption: params.caption,
+    timeAgo: params.timeAgo,
+    commentCount: parseInt(params.commentCount ?? '0', 10),
+    likeCount: parseInt(params.likeCount ?? '0', 10),
+  }), [params])
 
-  // Follow
-  const isOwnPost = myDeviceId === params.deviceId
-  const { isFollowing, toggle: toggleFollow, isLoading: followLoading } = useFollow(myDeviceId, params.deviceId || '')
-
-  // Like animation
-  const likeScale = useRef(new Animated.Value(1)).current
-
-  // Music disk rotation
-  const diskRotation = useRef(new Animated.Value(0)).current
-  useEffect(() => {
-    const spin = Animated.loop(
-      Animated.timing(diskRotation, {
-        toValue: 1,
-        duration: 4000,
-        useNativeDriver: true,
+  // Build the list ONCE from the cached feed (video posts, feed order) so it
+  // doesn't reshuffle under the user if the feed refetches mid-session.
+  const [{ posts, startIndex }] = useState(() => {
+    const cached = queryClient.getQueryData<CachedFeed>(['tales', myDeviceId])
+    const list: ReelPost[] = (cached?.posts ?? [])
+      .filter((p) => p.media_type === 'video' && !!p.video_url)
+      .map((p) => {
+        if (p.id === params.postId) return paramPost // keeps the tapped card's live like count
+        const summary = p.reaction_summary ?? {}
+        return {
+          postId: p.id,
+          videoUrl: p.video_url as string,
+          thumbnailUrl: p.video_thumbnail_url || undefined,
+          durationSecs: p.video_duration_secs ?? undefined,
+          displayName: p.display_name || `User-${p.device_id.slice(-4).toUpperCase()}`,
+          deviceId: p.device_id,
+          locationName: p.location_name,
+          caption: p.caption ?? '',
+          timeAgo: timeAgo(p.created_at),
+          commentCount: p.comment_count,
+          likeCount: Object.values(summary).reduce((a, b) => a + b, 0),
+        }
       })
-    )
-    spin.start()
-    return () => spin.stop()
-  }, [diskRotation])
-
-  const diskSpin = diskRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    const idx = list.findIndex((p) => p.postId === params.postId)
+    if (idx < 0) return { posts: [paramPost], startIndex: 0 }
+    return { posts: list, startIndex: idx }
   })
 
-  // Fetch existing like state
-  useEffect(() => {
-    if (!myDeviceId || !params.postId) return
-    fetchUserReactions([params.postId], myDeviceId).then((reactions) => {
-      const emojis = reactions.get(params.postId) || []
-      setIsLiked(emojis.includes('❤️'))
-    })
-  }, [myDeviceId, params.postId])
+  const [activeIndex, setActiveIndex] = useState(startIndex)
+  const [isMuted, setIsMuted] = useState(true)
+  const [isFocused, setIsFocused] = useState(true)
 
-  const player = useVideoPlayer(params.videoUrl, (p) => {
-    p.loop = true
-    p.muted = true
-    p.play()
-  })
-
-  useEffect(() => {
-    if (!player) return
-    safePlayer(() => { player.muted = isMuted })
-  }, [isMuted, player])
-
-  // Pause playback when the reel loses focus (navigating away / backgrounding)
-  // so video doesn't keep decoding off-screen and burn battery + data.
+  // Pause everything when the screen loses focus (and on unmount)
   useFocusEffect(
     useCallback(() => {
-      safePlayer(() => player?.play())
-      // Runs on unmount too — by then useVideoPlayer may have released the player
-      return () => { safePlayer(() => player?.pause()) }
-    }, [player])
+      setIsFocused(true)
+      return () => setIsFocused(false)
+    }, [])
+  )
+  // Also pause when the app goes to the background (and resume on return).
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active')
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => setAppActive(st === 'active'))
+    return () => sub.remove()
+  }, [])
+  const playing = isFocused && appActive
+
+  // "Swipe up for more" hint — multi-video lists only, fades after first swipe
+  const showHint = posts.length > 1 && startIndex < posts.length - 1
+  const hintOpacity = useRef(new Animated.Value(1)).current
+  const hintDismissed = useRef(false)
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const first = viewableItems.find((v) => v.isViewable && v.index != null)
+      if (!first || first.index == null) return
+      setActiveIndex(first.index)
+      if (first.index !== startIndex && !hintDismissed.current) {
+        hintDismissed.current = true
+        Animated.timing(hintOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start()
+      }
+    }
+  ).current
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current
+
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => ({ length: pageH, offset: pageH * index, index }),
+    [pageH]
   )
 
-  useEffect(() => {
-    if (!player) return
-    const interval = setInterval(() => {
-      safePlayer(() => {
-        if (player.duration > 0) setProgress(player.currentTime / player.duration)
-      })
-    }, 250)
-    return () => clearInterval(interval)
-  }, [player])
+  const toggleMute = useCallback(() => setIsMuted((m) => !m), [])
 
-  const togglePlayPause = useCallback(() => {
-    if (!player) return
-    setIsPaused((prev) => {
-      const next = !prev
-      safePlayer(() => (next ? player.pause() : player.play()))
-      return next
-    })
-  }, [player])
+  // Release hint animation work on unmount
+  useEffect(() => () => hintOpacity.stopAnimation(), [hintOpacity])
 
-  const toggleLike = useCallback(async () => {
-    if (!myDeviceId || !params.postId) return
-    // Bounce animation
-    Animated.sequence([
-      Animated.spring(likeScale, { toValue: 1.4, useNativeDriver: true, speed: 50, bounciness: 12 }),
-      Animated.spring(likeScale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),
-    ]).start()
-
-    const wasLiked = isLiked
-    setIsLiked(!wasLiked)
-    setLikeCount((n) => n + (wasLiked ? -1 : 1))
-    const success = wasLiked
-      ? await removeReaction(params.postId, myDeviceId, '❤️')
-      : await addReaction(params.postId, myDeviceId, '❤️')
-    if (!success) {
-      setIsLiked(wasLiked)
-      setLikeCount((n) => n + (wasLiked ? 1 : -1))
-    }
-  }, [myDeviceId, params.postId, isLiked, likeScale])
-
-  const handleShare = useCallback(async () => {
-    try {
-      await Share.share({
-        message: `Check out this Trotro Tale from ${params.locationName ?? 'Ghana'}! 🚐`,
-      })
-    } catch { /* user cancelled */ }
-  }, [params.locationName])
-
-  const commentCount = parseInt(params.commentCount ?? '0', 10)
-  const userName = params.displayName || `User-${(params.deviceId ?? '').slice(-4).toUpperCase()}`
+  const renderItem = useCallback(
+    ({ item, index }: { item: ReelPost; index: number }) => (
+      <ReelItem
+        post={item}
+        isActive={playing && index === activeIndex}
+        // DATA COST: only the active item and the very next one ever load
+        shouldLoad={index === activeIndex || index === activeIndex + 1}
+        muted={isMuted}
+        onToggleMute={toggleMute}
+        height={pageH}
+      />
+    ),
+    [activeIndex, playing, isMuted, toggleMute, pageH]
+  )
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Thumbnail while loading */}
-      {!hasRenderedFirstFrame && params.thumbnailUrl && (
-        <Image
-          source={{ uri: params.thumbnailUrl }}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          cachePolicy="disk"
-        />
-      )}
-
-      {/* Loading spinner */}
-      {!hasRenderedFirstFrame && (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#fff" />
-        </View>
-      )}
-
-      {/* Fullscreen video */}
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFillObject}
-        contentFit="contain"
-        nativeControls={false}
-        onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
+      <FlatList
+        data={posts}
+        keyExtractor={(p) => p.postId}
+        renderItem={renderItem}
+        extraData={`${activeIndex}-${playing}-${isMuted}-${pageH}`}
+        pagingEnabled
+        snapToInterval={pageH}
+        onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== pageH) setPageH(h) }}
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        initialScrollIndex={startIndex}
+        getItemLayout={getItemLayout}
+        windowSize={3}
+        maxToRenderPerBatch={2}
+        removeClippedSubviews={Platform.OS === 'android'}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
       />
 
-      {/* Tap to play/pause */}
-      <Pressable
-        style={StyleSheet.absoluteFillObject}
-        onPress={togglePlayPause}
-      >
-        {isPaused && (
-          <View style={styles.playOverlay}>
-            <View style={styles.playBtn}>
-              <Play size={44} color="#fff" fill="#fff" />
-            </View>
-          </View>
-        )}
-      </Pressable>
-
       {/* ─── Top: Dismiss handle + Live Tale badge ─── */}
-      <View style={styles.topBar}>
+      <View style={styles.topBar} pointerEvents="box-none">
         <TouchableOpacity
           onPress={() => router.back()}
           activeOpacity={0.7}
@@ -223,126 +190,12 @@ export default function ReelScreen() {
         </View>
       </View>
 
-      {/* Bottom gradient */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.85)']}
-        style={styles.bottomGradient}
-        pointerEvents="none"
-      />
-
-      {/* ─── Right action bar ─── */}
-      <View style={styles.actionBar}>
-        {/* Profile avatar with + button */}
-        <View style={styles.profileAction}>
-          <View style={styles.avatarBorder}>
-            <InitialsAvatar
-              name={params.displayName ?? null}
-              deviceId={params.deviceId ?? ''}
-              size={44}
-            />
-          </View>
-          <View style={styles.plusBadge}>
-            <Plus size={10} color="#fff" strokeWidth={3} />
-          </View>
-        </View>
-
-        {/* Like */}
-        <TouchableOpacity
-          onPress={toggleLike}
-          activeOpacity={0.7}
-          style={styles.actionItem}
-        >
-          <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-            <Heart
-              size={30}
-              color={isLiked ? '#ef4444' : '#fff'}
-              fill={isLiked ? '#ef4444' : 'transparent'}
-            />
-          </Animated.View>
-          <Text style={styles.actionLabel}>{likeCount}</Text>
-        </TouchableOpacity>
-
-        {/* Comment */}
-        <TouchableOpacity
-          onPress={() => {
-            DeviceEventEmitter.emit('openComment', params.postId)
-            router.back()
-          }}
-          activeOpacity={0.7}
-          style={styles.actionItem}
-        >
-          <MessageCircle size={28} color="#fff" />
-          <Text style={styles.actionLabel}>{commentCount}</Text>
-        </TouchableOpacity>
-
-        {/* Share */}
-        <TouchableOpacity
-          onPress={handleShare}
-          activeOpacity={0.7}
-          style={styles.actionItem}
-        >
-          <Share2 size={26} color="#fff" />
-        </TouchableOpacity>
-
-        {/* Music disk — tap to toggle mute */}
-        <TouchableOpacity onPress={() => setIsMuted((m) => !m)} activeOpacity={0.7}>
-          <Animated.View style={[styles.musicDisk, { transform: [{ rotate: diskSpin }] }, isMuted && styles.musicDiskMuted]}>
-            <Music size={16} color={isMuted ? 'rgba(255,255,255,0.4)' : '#fff'} />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-
-      {/* ─── Bottom overlay ─── */}
-      <View style={styles.bottomContent}>
-        {/* @username + Follow */}
-        <View style={styles.userRow}>
-          <Text style={styles.userName}>@{userName}</Text>
-          {!isOwnPost && (
-            <TouchableOpacity
-              style={[styles.followBtn, isFollowing && styles.followingBtn]}
-              activeOpacity={0.7}
-              onPress={toggleFollow}
-              disabled={followLoading}
-            >
-              <Text style={[styles.followText, isFollowing && styles.followingText]}>
-                {isFollowing ? 'Following' : 'Follow'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Location pill */}
-        {params.locationName ? (
-          <View style={styles.locationPill}>
-            <MapPin size={12} color="#f59e0b" fill="#f59e0b" />
-            <Text style={styles.locationPillText} numberOfLines={1}>{params.locationName}</Text>
-            {params.timeAgo ? (
-              <Text style={styles.locationPillText}> · {params.timeAgo}</Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* Caption */}
-        {params.caption ? (
-          <Text style={styles.caption} numberOfLines={2}>
-            {params.caption}
-          </Text>
-        ) : null}
-
-        {/* Music ticker */}
-        <View style={styles.musicTicker}>
-          <Music size={12} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.musicText} numberOfLines={1}>
-            Original sound — {userName}
-          </Text>
-        </View>
-      </View>
-
-      {/* ─── Amber progress bar ─── */}
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-        <View style={[styles.progressGlow, { left: `${Math.round(progress * 100)}%` }]} />
-      </View>
+      {showHint && (
+        <Animated.View style={StyleSheet.flatten([styles.hint, { opacity: hintOpacity }])} pointerEvents="none">
+          <ChevronUp size={18} color="rgba(255,255,255,0.85)" />
+          <Text style={styles.hintText}>Swipe up for more</Text>
+        </Animated.View>
+      )}
     </View>
   )
 }
@@ -351,28 +204,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-  },
-  loader: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  playOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 5,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
 
   // ─── Top bar ───
@@ -417,172 +248,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // ─── Bottom gradient ───
-  bottomGradient: {
+  // ─── Swipe hint ───
+  hint: {
     position: 'absolute',
+    bottom: 6,
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 350,
-    zIndex: 2,
-  },
-
-  // ─── Right action bar ───
-  actionBar: {
-    position: 'absolute',
-    right: 12,
-    bottom: 180,
     alignItems: 'center',
-    gap: 20,
-    zIndex: 8,
+    zIndex: 11,
   },
-  profileAction: {
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  avatarBorder: {
-    borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  plusBadge: {
-    position: 'absolute',
-    bottom: -6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#f59e0b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#000',
-  },
-  actionItem: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
-    fontFamily: font.semibold,
-  },
-  musicDisk: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  musicDiskMuted: {
-    opacity: 0.5,
-  },
-
-  // ─── Bottom content overlay ───
-  bottomContent: {
-    position: 'absolute',
-    bottom: 50,
-    left: 16,
-    right: 72,
-    zIndex: 5,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 6,
-  },
-  userName: {
-    color: '#fff',
-    fontFamily: font.bold,
-    fontSize: 16,
-  },
-  followBtn: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  followText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: font.semibold,
-  },
-  followingBtn: {
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
-  },
-  followingText: {
-    color: '#1c1917',
-  },
-  locationPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 6,
-    alignSelf: 'flex-start',
-  },
-  locationPillText: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: font.medium,
-  },
-  caption: {
-    color: '#fff',
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: font.regular,
-    marginBottom: 8,
-  },
-  musicTicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  musicText: {
-    color: 'rgba(255,255,255,0.6)',
+  hintText: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 12,
     fontFamily: font.medium,
-    flex: 1,
-  },
-
-  // ─── Amber progress bar ───
-  progressTrack: {
-    position: 'absolute',
-    bottom: 34,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    zIndex: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#f59e0b',
-    borderRadius: 2,
-  },
-  progressGlow: {
-    position: 'absolute',
-    top: -3,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fbbf24',
-    marginLeft: -4,
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 4,
   },
 })
