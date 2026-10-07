@@ -32,7 +32,8 @@ export async function signOutAndWipe(
   // Stop the old profile's pushes reaching this phone (the new device id
   // re-registers the token for the guest profile).
   if (deviceId) {
-    try { await supabase.from('contributor_profiles').update({ push_token: null }).eq('device_id', deviceId) } catch { /* best-effort */ }
+    // RPC, not UPDATE: a plain UPDATE is anon-only under RLS and matched 0 rows here
+    try { await supabase.rpc('save_push_token', { p_device_id: deviceId, p_token: null }) } catch { /* best-effort */ }
   }
   try { await supabase.auth.signOut() } catch { /* still wipe locally */ }
   try {

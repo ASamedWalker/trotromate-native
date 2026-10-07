@@ -25,36 +25,19 @@ export async function fetchAuthorLevels(deviceIds: string[]): Promise<Record<str
   return Object.fromEntries(data.map((p) => [p.device_id, p.current_level as LevelSlug]))
 }
 
-/** Broadcast push for new tale */
-async function broadcastTalePush(deviceId: string, displayName: string | null, caption: string | null) {
-  try {
-    const { data: profiles } = await supabase
-      .from('contributor_profiles')
-      .select('push_token')
-      .not('push_token', 'is', null)
-      .neq('device_id', deviceId)
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
-    const tokens = (profiles || [])
-      .map(p => p.push_token!)
-      .filter(t => t.startsWith('ExponentPushToken['))
-
-    if (tokens.length === 0) return
-
-    for (let i = 0; i < tokens.length; i += 100) {
-      const chunk = tokens.slice(i, i + 100).map(token => ({
-        to: token,
-        title: '📸 New Tale',
-        body: `${displayName || 'A commuter'}: ${caption?.slice(0, 60) || 'Shared a new tale'}`,
-        sound: 'default' as const,
-        channelId: 'default',
-      }))
-      fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(chunk),
-      }).catch(() => {})
-    }
-  } catch (e) { console.warn("[troski] silent error:", e) }
+/**
+ * Ask the server to send the push for a new post/comment/reaction. Writes go
+ * straight to Supabase, so this is the only thing that triggers them. The
+ * server loads the row by id and sends at most once — fire-and-forget here.
+ */
+export function notifyPulse(kind: 'post' | 'comment' | 'reaction', id: string): void {
+  fetch(`${API_URL}/api/tales/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, id }),
+  }).catch((e) => console.warn('[pulse] notify failed:', e))
 }
 
 const MAX_IMAGES = 5
@@ -158,15 +141,18 @@ export async function addReaction(
   deviceId: string,
   emoji: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('tale_reactions')
     .insert({ post_id: postId, device_id: deviceId, emoji })
+    .select('id')
+    .single()
 
   if (error) {
     if (error.code === '23505') return true // Already reacted
     console.error('Error adding reaction:', error)
     return false
   }
+  notifyPulse('reaction', data.id)
   return true
 }
 
@@ -292,8 +278,7 @@ export async function submitTale(params: {
 
       params.onProgress?.(1)
 
-      // Push notification
-      broadcastTalePush(deviceId, displayName, caption)
+      notifyPulse('post', data.id)
 
       return { postId: data.id }
     } catch (err) {
@@ -433,8 +418,7 @@ export async function submitTale(params: {
 
     params.onProgress?.(1)
 
-    // Push notification
-    broadcastTalePush(deviceId, displayName, caption)
+    notifyPulse('post', data.id)
 
     return { postId: data.id }
   } catch (err) {

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { validateDisplayName, validateComment } from '@/lib/security/validate'
-import { fetchAuthorLevels } from '@/lib/services/tales'
+import { fetchAuthorLevels, notifyPulse } from '@/lib/services/tales'
 import type { TaleComment } from '@/lib/types'
 
 export type { TaleComment }
@@ -79,5 +79,6 @@ export async function postComment(params: {
     return null
   }
 
+  notifyPulse('comment', data.id)
   return data as TaleComment
 }
