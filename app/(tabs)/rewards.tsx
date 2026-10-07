@@ -865,8 +865,8 @@ export default function RewardsScreen() {
                 <View style={s.stepsCard}>
                   {[
                     'Share your referral code with friends',
-                    'They join Troski and complete 3 trips',
-                    `You both earn +${REFERRAL_POINTS} coins 🎉`,
+                    'They sign up and enter your code',
+                    `You both get +${REFERRAL_POINTS} coins straight away`,
                   ].map((step, i, arr) => (
                     <View key={step} style={[s.stepRow, i < arr.length - 1 && s.rowBorder]}>
                       <View style={s.stepNum}><Text style={s.stepNumText}>{i + 1}</Text></View>

@@ -14,6 +14,8 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { ownProfiles } from '@/lib/services/profileName'
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+
 const BRAND = '#FF4D1C'
 const INK = '#1C1917'
 const INK2 = '#44403C'
@@ -84,9 +86,19 @@ export default function NameScreen() {
       if (ok !== true) throw new Error('Your profile was not found. Please try again.')
 
       if (referrerDevice && deviceId && referrerDevice !== deviceId) {
-        const { error: refErr } = await supabase.from('referrals').insert({ referrer_device_id: referrerDevice, referred_device_id: deviceId, referral_code: code })
-        // 23505 = this phone was already referred: fine. Others don't block sign-up.
-        if (refErr && refErr.code !== '23505') console.warn('[signup] referral not recorded:', refErr.message)
+        // The web route records the referral AND awards both people their coins
+        // (a direct insert here recorded it but awarded nothing). 409 = this
+        // phone was already referred: fine. Failures never block sign-up.
+        try {
+          const res = await fetch(`${API_URL}/api/referrals`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: deviceId, referral_code: code }),
+          })
+          if (!res.ok && res.status !== 409) console.warn('[signup] referral not applied:', res.status)
+        } catch (e) {
+          console.warn('[signup] referral not applied:', e)
+        }
       }
 
       await refreshProfile().catch(() => {})

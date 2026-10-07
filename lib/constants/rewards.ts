@@ -20,7 +20,7 @@ export const STREAK_CONFIG = {
   BONUS_POINTS: 5,
 }
 
-export const REFERRAL_POINTS = 500 // awarded when a referred friend completes 3 trips
+export const REFERRAL_POINTS = 50 // both people, awarded when the friend joins with the code (web /api/referrals)
 
 export const LEVELS: Record<LevelSlug, LevelInfo> = {
   passenger: {

@@ -112,7 +112,7 @@ export function ReferralCard() {
 
       {/* Fine print */}
       <Text style={s.finePrint}>
-        Referrals must complete 3 trips to unlock rewards
+        You both get coins as soon as your friend signs up with your code
       </Text>
 
       {/* Referral count */}
