@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { HomeIcon, LinesIcon, TrainIcon, WalletIcon, PulseIcon, type TabIconProps } from '@/components/TabIcons'
@@ -7,6 +7,9 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
 import { useLanguage } from '@/lib/i18n'
+import { useApp } from '@/lib/contexts/AppContext'
+import { usePulseSeen, markPulseSeen } from '@/lib/hooks/usePulseSeen'
+import { useNotifications } from '@/lib/hooks/useNotifications'
 
 const BRAND = '#FF4D1C'
 const BRAND_SOFT = '#FFE9E1' // pill behind the selected tab's icon
@@ -40,6 +43,18 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
 
   const { t } = useLanguage()
+  const { deviceId } = useApp()
+  // Shares the ['notifications', …] cache (5-min stale) with the notifications
+  // screens. The dot = post activity newer than the last Pulse visit.
+  const { notifications } = useNotifications(deviceId)
+  const pulseSeen = usePulseSeen()
+  const pulseFocused = state.routes[state.index]?.name === 'tales'
+  useEffect(() => {
+    if (pulseFocused) markPulseSeen()
+  }, [pulseFocused])
+  const pulseUnread = !pulseFocused && notifications.some(
+    (n) => n.type === 'post_activity' && Date.parse(n.timestamp) > pulseSeen,
+  )
   // Only render visible tabs (filter out hidden ones)
   const visibleRoutes = state.routes.filter(r => TAB_KEYS[r.name])
 
@@ -50,6 +65,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         const isFocused = state.index === realIndex
         const Icon = TAB_ICONS[route.name] || HomeIcon
         const label = t(TAB_KEYS[route.name] || 'nav.home')
+        const showDot = route.name === 'tales' && pulseUnread
 
         const onPress = () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -69,11 +85,12 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             onPress={onPress}
             style={styles.tab}
             accessibilityRole="tab"
-            accessibilityLabel={label}
+            accessibilityLabel={showDot ? `${label}, new activity` : label}
             accessibilityState={{ selected: isFocused }}
           >
             <View style={[styles.pill, isFocused && styles.pillActive]}>
               <Icon color={isFocused ? BRAND : INACTIVE} active={isFocused} />
+              {showDot ? <View style={styles.dot} /> : null}
             </View>
             <Text style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
           </Pressable>
@@ -137,6 +154,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dot: {
+    position: 'absolute',
+    top: 3,
+    right: 13,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: BRAND,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   pillActive: { backgroundColor: BRAND_SOFT },
   label: {

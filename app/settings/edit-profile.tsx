@@ -18,6 +18,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { updateDisplayName } from '@/lib/services/profileName'
 
 interface Route {
   id: string
@@ -39,6 +40,7 @@ export default function EditProfileScreen() {
   const [isPublic, setIsPublic] = useState(profile?.is_public ?? true)
   const [routes, setRoutes] = useState<Route[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   useEffect(() => {
     // Load routes
@@ -52,14 +54,33 @@ export default function EditProfileScreen() {
       })
   }, [])
 
+  // Mirrors the update_my_profile RPC: trimmed length 2-30
+  const trimmedName = displayName.trim()
+  const originalName = (profile?.display_name ?? '').trim()
+  // Only validate a changed name, so a legacy empty/short name never blocks
+  // saving the other fields.
+  const nameChanged = trimmedName !== originalName
+  const nameInvalid = nameChanged && (trimmedName.length < 2 || trimmedName.length > 30)
+
   const handleSave = async () => {
-    if (!deviceId) return
+    if (!deviceId || nameInvalid) return
     setIsSaving(true)
 
     try {
-      // Build update object
+      // Name goes through the validating RPC first; stop if it rejects
+      if (nameChanged) {
+        const { error: rpcError } = await updateDisplayName(deviceId, trimmedName)
+        if (rpcError) {
+          setNameError(rpcError) // shown inline under the name field
+          return
+        }
+        // The name is saved even if the update below fails: refresh so the
+        // screen and a retry see the new name.
+        queryClient.invalidateQueries({ queryKey: ['profile', deviceId] })
+      }
+
+      // Build update object (display_name is written by the RPC above)
       const updates: Record<string, unknown> = {
-        display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         home_route_id: homeRouteId,
         is_public: isPublic,
@@ -102,7 +123,7 @@ export default function EditProfileScreen() {
           <ChevronLeft size={24} color={t.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity onPress={handleSave} disabled={isSaving} activeOpacity={0.7} style={s.saveHeaderBtn}>
+        <TouchableOpacity onPress={handleSave} disabled={isSaving || nameInvalid} activeOpacity={0.7} style={[s.saveHeaderBtn, nameInvalid && { opacity: 0.4 }]}>
           {isSaving ? (
             <ActivityIndicator size="small" color={c.amber500} />
           ) : (
@@ -122,12 +143,18 @@ export default function EditProfileScreen() {
           <Text style={s.label}>Display Name</Text>
           <TextInput
             value={displayName}
-            onChangeText={(text) => setDisplayName(text.slice(0, 30))}
+            onChangeText={(text) => {
+              setDisplayName(text.slice(0, 30))
+              setNameError(null)
+            }}
             placeholder="Your name"
             placeholderTextColor={t.textTertiary}
             style={s.input}
             maxLength={30}
           />
+          {nameError || nameInvalid ? (
+            <Text style={s.errorText}>{nameError ?? 'Name must be 2 to 30 characters.'}</Text>
+          ) : null}
           <Text style={s.counter}>{displayName.length}/30</Text>
         </View>
 
@@ -232,6 +259,7 @@ const getStyles = (isDark: boolean) => {
       textAlign: 'right',
       marginTop: 4,
     },
+    errorText: { fontSize: 12, fontFamily: font.medium, color: '#DC2626', marginTop: 4 },
     hint: {
       fontSize: 12,
       color: t.textTertiary,

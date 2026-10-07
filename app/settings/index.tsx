@@ -165,30 +165,63 @@ export default function SettingsScreen() {
           <Text style={s.headerTitle}>Settings</Text>
         </View>
 
-        {/* Profile card */}
+        {/* Profile card (guests get a sign-in card instead) */}
         <View style={s.section}>
-          <TouchableOpacity
-            onPress={() => router.push('/settings/edit-name' as Href)}
-            activeOpacity={0.7}
-            style={[s.card, s.profileRow]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit your name"
-          >
-            <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={56} />
-            <View style={s.profileInfo}>
-              <Text style={s.profileName} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
-              {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
-              <View style={s.tierRow}>
-                <View style={s.tierPill}>
-                  <Text style={s.tierText}>{levelInfo.name}</Text>
+          {!isAuthenticated ? (
+            <View style={[s.card, { padding: 16 }]}>
+              <Text style={{ fontSize: 18, fontFamily: font.semibold, color: '#111111' }}>Sign in or create an account</Text>
+              <Text style={{ fontSize: 13, fontFamily: font.regular, color: '#6B7280', marginTop: 4 }}>
+                Save your coins, wallet and reports to your phone number. Takes a minute.
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/auth/phone' as Href)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with phone"
+                style={{ height: 48, borderRadius: 12, backgroundColor: brand.orange, alignItems: 'center', justifyContent: 'center', marginTop: 14, alignSelf: 'stretch' }}
+              >
+                <Text style={{ fontSize: 16, fontFamily: font.semibold, color: '#FFFFFF' }}>Continue with phone</Text>
+              </TouchableOpacity>
+              {/* Guests still post to Pulse, so keep their display name editable */}
+              <TouchableOpacity
+                onPress={() => router.push('/settings/edit-name' as Href)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Display name, ${profile?.display_name ?? 'Commuter'}. Edit`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F2F1EF' }}
+              >
+                <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={36} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontFamily: font.regular, color: '#6B7280' }}>Name on Pulse</Text>
+                  <Text style={{ fontSize: 15, fontFamily: font.semibold, color: '#111111' }} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
                 </View>
-                {typeof profile?.total_points === 'number' ? (
-                  <Text style={s.profileSub}> · {profile.total_points} coins</Text>
-                ) : null}
-              </View>
+                <Text style={{ fontSize: 14, fontFamily: font.semibold, color: '#C2361A' }}>Edit</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={s.editText}>Edit</Text>
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => router.push('/settings/edit-name' as Href)}
+              activeOpacity={0.7}
+              style={[s.card, s.profileRow]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit your name"
+            >
+              <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={56} />
+              <View style={s.profileInfo}>
+                <Text style={s.profileName} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
+                {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
+                <View style={s.tierRow}>
+                  <View style={s.tierPill}>
+                    <Text style={s.tierText}>{levelInfo.name}</Text>
+                  </View>
+                  {typeof profile?.total_points === 'number' ? (
+                    <Text style={s.profileSub}> · {profile.total_points} coins</Text>
+                  ) : null}
+                </View>
+              </View>
+              <Text style={s.editText}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Preferences */}

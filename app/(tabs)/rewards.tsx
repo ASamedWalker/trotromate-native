@@ -42,6 +42,7 @@ import {
   Moon,
   Shield,
   CalendarDays,
+  Lock,
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter, type Href } from 'expo-router'
@@ -51,6 +52,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { useApp } from '@/lib/contexts/AppContext'
 import TroskiCoin from '@/components/TroskiCoin'
+import { BackButton } from '@/components/BackButton'
 import { useProfile, usePointsHistory, useAllBadges } from '@/lib/hooks/useRewards'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { SkeletonRewards } from '@/components/Skeleton'
@@ -536,6 +538,7 @@ export default function RewardsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
+        <BackButton />
         <Text style={s.headerTitle}>Rewards</Text>
       </View>
 
@@ -659,9 +662,14 @@ export default function RewardsScreen() {
                         const IconComponent = BADGE_ICONS[b.icon] || Star
                         const color = BADGE_COLORS[b.color] || ui.warning
                         return (
-                          <View key={b.id} style={[s.badgeCard, !earned && { opacity: 0.45 }]}>
+                          <View key={b.id} style={s.badgeCard} accessible accessibilityLabel={`${b.name}, ${earned ? 'earned' : 'locked'}. ${b.description}`}>
                             <View style={[s.badgeIconCircle, { backgroundColor: earned ? `${color}1F` : (isDark ? 'rgba(255,255,255,0.06)' : ui.surface) }]}>
                               <IconComponent size={22} color={earned ? color : (isDark ? 'rgba(255,255,255,0.4)' : ui.textTertiary)} />
+                              {!earned && (
+                                <View style={s.badgeLock}>
+                                  <Lock size={10} color="#FFFFFF" strokeWidth={2.5} />
+                                </View>
+                              )}
                             </View>
                             <Text style={s.badgeName} numberOfLines={1}>{b.name}</Text>
                             <Text style={s.badgeDesc} numberOfLines={2}>{b.description}</Text>
@@ -934,8 +942,8 @@ const getStyles = (isDark: boolean) => {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: ui.bg },
 
-    header: { paddingHorizontal: space.gutter, paddingTop: 6, paddingBottom: 8, alignItems: 'center' },
-    headerTitle: { fontFamily: font.bold, fontSize: 18, color: ui.text },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.gutter, paddingTop: 6, paddingBottom: 8 },
+    headerTitle: { fontFamily: font.bold, fontSize: 24, letterSpacing: -0.5, color: ui.text },
 
     /* sub-tabs */
     tabRow: { flexDirection: 'row', paddingHorizontal: space.gutter, gap: 8 },
@@ -991,7 +999,9 @@ const getStyles = (isDark: boolean) => {
     },
     badgeIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
     badgeName: { fontFamily: font.semibold, fontSize: 12, color: ui.text, marginTop: 8 },
-    badgeDesc: { fontFamily: font.regular, fontSize: 10, color: subText, textAlign: 'center', marginTop: 2, lineHeight: 13 },
+    badgeDesc: { fontFamily: font.regular, fontSize: 11, color: subText, textAlign: 'center', marginTop: 2 },
+    // Locked badges stay readable; a small lock on the icon marks them instead of fading the card.
+    badgeLock: { position: 'absolute', right: -2, bottom: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: '#6B7280', borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
 
     /* community impact */
     impactCard: {

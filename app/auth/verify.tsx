@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { replaceStackWith } from '@/lib/navigation'
-import { ArrowLeft } from 'lucide-react-native'
+import { BackButton } from '@/components/BackButton'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { OtpBoxes } from '@/components/OtpBoxes'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -80,9 +80,7 @@ export default function VerifyOtpScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
-          <ArrowLeft size={20} color="#0A0A0A" />
-        </Pressable>
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/auth/phone' as Href))} />
       </Animated.View>
 
       {/* Title */}
@@ -144,7 +142,6 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
 
   titleWrap: { paddingHorizontal: 24, paddingTop: 24 },
   title: { fontSize: 28, fontFamily: font.bold, color: '#0A0A0A', letterSpacing: -0.8, lineHeight: 37 },

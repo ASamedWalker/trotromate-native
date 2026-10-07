@@ -187,6 +187,21 @@ export default function HomeScreen() {
                 <Text style={[type.title, { color: ui.text }]} numberOfLines={1}>
                   {firstName ? `${t('home.hello')}, ${firstName}` : t('home.hello')}
                 </Text>
+                {!isAuthenticated ? (
+                  <Pressable
+                    onPress={() => router.push('/auth/phone' as Href)}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in"
+                    style={{
+                      alignSelf: 'flex-start', height: 32, paddingHorizontal: 14, marginTop: 4, marginBottom: 2,
+                      borderRadius: radius.pill, borderWidth: 1.5, borderColor: brand.orange,
+                      justifyContent: 'center', alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: font.semibold, color: brand.orange }}>Sign in</Text>
+                  </Pressable>
+                ) : null}
                 {/* Static label — was a dead Pressable with a chevron affordance (UX-26) */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                   <MapPin size={14} color={brand.orange} />
