@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics'
 import { formatGHS } from '@/lib/utils/currency'
 import { font } from '@/lib/theme'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
@@ -193,7 +194,8 @@ export default function CheckoutScreen() {
   // then hands the real ticket to the processing/receipt flow.
   const bookingRef = useRef(false)
   // Only trotro trips are bookable (okada/pragya rides aren't live).
-  const notBookable = !!route?.transport_type && route.transport_type !== 'trotro'
+  const notTrotro = !!route?.transport_type && route.transport_type !== 'trotro'
+  const notBookable = notTrotro || !TROTRO_BOOKING_ENABLED
 
   const doBooking = async () => {
     if (!user?.id || bookingRef.current || notBookable) return
@@ -255,9 +257,11 @@ export default function CheckoutScreen() {
   if (notBookable) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAF9', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>Rides on this route are coming soon</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>{notTrotro ? 'Rides on this route are coming soon' : 'Trotro tickets are coming soon'}</Text>
         <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
-          You can book trotro trips today. The fares shown for this route are what riders report.
+          {notTrotro
+            ? 'You can book trotro trips today. The fares shown for this route are what riders report.'
+            : 'Fares and routes are free to check. Pay the mate as usual for now.'}
         </Text>
         <TouchableOpacity
           onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)' as never) }}
@@ -307,6 +311,7 @@ export default function CheckoutScreen() {
           <View style={s.divider} />
 
           {/* Route status — assigned bus capacity (Phase 1 fleet), or live count */}
+          {(assigned || liveTrotros > 0) && (
           <View style={[s.detailRow, { paddingTop: 4 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Bus size={16} color="#374151" />
@@ -319,10 +324,9 @@ export default function CheckoutScreen() {
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />
                 <Text style={s.detailValue}>{liveTrotros} active now</Text>
               </View>
-            ) : (
-              <Text style={[s.detailValue, { color: '#6B7280' }]}>None sharing live yet</Text>
-            )}
+            ) : null}
           </View>
+          )}
           <View style={s.detailRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Clock size={16} color="#374151" />
@@ -425,7 +429,7 @@ export default function CheckoutScreen() {
             <Text style={s.fareValue}>{fareKnown ? formatGHS(fare.bus) : '—'}</Text>
           </View>
           <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.serviceBase)}</Text></View>
-          <View style={s.fareRow}><Text style={s.detailLabel}>VAT + Levies (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
+          <View style={s.fareRow}><Text style={s.detailLabel}>VAT on service fee (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
           <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{fareKnown ? formatGHS(total) : '—'}</Text></View>
           {!fareKnown && (
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
