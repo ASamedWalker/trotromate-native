@@ -16,15 +16,15 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone } from 'lucide-react-native'
 import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
 const { height: SCREEN_H } = Dimensions.get('window')
-// Branded Mapbox Studio style (shared with TrackingMap); stock night variant
-// after dark so the route view matches premium nav apps (Uber/Bolt) at night.
-const MAP_STYLE_DAY = 'mapbox://styles/sampy1/cmnhofbx0005q01s84a9vbm31'
-const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/navigation-night-v1'
+// Calm pale Mapbox Light by day (stops + route pop on it); stock dark-v11 after
+// dark (navigation-night bakes traffic colours in, defeating the Traffic toggle).
+const MAP_STYLE_DAY = 'mapbox://styles/mapbox/light-v11'
+const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/dark-v11'
 import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
@@ -37,6 +37,7 @@ import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
+import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 
 const BRAND = '#FF4D1C'
 
@@ -111,12 +112,13 @@ export default function RouteDetailScreen() {
   // the sheet covers it.
   const sheetPos = useSharedValue(99999)
   const [overlayHidden, setOverlayHidden] = useState(false)
-  // Data Saver — skips the traffic raster tiles (UX-32)
-  const [dataSaver, setDataSaver] = useState(false)
+  // Traffic raster tiles are OFF by default — they're the biggest data cost on
+  // this screen and Google Maps does live traffic better (UX-32).
+  const [showTraffic, setShowTraffic] = useState(false)
   const [fabHidden, setFabHidden] = useState(false)
   useDerivedValue(() => {
     runOnJS(setOverlayHidden)(sheetPos.value < insets.top + 96)
-    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * 0.52)
+    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * 0.42)
   }, [insets.top])
   // Real road distance from the Directions response — feeds the floating ETA pill.
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
@@ -175,15 +177,15 @@ export default function RouteDetailScreen() {
   const [pulseRadius, setPulseRadius] = useState(14)
   const [pulseOpacity, setPulseOpacity] = useState(0.4)
 
-  // Fit the whole corridor with a pitched, cinematic framing — leaves room for
-  // the bottom sheet (paddingBottom) and tilts the camera like premium nav apps.
+  // Fit the whole corridor with a flat (pitch 0) framing — leaves room for
+  // the bottom sheet (paddingBottom) so the route sits above it.
   const fitRoute = (duration = 1500) => {
     if (!hasCoords || !cameraRef.current) return
     // [top, right, bottom, left] — generous bottom leaves room for the sheet.
     cameraRef.current.fitBounds(
       [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
       [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-      [insets.top + 150, 52, SCREEN_H * 0.44, 52],
+      [insets.top + 120, 84, SCREEN_H * 0.55 + 24, 52],
       duration,
     )
   }
@@ -223,46 +225,8 @@ export default function RouteDetailScreen() {
     return () => drawAnim.removeListener(id)
   }, [routeLine])
 
-  useEffect(() => {
-    if (!fromCoord || !toCoord) return
-    const token = MAPBOX_TOKEN
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoord.lon},${fromCoord.lat};${toCoord.lon},${toCoord.lat}?geometries=geojson&overview=full&access_token=${token}`
 
-    fetch(url)
-      .then(r => r.json())
-      .then(data => {
-        if (data.routes?.[0]?.distance != null) setRouteDistanceKm(data.routes[0].distance / 1000)
-        if (data.routes?.[0]?.geometry) {
-          setRouteLine({
-            type: 'Feature',
-            properties: {},
-            geometry: data.routes[0].geometry,
-          })
-        } else {
-          // Fallback: straight line
-          setRouteLine({
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: [[fromCoord.lon, fromCoord.lat], [toCoord.lon, toCoord.lat]],
-            },
-          })
-        }
-      })
-      .catch(() => {
-        setRouteLine({
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: [[fromCoord.lon, fromCoord.lat], [toCoord.lon, toCoord.lat]],
-          },
-        })
-      })
-  }, [fromCoord, toCoord])
-
-  const snapPoints = useMemo(() => ['38%', '64%', '88%'], [])
+  const snapPoints = useMemo(() => ['55%', '74%', '90%'], [])
 
 
   // Fabricated stop timeline removed (UX-06): it rendered "Now at Market
@@ -276,9 +240,6 @@ export default function RouteDetailScreen() {
     : duration >= 60
       ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
       : `${duration} min`
-  const arrivalTime = hasDuration
-    ? new Date(Date.now() + duration * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : null
   const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
 
   // ── Crowdsourced fare: show an honest avg + range, not a single "fixed" price.
@@ -296,7 +257,6 @@ export default function RouteDetailScreen() {
 
   // Trip shape for the header meta row
   const stopCount = route?.stops?.length ?? 0
-  const distanceKm = routeDistanceKm ?? route?.distance_km ?? null
 
   // Live availability — vehicles broadcasting + riders sharing GO Mode on this route
   const liveRiders = liveTrips.length
@@ -312,6 +272,72 @@ export default function RouteDetailScreen() {
   )
   const hasStops = stops.length > 2
   const lastOrder = stops.length ? stops[stops.length - 1].stop_order : 0
+  // Intermediate stops as Directions waypoints (API max 25 coordinates incl.
+  // origin + destination → ≤23 vias, evenly sampled when a corridor has more).
+  const waypointKey = useMemo(() => {
+    const mid = stops.slice(1, -1).filter(st => st.latitude != null && st.longitude != null)
+    if (mid.length === 0) return ''
+    const step = Math.max(1, Math.ceil(mid.length / 23))
+    return mid.filter((_, i) => i % step === 0).slice(0, 23)
+      .map(st => `${st.longitude},${st.latitude}`).join(';')
+  }, [stops])
+
+  const routeReady = !routeId || !!route
+  useEffect(() => {
+    if (!fromCoord || !toCoord) return
+    // Wait for the route (and its stops) so we fetch once, not Directions
+    // first and Matching again when the stops arrive.
+    if (!routeReady) return
+    let cancelled = false
+    const token = MAPBOX_TOKEN
+    const ends = { from: `${fromCoord.lon},${fromCoord.lat}`, to: `${toCoord.lon},${toCoord.lat}` }
+    const straight: GeoJSON.Feature = {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: [[fromCoord.lon, fromCoord.lat], [toCoord.lon, toCoord.lat]] },
+    }
+    const directions = () =>
+      fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${ends.from};${ends.to}?geometries=geojson&overview=full&access_token=${token}`)
+        .then(r => r.json())
+        .then(data => {
+          const r0 = data.routes?.[0]
+          return r0?.geometry ? { geometry: r0.geometry, distance: r0.distance as number } : null
+        })
+    // With stops: Map Matching snaps the corridor's stop sequence onto roads
+    // (stop coords sit a few metres off the road, so Directions waypoints
+    // force U-turns). Matching may split into several matchings when stops
+    // can't be joined — stitch them; on NoMatch/error fall back to Directions.
+    const matching = () => {
+      const coords = [ends.from, ...waypointKey.split(';'), ends.to]
+      return fetch(`https://api.mapbox.com/matching/v5/mapbox/driving/${coords.join(';')}?geometries=geojson&overview=full&tidy=true&radiuses=${coords.map(() => 60).join(';')}&access_token=${token}`)
+        .then(r => r.json())
+        .then(data => {
+          const ms: { geometry?: GeoJSON.LineString; distance?: number }[] = data.matchings ?? []
+          if (ms.length === 0) return null
+          const coordinates = ms.flatMap(m => m.geometry?.coordinates ?? [])
+          if (coordinates.length < 2) return null
+          return {
+            geometry: { type: 'LineString' as const, coordinates },
+            distance: ms.reduce((sum, m) => sum + (m.distance ?? 0), 0),
+          }
+        })
+    }
+
+    ;(waypointKey ? matching().then(m => m ?? directions()) : directions())
+      .catch(() => null)
+      .then(best => {
+        if (cancelled) return
+        if (best) {
+          setRouteDistanceKm(best.distance / 1000)
+          setRouteLine({ type: 'Feature', properties: {}, geometry: best.geometry })
+        } else {
+          setRouteDistanceKm(null) // never show a stale distance
+          setRouteLine(straight)
+        }
+      })
+    return () => { cancelled = true }
+  }, [fromCoord, toCoord, waypointKey, routeReady])
+
   // Pre-select the alight when search matched an intermediate drop-off stop.
   const [dropoffOrder, setDropoffOrder] = useState<number | null>(
     params.dropoff_order ? parseInt(params.dropoff_order) : null,
@@ -338,6 +364,21 @@ export default function RouteDetailScreen() {
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
   const dropoffName = hasStops ? stops.find((s) => s.stop_order === effectiveDropoff)?.stop_name : undefined
   const [alightPickerOpen, setAlightPickerOpen] = useState(false)
+  // Intermediate stops as map dots (origin/destination have their own pins).
+  // Tapping a dot calls setDropoffOrder — same handler as the alight picker.
+  const stopsGeojson = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: stops.slice(1, -1)
+      .filter((s) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
+      .map((s) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [s.longitude, s.latitude] },
+        properties: { order: s.stop_order, name: s.stop_name, sel: s.stop_order === effectiveDropoff ? 1 : 0 },
+      })),
+  }), [stops, effectiveDropoff])
+  const selectedStop = hasStops && effectiveDropoff !== lastOrder
+    ? stops.find((s) => s.stop_order === effectiveDropoff && Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
+    : undefined
   // Fare per stop for the picker rows (Transit-style fare-per-option).
   const alightFareLabel = (order: number) =>
     hasStops ? formatGHS(resolveDropoffFareSync(segFares, stops[0].stop_order, order, stops, corridorBase).fare * mult) : undefined
@@ -355,18 +396,20 @@ export default function RouteDetailScreen() {
         compassFadeWhenNorth={true}
         compassPosition={{ top: insets.top + 64, right: 16 }}
         scaleBarEnabled={false}
+        pitchEnabled={false}
         onDidFinishLoadingMap={() => fitRoute(900)}
       >
         <Mapbox.Camera
           ref={cameraRef}
+          pitch={0}
           defaultSettings={hasCoords ? {
             bounds: {
               ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
               sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-              paddingTop: insets.top + 150,
-              paddingBottom: SCREEN_H * 0.44,
+              paddingTop: insets.top + 120,
+              paddingBottom: SCREEN_H * 0.55 + 24,
               paddingLeft: 52,
-              paddingRight: 52,
+              paddingRight: 84,
             },
           } : {
             centerCoordinate: [centerLon, centerLat],
@@ -378,19 +421,33 @@ export default function RouteDetailScreen() {
             FillExtrusionLayer here referenced a "composite" source that the
             custom style doesn't have, which errored on every load. */}
 
-        {/* Traffic layer overlay — skipped in Saver mode; raster tiles are the
-            biggest data cost on this screen (UX-32) */}
-        {!dataSaver && (
-          <Mapbox.RasterSource
+        {/* Traffic overlay — opt-in via the Traffic pill (UX-32). Vector tiles,
+            only congested segments drawn, kept below the route line. */}
+        {showTraffic && (
+          <Mapbox.VectorSource
+            // Remount when the route line appears so traffic re-adds BELOW it
+            key={routeLine ? 'traffic-under-line' : 'traffic'}
             id="traffic-source"
-            tileUrlTemplates={[`https://api.mapbox.com/v4/mapbox.mapbox-traffic-v1/{z}/{x}/{y}.png?access_token=${MAPBOX_TOKEN}`]}
-            tileSize={256}
+            url="mapbox://mapbox.mapbox-traffic-v1"
           >
-            <Mapbox.RasterLayer
+            <Mapbox.LineLayer
               id="traffic-layer"
-              style={{ rasterOpacity: 0.35 }}
+              sourceLayerID="traffic"
+              belowLayerID={routeLine ? 'route-line-shadow' : undefined}
+              filter={['match', ['get', 'congestion'], ['moderate', 'heavy', 'severe'], true, false]}
+              style={{
+                lineWidth: 3,
+                lineCap: 'round',
+                lineColor: [
+                  'match', ['get', 'congestion'],
+                  'moderate', '#F59E0B',
+                  'heavy', '#EF4444',
+                  'severe', '#991B1B',
+                  '#F59E0B',
+                ],
+              }}
             />
-          </Mapbox.RasterSource>
+          </Mapbox.VectorSource>
         )}
 
         {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
@@ -434,6 +491,42 @@ export default function RouteDetailScreen() {
               }}
             />
           </Mapbox.ShapeSource>
+        )}
+
+        {/* Stop dots — white with brand stroke; selected alight stop is larger + filled.
+            Tap a dot to set it as the alight stop (fare updates). */}
+        {stopsGeojson.features.length > 0 && (
+          <Mapbox.ShapeSource
+            // Remount once the route line exists so the dots are added ABOVE it
+            // (the line source mounts after the Directions/Matching fetch).
+            key={routeLine ? 'stops-above-line' : 'stops'}
+            id="route-stops"
+            shape={stopsGeojson}
+            hitbox={{ width: 28, height: 28 }}
+            onPress={(e) => {
+              const order = e.features?.[0]?.properties?.order
+              if (typeof order === 'number') { Haptics.selectionAsync(); setDropoffOrder(order) }
+            }}
+          >
+            <Mapbox.CircleLayer
+              id="route-stops-dot"
+              aboveLayerID={routeLine ? 'route-line-core' : undefined}
+              style={{
+                circleRadius: ['case', ['==', ['get', 'sel'], 1], 7, 4],
+                circleColor: ['case', ['==', ['get', 'sel'], 1], BRAND, '#FFFFFF'],
+                circleStrokeWidth: 2,
+                circleStrokeColor: BRAND,
+                circlePitchAlignment: 'map',
+              }}
+            />
+          </Mapbox.ShapeSource>
+        )}
+
+        {/* Selected alight stop label (only this one — labelling all stops is clutter) */}
+        {selectedStop && (
+          <Mapbox.MarkerView id="alight-label" coordinate={[selectedStop.longitude, selectedStop.latitude]} anchor={{ x: 0.5, y: 1.6 }} allowOverlap>
+            <View pointerEvents="none" style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{selectedStop.stop_name}</Text></View>
+          </Mapbox.MarkerView>
         )}
 
         {/* Pulsing origin marker */}
@@ -522,24 +615,25 @@ export default function RouteDetailScreen() {
         </View>
       )}
 
-      {/* ── Saver chip — same data-cost pattern as GO Mode (UX-32) ── */}
+      {/* ── Traffic toggle — off by default to save data (UX-32) ── */}
       {!overlayHidden && (
         <View style={{ position: 'absolute', top: insets.top + 12, right: 20, zIndex: 10 }}>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); setDataSaver(v => !v) }}
+            onPress={() => { Haptics.selectionAsync(); setShowTraffic(v => !v) }}
             activeOpacity={0.8}
             hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={dataSaver ? 'Data saver on' : 'Data saver off'}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: showTraffic }}
+            accessibilityLabel="Show traffic"
             style={{
-              paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
-              backgroundColor: dataSaver ? BRAND : '#fff',
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16,
+              backgroundColor: showTraffic ? BRAND : '#fff',
               shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
             }}
           >
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: dataSaver ? '#fff' : '#374151' }}>
-              {dataSaver ? 'Saver ON' : 'Saver'}
-            </Text>
+            <TrafficCone size={14} color={showTraffic ? '#fff' : '#374151'} strokeWidth={2.4} />
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: showTraffic ? '#fff' : '#374151' }}>Traffic</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -550,10 +644,10 @@ export default function RouteDetailScreen() {
           <View style={mapPinStyles.etaPill}>
             <Clock size={15} color="#fff" strokeWidth={2.4} />
             <Text style={mapPinStyles.etaText}>{durationText}</Text>
-            {routeDistanceKm != null && (
+            {(routeDistanceKm ?? route?.distance_km) != null && (
               <>
                 <View style={mapPinStyles.etaDot} />
-                <Text style={mapPinStyles.etaSub}>{routeDistanceKm.toFixed(1)} km</Text>
+                <Text style={mapPinStyles.etaSub}>{(routeDistanceKm ?? route?.distance_km ?? 0).toFixed(1)} km</Text>
               </>
             )}
           </View>
@@ -563,7 +657,7 @@ export default function RouteDetailScreen() {
       {/* ── Recenter FAB — sits just above the collapsed sheet; hidden once the
             sheet is dragged up so it never floats inside the card ── */}
       {hasCoords && !fabHidden && (
-        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.38 + 16, zIndex: 10 }}>
+        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * 0.55 + 16, zIndex: 10 }}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => { Haptics.selectionAsync(); fitRoute(900) }}
@@ -613,9 +707,6 @@ export default function RouteDetailScreen() {
               <Image source={selectedOption.image} style={{ width: 18, height: 18 }} resizeMode="contain" />
               <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#374151' }}>{selectedOption.label}</Text>
             </View>
-            {distanceKm != null && (
-              <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{distanceKm.toFixed(1)} km</Text></View>
-            )}
             {stopCount > 0 && (
               <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{stopCount} stops</Text></View>
             )}
@@ -650,7 +741,9 @@ export default function RouteDetailScreen() {
           <View style={{ marginHorizontal: 24, marginBottom: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-start' }}>
             <View>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{arrivalTime ? `arrives ${arrivalTime}` : 'Ride time not known yet'}</Text>
+              {hasDuration && selectedTransport === 'trotro' && (
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{'Leaves when full'}</Text>
+              )}
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{formatGHS(Number(displayFare))}</Text>
@@ -740,7 +833,7 @@ export default function RouteDetailScreen() {
             </TouchableOpacity>
             {/* Only trotro trips can be booked. Okada/Pragya rides don't exist yet —
                 Go Now would otherwise sell a trotro ticket for an okada corridor. */}
-            {selectedTransport === 'trotro' ? (
+            {selectedTransport === 'trotro' && TROTRO_BOOKING_ENABLED ? (
             <TouchableOpacity
                 style={{ flex: 1 }}
                 activeOpacity={0.85}
@@ -760,14 +853,18 @@ export default function RouteDetailScreen() {
               <View
                 style={{ flex: 1, height: 52, borderRadius: 16, backgroundColor: '#FFF4EF', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }}
                 accessible
-                accessibilityLabel={`${selectedOption.label} rides are coming soon`}
+                accessibilityRole="text"
+                accessibilityState={{ disabled: true }}
+                accessibilityLabel={selectedTransport === 'trotro' ? 'Tickets are coming soon' : `${selectedOption.label} rides are coming soon`}
               >
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{selectedOption.label} rides coming soon</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{selectedTransport === 'trotro' ? 'Tickets coming soon' : `${selectedOption.label} rides coming soon`}</Text>
               </View>
             )}
           </View>
 
-          {/* ── REAL-TIME PULSE card ── */}
+          {/* ── REAL-TIME PULSE card ── hidden when there is no traffic data
+              (an "Unavailable" card with an empty bar tells the rider nothing) */}
+          {(loadingTraffic || !!trafficCondition) && (
           <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
             <View style={{
               backgroundColor: '#F9FAFB', borderRadius: 20, padding: 18,
@@ -776,7 +873,7 @@ export default function RouteDetailScreen() {
               {/* Header — no "Live" pill: this card has no realtime channel.
                   Fake busyness ("Not busy 20%", no data source) removed (UX-06). */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: '#6B7280', letterSpacing: 3, textTransform: 'uppercase' }}>Route Conditions</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#6B7280', letterSpacing: 1.5, textTransform: 'uppercase' }}>Route Conditions</Text>
               </View>
 
               {/* Traffic Condition — badge pill */}
@@ -830,6 +927,7 @@ export default function RouteDetailScreen() {
               </View>
             </View>
           </View>
+          )}
 
           </>
           )}

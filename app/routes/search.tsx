@@ -10,12 +10,17 @@ import {
   Image,
   Modal,
   Alert,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
-  X, MapPin, CircleDot, ArrowUpDown, Home, Briefcase, Locate, ArrowLeft,
+  X, MapPin, CircleDot, ArrowUpDown, Home, Briefcase, Locate, ArrowLeft, Plus,
 } from 'lucide-react-native'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase/client'
+import { formatGHS } from '@/lib/utils/currency'
 import { font } from '@/lib/theme'
 import * as Haptics from 'expo-haptics'
 import { useRoutePlanner } from '@/lib/hooks/useRoutePlanner'
@@ -27,6 +32,7 @@ import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { authedFetch } from '@/lib/services/authedFetch'
 
 const BRAND = '#FF4D1C'
+const TEXT_SECONDARY = '#5F6368' // AA on #FAFAF9 (~6:1)
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 // token now centralized (UX-38)
 
@@ -98,6 +104,35 @@ function formatDistance(km: number): string | undefined {
   return `${km.toFixed(1)} km`
 }
 
+type PopularTrip = { key: string; from: string; to: string; fare: number }
+
+// Official GPRTU fares already on the current schedule (26 Sep 2026, migration
+// 087) — older verified fares predate the +8% and would show a stale price.
+// One small cached query, A->B / B->A pairs collapsed to one row, max 8.
+const CURRENT_SCHEDULE_FROM = '2026-09-26'
+async function fetchPopularTrips(): Promise<PopularTrip[]> {
+  const { data, error } = await supabase
+    .from('routes')
+    .select('from_location,to_location,official_fare,is_popular')
+    .eq('is_gprtu_verified', true)
+    .eq('region', 'greater_accra')
+    .gte('fare_approved_at', CURRENT_SCHEDULE_FROM)
+    .gt('official_fare', 0)
+    .order('is_popular', { ascending: false })
+    .order('official_fare', { ascending: true })
+    .limit(60)
+  if (error) throw error
+  const seen = new Set<string>()
+  const out: PopularTrip[] = []
+  for (const r of data ?? []) {
+    const pair = [r.from_location, r.to_location].sort().join('|')
+    if (seen.has(pair)) continue
+    seen.add(pair)
+    out.push({ key: pair, from: r.from_location, to: r.to_location, fare: Number(r.official_fare) })
+  }
+  return out.slice(0, 8)
+}
+
 type TransportMode = 'all' | 'trotro' | 'okada' | 'pragya' | 'train' | 'walk'
 
 /* ── Component ── */
@@ -116,6 +151,8 @@ export default function PlanTripScreen() {
   const { user: authUser } = useAuthContext()
 
   // Saved-place shortcuts (shared with the "Your Trip" booking screen)
+  const { width: screenW } = useWindowDimensions()
+  const [popularExpanded, setPopularExpanded] = useState(false)
   const [locationName, setLocationName] = useState('')
   const [homeAddress, setHomeAddress] = useState('')
   const [workAddress, setWorkAddress] = useState('')
@@ -331,10 +368,31 @@ export default function PlanTripScreen() {
   const SHORTCUTS = [
     { key: 'home', Icon: Home, label: 'Home', value: homeAddress, placeholder: 'Add home address', color: '#374151' },
     { key: 'work', Icon: Briefcase, label: 'Work', value: workAddress, placeholder: 'Add work address', color: '#374151' },
-    { key: 'current', Icon: Locate, label: 'Current location', value: locationName, placeholder: 'Fetching location…', color: '#10B981' },
   ]
 
   const showingResults = hasSearched && canSearch
+
+  const popular = useQuery({
+    queryKey: ['search-popular-trips', CURRENT_SCHEDULE_FROM],
+    queryFn: fetchPopularTrips,
+    staleTime: 60 * 60 * 1000,
+    retry: 1,
+  })
+
+  const selectPopular = (trip: PopularTrip) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setFrom(trip.from)
+    setTo(trip.to)
+    Keyboard.dismiss() // results render under the keyboard otherwise
+  }
+
+  const useMyLocation = () => {
+    if (!locationName) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setFrom(locationName)
+    setActiveInput('to')
+    toRef.current?.focus()
+  }
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
@@ -363,7 +421,7 @@ export default function PlanTripScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 10 }}
+            contentContainerStyle={{ paddingLeft: 24, paddingRight: 56, gap: 10 }}
           >
             {SERVICES.map((svc) => {
               const isActive = selectedService === svc.id
@@ -372,6 +430,9 @@ export default function PlanTripScreen() {
                   key={svc.id}
                   onPress={() => selectService(svc.id, svc.mode)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={svc.label}
+                  accessibilityState={{ selected: isActive }}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 8,
                     paddingHorizontal: 14, paddingVertical: 8,
@@ -382,7 +443,7 @@ export default function PlanTripScreen() {
                   }}
                 >
                   <Image source={svc.image} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: isActive ? BRAND : '#6B7280' }}>{svc.label}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: isActive ? BRAND : TEXT_SECONDARY }}>{svc.label}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -401,19 +462,30 @@ export default function PlanTripScreen() {
               <TextInput
                 ref={fromRef}
                 placeholder="From where?"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={TEXT_SECONDARY}
                 value={from}
                 onChangeText={setFrom}
                 onFocus={() => setActiveInput('from')}
-                style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
+                style={{ flex: 1, fontFamily: font.medium, fontSize: 17, color: '#000', padding: 0 }}
                 returnKeyType="next"
                 onSubmitEditing={() => toRef.current?.focus()}
               />
               {from.length > 0 && (
-                <TouchableOpacity onPress={() => setFrom('')} hitSlop={8}>
-                  <X size={16} color="#6B7280" />
+                <TouchableOpacity onPress={() => setFrom('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear origin">
+                  <X size={18} color={TEXT_SECONDARY} />
                 </TouchableOpacity>
               )}
+              <TouchableOpacity
+                onPress={useMyLocation}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={locationName ? 'Use my current location as origin' : 'Finding your location'}
+                accessibilityState={{ disabled: !locationName }}
+                disabled={!locationName}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginLeft: 8, opacity: locationName ? 1 : 0.5 }}
+              >
+                <Locate size={18} color="#059669" />
+              </TouchableOpacity>
             </View>
 
             {/* Divider + swap */}
@@ -440,16 +512,16 @@ export default function PlanTripScreen() {
               <TextInput
                 ref={toRef}
                 placeholder="To where?"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={TEXT_SECONDARY}
                 value={to}
                 onChangeText={setTo}
                 onFocus={() => setActiveInput('to')}
-                style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
+                style={{ flex: 1, fontFamily: font.medium, fontSize: 17, color: '#000', padding: 0 }}
                 returnKeyType="done"
               />
               {to.length > 0 && (
-                <TouchableOpacity onPress={() => setTo('')} hitSlop={8}>
-                  <X size={16} color="#6B7280" />
+                <TouchableOpacity onPress={() => setTo('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear destination">
+                  <X size={18} color={TEXT_SECONDARY} />
                 </TouchableOpacity>
               )}
             </View>
@@ -459,11 +531,19 @@ export default function PlanTripScreen() {
           {/* Hidden while typing so the matching stations below sit right
               under the inputs instead of behind the keyboard. */}
           {!showingResults && (activeInput === 'from' ? from : to).length === 0 && (
-            <View style={{ marginTop: 12 }}>
-              {SHORTCUTS.map((sc, i) => (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ marginTop: 12, marginHorizontal: -24 }}
+              contentContainerStyle={{ paddingLeft: 24, paddingRight: 48, gap: 8 }}
+            >
+              {SHORTCUTS.map((sc) => (
                 <TouchableOpacity
                   key={sc.key}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={sc.value ? `${sc.label}: ${sc.value}` : `Add ${sc.label.toLowerCase()} address`}
                   onPress={() => {
                     if (!sc.value && (sc.key === 'home' || sc.key === 'work')) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -472,30 +552,23 @@ export default function PlanTripScreen() {
                       fillShortcut(sc.value)
                     }
                   }}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, minHeight: 40, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' }}
                 >
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                    <sc.Icon size={18} color={sc.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#000' }}>{sc.label}</Text>
-                    <Text style={{ fontFamily: font.regular, fontSize: 12, color: '#6B7280' }} numberOfLines={1}>{sc.value || sc.placeholder}</Text>
-                  </View>
+                  <sc.Icon size={17} color="#374151" />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#111' }}>{sc.label}</Text>
                 </TouchableOpacity>
               ))}
-
-              {/* Thick divider */}
-              <View style={{ height: 6, backgroundColor: '#F3F4F6', marginHorizontal: -24, marginTop: 12, marginBottom: 14 }} />
-
-              {/* Saved places */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#000' }}>Saved places</Text>
-                <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAddressInput(''); setAddressSuggestions([]); setAddressModal('home') }} hitSlop={8}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>+ New Place</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 16 }}>No saved places</Text>
-            </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add a new place"
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAddressInput(''); setAddressSuggestions([]); setAddressModal('home') }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, minHeight: 40, borderRadius: 20, backgroundColor: '#FFF0EB' }}
+              >
+                <Plus size={17} color={BRAND} />
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>Place</Text>
+              </TouchableOpacity>
+            </ScrollView>
           )}
         </View>
 
@@ -504,19 +577,80 @@ export default function PlanTripScreen() {
           {/* ── Smart Suggestions (real stations) ── */}
           {!showingResults && (
             <View style={{ paddingHorizontal: 24 }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginBottom: 10 }}>
+              {(activeInput === 'from' ? from : to).length === 0 && !popular.isError && (popular.isLoading || (popular.data?.length ?? 0) > 0) && (
+                <View style={{ marginBottom: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000' }}>Popular trips</Text>
+                    {!popular.isLoading && (
+                      <TouchableOpacity
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPopularExpanded((v) => !v) }}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={popularExpanded ? 'Show fewer popular trips' : 'See all popular trips'}
+                      >
+                        <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>{popularExpanded ? 'Show less' : 'See all →'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {(() => {
+                    const cardBase = { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 14 } as const
+                    const gridW = (screenW - 48 - 12) / 2
+                    const cardW = popularExpanded ? gridW : 150
+                    const cards = popular.isLoading
+                      ? [0, 1, 2].map((i) => (
+                          <View key={i} style={{ ...cardBase, width: 150, gap: 8 }}>
+                            <View style={{ width: '70%', height: 16, borderRadius: 6, backgroundColor: '#E5E7EB' }} />
+                            <View style={{ width: '50%', height: 16, borderRadius: 6, backgroundColor: '#E5E7EB' }} />
+                            <View style={{ width: '60%', height: 18, borderRadius: 6, backgroundColor: '#E5E7EB', marginTop: 4 }} />
+                            <View style={{ width: '45%', height: 16, borderRadius: 8, backgroundColor: '#E5E7EB' }} />
+                          </View>
+                        ))
+                      : popular.data!.map((trip) => (
+                          <TouchableOpacity
+                            key={trip.key}
+                            onPress={() => selectPopular(trip)}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${trip.from} to ${trip.to}, official fare ${formatGHS(trip.fare)}`}
+                            style={{ ...cardBase, width: cardW }}
+                          >
+                            <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }} numberOfLines={1}>{trip.from} →</Text>
+                            <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }} numberOfLines={1}>{trip.to}</Text>
+                            <Text style={{ fontFamily: font.bold, fontSize: 18, color: BRAND, marginTop: 6 }}>{formatGHS(trip.fare)}</Text>
+                            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#166534', marginTop: 2 }}>✓ Official</Text>
+                          </TouchableOpacity>
+                        ))
+                    return popularExpanded && !popular.isLoading ? (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>{cards}</View>
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        style={{ marginHorizontal: -24 }}
+                        contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
+                      >
+                        {cards}
+                      </ScrollView>
+                    )
+                  })()}
+                </View>
+              )}
+              <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 6 }}>
                 {(activeInput === 'from' ? from : to).length > 0
                   ? 'Results'
                   /* Without a location fix these are just stations, in no
                      particular order — calling them "nearby" while showing
                      Kojokrom to someone in Accra is a claim we can't back. */
-                  : location ? 'Nearby stations' : 'Stations'}
+                  : location ? 'Stations near you' : 'Stations'}
               </Text>
               {suggestions.map((station, i) => (
                 <TouchableOpacity
                   key={`${station.name}-${i}`}
                   onPress={() => selectStation(station.name)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={station.name}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 14,
                     paddingVertical: 14,
@@ -535,14 +669,14 @@ export default function PlanTripScreen() {
                     <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>{station.name}</Text>
                   </View>
                   {station.distance && (
-                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>{station.distance}</Text>
+                    <Text style={{ fontFamily: font.medium, fontSize: 14, color: TEXT_SECONDARY }}>{station.distance}</Text>
                   )}
                 </TouchableOpacity>
               ))}
 
               {suggestions.length === 0 && (activeInput === 'from' ? from : to).length > 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#6B7280' }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 16, color: TEXT_SECONDARY }}>
                     No stations found
                   </Text>
                 </View>
