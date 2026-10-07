@@ -165,9 +165,12 @@ const DEFAULT_NAME = /^Troski Fan #/
 /**
  * After sign-in: does this person still need to pick a name?
  * A real name = a display name that isn't the auto-made "Troski Fan #XXXX"
- * (lib/services/rewards.ts). first_name is no longer readable (migration 092,
- * which also copied legacy first names into display_name).
- * Errors never block sign-in.
+ * (lib/services/rewards.ts). Legacy first names were copied into display_name
+ * by migration 092, so only display_name is checked.
+ * Signing in after a sign-out lands on a fresh guest profile for this device
+ * ("Troski Fan #…"); when the account already has a real name, copy it onto
+ * this device's profile via update_my_profile (direct UPDATEs are not
+ * ownership-checked). Errors never block sign-in.
  */
 async function needsName(deviceId: string | null): Promise<boolean> {
   try {
@@ -175,7 +178,12 @@ async function needsName(deviceId: string | null): Promise<boolean> {
     const rows = await ownProfiles(session?.user.id, deviceId)
     if (!rows.length) return true
     const real = (r: NameRow) => (r.display_name && !DEFAULT_NAME.test(r.display_name) ? r.display_name : null)
-    if (!rows.some(real)) return true
+    const name = rows.map(real).find(Boolean)
+    if (!name) return true
+    const stale = rows.some((r) => !real(r))
+    if (stale && deviceId) {
+      await supabase.rpc('update_my_profile', { p_device_id: deviceId, p_display_name: name })
+    }
     return false
   } catch {
     return false
