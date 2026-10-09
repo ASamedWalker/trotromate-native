@@ -1,6 +1,6 @@
 # Troski redesign architecture — "Ghana's Transit app"
 
-_2026-10-09. Plan only (fable-architect). Inputs: `docs/strategy/transit-app-design-research.md`, `docs/strategy/troski-commute-habit-plan.md`, `CLAUDE.md`, release tab layout, `ReleaseHome`, `MyRoutesCard`, `useFavorites`, `routes/[id]`, `(tabs)/routes`, `train/index`, `stations/index`, `queue/status`, backend `/api/commute`, `commute-card.ts`, migration 099, `schema.sql`. "Assumption" = not verified in code. Status: **awaiting owner decisions (§7)** — nothing built yet._
+_2026-10-09. Plan only (fable-architect). Inputs: `docs/strategy/transit-app-design-research.md`, `docs/strategy/troski-commute-habit-plan.md`, `CLAUDE.md`, release tab layout, `ReleaseHome`, `MyRoutesCard`, `useFavorites`, `routes/[id]`, `(tabs)/routes`, `train/index`, `stations/index`, `queue/status`, backend `/api/commute`, `commute-card.ts`, migration 099, `schema.sql`. "Assumption" = not verified in code. Status: **owner decisions locked 2026-10-09 (all §7 recommendations accepted)** — mockups: https://claude.ai/artifact/75jZq8qdpEU3ZtUKfaHUU2 — nothing built yet._
 
 ## Decision
 
@@ -241,3 +241,5 @@ Maestro `npm run e2e` exists; add Home → station → report flow after wave 2.
 3. Confirm the 3 launch corridors + colours (Madina–Circle blue, Kasoa–Circle/Kaneshie teal, Tema–Accra violet).
 4. Who approves alerts (gates wave 4)?
 5. Remove `TodaysFares` from Home (recommended) or keep as a compact row under My lines?
+
+**Owner answers (2026-10-09): all recommendations accepted** — tab label **Lines**; **Rewards leaves** the tab bar for **Stations**; corridors MAD·CIR blue / KAS·CIR teal / TEM·ACC violet; **owner approves every alert** (first 8 weeks); **Today's fares removed** from Home.

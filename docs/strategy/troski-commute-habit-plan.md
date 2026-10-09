@@ -86,3 +86,14 @@ Already logged: push sends (cron result). Needed: push open tracking + daily act
 2. Budget for station reporters (5 people × peak hours) — yes/no, how long a trial?
 3. Who approves alerts (owner, or hire an editor)?
 4. Morning push time: keep 06:15, or earlier for Kasoa/Tema riders (05:30)?
+
+## 7. Owner decisions (2026-10-09) — recommendations accepted
+
+1. **Launch corridors:** Madina ↔ Circle, Kasoa ↔ Circle (via Kaneshie), Tema Station ↔ Accra.
+2. **Push times:** morning **05:45**, afternoon **16:30** (Ghana = UTC; vercel.json, web 8a59515).
+3. **Station reporters (Phase 2):** 4-week trial, 4 people — Madina, Kasoa, Circle (Madina + Kasoa bays), Tema Station; Mon–Fri 05:30–08:30 and 16:30–19:00; try GPRTU station bookmen/loaders first; report via the WhatsApp bot, tagged as reporter (migration 100, redesign wave 5). Daily rate set by owner; part in data bundles.
+4. **Freshness target:** a report < 30 min old at each launch station in ≥ 80% of peak half-hours.
+5. **Alert approver:** owner only, first 8 weeks; no alert without a source (GPRTU/official notice or on-site reporter).
+6. **Crowd incentive:** double coins for queue reports on launch corridors at peak.
+7. **Measurement:** build push-open tracking before the reporter trial.
+8. **Generic push "save your route" line:** after the Android FCM fix + next store release.
