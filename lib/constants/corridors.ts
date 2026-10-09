@@ -69,3 +69,8 @@ export function corridorFor(from: string, to: string): Corridor {
     isLaunch: !!launch,
   }
 }
+
+/** Direction-free key ("CIR|MAD") — the same key the web's corridors.ts and service_alerts use. */
+export function corridorKey(from: string, to: string): string {
+  return [terminalCode(from), terminalCode(to)].sort().join('|')
+}

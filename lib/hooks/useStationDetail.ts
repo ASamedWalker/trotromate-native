@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { fetchStations, type QueueStatus, type StationWithQueue } from '@/lib/services/stations'
 
@@ -64,5 +64,29 @@ export function useStationDetail(rawId: string | undefined) {
     },
   })
 
-  return { station, isLoading: stations.isLoading, isError: stations.isError, lines, reports }
+  // "Still like this? Confirm" targets the newest report while it is under 2 h old (migration 100).
+  const latest = reports.data?.[0]
+  const latestFresh = latest && Date.now() - new Date(latest.reported_at).getTime() < 2 * 60 * 60 * 1000 ? latest : undefined
+  const confirmations = useQuery({
+    queryKey: ['queue-confirmations', latestFresh?.id],
+    enabled: !!latestFresh,
+    staleTime: 30 * 1000,
+    queryFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc('queue_confirmation_counts', { p_report_ids: [latestFresh!.id] })
+      if (error) return 0 // before migration 100: no counts yet
+      return (data as { confirmations: number }[] | null)?.[0]?.confirmations ?? 0
+    },
+  })
+  const qc = useQueryClient()
+  const confirm = useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc('confirm_queue_report', { p_report_id: latestFresh!.id })
+      if (error) throw error
+      if (typeof data !== 'number' || data < 0) throw new Error('This report can no longer be confirmed')
+      return data
+    },
+    onSuccess: (n) => qc.setQueryData(['queue-confirmations', latestFresh?.id], n),
+  })
+
+  return { station, isLoading: stations.isLoading, isError: stations.isError, lines, reports, latestFresh, confirmations, confirm }
 }

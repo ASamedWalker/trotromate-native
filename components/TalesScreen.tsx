@@ -21,6 +21,8 @@ import {
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { useAlerts } from '@/lib/hooks/useAlerts'
+import { AlertCard } from '@/components/AlertRow'
 import { RELEASE_MODE as REDESIGN } from '@/lib/config/release'
 import { useRouter, type Href } from 'expo-router'
 import { Image as ExpoImage } from 'expo-image'
@@ -529,6 +531,8 @@ const PULSE_BAND = '#FFF3EA'
 
 export function TalesScreen() {
   const topInset = useSafeAreaInsets().top
+  const alertsQ = useAlerts()
+  const alerts = REDESIGN ? alertsQ.data ?? [] : []
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
@@ -639,6 +643,16 @@ export function TalesScreen() {
         <Text style={s.title}>Pulse</Text>
         <Text style={s.subtitle}>From the road, by commuters</Text>
       </View>
+      {alerts.length > 0 ? (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ marginHorizontal: 20, marginBottom: 8, fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: '#5F6670' }}>
+            ALERTS · APPROVED BY TROSKI
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+            {alerts.map((a) => <AlertCard key={a.id} alert={a} />)}
+          </ScrollView>
+        </View>
+      ) : null}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

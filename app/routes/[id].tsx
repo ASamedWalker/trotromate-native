@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { adinkraPatternXml } from '@/lib/brand/adinkra'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MapPin, Plus, Heart, MessageCircle, Info, ChevronDown, ChevronUp, Receipt } from 'lucide-react-native'
+import { MapPin, Plus, Heart, MessageCircle, Info, ChevronDown, ChevronUp, Receipt, Bell } from 'lucide-react-native'
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
@@ -20,6 +20,10 @@ import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { fetchStations } from '@/lib/services/stations'
 import { corridorFor } from '@/lib/constants/corridors'
 import { QueueStatusLine } from '@/components/QueueStatusLine'
+import { useApp } from '@/lib/contexts/AppContext'
+import { useAlerts, alertsForRoute } from '@/lib/hooks/useAlerts'
+import { AlertRow } from '@/components/AlertRow'
+
 import { fetchRouteActivity } from '@/lib/services/route-activity'
 import { fetchRouteSegmentFares, resolveDropoffFareSync } from '@/lib/services/segment-fares'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
@@ -31,6 +35,8 @@ import { formatGHS } from '@/lib/utils/currency'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { RELEASE_MODE } from '@/lib/config/release'
 import { titleCase } from '@/lib/utils/title-case'
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
 /**
  * Line page (Lines tab → route). Redesign approved 2026-10-04 (design canvas,
@@ -68,6 +74,19 @@ export default function RouteDetailScreen() {
 
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
   const stationsQ = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: RELEASE_MODE })
+  const { deviceId } = useApp()
+  const alertsQ = useAlerts()
+  // Your reporter rank on this corridor (30 days) — shown only when you have reports here.
+  const rankQ = useQuery({
+    queryKey: ['corridor-rank', deviceId, id],
+    enabled: RELEASE_MODE && !!deviceId && !!id,
+    staleTime: 10 * 60 * 1000,
+    queryFn: async (): Promise<{ rank: number | null; reports: number }> => {
+      const res = await fetch(`${API_URL}/api/reports/rank?device_id=${encodeURIComponent(deviceId!)}&route_id=${encodeURIComponent(id!)}`)
+      if (!res.ok) return { rank: null, reports: 0 }
+      return res.json()
+    },
+  })
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
   const { data: segments = [] } = useQuery({
     queryKey: ['segment-fares', id],
@@ -234,7 +253,19 @@ export default function RouteDetailScreen() {
           )}
           <View style={s.heroBody}>
             {RELEASE_MODE && !isOkada ? (
-              <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>{corridor.code}</HeroText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>{corridor.code}</HeroText>
+                {rankQ.data?.rank ? (
+                  <View
+                    accessible
+                    accessibilityLabel={`You are the number ${rankQ.data.rank} reporter on this line this month`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
+                  >
+                    <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: corridor.color }}>#{rankQ.data.rank}</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 11, color: corridor.color }}>reporter{'\n'}this month</Text>
+                  </View>
+                ) : null}
+              </View>
             ) : (
               <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#F5A300' }]}>
                 <Text style={s.kindText}>{isOkada ? 'OKADA ROUTE' : 'TROTRO ROUTE'}</Text>
@@ -282,6 +313,22 @@ export default function RouteDetailScreen() {
               </View>
             </View>
           ) : null}
+          {RELEASE_MODE && !isOkada ? (() => {
+            const routeAlerts = alertsForRoute(alertsQ.data, route.from_location, route.to_location).slice(0, 2)
+            return (
+              <View style={{ gap: 8 }}>
+                {routeAlerts.map((a) => <AlertRow key={a.id} alert={a} />)}
+                {favorited ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF2FF', borderRadius: 14, padding: 12 }}>
+                    <Bell size={18} color="#3730A3" />
+                    <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: '#312E81' }}>
+                      Alerts on for this line. Disruptions are pushed to you, outside your quiet hours.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            )
+          })() : null}
           {isOkada ? (
             <>
               <View style={s.notice} accessible>

@@ -19,6 +19,9 @@ import { pulseKind } from '@/lib/utils/pulse-extract'
 import { timeAgo } from '@/lib/utils/time'
 import MyRoutesCard, { useCommute } from './MyRoutesCard'
 import NearbyStationsCard from './NearbyStationsCard'
+import { useAlerts } from '@/lib/hooks/useAlerts'
+import { AlertRow } from '@/components/AlertRow'
+import { corridorKey } from '@/lib/constants/corridors'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { formatGHS } from '@/lib/utils/currency'
 import NextTrainCard from './NextTrainCard'
@@ -134,6 +137,13 @@ export default function ReleaseHome() {
   const locationName = useLocationName()
   const night = useIsNight()
   const { saved, variant, infoById } = useCommute()
+  const alertsQ = useAlerts()
+  // Alerts on a corridor the rider saved first, then city-wide ones; at most two on Home.
+  const savedKeys = new Set(saved.map((f) => corridorKey(f.from, f.to)))
+  const homeAlerts = (alertsQ.data ?? [])
+    .filter((a) => a.citywide || a.corridors.some((k) => savedKeys.has(k)))
+    .sort((a, b) => Number(b.corridors.some((k) => savedKeys.has(k))) - Number(a.corridors.some((k) => savedKeys.has(k))))
+    .slice(0, 2)
 
   const displayName = profile?.display_name || 'Commuter'
   // Auto-assigned names ("Troski Fan #CD13") aren't a person's name — greet plainly.
@@ -251,6 +261,14 @@ export default function ReleaseHome() {
           </TouchableOpacity>
         ) : null}
       </View>
+
+      {homeAlerts.length > 0 ? (
+        <View style={{ marginHorizontal: 20, marginTop: 18, gap: 8 }}>
+          {homeAlerts.map((a) => (
+            <AlertRow key={a.id} alert={a} onPress={() => router.navigate('/(tabs)/tales' as any)} />
+          ))}
+        </View>
+      ) : null}
 
       <MyRoutesCard />
       <NearbyStationsCard />

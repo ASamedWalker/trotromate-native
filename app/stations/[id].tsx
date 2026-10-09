@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Map as MapIcon, Users } from 'lucide-react-native'
+import { Check, ChevronRight, Map as MapIcon, Users } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { BackButton } from '@/components/BackButton'
 import { HeroText } from '@/components/HeroText'
@@ -13,6 +13,7 @@ import { QUEUE_COLOR, QUEUE_WORD } from '@/lib/constants/queueStatus'
 import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { formatGHS } from '@/lib/utils/currency'
 import { useStationDetail } from '@/lib/hooks/useStationDetail'
+import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { CARD, ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from '@/components/home/tokens'
 
 /**
@@ -24,7 +25,8 @@ export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { station, isLoading, isError, lines, reports } = useStationDetail(id)
+  const { station, isLoading, isError, lines, reports, latestFresh, confirmations, confirm } = useStationDetail(id)
+  const { isAuthenticated } = useAuthContext()
 
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: '#FAFAF9', paddingTop: insets.top + 12, paddingHorizontal: 20 }}><BackButton /></View>
@@ -81,6 +83,11 @@ export default function StationDetailScreen() {
             ? 'Be the first to say how the queue looks.'
             : `Reported ${ageLabel(stat?.last_report_at)}${stat?.report_count_last_hour ? ` · ${stat.report_count_last_hour} ${stat.report_count_last_hour === 1 ? 'report' : 'reports'} in the last hour` : ''}`}
         </Text>
+        {latestFresh && (confirmations.data ?? 0) > 0 ? (
+          <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#15803D', marginTop: 6 }}>
+            ✓ Confirmed by {confirmations.data} {confirmations.data === 1 ? 'rider' : 'riders'}
+          </Text>
+        ) : null}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={report}
@@ -91,6 +98,25 @@ export default function StationDetailScreen() {
           <Users size={18} color="#FFFFFF" />
           <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>Report the queue here</Text>
         </TouchableOpacity>
+        {latestFresh ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={confirm.isPending || confirm.isSuccess}
+            onPress={() => {
+              if (!isAuthenticated) { router.push('/auth/phone' as any); return }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              confirm.mutate()
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isAuthenticated ? 'Still like this? Confirm the latest report' : 'Sign in to confirm the latest report'}
+            style={{ marginTop: 8, height: 46, borderRadius: 12, backgroundColor: ORANGE_SOFT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            <Check size={18} color={ORANGE} />
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: ORANGE }}>
+              {confirm.isSuccess ? 'Thanks — confirmed' : confirm.isError ? 'Could not confirm' : isAuthenticated ? 'Still like this? Confirm' : 'Sign in to confirm'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Lines from here */}

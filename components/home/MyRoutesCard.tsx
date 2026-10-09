@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Heart, Users } from 'lucide-react-native'
+import { ChevronRight, Heart, Users, TriangleAlert } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -25,7 +25,8 @@ export interface CommuteInfo {
   from: string
   to: string
   fare: { amount: number; source: 'gprtu' | 'reported' } | null
-  queue: { station: string; status: QueueStatus; label: string; reportedAt: string } | null
+  queue: { station: string; status: QueueStatus; label: string; reportedAt: string; reportId?: string; confirmations?: number } | null
+  alert?: { id: string; title: string; severity: string; source: string } | null
 }
 
 interface CommuteResponse {
@@ -142,9 +143,20 @@ export default function MyRoutesCard({ style }: { style?: object }) {
                   {q.isLoading ? (
                     <View style={{ height: 12, width: 140, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.25)' }} />
                   ) : q.isError ? null : (
-                    <QueueStatusLine status={info?.queue?.status} reportedAt={info?.queue?.reportedAt} onColor />
+                    <QueueStatusLine
+                      status={info?.queue?.status}
+                      reportedAt={info?.queue?.reportedAt}
+                      onColor
+                      suffix={info?.queue?.confirmations ? `${info.queue.confirmations} confirmed` : undefined}
+                    />
                   )}
                 </View>
+                {info?.alert ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
+                    <TriangleAlert size={14} color="#FDE68A" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>{info.alert.title}</Text>
+                  </View>
+                ) : null}
               </View>
               {fare ? (
                 <View style={{ alignItems: 'flex-end' }}>
