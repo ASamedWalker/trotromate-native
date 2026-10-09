@@ -60,6 +60,7 @@ import {
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { RELEASE_MODE } from '@/lib/config/release'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { ReleaseTrainTop } from '@/components/train/ReleaseTrainTop'
 import { Dimensions } from 'react-native'
 
 // ─── Schedule helpers ────────────────────────────────────
@@ -642,8 +643,13 @@ export default function TrainLinesScreen() {
         {/* ─── My trip ─────────────────────────────────────── */}
         {renderMyTrip()}
 
+        {/* ─── Store release: next departure + all lines (redesign) ─── */}
+        {!trip && RELEASE_MODE && (
+          <ReleaseTrainTop lineIdByCode={Object.fromEntries((lines ?? []).map((l) => [l.code, l.id]))} />
+        )}
+
         {/* ─── Departure Board (no saved trip) ─────────── */}
-        {!trip && (
+        {!trip && !RELEASE_MODE && (
         <>
         <Animated.View entering={FadeInDown.delay(150).duration(dur.entrance)} style={s.board}>
           <View
