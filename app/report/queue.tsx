@@ -21,8 +21,6 @@ import {
   Check,
   Bus,
   X,
-  Minus,
-  Plus,
   Send,
   Search,
   ChevronDown,
@@ -30,6 +28,9 @@ import {
   Clock,
 } from 'lucide-react-native'
 import { REPORT_POINTS } from '@/lib/constants/rewards'
+import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { SvgXml } from 'react-native-svg'
+import { adinkraXml } from '@/lib/brand/adinkra'
 import { font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
 import { useStations } from '@/lib/hooks/useStations'
@@ -46,6 +47,12 @@ const QUEUE_LEVELS = [
   { id: 'very_long', label: 'Very long', sub: '45 min or more', color: '#B91C1C', Icon: Clock },
 ]
 
+let nteaseeXml: string | null = null
+function nteasee(): string {
+  if (!nteaseeXml) nteaseeXml = adinkraXml('nteasee', 36, '#E8461A')
+  return nteaseeXml
+}
+
 export default function QueueReportScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
@@ -53,7 +60,8 @@ export default function QueueReportScreen() {
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { width } = useWindowDimensions()
 
-  const { deviceId, refreshProfile, setLastReward } = useApp()
+  const { deviceId, profile, refreshProfile } = useApp()
+  const [sent, setSent] = useState<{ points: number } | null>(null)
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
@@ -64,7 +72,6 @@ export default function QueueReportScreen() {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(params.station_id ?? null)
   const [selectedStationName, setSelectedStationName] = useState(params.station_name ?? '')
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
-  const [vehicleCount, setVehicleCount] = useState(0)
   const [locationModalVisible, setLocationModalVisible] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -93,15 +100,15 @@ export default function QueueReportScreen() {
       name,
       selectedLevel,
       selectedStationId ?? undefined,
-      vehicleCount > 0 ? vehicleCount : undefined,
+      undefined, // vehicle count dropped from the redesigned screen
       undefined
     )
     if (result) {
       haptics.success()
-      await refreshProfile()
-      setLastReward(result)
-      await maybePromptReview()
-      router.back()
+      // In-screen "Medaase" card (redesign) instead of the old global reward toast.
+      setSent({ points: result.points_awarded ?? REPORT_POINTS.queue })
+      refreshProfile().catch(() => {})
+      setTimeout(() => { maybePromptReview().finally(() => router.back()) }, 2600)
     } else {
       Alert.alert('Error', 'Failed to submit report. Please try again.')
     }
@@ -121,6 +128,9 @@ export default function QueueReportScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 120 }}
       >
+        {/* Adinkra band behind the station + question (redesign) */}
+        <View style={{ overflow: 'hidden', backgroundColor: '#FFF3EA', paddingBottom: 4, marginBottom: 14 }}>
+          <AdinkraWallpaper width={width} height={260} size={26} color="rgba(232,70,26,0.10)" />
         {/* Location Pill */}
         <View style={s.locationPillWrap}>
           <TouchableOpacity
@@ -142,6 +152,13 @@ export default function QueueReportScreen() {
             {selectedStationName ? `How's the queue at ${selectedStationName}?` : "How's the queue?"}
           </Text>
           <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#5F6670' }}>Tap what you see right now.</Text>
+        </View>
+
+          <View style={{ paddingHorizontal: 24, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 999, paddingHorizontal: 12, height: 32 }}>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: '#92400E' }}>{profile?.total_points ?? 0} coins</Text>
+            </View>
+          </View>
         </View>
 
         {/* Quick tiles 2x2 */}
@@ -176,40 +193,14 @@ export default function QueueReportScreen() {
           })}
         </View>
 
-        {/* Counter Section */}
-        <View style={s.counterCard}>
-          <Text style={s.counterTitle}>Buses in the yard</Text>
-          <Text style={s.counterSubtitle}>
-            Approximate count of available vehicles
-          </Text>
-          <View style={s.counterRow}>
-            <TouchableOpacity
-              onPress={() => {
-                if (vehicleCount > 0) {
-                  setVehicleCount(vehicleCount - 1)
-                  haptics.light()
-                }
-              }}
-              activeOpacity={0.7}
-              style={s.counterBtnMinus}
-            >
-              <Minus size={24} color="#815100" />
-            </TouchableOpacity>
-            <Text style={s.counterValue}>
-              {vehicleCount.toString().padStart(2, '0')}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                setVehicleCount(vehicleCount + 1)
-                haptics.light()
-              }}
-              activeOpacity={0.7}
-              style={s.counterBtnPlus}
-            >
-              <Plus size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <TouchableOpacity
+          onPress={() => { haptics.light(); router.back() }}
+          accessibilityRole="button"
+          accessibilityLabel="Skip, not at a station"
+          style={{ alignSelf: 'flex-end', marginRight: 24, marginTop: 12, backgroundColor: '#EFEDEA', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
+        >
+          <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: '#5F6670' }}>Skip</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Fixed Bottom Submit */}
@@ -231,6 +222,19 @@ export default function QueueReportScreen() {
           </View>
         </TouchableOpacity>
       </View>
+
+      {sent ? (
+        <View style={{ position: 'absolute', left: 20, right: 20, bottom: 110, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#111111', borderRadius: 16, padding: 14 }} accessibilityLiveRegion="polite" accessible accessibilityLabel={`Medaase! At least ${sent.points} coins. Riders who board at ${selectedStationName} will see your report.`}>
+          <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFF3EA', alignItems: 'center', justifyContent: 'center' }}>
+            <SvgXml xml={nteasee()} width={36} height={36} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>Medaase! +{sent.points} coins</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Riders who board at {selectedStationName} see it now.</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Nteasee · understanding, cooperation</Text>
+          </View>
+        </View>
+      ) : null}
 
       {/* Station Picker Modal */}
       <Modal visible={locationModalVisible} transparent animationType="slide">
