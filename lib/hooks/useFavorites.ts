@@ -95,10 +95,22 @@ export function useFavorites() {
     })
   }, [])
 
+  // Re-read from storage (another screen's instance may have changed the list)
+  const reload = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY)
+      const parsed = stored ? JSON.parse(stored) : []
+      const next: FavoriteRoute[] = Array.isArray(parsed) ? parsed : []
+      setFavorites((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+    } catch (error) {
+      console.error('Failed to reload favorites:', error)
+    }
+  }, [])
+
   const isFavorite = useCallback(
     (routeId: string) => favorites.some((f) => f.id === routeId),
     [favorites]
   )
 
-  return { favorites, isLoaded, toggleFavorite, isFavorite }
+  return { favorites, isLoaded, toggleFavorite, isFavorite, reload }
 }

@@ -20,6 +20,7 @@ import { fetchTales } from '@/lib/services/tales'
 import { pulseKind } from '@/lib/utils/pulse-extract'
 import { timeAgo } from '@/lib/utils/time'
 import TodaysFares from './TodaysFares'
+import MyRoutesCard from './MyRoutesCard'
 import NextTrainCard from './NextTrainCard'
 import ReleaseWhatsOn from './ReleaseWhatsOn'
 import { CARD, ORANGE, ORANGE_DEEP, ORANGE_SOFT, TEXT, TEXT2 } from './tokens'
@@ -246,6 +247,7 @@ export default function ReleaseHome() {
         </View>
       </TouchableOpacity>
 
+      <MyRoutesCard />
       <TodaysFares />
 
       <View style={{ flexDirection: 'row', gap: 12, marginHorizontal: 20, marginTop: 18 }}>

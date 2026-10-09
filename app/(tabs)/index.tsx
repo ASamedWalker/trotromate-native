@@ -35,6 +35,7 @@ import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { authedFetch } from '@/lib/services/authedFetch'
 import { RELEASE_MODE } from '@/lib/config/release'
 import ReleaseHome from '@/components/home/ReleaseHome'
+import MyRoutesCard from '@/components/home/MyRoutesCard'
 
 // Approx Ghana bounding box — used only to guard against implausible
 // reverse-geocode results (e.g. simulator default location showing
@@ -252,6 +253,9 @@ function FullHomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── My routes: saved routes' fare + queue (same data as the morning push) ── */}
+        <MyRoutesCard style={{ marginHorizontal: space.gutter, marginTop: 0, marginBottom: space.gutter }} />
 
         {/* ── Wallet card — split Ghana transit-card design, actions underneath ── */}
         <View style={{ paddingHorizontal: space.gutter, marginBottom: space.gutter, gap: space.md }}>
