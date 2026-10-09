@@ -29,6 +29,9 @@ export default {
         backgroundColor: "#f59e0b",
       },
       package: "com.troski.app",
+      // Firebase Cloud Messaging (Android push). google-services.json is git-ignored;
+      // EAS builds get it from the GOOGLE_SERVICES_JSON file variable (preview + production).
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       edgeToEdgeEnabled: true,
       permissions: [
         "android.permission.CAMERA",
