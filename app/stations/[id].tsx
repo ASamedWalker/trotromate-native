@@ -14,6 +14,8 @@ import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { formatGHS } from '@/lib/utils/currency'
 import { useStationDetail } from '@/lib/hooks/useStationDetail'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
+import { CountText } from '@/components/motion/CountText'
+import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { CARD, ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from '@/components/home/tokens'
 
 /**
@@ -76,7 +78,9 @@ export default function StationDetailScreen() {
           accessibilityLabel={kind === 'stale' || !status ? 'No recent queue report' : `${QUEUE_WORD[status]}, reported ${ageLabel(stat?.last_report_at)}`}
         >
           <FreshnessDot kind={kind} color={heroColor} size={14} />
-          <HeroText size={32} style={{ color: heroColor }}>{kind === 'stale' || !status ? 'No recent report' : QUEUE_WORD[status]}</HeroText>
+          <FlashOnChange token={`${status}:${stat?.last_report_at}`} style={{ flexShrink: 1 }}>
+            <HeroText size={32} style={{ color: heroColor }}>{kind === 'stale' || !status ? 'No recent report' : QUEUE_WORD[status]}</HeroText>
+          </FlashOnChange>
         </View>
         <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>
           {kind === 'stale' || !status
@@ -84,9 +88,13 @@ export default function StationDetailScreen() {
             : `Reported ${ageLabel(stat?.last_report_at)}${stat?.report_count_last_hour ? ` · ${stat.report_count_last_hour} ${stat.report_count_last_hour === 1 ? 'report' : 'reports'} in the last hour` : ''}`}
         </Text>
         {latestFresh && (confirmations.data ?? 0) > 0 ? (
-          <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#15803D', marginTop: 6 }}>
-            ✓ Confirmed by {confirmations.data} {confirmations.data === 1 ? 'rider' : 'riders'}
-          </Text>
+          <FlashOnChange token={confirmations.data} color="rgba(21,128,61,0.12)" style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+            <CountText
+              value={confirmations.data ?? 0}
+              format={(n) => `✓ Confirmed by ${n} ${n === 1 ? 'rider' : 'riders'}`}
+              style={{ fontFamily: font.bold, fontSize: 13, color: '#15803D' }}
+            />
+          </FlashOnChange>
         ) : null}
         <TouchableOpacity
           activeOpacity={0.85}

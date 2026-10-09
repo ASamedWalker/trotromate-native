@@ -9,6 +9,7 @@ import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { nextDepartures, formatRemaining, LINE_COLORS } from '@/lib/utils/train-stations'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
+import { RollText } from '@/components/motion/RollText'
 
 const BOARD = '#0C1220'
 
@@ -67,12 +68,12 @@ export function ReleaseTrainTop({ lineIdByCode }: { lineIdByCode: Record<string,
         >
           {next.offset === 0 && mins < 60 ? (
             <>
-              <HeroText size={56} style={{ color: '#FFFFFF' }}>{mins}</HeroText>
+              <RollText value={mins}><HeroText size={56} style={{ color: '#FFFFFF' }}>{mins}</HeroText></RollText>
               <Text style={{ fontFamily: font.medium, fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 12 }}>min · departs {next.departTime}</Text>
             </>
           ) : (
             <>
-              <HeroText size={40} style={{ color: '#FFFFFF' }}>{next.offset === 0 ? formatRemaining(mins) : next.when}</HeroText>
+              <RollText value={next.offset === 0 ? formatRemaining(mins) : next.when}><HeroText size={40} style={{ color: '#FFFFFF' }}>{next.offset === 0 ? formatRemaining(mins) : next.when}</HeroText></RollText>
               <Text style={{ fontFamily: font.medium, fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>· departs {next.departTime}</Text>
             </>
           )}
@@ -125,7 +126,7 @@ export function ReleaseTrainTop({ lineIdByCode }: { lineIdByCode: Record<string,
                 <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#5F6670' }}>Scheduled · next {today ? '' : `${d.when} `}{d.departTime}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <HeroText size={22} style={{ color: '#111111' }}>{today ? formatRemaining(d.remainingMinutes ?? 0) : '—'}</HeroText>
+                <RollText value={today ? formatRemaining(d.remainingMinutes ?? 0) : '—'}><HeroText size={22} style={{ color: '#111111' }}>{today ? formatRemaining(d.remainingMinutes ?? 0) : '—'}</HeroText></RollText>
               </View>
               {id ? <ChevronRight size={16} color="#9CA3AF" /> : null}
             </TouchableOpacity>

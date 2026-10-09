@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Animated as RNAnimated } from 'react-native'
 import { SvgXml } from 'react-native-svg'
 import { StatusBar } from 'expo-status-bar'
 import { adinkraPatternXml } from '@/lib/brand/adinkra'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MapPin, Plus, Heart, MessageCircle, Info, ChevronDown, ChevronUp, Receipt, Bell } from 'lucide-react-native'
-import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, useReducedMotion } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { BackButton } from '@/components/BackButton'
@@ -75,6 +75,14 @@ export default function RouteDetailScreen() {
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
   const stationsQ = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: RELEASE_MODE })
   const { deviceId } = useApp()
+  // Heart "pop" when saving/unsaving (core Animated; the button sits outside the ScrollView).
+  const heartScale = useRef(new RNAnimated.Value(1)).current
+  const reducedMotion = useReducedMotion()
+  const popHeart = () => {
+    if (reducedMotion) return
+    heartScale.setValue(0.7)
+    RNAnimated.spring(heartScale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 14 }).start()
+  }
   const alertsQ = useAlerts()
   // Your reporter rank on this corridor (30 days) — shown only when you have reports here.
   const rankQ = useQuery({
@@ -213,13 +221,15 @@ export default function RouteDetailScreen() {
       </View>
       <View style={[s.topBtn, { right: 16, top: insets.top + 8 }]}>
         <TouchableOpacity
-          onPress={() => { haptics.light(); toggleFavorite({ id: id!, from: route.from_location, to: route.to_location }) }}
+          onPress={() => { haptics.light(); popHeart(); toggleFavorite({ id: id!, from: route.from_location, to: route.to_location }) }}
           hitSlop={8}
           style={s.favBtn}
           accessibilityRole="button"
           accessibilityLabel={favorited ? 'Remove from saved routes' : 'Save route'}
         >
-          <Heart size={20} color={favorited ? '#EF4444' : '#FFFFFF'} fill={favorited ? '#EF4444' : 'transparent'} />
+          <RNAnimated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Heart size={20} color={favorited ? '#EF4444' : '#FFFFFF'} fill={favorited ? '#EF4444' : 'transparent'} />
+          </RNAnimated.View>
         </TouchableOpacity>
       </View>
       <Animated.View pointerEvents="none" style={[s.scrim, { height: insets.top }, scrimStyle]} />

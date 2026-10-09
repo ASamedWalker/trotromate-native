@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
@@ -10,6 +10,9 @@ import { useFavorites } from '@/lib/hooks/useFavorites'
 import { HeroText } from '@/components/HeroText'
 import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
 import { corridorFor } from '@/lib/constants/corridors'
+import { PressableScale } from '@/components/motion/PressableScale'
+import { EnterIn } from '@/components/motion/EnterIn'
+import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import type { QueueStatus } from '@/lib/services/stations'
 import { ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from './tokens'
 
@@ -74,6 +77,9 @@ export function useCommute() {
 export default function MyRoutesCard({ style }: { style?: object }) {
   const router = useRouter()
   const { saved, isLoaded, variant, q, infoById } = useCommute()
+  // Lines present when Home first loads stay put; a line saved later slides in.
+  const seen = useRef<Set<string> | null>(null)
+  if (isLoaded && seen.current === null) seen.current = new Set(saved.map((f) => f.id))
 
   if (!isLoaded) return null
 
@@ -126,10 +132,11 @@ export default function MyRoutesCard({ style }: { style?: object }) {
           const to = info?.to ?? (out ? f.to : f.from)
           const { code, color } = corridorFor(from, to)
           const fare = info?.fare
+          const isNew = !!seen.current && !seen.current.has(f.id)
+          if (isNew) seen.current!.add(f.id)
           return (
-            <TouchableOpacity
-              key={f.id}
-              activeOpacity={0.85}
+            <EnterIn key={f.id} animate={isNew}>
+            <PressableScale
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/routes/[id]', params: { id: f.id } } as any) }}
               accessibilityRole="button"
               accessibilityLabel={`${from} to ${to}${fare ? `, ${formatGHS(fare.amount)}${fare.source === 'reported' ? ' reported by riders' : ' GPRTU fare'}` : ''}${q.data ? `, ${queueA11y(info?.queue?.status, info?.queue?.reportedAt)}` : ''}`}
@@ -143,12 +150,14 @@ export default function MyRoutesCard({ style }: { style?: object }) {
                   {q.isLoading ? (
                     <View style={{ height: 12, width: 140, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.25)' }} />
                   ) : q.isError ? null : (
+                    <FlashOnChange token={`${info?.queue?.status}:${info?.queue?.reportedAt}:${info?.queue?.confirmations ?? 0}`} color="rgba(255,255,255,0.18)">
                     <QueueStatusLine
                       status={info?.queue?.status}
                       reportedAt={info?.queue?.reportedAt}
                       onColor
                       suffix={info?.queue?.confirmations ? `${info.queue.confirmations} confirmed` : undefined}
                     />
+                    </FlashOnChange>
                   )}
                 </View>
                 {info?.alert ? (
@@ -168,7 +177,8 @@ export default function MyRoutesCard({ style }: { style?: object }) {
                   </Text>
                 </View>
               ) : null}
-            </TouchableOpacity>
+            </PressableScale>
+            </EnterIn>
           )
         })}
       </View>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -30,6 +30,8 @@ import {
 import { REPORT_POINTS } from '@/lib/constants/rewards'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { SvgXml } from 'react-native-svg'
+import { EnterIn } from '@/components/motion/EnterIn'
+import { CountText } from '@/components/motion/CountText'
 import { adinkraXml } from '@/lib/brand/adinkra'
 import { font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
@@ -62,6 +64,8 @@ export default function QueueReportScreen() {
 
   const { deviceId, profile, refreshProfile } = useApp()
   const [sent, setSent] = useState<{ points: number } | null>(null)
+  // Count from the coins shown when the screen opened, so a profile refresh can't double-count.
+  const coinsAtOpen = useRef(profile?.total_points ?? 0)
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
@@ -156,7 +160,7 @@ export default function QueueReportScreen() {
 
           <View style={{ paddingHorizontal: 24, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 999, paddingHorizontal: 12, height: 32 }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: '#92400E' }}>{profile?.total_points ?? 0} coins</Text>
+              <CountText value={sent ? coinsAtOpen.current + sent.points : profile?.total_points ?? 0} format={(n) => `${n} coins`} style={{ fontFamily: font.extrabold, fontSize: 14, color: '#92400E' }} />
             </View>
           </View>
         </View>
@@ -224,7 +228,8 @@ export default function QueueReportScreen() {
       </View>
 
       {sent ? (
-        <View style={{ position: 'absolute', left: 20, right: 20, bottom: 110, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#111111', borderRadius: 16, padding: 14 }} accessibilityLiveRegion="polite" accessible accessibilityLabel={`Medaase! At least ${sent.points} coins. Riders who board at ${selectedStationName} will see your report.`}>
+        <EnterIn animate style={{ position: 'absolute', left: 20, right: 20, bottom: 110 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#111111', borderRadius: 16, padding: 14 }} accessibilityLiveRegion="polite" accessible accessibilityLabel={`Medaase! At least ${sent.points} coins. Riders who board at ${selectedStationName} will see your report.`}>
           <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFF3EA', alignItems: 'center', justifyContent: 'center' }}>
             <SvgXml xml={nteasee()} width={36} height={36} />
           </View>
@@ -234,6 +239,7 @@ export default function QueueReportScreen() {
             <Text style={{ fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Nteasee · understanding, cooperation</Text>
           </View>
         </View>
+        </EnterIn>
       ) : null}
 
       {/* Station Picker Modal */}

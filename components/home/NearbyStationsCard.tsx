@@ -8,6 +8,8 @@ import { font } from '@/lib/theme'
 import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
+import { FlashOnChange } from '@/components/motion/FlashOnChange'
+import { PressableScale } from '@/components/motion/PressableScale'
 import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
 import { CARD, ORANGE, TEXT, TEXT2 } from './tokens'
 
@@ -87,9 +89,8 @@ export default function NearbyStationsCard() {
       ) : rows.map(({ s, d }, i) => {
         const stat = s.queue_stats?.[0]
         return (
-          <TouchableOpacity
+          <PressableScale
             key={s.id}
-            activeOpacity={0.7}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/stations/[id]', params: { id: s.id } } as any) }}
             accessibilityRole="button"
             accessibilityLabel={`${s.name}${d != null ? `, ${fmtKm(d)} away` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
@@ -103,11 +104,13 @@ export default function NearbyStationsCard() {
                 <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: TEXT, flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
                 {d != null ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{fmtKm(d)}</Text> : null}
               </View>
-              <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
+              <FlashOnChange token={`${stat?.current_status}:${stat?.last_report_at}`}>
+                <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
+              </FlashOnChange>
             </View>
             {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
             <ChevronRight size={18} color="#9CA3AF" />
-          </TouchableOpacity>
+          </PressableScale>
         )
       })}
     </View>

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, type Href } from 'expo-router'
+import { useRouter, useFocusEffect, type Href } from 'expo-router'
+import { setStatusBarStyle } from 'expo-status-bar'
 import { useQuery } from '@tanstack/react-query'
 import * as Haptics from 'expo-haptics'
 import { SvgXml } from 'react-native-svg'
@@ -21,6 +22,7 @@ import MyRoutesCard, { useCommute } from './MyRoutesCard'
 import NearbyStationsCard from './NearbyStationsCard'
 import { useAlerts } from '@/lib/hooks/useAlerts'
 import { AlertRow } from '@/components/AlertRow'
+import { CountText } from '@/components/motion/CountText'
 import { corridorKey } from '@/lib/constants/corridors'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { formatGHS } from '@/lib/utils/currency'
@@ -136,6 +138,11 @@ export default function ReleaseHome() {
   const { isAuthenticated } = useAuthContext()
   const locationName = useLocationName()
   const night = useIsNight()
+  // Light clock/battery icons over the dark evening band; dark ones over the daylight band.
+  useFocusEffect(useCallback(() => {
+    setStatusBarStyle(night ? 'light' : 'dark')
+    return () => setStatusBarStyle('dark')
+  }, [night]))
   const { saved, variant, infoById } = useCommute()
   const alertsQ = useAlerts()
   // Alerts on a corridor the rider saved first, then city-wide ones; at most two on Home.
@@ -214,7 +221,7 @@ export default function ReleaseHome() {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: chipBg }}
           >
             <Trophy size={16} color={coinColor} />
-            <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: coinColor }}>{profile?.total_points ?? 0}</Text>
+            <CountText value={profile?.total_points ?? 0} style={{ fontFamily: font.extrabold, fontSize: 14, color: coinColor }} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/activity' as any)}

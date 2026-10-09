@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, useWindowDimensions } from 'react-native'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, Animated, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -10,6 +10,9 @@ import { useStations } from '@/lib/hooks/useStations'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
+import { FlashOnChange } from '@/components/motion/FlashOnChange'
+import { PressableScale } from '@/components/motion/PressableScale'
+import { useReducedMotion } from 'react-native-reanimated'
 import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
 import { freshness } from '@/lib/utils/freshness'
 import type { StationWithQueue } from '@/lib/services/stations'
@@ -44,6 +47,16 @@ export default function StationsTab() {
   // null = automatic: Nearby once location is known, Busiest until then.
   const [chosenSort, setSort] = useState<Sort | null>(null)
   const sort: Sort = chosenSort ?? (inGhana ? 'nearby' : 'busiest')
+  const [trackW, setTrackW] = useState(0)
+  const segW = trackW > 0 ? (trackW - 8 - 8) / 3 : 0 // padding 4+4, two 4px gaps
+  const sortIndex = sort === 'nearby' ? 0 : sort === 'busiest' ? 1 : 2
+  const pillX = useRef(new Animated.Value(0)).current
+  const reduced = useReducedMotion()
+  useEffect(() => {
+    const to = sortIndex * (segW + 4)
+    if (reduced) pillX.setValue(to)
+    else Animated.spring(pillX, { toValue: to, useNativeDriver: true, speed: 18, bounciness: 4 }).start()
+  }, [sortIndex, segW, reduced, pillX])
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {
@@ -93,7 +106,21 @@ export default function StationsTab() {
             style={{ flex: 1, fontFamily: font.regular, fontSize: 15, color: TEXT }}
           />
         </View>
-        <View style={{ marginHorizontal: 20, marginTop: 10, flexDirection: 'row', gap: 4, backgroundColor: '#EFEDEA', borderRadius: 14, padding: 4 }}>
+        <View
+          onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+          style={{ marginHorizontal: 20, marginTop: 10, flexDirection: 'row', gap: 4, backgroundColor: '#EFEDEA', borderRadius: 14, padding: 4 }}
+        >
+          {/* The white pill slides to the chosen tab instead of jumping. */}
+          {segW > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute', top: 4, left: 4, width: segW, height: 38, borderRadius: 12, backgroundColor: '#FFFFFF',
+                shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+                transform: [{ translateX: pillX }],
+              }}
+            />
+          ) : null}
           {(['nearby', 'busiest', 'az'] as Sort[]).map((k) => {
             const on = sort === k
             const label = k === 'nearby' ? 'Nearby' : k === 'busiest' ? 'Busiest' : 'A–Z'
@@ -107,8 +134,7 @@ export default function StationsTab() {
                 accessibilityLabel={`Sort stations: ${label}`}
                 style={{
                   flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: on ? '#FFFFFF' : 'transparent',
-                  shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0,
+                  backgroundColor: segW > 0 ? 'transparent' : on ? '#FFFFFF' : 'transparent',
                 }}
               >
                 <Text style={{ fontFamily: on ? font.extrabold : font.bold, fontSize: 14, color: on ? TEXT : '#3F3F46' }}>{label}</Text>
@@ -140,8 +166,7 @@ export default function StationsTab() {
         renderItem={({ item: { s, d }, index }) => {
           const stat = s.queue_stats?.[0]
           return (
-            <TouchableOpacity
-              activeOpacity={0.7}
+            <PressableScale
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/stations/[id]', params: { id: s.id } } as any) }}
               accessibilityRole="button"
               accessibilityLabel={`${s.name}${d != null ? `, ${fmtKm(d)} away` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
@@ -163,11 +188,13 @@ export default function StationsTab() {
                   <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: TEXT, flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
                   {d != null ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{fmtKm(d)}</Text> : null}
                 </View>
-                <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
+                <FlashOnChange token={`${stat?.current_status}:${stat?.last_report_at}`}>
+                  <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
+                </FlashOnChange>
               </View>
               {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
               <ChevronRight size={18} color="#9CA3AF" />
-            </TouchableOpacity>
+            </PressableScale>
           )
         }}
       />
