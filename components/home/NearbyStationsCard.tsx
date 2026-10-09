@@ -8,6 +8,7 @@ import { font } from '@/lib/theme'
 import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
+import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
 import { CARD, ORANGE, TEXT, TEXT2 } from './tokens'
 
 // Same Ghana guard as the band's location name: a simulator in California is not "nearby".
@@ -34,6 +35,7 @@ function fmtKm(d: number): string {
  */
 export default function NearbyStationsCard() {
   const router = useRouter()
+  const lineCount = useStationLineCounts()
   const { location } = useLocation()
   const q = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000 })
 
@@ -103,6 +105,7 @@ export default function NearbyStationsCard() {
               </View>
               <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
             </View>
+            {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
             <ChevronRight size={18} color="#9CA3AF" />
           </TouchableOpacity>
         )

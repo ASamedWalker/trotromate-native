@@ -29,6 +29,8 @@ import {
   TrendingUp,
   ShieldCheck,
   Star,
+  Sparkles,
+  Navigation,
 } from 'lucide-react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -43,13 +45,15 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { fareConfidence } from '@/lib/utils/fare-confidence'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery as useRQ } from '@tanstack/react-query'
 import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
 import { titleCase } from '@/lib/utils/title-case'
 import { ReleaseLineCard } from '@/components/lines/ReleaseLineCard'
 import { corridorFor } from '@/lib/constants/corridors'
+import { useLocation } from '@/lib/hooks/useLocation'
+import { fetchStations } from '@/lib/services/stations'
 import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 
@@ -66,7 +70,10 @@ function fotdPattern(w: number, h: number): string {
   return xml
 }
 
-type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved'
+// Redesign: the Lines tab no longer shows "Fare of the day" (it duplicated the cards).
+const SHOW_FARE_OF_DAY: boolean = false
+
+type Filter = 'all' | 'trotro' | 'okada' | 'popular' | 'saved' | 'launch' | 'near'
 
 export default function RoutesScreen() {
   const router = useRouter()
@@ -96,6 +103,21 @@ export default function RoutesScreen() {
 
   const activeRegionLabel = REGIONS.find((r) => r.key === activeRegion)?.label ?? 'All Regions'
 
+  // "Near me" (store release): lines starting or ending at one of the 3 nearest stations.
+  const { location } = useLocation()
+  const stationsQ = useRQ({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: RELEASE_MODE && activeFilter === 'near' })
+  const nearNames = useMemo(() => {
+    if (!location || !stationsQ.data) return null
+    const { latitude: la, longitude: lo } = location
+    if (la < 4.5 || la > 11.5 || lo < -3.5 || lo > 1.5) return null // not in Ghana
+    const d = (lat: number, lng: number) => (lat - la) ** 2 + ((lng - lo) * Math.cos((la * Math.PI) / 180)) ** 2
+    return stationsQ.data
+      .filter((st) => st.latitude != null && st.longitude != null)
+      .sort((a, b) => d(Number(a.latitude), Number(a.longitude)) - d(Number(b.latitude), Number(b.longitude)))
+      .slice(0, 3)
+      .map((st) => st.name.trim().toLowerCase())
+  }, [location, stationsQ.data])
+
 
   const filteredRoutes = useMemo(() => {
     let result = routes
@@ -105,6 +127,11 @@ export default function RoutesScreen() {
     } else if (activeFilter === 'saved') {
       const favIds = new Set(favorites.map((f) => f.id))
       result = result.filter((r) => favIds.has(r.id))
+    } else if (activeFilter === 'launch') {
+      result = result.filter((r) => corridorFor(r.from_location, r.to_location).isLaunch)
+    } else if (activeFilter === 'near' && nearNames) {
+      const near = (n: string) => nearNames.some((x) => n.trim().toLowerCase().startsWith(x) || x.startsWith(n.trim().toLowerCase()))
+      result = result.filter((r) => near(r.from_location) || near(r.to_location))
     }
 
     if (searchQuery) {
@@ -132,7 +159,7 @@ export default function RoutesScreen() {
       .map(({ r }) => r)
 
     return result
-  }, [routes, activeFilter, searchQuery, favorites])
+  }, [routes, activeFilter, searchQuery, favorites, nearNames])
 
   // Fare of the day: one route per calendar day (day-of-year index into a
   // stable id-sorted pool) that has BOTH a GPRTU-verified official fare and at
@@ -183,7 +210,12 @@ export default function RoutesScreen() {
     return LINE_COLORS[h % LINE_COLORS.length]
   }
 
-  const filters: { key: Filter; label: string; icon: typeof BusFront }[] = [
+  const filters: { key: Filter; label: string; icon: typeof BusFront }[] = RELEASE_MODE ? [
+    { key: 'all', label: 'All', icon: LayoutGrid },
+    { key: 'saved', label: 'Saved', icon: Heart },
+    { key: 'launch', label: 'Launch corridors', icon: Sparkles },
+    { key: 'near', label: 'Near me', icon: Navigation },
+  ] : [
     { key: 'all', label: 'All', icon: LayoutGrid },
     { key: 'trotro', label: 'Trotro', icon: BusFront },
     { key: 'okada', label: 'Okada', icon: Bike },
@@ -396,7 +428,7 @@ export default function RoutesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={(
             <>
-              {RELEASE_MODE && fareOfDay && activeRegion === 'all' && !searchQuery && activeFilter === 'all' && (
+              {SHOW_FARE_OF_DAY && fareOfDay && activeRegion === 'all' && !searchQuery && activeFilter === 'all' && (
                 <TouchableOpacity
                   activeOpacity={0.85}
                   accessibilityRole="button"

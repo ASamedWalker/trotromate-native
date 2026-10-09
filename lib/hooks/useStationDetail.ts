@@ -16,6 +16,7 @@ export interface StationReport {
   id: string
   queue_status: QueueStatus
   reported_at: string
+  source?: 'rider' | 'reporter' | 'whatsapp'
 }
 
 // PostgREST .or() filters are comma/paren separated; keep names to letters, digits and spaces.
@@ -53,14 +54,17 @@ export function useStationDetail(rawId: string | undefined) {
     staleTime: 60 * 1000,
     queryFn: async (): Promise<StationReport[]> => {
       const filter = name ? `station_id.eq.${id},station_name.ilike.${name}` : `station_id.eq.${id}`
-      const { data, error } = await supabase
+      const run = (cols: string) => supabase
         .from('queue_reports')
-        .select('id, queue_status, reported_at')
+        .select(cols)
         .or(filter)
         .order('reported_at', { ascending: false })
         .limit(5)
-      if (error) throw error
-      return (data ?? []) as StationReport[]
+      // `source` arrives with web migration 100; before that, read without it.
+      let res = await run('id, queue_status, reported_at, source')
+      if (res.error) res = await run('id, queue_status, reported_at')
+      if (res.error) throw res.error
+      return (res.data ?? []) as unknown as StationReport[]
     },
   })
 

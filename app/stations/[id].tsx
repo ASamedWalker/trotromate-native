@@ -163,7 +163,10 @@ export default function StationDetailScreen() {
             return (
               <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: CARD.border }}>
                 <FreshnessDot kind={k} color={c} />
-                <Text style={{ flex: 1, fontFamily: font.extrabold, fontSize: 14, color: c }}>{QUEUE_WORD[r.queue_status] ?? r.queue_status}</Text>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: c }}>{QUEUE_WORD[r.queue_status] ?? r.queue_status}</Text>
+                <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 13, color: TEXT2 }} numberOfLines={1}>
+                  {r.source === 'reporter' ? '· Station reporter' : r.source === 'whatsapp' ? '· via WhatsApp' : r.source === 'rider' ? '· Rider' : ''}
+                </Text>
                 <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{ageLabel(r.reported_at)}</Text>
               </View>
             )

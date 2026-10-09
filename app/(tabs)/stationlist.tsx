@@ -10,6 +10,7 @@ import { useStations } from '@/lib/hooks/useStations'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
+import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
 import { freshness } from '@/lib/utils/freshness'
 import type { StationWithQueue } from '@/lib/services/stations'
 import { CARD, ORANGE, TEXT, TEXT2 } from '@/components/home/tokens'
@@ -32,6 +33,7 @@ const fmtKm = (d: number) => (d < 1 ? `${Math.round((d * 1000) / 50) * 50} m` : 
  */
 export default function StationsTab() {
   const router = useRouter()
+  const lineCount = useStationLineCounts()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const { stations, isLoading } = useStations()
@@ -157,6 +159,7 @@ export default function StationsTab() {
                 </View>
                 <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
               </View>
+              {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
           )
