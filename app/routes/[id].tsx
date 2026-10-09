@@ -166,8 +166,12 @@ export default function RouteDetailScreen() {
   const corridor = corridorFor(route.from_location, route.to_location)
   // Queue at the boarding station, matched by name like the server's commute card.
   const boardKey = route.from_location.trim().toLowerCase()
-  const boardStat = (stationsQ.data ?? []).find((st) => st.name.trim().toLowerCase() === boardKey)
-    ?? (stationsQ.data ?? []).find((st) => st.name.trim().toLowerCase().startsWith(boardKey))
+  // Exact name, or a single unambiguous prefix match — never another station's queue.
+  const stationList = stationsQ.data ?? []
+  const prefixMatches = boardKey ? stationList.filter((st) => st.name.trim().toLowerCase().startsWith(boardKey)) : []
+  const boardStat = boardKey
+    ? stationList.find((st) => st.name.trim().toLowerCase() === boardKey) ?? (prefixMatches.length === 1 ? prefixMatches[0] : undefined)
+    : undefined
   const posts = activity
 
   const goReport = () => {

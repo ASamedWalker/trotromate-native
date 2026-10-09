@@ -90,6 +90,7 @@ export default function RoutesScreen() {
   useRefreshOnFocus([['routes', params.from, params.to, activeTransport, regionParam]])
   const [refreshing, setRefreshing] = useState(false)
   const { favorites } = useFavorites()
+  const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites])
   const haptics = useHaptics()
   const { addSearch } = useSearchHistory()
 
@@ -201,7 +202,7 @@ export default function RoutesScreen() {
       return (
         <ReleaseLineCard
           item={item}
-          saved={favorites.some((f) => f.id === item.id)}
+          saved={favoriteIds.has(item.id)}
           onPress={() => {
             addSearch({ id: item.id, from: item.from_location, to: item.to_location, transportType: item.transport_type as 'trotro' | 'okada' | undefined })
             router.push({ pathname: '/routes/[id]', params: { id: item.id } })
@@ -299,7 +300,7 @@ export default function RoutesScreen() {
         </View>
       </TouchableOpacity>
     )
-  }, [isDark, favorites]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDark, favoriteIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Store release: launch corridors first (redesign wave 3), otherwise the existing order.
   const listRoutes = useMemo(() => {

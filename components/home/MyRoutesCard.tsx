@@ -123,7 +123,7 @@ export default function MyRoutesCard({ style }: { style?: object }) {
           const out = variant === 'morning'
           const from = info?.from ?? (out ? f.from : f.to)
           const to = info?.to ?? (out ? f.to : f.from)
-          const { code, color } = corridorFor(f.from, f.to)
+          const { code, color } = corridorFor(from, to)
           const fare = info?.fare
           return (
             <TouchableOpacity

@@ -101,7 +101,9 @@ export default function StationDetailScreen() {
         ) : (lines.data ?? []).length === 0 ? (
           <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2, paddingVertical: 10 }}>No lines linked to this station yet.</Text>
         ) : (lines.data ?? []).map((r, i) => {
-          const dest = r.from_location.toLowerCase().includes(station.name.toLowerCase().split(' ')[0]) ? r.to_location : r.from_location
+          const startsHere = r.from_station_id === station.id ||
+            (r.to_station_id !== station.id && r.from_location.trim().toLowerCase() === station.name.trim().toLowerCase())
+          const dest = startsHere ? r.to_location : r.from_location
           return (
             <TouchableOpacity
               key={r.id}

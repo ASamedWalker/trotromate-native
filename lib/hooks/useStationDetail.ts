@@ -4,6 +4,8 @@ import { fetchStations, type QueueStatus, type StationWithQueue } from '@/lib/se
 
 export interface StationLine {
   id: string
+  from_station_id: string | null
+  to_station_id: string | null
   from_location: string
   to_location: string
   official_fare: number | null
@@ -20,7 +22,11 @@ export interface StationReport {
 const safe = (s: string) => s.replace(/[^A-Za-z0-9 ]/g, ' ').trim()
 
 /** Station page data: the station (from the shared stations cache), lines that start or end here, last reports. */
-export function useStationDetail(id: string | undefined) {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function useStationDetail(rawId: string | undefined) {
+  // Deep links can carry anything; only a uuid ever reaches a PostgREST filter.
+  const id = rawId && UUID.test(rawId) ? rawId : undefined
   const stations = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: !!id })
   const station: StationWithQueue | undefined = stations.data?.find((s) => s.id === id)
   const name = station ? safe(station.name) : ''
@@ -30,12 +36,12 @@ export function useStationDetail(id: string | undefined) {
     enabled: !!id && !!station,
     staleTime: 10 * 60 * 1000,
     queryFn: async (): Promise<StationLine[]> => {
-      const cols = 'id, from_location, to_location, official_fare, is_gprtu_verified'
+      const cols = 'id, from_station_id, to_station_id, from_location, to_location, official_fare, is_gprtu_verified'
       const byId = await supabase.from('routes').select(cols).or(`from_station_id.eq.${id},to_station_id.eq.${id}`).limit(30)
       if (byId.error) throw byId.error
       if ((byId.data ?? []).length > 0 || !name) return byId.data as StationLine[]
       // Many routes are linked by name only (from_station_id is nullable).
-      const byName = await supabase.from('routes').select(cols).or(`from_location.ilike.%${name}%,to_location.ilike.%${name}%`).limit(30)
+      const byName = await supabase.from('routes').select(cols).or(`from_location.ilike.${name}*,to_location.ilike.${name}*`).limit(30)
       if (byName.error) throw byName.error
       return (byName.data ?? []) as StationLine[]
     },

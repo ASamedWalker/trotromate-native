@@ -5,25 +5,39 @@ import { supabase } from '@/lib/supabase/client'
 import { cacheStations, getCachedStations } from '@/lib/services/offline-cache'
 
 let sharedChannel: ReturnType<typeof supabase.channel> | null = null
+let teardownTimer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<() => void>()
 
 function subscribeQueueUpdates(onInsert: () => void): () => void {
   listeners.add(onInsert)
+  // A screen swap (pop then push) must not leave and rejoin the topic in the same tick.
+  if (teardownTimer) { clearTimeout(teardownTimer); teardownTimer = null }
   if (!sharedChannel) {
-    sharedChannel = supabase
+    const ch = supabase
       .channel('queue-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'queue_reports' }, () => {
         listeners.forEach((fn) => fn())
       })
-      .subscribe()
+    sharedChannel = ch
+    ch.subscribe((status) => {
+      // A failed join stays dead; drop it so the next subscriber retries.
+      if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && sharedChannel === ch) {
+        sharedChannel = null
+        supabase.removeChannel(ch)
+      }
+    })
   }
   return () => {
     listeners.delete(onInsert)
-    if (listeners.size === 0 && sharedChannel) {
-      const ch = sharedChannel
-      sharedChannel = null
-      ch.unsubscribe()
-      supabase.removeChannel(ch)
+    if (listeners.size === 0 && sharedChannel && !teardownTimer) {
+      teardownTimer = setTimeout(() => {
+        teardownTimer = null
+        if (listeners.size > 0 || !sharedChannel) return
+        const ch = sharedChannel
+        sharedChannel = null
+        ch.unsubscribe()
+        supabase.removeChannel(ch)
+      }, 1000)
     }
   }
 }

@@ -39,7 +39,9 @@ export default function StationsTab() {
   const inGhana = !!location &&
     location.latitude >= GHANA.minLat && location.latitude <= GHANA.maxLat &&
     location.longitude >= GHANA.minLng && location.longitude <= GHANA.maxLng
-  const [sort, setSort] = useState<Sort>(inGhana ? 'nearby' : 'busiest')
+  // null = automatic: Nearby once location is known, Busiest until then.
+  const [chosenSort, setSort] = useState<Sort | null>(null)
+  const sort: Sort = chosenSort ?? (inGhana ? 'nearby' : 'busiest')
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {

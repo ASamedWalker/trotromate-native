@@ -3,8 +3,8 @@ import type { QueueStatus } from '@/lib/services/stations'
 // One word + one colour per queue state. Status is always a word plus a mark,
 // never colour alone (redesign §4). Colours pass 4.5:1 on white.
 export const QUEUE_WORD: Record<QueueStatus, string> = {
-  empty: 'No queue',
-  short: 'Short queue',
+  empty: 'Cars waiting',
+  short: 'Small queue',
   moderate: 'Moderate',
   long: 'Long queue',
   very_long: 'Very long',
