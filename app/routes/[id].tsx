@@ -17,6 +17,9 @@ import { LoadErrorState } from '@/components/StateViews'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { Button } from '@/components/ui'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
+import { fetchStations } from '@/lib/services/stations'
+import { corridorFor } from '@/lib/constants/corridors'
+import { QueueStatusLine } from '@/components/QueueStatusLine'
 import { fetchRouteActivity } from '@/lib/services/route-activity'
 import { fetchRouteSegmentFares, resolveDropoffFareSync } from '@/lib/services/segment-fares'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
@@ -64,6 +67,7 @@ export default function RouteDetailScreen() {
   }))
 
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
+  const stationsQ = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: RELEASE_MODE })
   const { trend, isLoading: trendLoading, days: trendDays, setDays: setTrendDays } = useFareTrend(id!)
   const { data: segments = [] } = useQuery({
     queryKey: ['segment-fares', id],
@@ -159,6 +163,11 @@ export default function RouteDetailScreen() {
   ].filter(Boolean).join(' · ').replace(/^./, (ch) => ch.toUpperCase())
 
   const favorited = isFavorite(id!)
+  const corridor = corridorFor(route.from_location, route.to_location)
+  // Queue at the boarding station, matched by name like the server's commute card.
+  const boardKey = route.from_location.trim().toLowerCase()
+  const boardStat = (stationsQ.data ?? []).find((st) => st.name.trim().toLowerCase() === boardKey)
+    ?? (stationsQ.data ?? []).find((st) => st.name.trim().toLowerCase().startsWith(boardKey))
   const posts = activity
 
   const goReport = () => {
@@ -209,21 +218,29 @@ export default function RouteDetailScreen() {
             setHeroH(Math.round(e.nativeEvent.layout.height))
           }}
         >
-          <LinearGradient colors={['#2A1D14', '#16110D']} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }} style={StyleSheet.absoluteFillObject} />
+          {RELEASE_MODE ? (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: corridor.color }]} />
+          ) : (
+            <LinearGradient colors={['#2A1D14', '#16110D']} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }} style={StyleSheet.absoluteFillObject} />
+          )}
           {heroW > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <SvgXml xml={heroPattern(heroW, heroH)} width={heroW} height={heroH} />
             </View>
           )}
           <View style={s.heroBody}>
-            <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#F5A300' }]}>
-              <Text style={s.kindText}>{isOkada ? 'OKADA ROUTE' : 'TROTRO ROUTE'}</Text>
-            </View>
+            {RELEASE_MODE && !isOkada ? (
+              <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>{corridor.code}</HeroText>
+            ) : (
+              <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#F5A300' }]}>
+                <Text style={s.kindText}>{isOkada ? 'OKADA ROUTE' : 'TROTRO ROUTE'}</Text>
+              </View>
+            )}
             <Text style={s.heroTitle}>{from} → {to}</Text>
             <View style={s.heroFareRow}>
               {displayFare > 0 ? (
                 <>
-                  <HeroText size={40} style={{ color: '#FF6A3D', letterSpacing: -1 }}>{formatGHS(displayFare)}</HeroText>
+                  <HeroText size={40} style={{ color: RELEASE_MODE ? '#FFFFFF' : '#FF6A3D', letterSpacing: -1 }}>{formatGHS(displayFare)}</HeroText>
                   <Text style={s.heroFareLabel}>{fareLabel}</Text>
                 </>
               ) : (
@@ -243,6 +260,24 @@ export default function RouteDetailScreen() {
         </View>
 
         <View style={s.body}>
+          {RELEASE_MODE && !isOkada ? (
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#EFEDEB', padding: 16, gap: 6 }}>
+              <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: ui.textSecondary }}>
+                QUEUE AT {(boardStat?.name ?? from).toUpperCase()}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <QueueStatusLine status={boardStat?.queue_stats?.[0]?.current_status} reportedAt={boardStat?.queue_stats?.[0]?.last_report_at} size={17} />
+                <TouchableOpacity
+                  onPress={() => { haptics.light(); router.push({ pathname: '/report/queue', params: boardStat ? { station_id: boardStat.id, station_name: boardStat.name } : {} } as never) }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Report the queue at ${boardStat?.name ?? from}`}
+                  hitSlop={8}
+                >
+                  <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: brand.orangeText }}>Report</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
           {isOkada ? (
             <>
               <View style={s.notice} accessible>
