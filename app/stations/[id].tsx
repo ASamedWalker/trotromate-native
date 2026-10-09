@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Check, ChevronRight, Map as MapIcon, Users } from 'lucide-react-native'
+import { Check, ChevronRight, Users } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { BackButton } from '@/components/BackButton'
 import { HeroText } from '@/components/HeroText'
@@ -63,14 +63,7 @@ export default function StationDetailScreen() {
           <Text style={{ fontFamily: font.extrabold, fontSize: 22, lineHeight: 30, color: TEXT }} numberOfLines={2}>{station.name}</Text>
           {station.location ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }} numberOfLines={1}>{station.location}</Text> : null}
         </View>
-        <TouchableOpacity
-          onPress={() => router.push('/stations' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="View on map. Uses more data"
-          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: CARD.bg, borderWidth: 1, borderColor: CARD.border, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <MapIcon size={20} color={TEXT} />
-        </TouchableOpacity>
+        {/* Map hidden for now (owner 2026-10-09). */}
       </View>
 
       {/* Queue hero */}

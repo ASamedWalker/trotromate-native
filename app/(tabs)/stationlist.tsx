@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, Animated,
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Map as MapIcon, MapPin, Plus, Search } from 'lucide-react-native'
+import { ChevronRight, MapPin, Plus, Search } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { useStations } from '@/lib/hooks/useStations'
@@ -89,15 +89,7 @@ export default function StationsTab() {
             <Text style={{ fontFamily: font.extrabold, fontSize: 30, lineHeight: 40, color: TEXT }}>Stations</Text>
             <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>Queues at trotro stations</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/stations' as any)}
-            accessibilityRole="button"
-            accessibilityLabel="Open the stations map. Uses more data"
-            style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: CARD.border, backgroundColor: CARD.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-          >
-            <MapIcon size={16} color={TEXT} />
-            <Text style={{ fontFamily: font.bold, fontSize: 14, color: TEXT }}>Map</Text>
-          </TouchableOpacity>
+          {/* Map hidden for now (owner 2026-10-09): the old map screen doesn't fit the redesign. */}
         </View>
         <View style={{ marginHorizontal: 20, marginTop: 14, height: 48, borderRadius: 14, backgroundColor: CARD.bg, borderWidth: 1, borderColor: CARD.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 10 }}>
           <Search size={18} color={TEXT2} />
