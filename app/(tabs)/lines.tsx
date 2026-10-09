@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { font, ui, space } from '@/lib/theme'
 import { RELEASE_MODE } from '@/lib/config/release'
 import { dur } from '@/lib/motion'
@@ -11,13 +12,16 @@ import RoutesScreen from '@/app/(tabs)/routes'
 
 export default function LinesScreen() {
   const s = useMemo(() => getStyles(), [])
+  const { width } = useWindowDimensions()
 
   return (
     <View style={s.container}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: ui.bg }}>
-        <Animated.View entering={FadeInDown.duration(dur.base)} style={s.header}>
-          <Text style={s.title}>{RELEASE_MODE ? 'Fares' : 'Lines'}</Text>
-          {RELEASE_MODE && <Text style={s.sub}>Official GPRTU fares + what riders paid</Text>}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: RELEASE_MODE ? '#FFF3EA' : ui.bg, overflow: 'hidden' }}>
+        {/* Store release: Adinkra wallpaper behind the tab header (redesign) */}
+        {RELEASE_MODE ? <AdinkraWallpaper width={width} height={180} size={26} color="rgba(232,70,26,0.10)" /> : null}
+        <Animated.View entering={FadeInDown.duration(dur.base)} style={[s.header, RELEASE_MODE && { paddingBottom: 12 }]}>
+          <Text style={s.title}>Lines</Text>
+          {RELEASE_MODE && <Text style={s.sub}>GPRTU fares + what riders paid</Text>}
         </Animated.View>
       </SafeAreaView>
 

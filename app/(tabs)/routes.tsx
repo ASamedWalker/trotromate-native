@@ -48,6 +48,8 @@ import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { timeAgo } from '@/lib/utils/time'
 import { titleCase } from '@/lib/utils/title-case'
+import { ReleaseLineCard } from '@/components/lines/ReleaseLineCard'
+import { corridorFor } from '@/lib/constants/corridors'
 import type { RouteWithStats } from '@/lib/types'
 import { SkeletonRouteCard } from '@/components/Skeleton'
 
@@ -195,6 +197,18 @@ export default function RoutesScreen() {
   }, [haptics])
 
   const renderRoute = useCallback(({ item }: { item: RouteWithStats }) => {
+    if (RELEASE_MODE) {
+      return (
+        <ReleaseLineCard
+          item={item}
+          saved={favorites.some((f) => f.id === item.id)}
+          onPress={() => {
+            addSearch({ id: item.id, from: item.from_location, to: item.to_location, transportType: item.transport_type as 'trotro' | 'okada' | undefined })
+            router.push({ pathname: '/routes/[id]', params: { id: item.id } })
+          }}
+        />
+      )
+    }
     const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
     const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
     const isOkada = item.transport_type === 'okada'
@@ -285,7 +299,14 @@ export default function RoutesScreen() {
         </View>
       </TouchableOpacity>
     )
-  }, [isDark])
+  }, [isDark, favorites]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Store release: launch corridors first (redesign wave 3), otherwise the existing order.
+  const listRoutes = useMemo(() => {
+    if (!RELEASE_MODE) return filteredRoutes
+    const launch = (r: RouteWithStats) => (corridorFor(r.from_location, r.to_location).isLaunch ? 0 : 1)
+    return [...filteredRoutes].sort((a, b) => launch(a) - launch(b))
+  }, [filteredRoutes])
 
   return (
     // Rendered inside the Lines tab, which already pads the top safe area
@@ -367,7 +388,7 @@ export default function RoutesScreen() {
       ) : (
         <FlatList
           ref={listRef}
-          data={filteredRoutes}
+          data={listRoutes}
           renderItem={renderRoute}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: space.gutter, paddingTop: 8, paddingBottom: 90 }}
