@@ -102,3 +102,23 @@ The habit hook is "my line, right now", with no search. Troski already has the e
 2. Pick colours and short codes for the 3 launch corridors, and add corridor badges to `MyRoutesCard`.
 3. Design the "you helped N riders" reporter feedback loop before the paid-reporter pilot.
 4. Gaps for follow-up research: Transit's actual onboarding and empty states (needs the app itself or screenshots); Moovit and Google Maps behaviour in Accra tested on device.
+
+## 8. Visual check against Transit's real screens (2026-10-09)
+
+Source: the 6 iPhone screenshots on Transit's US App Store listing (apps.apple.com/us/app/transit-subway-bus-times/id498151501), viewed directly in Chrome. These are marketing screenshots, so they show Transit's best-case states.
+
+| Screen | What it actually shows | Troski mockups before this check |
+|---|---|---|
+| **Home: "See all nearby departures instantly"** | Map fills the top ~45% as context. A green "Where to?" bar with a Home shortcut ("32 min") sits on the seam. Below it, **each line is a full-width block filled with the line's colour**: route badge or number (big, white), "→ direction", stop name, and the countdown huge on the right with a radio-wave mark. No white cards and no dividers; the colour *is* the card. | White cards with a small corridor badge. **Off.** |
+| **Track your ride** | Huge route name ("M9"), a "4th" rank chip, a big **GO** button, and three departure tiles (2 / 11 / 19 min) where the first is filled in the line colour. Below: ratings chips (★4.6, 70%, Contactless), walk time and stop. | Not covered. |
+| **Disruption info** | The line detail screen is **entirely in the line colour** (E = deep blue). A big line letter, direction, then **"Alerts enabled · Mon–Fri 8–10 AM, 5–7 PM"**: alerts are scheduled around the rider's commute. The alert card shows type, text, "Posted on…" and **"Source: MTA"**. A push banner on top. | Route detail had a dark hero, no alert schedule, no source line. **Partly off.** |
+| **Find the fastest trip** | The planner header is in brand green with from/to fields. Results are a timeline of coloured line pills, "Go in 2 min" with a real-time mark, and total minutes. | Not covered (trip planning is Phase 4+ for Troski). |
+| **Step-by-step** | Map plus "Your stop is next!", a progress bar with the rider avatar, a big next-stop card in the line colour, "Exit NE". A points counter ("602") sits top-left. | Not covered (GO Mode exists in the full app only). |
+| **Rate your ride** | GO crowdsourcing: **"How many open seats do you see on this bus?" with 3 big playful tiles** ("Lots of open seats" / "Few if any seats" / "Packed like sardines"), plus Back and Skip. The points counter is visible. | Report screen had 5 plain radio rows. **Off: Transit's version is lighter and more fun.** |
+
+**What changes for Troski:**
+1. **Line cards become colour blocks**: corridor colour fills the card, with white text, a big code, "→ destination", the boarding station, and on the right the **fare as the big number** with the queue status under it. No countdown on trotro cards.
+2. **Route/corridor detail turns the whole header the corridor colour**, adds "Alerts on: Mon–Fri 05:30–08:30, 16:30–19:00" (matches our push times and reporter hours), and alert cards show **"Source: GPRTU / Troski reporter / …"**.
+3. **Queue reporting copies the 3-tile micro-survey shape**, not the copy: "Cars waiting / Short wait / Long queue" style tiles with Ghanaian phrasing, plus Back/Skip, asked in context ("How's the queue at Madina?"). Tiles use drawn icons, not emoji (our UI rule).
+4. **Visible contribution score** (Transit's points counter) maps to our coins chip; keep it on Home and in the report flow.
+5. **Keep the deviations**: no map on Home (data cost), no fake countdowns, Baloo 2 instead of Transit's custom face, Troski orange as the brand (Transit uses green). We adapt the patterns, not Transit's look.
