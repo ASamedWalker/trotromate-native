@@ -19,7 +19,9 @@ import {
   GestureResponderEvent,
   Platform,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { RELEASE_MODE as REDESIGN } from '@/lib/config/release'
 import { useRouter, type Href } from 'expo-router'
 import { Image as ExpoImage } from 'expo-image'
 import {
@@ -523,7 +525,10 @@ const TaleCard = React.memo(function TaleCard({
 
 // ─── Main Screen ────────────────────────────────────────
 
+const PULSE_BAND = '#FFF3EA'
+
 export function TalesScreen() {
+  const topInset = useSafeAreaInsets().top
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
@@ -627,7 +632,9 @@ export function TalesScreen() {
   }, [])
 
   const header = (
-    <View>
+    <View style={REDESIGN ? { backgroundColor: PULSE_BAND, overflow: 'hidden' } : undefined}>
+      {/* Store release: Adinkra wallpaper behind the tab header (redesign) */}
+      {REDESIGN ? <AdinkraWallpaper width={Dimensions.get('window').width} height={220} size={26} color="rgba(232,70,26,0.10)" /> : null}
       <View style={s.titleWrap}>
         <Text style={s.title}>Pulse</Text>
         <Text style={s.subtitle}>From the road, by commuters</Text>
@@ -716,6 +723,7 @@ export function TalesScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {REDESIGN ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: topInset, backgroundColor: PULSE_BAND }} /> : null}
       {!isLoading && posts.length > 0 ? null : header}
 
       {isLoading ? (

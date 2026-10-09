@@ -58,6 +58,9 @@ import {
   formatRemaining,
 } from '@/lib/utils/train-stations'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
+import { RELEASE_MODE } from '@/lib/config/release'
+import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { Dimensions } from 'react-native'
 
 // ─── Schedule helpers ────────────────────────────────────
 
@@ -337,6 +340,8 @@ function Collapsible({ title, children, s }: { title: string; children: React.Re
 
 // ─── Main screen ─────────────────────────────────────────
 
+const HEADER_BAND = '#FFF3EA'
+
 export default function TrainLinesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
@@ -605,7 +610,7 @@ export default function TrainLinesScreen() {
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Status-bar scrim so content never collides with the clock */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: PAPER, zIndex: 10 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: RELEASE_MODE ? HEADER_BAND : PAPER, zIndex: 10 }} />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -621,7 +626,9 @@ export default function TrainLinesScreen() {
         }
       >
         {/* ─── Header ─────────────────────────────────────── */}
-        <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+        <View style={[s.header, { paddingTop: insets.top + 12 }, RELEASE_MODE && { backgroundColor: HEADER_BAND, overflow: 'hidden', paddingBottom: 16 }]}>
+          {/* Store release: Adinkra wallpaper behind the tab header (redesign) */}
+          {RELEASE_MODE ? <AdinkraWallpaper width={Dimensions.get('window').width} height={insets.top + 140} size={26} color="rgba(232,70,26,0.10)" /> : null}
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Trains</Text>
             <Text style={s.headerSub}>GRDA schedule · verified {formatVerified(SCHEDULE_VERIFIED)}</Text>
