@@ -35,6 +35,7 @@ const en: Dict = {
   'nav.wallet': 'Wallet',
   'nav.pulse': 'Pulse',
   'nav.fares': 'Fares',
+  'nav.stations': 'Stations',
   'nav.rewards': 'Rewards',
   // Home
   'home.hello': 'Hello',

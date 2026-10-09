@@ -19,5 +19,9 @@ export function ageLabel(reportedAt: string | null | undefined, now: number = Da
   const mins = Math.max(0, Math.round((now - new Date(reportedAt).getTime()) / 60000))
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins} min ago`
-  return `${Math.floor(mins / 60)}h ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 48) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 60) return `${days} days ago`
+  return 'months ago'
 }

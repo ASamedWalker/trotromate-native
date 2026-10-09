@@ -14,7 +14,7 @@ import {
   FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   Users,
   MapPin,
@@ -56,8 +56,10 @@ export default function QueueReportScreen() {
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
   const { stations } = useStations()
 
-  const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
-  const [selectedStationName, setSelectedStationName] = useState('')
+  // Opened from a station page: that station is preselected (redesign wave 2).
+  const params = useLocalSearchParams<{ station_id?: string; station_name?: string }>()
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(params.station_id ?? null)
+  const [selectedStationName, setSelectedStationName] = useState(params.station_name ?? '')
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
   const [vehicleCount, setVehicleCount] = useState(0)
   const [locationModalVisible, setLocationModalVisible] = useState(false)

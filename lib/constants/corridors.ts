@@ -15,6 +15,10 @@ export const CORRIDOR_PALETTE = [
 
 export const NEUTRAL_CORRIDOR = '#334155'
 
+// Blue / teal / violet belong to the launch corridors; every other pair uses the rest
+// so a launch corridor is never confused with another line.
+const OTHER_PALETTE = CORRIDOR_PALETTE.slice(3)
+
 // Longest names first so "East Legon" wins over "Legon".
 const TERMINAL_CODES: [string, string][] = ([
   ['east legon', 'ELG'], ['tema station', 'TEM'], ['circle', 'CIR'], ['madina', 'MAD'], ['kasoa', 'KAS'],
@@ -61,7 +65,7 @@ export function corridorFor(from: string, to: string): Corridor {
   const launch = LAUNCH[pair]
   return {
     code: `${a}·${b}`,
-    color: launch ?? CORRIDOR_PALETTE[hash(pair) % CORRIDOR_PALETTE.length],
+    color: launch ?? OTHER_PALETTE[hash(pair) % OTHER_PALETTE.length],
     isLaunch: !!launch,
   }
 }

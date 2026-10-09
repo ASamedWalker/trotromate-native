@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { HomeIcon, LinesIcon, TrainIcon, WalletIcon, PulseIcon, FaresIcon, RewardsIcon, type TabIconProps } from '@/components/TabIcons'
+import { HomeIcon, LinesIcon, TrainIcon, WalletIcon, PulseIcon, StationsIcon, type TabIconProps } from '@/components/TabIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import * as Haptics from 'expo-haptics'
@@ -23,15 +23,15 @@ const INACTIVE = '#6B7280' // 4.8:1 on white — the old 45% black was 3.3:1
 // clearance so content never sits under the floating bar.
 export const TAB_BAR_CLEARANCE = 96
 
-// Store release (RELEASE_MODE): Home · Fares · Train · Pulse · Rewards, no wallet.
-// Otherwise: Home · Lines · Train · Wallet · Pulse (rewards hidden).
+// Store release (RELEASE_MODE, redesign 2026-10-09): Home · Lines · Stations · Train · Pulse.
+// Rewards left the bar (coins chip on Home + Profile). Otherwise: Home · Lines · Train · Wallet · Pulse.
 const TAB_ICONS: Record<string, (p: TabIconProps) => React.JSX.Element> = RELEASE_MODE
-  ? { index: HomeIcon, lines: FaresIcon, train: TrainIcon, tales: PulseIcon, rewards: RewardsIcon }
+  ? { index: HomeIcon, lines: LinesIcon, stationlist: StationsIcon, train: TrainIcon, tales: PulseIcon }
   : { index: HomeIcon, lines: LinesIcon, train: TrainIcon, wallet: WalletIcon, tales: PulseIcon }
 
 // route name → i18n key (also used to decide which tabs are visible)
 const TAB_KEYS: Record<string, string> = RELEASE_MODE
-  ? { index: 'nav.home', lines: 'nav.fares', train: 'nav.train', tales: 'nav.pulse', rewards: 'nav.rewards' }
+  ? { index: 'nav.home', lines: 'nav.lines', stationlist: 'nav.stations', train: 'nav.train', tales: 'nav.pulse' }
   : { index: 'nav.home', lines: 'nav.lines', train: 'nav.train', wallet: 'nav.wallet', tales: 'nav.pulse' }
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -103,6 +103,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="lines" />
+      <Tabs.Screen name="stationlist" options={RELEASE_MODE ? undefined : { href: null }} />
       <Tabs.Screen name="train" />
       <Tabs.Screen name="wallet" options={RELEASE_MODE ? { href: null } : undefined} />
       <Tabs.Screen name="tales" />
@@ -111,7 +112,7 @@ export default function TabLayout() {
       <Tabs.Screen name="report" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="routes" options={{ href: null }} />
-      <Tabs.Screen name="rewards" options={RELEASE_MODE ? undefined : { href: null }} />
+      <Tabs.Screen name="rewards" options={{ href: null }} />
     </Tabs>
   )
 }

@@ -4,6 +4,30 @@ import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
 import { supabase } from '@/lib/supabase/client'
 import { cacheStations, getCachedStations } from '@/lib/services/offline-cache'
 
+let sharedChannel: ReturnType<typeof supabase.channel> | null = null
+const listeners = new Set<() => void>()
+
+function subscribeQueueUpdates(onInsert: () => void): () => void {
+  listeners.add(onInsert)
+  if (!sharedChannel) {
+    sharedChannel = supabase
+      .channel('queue-updates')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'queue_reports' }, () => {
+        listeners.forEach((fn) => fn())
+      })
+      .subscribe()
+  }
+  return () => {
+    listeners.delete(onInsert)
+    if (listeners.size === 0 && sharedChannel) {
+      const ch = sharedChannel
+      sharedChannel = null
+      ch.unsubscribe()
+      supabase.removeChannel(ch)
+    }
+  }
+}
+
 export function useStations() {
   const queryClient = useQueryClient()
   const [cachedData, setCachedData] = useState<StationWithQueue[] | undefined>(undefined)
@@ -32,23 +56,14 @@ export function useStations() {
     placeholderData: cachedData,
   })
 
-  // Supabase Realtime: instantly refresh when anyone submits a queue report
+  // Supabase Realtime: instantly refresh when anyone submits a queue report.
+  // One shared channel for every mounted user of this hook (Stations tab, report
+  // screen, …): two channels on one topic kill each other on removeChannel.
   useEffect(() => {
-    const channel = supabase
-      .channel('queue-updates')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'queue_reports' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['stations'] })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      channel.unsubscribe()
-      supabase.removeChannel(channel)
-    }
+    const unsubscribe = subscribeQueueUpdates(() => {
+      queryClient.invalidateQueries({ queryKey: ['stations'] })
+    })
+    return unsubscribe
   }, [queryClient])
 
   return { stations, isLoading, refetch }

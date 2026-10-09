@@ -64,7 +64,7 @@ export default function NearbyStationsCard() {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
         <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT }}>{inGhana ? 'Nearby stations' : 'Busy stations'}</Text>
         <TouchableOpacity
-          onPress={() => router.navigate('/(tabs)/stations' as any)}
+          onPress={() => router.navigate('/(tabs)/stationlist' as any)}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="See all stations"

@@ -105,3 +105,17 @@ export function RewardsIcon({ color, active, size = 24 }: TabIconProps) {
     </Svg>
   )
 }
+
+/** Pin over a short queue of three heads: a station and its line. */
+export function StationsIcon({ color, active, size = 24 }: TabIconProps) {
+  const st = strokeProps(active)
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path {...st} stroke={color} fill={active ? ACTIVE_FILL : 'none'} d="M12 14.5s-4.5-4-4.5-7.2a4.5 4.5 0 0 1 9 0c0 3.2-4.5 7.2-4.5 7.2z" />
+      <Circle cx={12} cy={7.3} r={1.6} {...st} stroke={color} />
+      <Circle cx={6} cy={19} r={1.6} {...st} stroke={color} />
+      <Circle cx={12} cy={19} r={1.6} {...st} stroke={color} />
+      <Circle cx={18} cy={19} r={1.6} {...st} stroke={color} />
+    </Svg>
+  )
+}
