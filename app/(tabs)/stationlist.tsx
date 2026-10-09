@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, FlatList, useWindowDimensions } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -97,16 +97,22 @@ export default function StationsTab() {
           {(['nearby', 'busiest', 'az'] as Sort[]).map((k) => {
             const on = sort === k
             const label = k === 'nearby' ? 'Nearby' : k === 'busiest' ? 'Busiest' : 'A–Z'
+            // Pressable, not TouchableOpacity: no fade on press, so the label never goes grey/blurry.
             return (
-              <TouchableOpacity
+              <Pressable
                 key={k}
-                onPress={() => { Haptics.selectionAsync(); setSort(k) }}
-                accessibilityRole="button"
+                onPress={() => { if (!on) { Haptics.selectionAsync(); setSort(k) } }}
+                accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
-                style={{ flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? '#FFFFFF' : 'transparent' }}
+                accessibilityLabel={`Sort stations: ${label}`}
+                style={{
+                  flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: on ? '#FFFFFF' : 'transparent',
+                  shadowColor: '#000', shadowOpacity: on ? 0.12 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: on ? 2 : 0,
+                }}
               >
-                <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: on ? TEXT : TEXT2 }}>{label}</Text>
-              </TouchableOpacity>
+                <Text style={{ fontFamily: on ? font.extrabold : font.bold, fontSize: 14, color: on ? TEXT : '#3F3F46' }}>{label}</Text>
+              </Pressable>
             )
           })}
         </View>
