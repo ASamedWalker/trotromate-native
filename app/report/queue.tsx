@@ -26,8 +26,10 @@ import {
   Send,
   Search,
   ChevronDown,
+  User,
+  Clock,
 } from 'lucide-react-native'
-import { LinearGradient } from 'expo-linear-gradient'
+import { REPORT_POINTS } from '@/lib/constants/rewards'
 import { font } from '@/lib/theme'
 import { useSubmitQueueReport } from '@/lib/hooks/useReports'
 import { useStations } from '@/lib/hooks/useStations'
@@ -35,11 +37,13 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 
+// Redesign (2026-10-09): Transit-style quick tiles, drawn icons, no emoji.
+// "moderate" is merged into "Small queue" (owner-approved); old moderate reports still display.
 const QUEUE_LEVELS = [
-  { id: 'empty', label: 'Empty', emoji: '😊' },
-  { id: 'short', label: 'Short', emoji: '🙂' },
-  { id: 'moderate', label: 'Moderate', emoji: '😐' },
-  { id: 'long', label: 'Long', emoji: '😫' },
+  { id: 'empty', label: 'Cars waiting', sub: 'Hop in now', color: '#15803D', Icon: Bus },
+  { id: 'short', label: 'Small queue', sub: 'A few minutes', color: '#B45309', Icon: User },
+  { id: 'long', label: 'Long queue', sub: '20–45 min', color: '#C2410C', Icon: Users },
+  { id: 'very_long', label: 'Very long', sub: '45 min or more', color: '#B91C1C', Icon: Clock },
 ]
 
 export default function QueueReportScreen() {
@@ -48,7 +52,6 @@ export default function QueueReportScreen() {
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { width } = useWindowDimensions()
-  const levelWidth = (width - 48 - 36) / 4 // px-6 + 3 gaps of 12
 
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
@@ -133,19 +136,19 @@ export default function QueueReportScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Hero */}
-        <View style={s.hero}>
-          <View style={s.heroIconBox}>
-            <Users size={36} color="#6b21a8" />
-          </View>
-          <Text style={s.heroLabel}>COMMUNITY CONTRIBUTION</Text>
-          <Text style={s.heroTitle}>How's the queue?</Text>
+        {/* Question */}
+        <View style={{ paddingHorizontal: 24, marginTop: 8, marginBottom: 14 }}>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 26, lineHeight: 35, color: '#111111' }}>
+            {selectedStationName ? `How's the queue at ${selectedStationName}?` : "How's the queue?"}
+          </Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#5F6670' }}>Tap what you see right now.</Text>
         </View>
 
-        {/* Queue Level Grid 2x2 or 4x1 */}
-        <View style={s.levelGrid}>
+        {/* Quick tiles 2x2 */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 24 }}>
           {QUEUE_LEVELS.map((level) => {
             const isSelected = selectedLevel === level.id
+            const Icon = level.Icon
             return (
               <TouchableOpacity
                 key={level.id}
@@ -153,20 +156,21 @@ export default function QueueReportScreen() {
                   setSelectedLevel(level.id)
                   haptics.light()
                 }}
-                activeOpacity={0.7}
-                style={[
-                  s.levelCard,
-                  { width: levelWidth },
-                  isSelected && s.levelCardSelected,
-                ]}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${level.label}, ${level.sub}`}
+                style={{
+                  width: (width - 48 - 10) / 2, minHeight: 128, borderRadius: 18, padding: 16, gap: 8,
+                  backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF',
+                  borderWidth: 2, borderColor: isSelected ? level.color : '#ECEAE7',
+                }}
               >
-                <Text style={s.levelEmoji}>{level.emoji}</Text>
-                <Text style={[
-                  s.levelLabel,
-                  isSelected && s.levelLabelSelected,
-                ]}>
-                  {level.label}
-                </Text>
+                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: level.color, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={24} color="#FFFFFF" />
+                </View>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 17, color: '#111111' }}>{level.label}</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#5F6670', marginTop: -6 }}>{level.sub}</Text>
               </TouchableOpacity>
             )
           })}
@@ -214,19 +218,17 @@ export default function QueueReportScreen() {
           onPress={handleSubmit}
           disabled={!canSubmit}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canSubmit }}
+          accessibilityLabel={`Send report, plus ${REPORT_POINTS.queue} coins`}
           style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
         >
-          <LinearGradient
-            colors={['#815100', '#f8a010']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={s.submitBtn}
-          >
-            <Text style={s.submitText}>
-              {isSubmitting ? 'SUBMITTING...' : 'SUBMIT REPORT'}
+          <View style={[s.submitBtn, { backgroundColor: '#FF4D1C' }]}>
+            <Text style={[s.submitText, { letterSpacing: 0 }]}>
+              {isSubmitting ? 'Sending…' : `Send report · +${REPORT_POINTS.queue} coins`}
             </Text>
             <Send size={20} color="#fff" />
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -297,7 +299,7 @@ export default function QueueReportScreen() {
                 style={s.customLocBtn}
               >
                 <MapPin size={16} color="#815100" />
-                <Text style={s.customLocText}>Use "{search.trim()}"</Text>
+                <Text style={s.customLocText}>Use &ldquo;{search.trim()}&rdquo;</Text>
               </TouchableOpacity>
             )}
           </Pressable>
