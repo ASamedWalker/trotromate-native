@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import { setStatusBarStyle } from 'expo-status-bar'
@@ -23,6 +23,7 @@ import NearbyStationsCard from './NearbyStationsCard'
 import { useAlerts } from '@/lib/hooks/useAlerts'
 import { AlertRow } from '@/components/AlertRow'
 import { CountText } from '@/components/motion/CountText'
+import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { corridorKey } from '@/lib/constants/corridors'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { formatGHS } from '@/lib/utils/currency'
@@ -127,6 +128,9 @@ function greeting(): string {
   return 'Good evening'
 }
 
+// Everything Home shows: commute card, stations, alerts, line counts, events, Pulse question.
+const HOME_QUERIES = [['home-commute'], ['stations'], ['service-alerts'], ['station-line-ends'], ['release-home-events'], ['release-home-question']]
+
 const DAY_BAND = '#FFF3EA'
 const NIGHT_BAND = '#16110D'
 
@@ -134,10 +138,11 @@ export default function ReleaseHome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
-  const { profile, deviceId } = useApp()
+  const { profile, deviceId, refreshProfile } = useApp()
   const { isAuthenticated } = useAuthContext()
   const locationName = useLocationName()
   const night = useIsNight()
+  const { refreshing, onRefresh } = usePullToRefresh(HOME_QUERIES, refreshProfile)
   // Light clock/battery icons over the dark evening band; dark ones over the daylight band.
   useFocusEffect(useCallback(() => {
     setStatusBarStyle(night ? 'light' : 'dark')
@@ -173,6 +178,9 @@ export default function ReleaseHome() {
       style={{ flex: 1, backgroundColor: '#FAFAF9' }}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={night ? '#FFFFFF' : ORANGE} colors={[ORANGE]} progressBackgroundColor="#FFFFFF" />
+      }
     >
       {/* ── Band: Adinkra wallpaper behind the greeting and "Where to?" ── */}
       <View style={{ overflow: 'hidden', backgroundColor: night ? NIGHT_BAND : DAY_BAND, paddingTop: insets.top + 12, paddingBottom: 92 }}>

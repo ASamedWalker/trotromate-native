@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, Animated, useWindowDimensions } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, Pressable, FlatList, Animated, RefreshControl, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -14,11 +14,14 @@ import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { PressableScale } from '@/components/motion/PressableScale'
 import { useReducedMotion } from 'react-native-reanimated'
 import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
+import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { freshness } from '@/lib/utils/freshness'
 import type { StationWithQueue } from '@/lib/services/stations'
 import { CARD, ORANGE, TEXT, TEXT2 } from '@/components/home/tokens'
 
 type Sort = 'nearby' | 'busiest' | 'az'
+
+const STATION_QUERIES = [['stations'], ['station-line-ends']]
 
 const GHANA = { minLat: 4.5, maxLat: 11.5, minLng: -3.5, maxLng: 1.5 }
 
@@ -40,6 +43,7 @@ export default function StationsTab() {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const { stations, isLoading } = useStations()
+  const { refreshing, onRefresh } = usePullToRefresh(STATION_QUERIES)
   const { location } = useLocation()
   const inGhana = !!location &&
     location.latitude >= GHANA.minLat && location.latitude <= GHANA.maxLat &&
@@ -157,6 +161,7 @@ export default function StationsTab() {
         data={isLoading && rows.length === 0 ? [] : rows}
         keyExtractor={({ s }) => s.id}
         ListHeaderComponent={header}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} colors={[ORANGE]} />}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 70 }}
         ListEmptyComponent={
           <Text style={{ margin: 20, fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>

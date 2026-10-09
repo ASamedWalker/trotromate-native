@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -15,6 +15,7 @@ import { formatGHS } from '@/lib/utils/currency'
 import { useStationDetail } from '@/lib/hooks/useStationDetail'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { CountText } from '@/components/motion/CountText'
+import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { CARD, ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from '@/components/home/tokens'
 
@@ -29,6 +30,7 @@ export default function StationDetailScreen() {
   const insets = useSafeAreaInsets()
   const { station, isLoading, isError, lines, reports, latestFresh, confirmations, confirm } = useStationDetail(id)
   const { isAuthenticated } = useAuthContext()
+  const { refreshing, onRefresh } = usePullToRefresh([['stations'], ['station-lines', id], ['station-reports', id], ['queue-confirmations']])
 
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: '#FAFAF9', paddingTop: insets.top + 12, paddingHorizontal: 20 }}><BackButton /></View>
@@ -52,7 +54,9 @@ export default function StationDetailScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#FAFAF9' }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40, paddingHorizontal: 20, gap: 14 }}>
+    <ScrollView
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} colors={[ORANGE]} />}
+      style={{ flex: 1, backgroundColor: '#FAFAF9' }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40, paddingHorizontal: 20, gap: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <BackButton />
         <View style={{ flex: 1 }}>

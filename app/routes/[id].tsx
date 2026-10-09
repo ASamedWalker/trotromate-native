@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
-import { View, Text, TouchableOpacity, StyleSheet, Animated as RNAnimated } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Animated as RNAnimated } from 'react-native'
 import { SvgXml } from 'react-native-svg'
 import { StatusBar } from 'expo-status-bar'
 import { adinkraPatternXml } from '@/lib/brand/adinkra'
@@ -23,6 +23,7 @@ import { QueueStatusLine } from '@/components/QueueStatusLine'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useAlerts, alertsForRoute } from '@/lib/hooks/useAlerts'
 import { AlertRow } from '@/components/AlertRow'
+import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 
 import { fetchRouteActivity } from '@/lib/services/route-activity'
 import { fetchRouteSegmentFares, resolveDropoffFareSync } from '@/lib/services/segment-fares'
@@ -75,6 +76,7 @@ export default function RouteDetailScreen() {
   const { route, recentReports, isLoading, isError, refetch } = useRouteDetail(id!)
   const stationsQ = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000, enabled: RELEASE_MODE })
   const { deviceId } = useApp()
+  const { refreshing, onRefresh } = usePullToRefresh([['stations'], ['service-alerts'], ['corridor-rank', deviceId, id]], refetch)
   // Heart "pop" when saving/unsaving (core Animated; the button sits outside the ScrollView).
   const heartScale = useRef(new RNAnimated.Value(1)).current
   const reducedMotion = useReducedMotion()
@@ -240,6 +242,7 @@ export default function RouteDetailScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" colors={[brand.orange]} />}
       >
         {/* ── Hero ── */}
         {/* Content starts below the floating back/save buttons (top inset + 8 + 44 + 12),
