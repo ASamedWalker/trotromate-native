@@ -82,6 +82,20 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   }
 }
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
+
+/** Tell the server a Troski push was opened (open rate = opens / sends; web migration 101). */
+function reportPushOpen(data: Record<string, unknown> | undefined, deviceId: string | null) {
+  const kind = data?.kind
+  const ref = data?.ref
+  if (!deviceId || typeof kind !== 'string' || typeof ref !== 'string') return
+  fetch(`${API_URL}/api/push/opened`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_id: deviceId, kind, ref }),
+  }).catch(() => {})
+}
+
 /**
  * Store this phone's Expo token on its profile via save_push_token (migration
  * 089). Direct writes to push_token are denied for app roles after migration 092.
@@ -123,10 +137,17 @@ export function usePushNotifications(deviceId: string | null, enabled: boolean =
       (notif) => setNotification(notif)
     )
 
+    // A push tapped while the app was fully closed may not reach the listener below:
+    // record that open once at launch (the server ignores duplicates).
+    Notifications.getLastNotificationResponseAsync()
+      .then((last) => { if (last) reportPushOpen(last.notification.request.content.data, deviceId) })
+      .catch(() => {})
+
     // Listen for user tapping on a notification — deep-link to relevant screen
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data
+        reportPushOpen(data, deviceId)
         if (data?.screen === 'route-detail' && data.routeId) {
           router.push(`/routes/${data.routeId}` as any)
         } else if (data?.screen === 'stations') {
