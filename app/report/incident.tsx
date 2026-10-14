@@ -46,12 +46,12 @@ import { useStations } from '@/lib/hooks/useStations'
 import { getStationCoords } from '@/lib/utils/station-coords'
 
 const INCIDENT_TYPES = [
-  { id: 'traffic', label: 'Traffic', icon: Car, color: '#815100' },
+  { id: 'traffic', label: 'Traffic', icon: Car, color: '#FF4D1C' },
   { id: 'accident', label: 'Accident', icon: AlertTriangle, color: '#b02500' },
-  { id: 'police_checkpoint', label: 'Police', icon: ShieldCheck, color: '#815100' },
-  { id: 'road_closure', label: 'Road\nClosure', icon: Ban, color: '#815100' },
-  { id: 'flooding', label: 'Hazard', icon: TriangleAlert, color: '#815100' },
-  { id: 'breakdown', label: 'Work', icon: Construction, color: '#815100' },
+  { id: 'police_checkpoint', label: 'Police', icon: ShieldCheck, color: '#FF4D1C' },
+  { id: 'road_closure', label: 'Road\nClosure', icon: Ban, color: '#FF4D1C' },
+  { id: 'flooding', label: 'Hazard', icon: TriangleAlert, color: '#FF4D1C' },
+  { id: 'breakdown', label: 'Work', icon: Construction, color: '#FF4D1C' },
 ]
 
 export default function IncidentReportScreen() {
@@ -203,7 +203,7 @@ export default function IncidentReportScreen() {
         <View style={s.locationPillWrap}>
           {gpsStatus === 'loading' && (
             <View style={s.gpsBadge}>
-              <ActivityIndicator size={12} color="#815100" />
+              <ActivityIndicator size={12} color="#FF4D1C" />
               <Text style={s.gpsBadgeText}>Getting your location...</Text>
             </View>
           )}
@@ -230,11 +230,11 @@ export default function IncidentReportScreen() {
             activeOpacity={0.7}
             onPress={() => setLocationModalVisible(true)}
           >
-            <MapPin size={16} color="#815100" />
+            <MapPin size={16} color="#FF4D1C" />
             <Text style={s.locationPillText} numberOfLines={1}>
               {location || 'Select location'}
             </Text>
-            <ChevronDown size={16} color="#815100" />
+            <ChevronDown size={16} color="#FF4D1C" />
           </TouchableOpacity>
         </View>
 
@@ -267,7 +267,7 @@ export default function IncidentReportScreen() {
               >
                 <Icon
                   size={28}
-                  color={type.id === 'accident' ? '#b02500' : '#815100'}
+                  color={type.id === 'accident' ? '#b02500' : '#FF4D1C'}
                 />
                 <Text style={s.gridLabel}>{type.label}</Text>
                 {isSelected && (
@@ -328,7 +328,7 @@ export default function IncidentReportScreen() {
           style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
         >
           <LinearGradient
-            colors={['#815100', '#f8a010']}
+            colors={['#FF4D1C', '#E8431A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.submitBtn}
@@ -353,7 +353,7 @@ export default function IncidentReportScreen() {
 
             {/* Search */}
             <View style={s.searchBox}>
-              <Search size={18} color="#815100" />
+              <Search size={18} color="#FF4D1C" />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
@@ -385,7 +385,7 @@ export default function IncidentReportScreen() {
                     <Text style={s.locArea}>{station.location}</Text>
                   </View>
                   {location === station.name && (
-                    <Check size={18} color="#815100" />
+                    <Check size={18} color="#FF4D1C" />
                   )}
                 </TouchableOpacity>
               )}
@@ -403,7 +403,7 @@ export default function IncidentReportScreen() {
                 activeOpacity={0.7}
                 style={s.customLocBtn}
               >
-                <MapPin size={16} color="#815100" />
+                <MapPin size={16} color="#FF4D1C" />
                 <Text style={s.customLocText}>Use "{search.trim()}"</Text>
               </TouchableOpacity>
             )}
@@ -530,7 +530,7 @@ const getStyles = (isDark: boolean) => {
     },
     gridItemSelected: {
       borderWidth: 2,
-      borderColor: '#815100',
+      borderColor: '#FF4D1C',
       backgroundColor: isDark ? 'rgba(129,81,0,0.12)' : 'rgba(129,81,0,0.06)',
     },
     gridLabel: {
@@ -547,7 +547,7 @@ const getStyles = (isDark: boolean) => {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -590,7 +590,7 @@ const getStyles = (isDark: boolean) => {
     cameraTitle: {
       fontSize: 18,
       fontFamily: font.bold,
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#815100',
+      color: isDark ? 'rgba(255,255,255,0.7)' : '#FF4D1C',
       letterSpacing: 3,
       textTransform: 'uppercase',
     },
@@ -749,7 +749,7 @@ const getStyles = (isDark: boolean) => {
     customLocText: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: '#815100',
+      color: '#FF4D1C',
     },
   })
 }

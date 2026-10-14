@@ -134,7 +134,7 @@ export default function EvScreen() {
           </TouchableOpacity>
         </View>
 
-        {isSample && (
+        {__DEV__ && isSample && (
           <View style={styles.sampleBanner}>
             <Text style={styles.sampleText}>Sample spots · add a free OpenChargeMap key for live stations</Text>
           </View>

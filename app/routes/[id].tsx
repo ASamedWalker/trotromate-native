@@ -280,7 +280,7 @@ export default function RouteDetailScreen() {
                 ) : null}
               </View>
             ) : (
-              <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#F5A300' }]}>
+              <View style={[s.kindPill, { backgroundColor: isOkada ? '#FFFFFF' : '#FF4D1C' }]}>
                 <Text style={s.kindText}>{isOkada ? 'OKADA ROUTE' : 'TROTRO ROUTE'}</Text>
               </View>
             )}

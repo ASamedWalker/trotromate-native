@@ -1021,7 +1021,7 @@ export default function TrainLinesScreen() {
 
         {/* ─── Akosombo tip ───────────────────────────────── */}
         <View style={s.akosombo}>
-          <MapPin size={22} color="#F5A300" fill="#F5A300" style={{ marginTop: 3 }} />
+          <MapPin size={22} color="#FF4D1C" fill="#FF4D1C" style={{ marginTop: 3 }} />
           <Text style={s.akosomboText}>
             <Text style={{ fontFamily: font.extrabold, color: INK }}>Going to Akosombo? </Text>
             {"Take the Tema–Mpakadan train to Mpakadan, the line's last stop."}

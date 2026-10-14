@@ -70,7 +70,7 @@ export default function EvReportScreen() {
     setSubmitting(false)
     if (id) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      Alert.alert('Thanks! 🔌', 'Station added. Other riders will see it once a couple of people confirm it.', [
+      Alert.alert('Thanks!', 'Station added. Other riders will see it once a couple of people confirm it.', [
         { text: 'Done', onPress: () => router.back() },
       ])
     } else {

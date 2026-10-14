@@ -521,7 +521,7 @@ const getStyles = (isDark: boolean) => {
     },
     markRead: {
       ...type.labelStrong,
-      color: isDark ? '#f8a010' : brand.orangeText,
+      color: isDark ? '#FF4D1C' : brand.orangeText,
     },
 
     // Segmented control

@@ -42,8 +42,6 @@ const SERVICES = [
   { id: 'bus', label: 'Bus', image: require('@/assets/images/home/bus_icon_bg_removed.png'), mode: 'trotro' as const },
   { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), mode: 'okada' as const },
   { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png'), mode: 'train' as const },
-  { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), mode: 'pragya' as const },
-  { id: 'courier', label: 'Courier', image: require('@/assets/images/home/van_bg_removed.png'), mode: 'all' as const },
 ]
 
 /* ── Build deduplicated station list from real data ── */

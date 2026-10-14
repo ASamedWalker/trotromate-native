@@ -83,7 +83,7 @@ export default function PhoneAuthScreen() {
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={s.topBar}>
             <Text style={s.wordmark} accessibilityRole="header" accessibilityLabel="Troski">
-              tr<Text style={{ color: '#F5A300' }}>o</Text>ski
+              tr<Text style={{ color: '#FF4D1C' }}>o</Text>ski
             </Text>
             <Tap onPress={handleSkip} hitSlop={8} style={s.skip} accessibilityRole="button">
               <Text style={s.skipText}>Skip for now</Text>

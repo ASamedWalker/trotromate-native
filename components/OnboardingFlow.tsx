@@ -43,8 +43,8 @@ const ALL_SLIDES: Slide[] = [
   {
     id: 'wallet',
     image: require('@/assets/images/onboarding/ob_wallet_image.png'),
-    title: 'Pay Your Fare\nFrom Your Wallet',
-    subtitle: 'Top up your Troski wallet, scan your QR code and ride — no cash, no stress.',
+    title: 'Know the fare\nbefore you ride',
+    subtitle: 'Official GPRTU fares and what riders actually paid, on every line.',
   },
   {
     id: 'traffic',

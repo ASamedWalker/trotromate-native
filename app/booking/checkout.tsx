@@ -31,8 +31,8 @@ const BRAND = '#FF4D1C'
 
 
 const VERIFY_ITEMS = [
-  { Icon: BadgeCheck, title: 'Driver Identification', desc: 'We verify every driver’s identity using valid government-issued identification' },
-  { Icon: Camera, title: 'Driver Photo Check', desc: 'Drivers regularly submit live photo confirmation to help prevent impersonation' },
+  { Icon: BadgeCheck, title: 'Driver Identification', desc: 'Drivers on Troski are registered with us' },
+  { Icon: Camera, title: 'Driver Photo Check', desc: 'Your ticket is tied to this vehicle’s plate' },
   { Icon: UserCheck, title: 'Safety & Conduct Review', desc: 'Driver activity, commuter feedback, and ratings are continuously monitored to maintain a safe and reliable commuting experience' },
 ]
 
@@ -208,6 +208,7 @@ export default function CheckoutScreen() {
       dropoffName: toName,
       vehicleType: 'everyday',
       fare: Number(total.toFixed(2)),
+      plateNumber: assigned?.plate,
     })
     setBooking(false)
     bookingRef.current = false
@@ -231,7 +232,7 @@ export default function CheckoutScreen() {
         { text: 'Topup', onPress: () => goTopup() },
       ])
     } else {
-      Alert.alert('Booking failed', result.message || 'Could not complete the booking. Please try again.')
+      Alert.alert('Booking failed', (result.message || 'Could not complete the booking. Please try again.') + '\n\nIf money left your wallet, check My Tickets before trying again.')
     }
   }
 

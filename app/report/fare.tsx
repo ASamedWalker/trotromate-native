@@ -164,7 +164,7 @@ export default function FareReportScreen() {
           {/* Reward Header */}
           <View style={s.rewardHeader}>
             <View style={s.rewardIcon}>
-              <Banknote size={32} color="#815100" />
+              <Banknote size={32} color="#FF4D1C" />
             </View>
             <Text style={s.rewardText}>Earn +10 XP</Text>
           </View>
@@ -178,7 +178,7 @@ export default function FareReportScreen() {
                 <Text style={s.stageLabel}>Boarded at</Text>
                 <TouchableOpacity onPress={() => { haptics.light(); setBoardPickerOpen(true) }} activeOpacity={0.8} style={s.stageField}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <MapPin size={18} color="#815100" />
+                    <MapPin size={18} color="#FF4D1C" />
                     <Text style={s.stageFieldText} numberOfLines={1}>{board?.stop_name}</Text>
                   </View>
                   <ChevronDown size={18} color="#b2acaa" />
@@ -196,7 +196,7 @@ export default function FareReportScreen() {
             ) : (
               <>
                 <View style={s.locationCard}>
-                  <MapPin size={18} color="#815100" />
+                  <MapPin size={18} color="#FF4D1C" />
                   <TextInput
                     value={from}
                     onChangeText={setFrom}
@@ -210,7 +210,7 @@ export default function FareReportScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                     {stationSuggestions(from).map((n) => (
                       <TouchableOpacity key={n} onPress={() => setFrom(n)} style={{ backgroundColor: 'rgba(129,81,0,0.08)', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 }}>
-                        <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#815100' }}>{n}</Text>
+                        <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#FF4D1C' }}>{n}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -282,7 +282,7 @@ export default function FareReportScreen() {
                 activeOpacity={0.7}
                 style={s.fareBtn}
               >
-                <Minus size={24} color="#815100" />
+                <Minus size={24} color="#FF4D1C" />
               </TouchableOpacity>
 
               <View style={s.fareInputWrap}>
@@ -332,7 +332,7 @@ export default function FareReportScreen() {
                 activeOpacity={0.7}
                 style={[s.vehicleCard, !isOkada && s.vehicleCardSelected]}
               >
-                <View style={[s.vehicleIcon, { backgroundColor: !isOkada ? '#f8a010' : (isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8') }]}>
+                <View style={[s.vehicleIcon, { backgroundColor: !isOkada ? '#FF4D1C' : (isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8') }]}>
                   <Bus size={22} color={!isOkada ? '#4a2c00' : (isDark ? 'rgba(255,255,255,0.4)' : '#5f5b59')} />
                 </View>
                 <Text style={[s.vehicleLabel, !isOkada && s.vehicleLabelSelected]}>Trotro</Text>
@@ -348,7 +348,7 @@ export default function FareReportScreen() {
                 activeOpacity={0.7}
                 style={[s.vehicleCard, isOkada && s.vehicleCardSelected]}
               >
-                <View style={[s.vehicleIcon, { backgroundColor: isOkada ? '#f8a010' : (isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8') }]}>
+                <View style={[s.vehicleIcon, { backgroundColor: isOkada ? '#FF4D1C' : (isDark ? 'rgba(255,255,255,0.06)' : '#e3dbd8') }]}>
                   <Bike size={22} color={isOkada ? '#4a2c00' : (isDark ? 'rgba(255,255,255,0.4)' : '#5f5b59')} />
                 </View>
                 <Text style={[s.vehicleLabel, isOkada && s.vehicleLabelSelected]}>Okada</Text>
@@ -372,7 +372,7 @@ export default function FareReportScreen() {
           style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
         >
           <LinearGradient
-            colors={['#815100', '#f8a010']}
+            colors={['#FF4D1C', '#E8431A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.submitBtn}
@@ -465,7 +465,7 @@ const getStyles = (isDark: boolean) => {
     rewardText: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#FF4D1C',
       letterSpacing: 1,
     },
 
@@ -573,7 +573,7 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: surfaceLow,
     },
     stageChipActive: {
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
     },
     stageChipText: {
       fontSize: 13,
@@ -617,7 +617,7 @@ const getStyles = (isDark: boolean) => {
       width: 56,
       height: 56,
       borderRadius: 16,
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: 'rgba(129,81,0,0.2)',
@@ -641,7 +641,7 @@ const getStyles = (isDark: boolean) => {
     fareCedi: {
       fontSize: 32,
       fontFamily: font.extrabold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
     fareInput: {
       fontSize: 48,
@@ -666,12 +666,12 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
     },
     quickBtnActive: {
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
     },
     quickBtnText: {
       fontSize: 13,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
     quickBtnTextActive: {
       color: '#fff',
@@ -693,7 +693,7 @@ const getStyles = (isDark: boolean) => {
     },
     vehicleCardSelected: {
       backgroundColor: surfaceLowest,
-      borderColor: '#815100',
+      borderColor: '#FF4D1C',
       shadowColor: 'rgba(129,81,0,0.05)',
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 1,
@@ -723,7 +723,7 @@ const getStyles = (isDark: boolean) => {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
     },

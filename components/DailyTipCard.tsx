@@ -132,7 +132,6 @@ export function DailyTipCard({ category, tip: overrideTip }: Props) {
 
             {submitted ? (
               <View style={s.successState}>
-                <Text style={s.successEmoji}>🎉</Text>
                 <Text style={s.successTitle}>Tip Submitted!</Text>
                 <Text style={s.successSub}>You'll earn +5 points when it's approved!</Text>
               </View>

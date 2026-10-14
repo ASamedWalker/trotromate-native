@@ -79,7 +79,7 @@ export default function RoutesScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const [fotdSize, setFotdSize] = useState({ w: 0, h: 0 })
-  const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string }>()
+  const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string; t?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(), [])
@@ -88,6 +88,10 @@ export default function RoutesScreen() {
   const [activeFilter, setActiveFilter] = useState<Filter>(
     (params.transport as Filter) || 'all'
   )
+  // Tabs stay mounted, so a later push with ?transport= (Home Okada tile) must update the filter too.
+  useEffect(() => {
+    if (params.transport) setActiveFilter(params.transport as Filter)
+  }, [params.transport, params.t]) // t = per-tap nonce so a repeat tap re-applies the filter
   const [activeRegion, setActiveRegion] = useState<string>(params.region || 'all')
   const [regionPickerOpen, setRegionPickerOpen] = useState(false)
 
@@ -347,13 +351,8 @@ export default function RoutesScreen() {
       {/* Editorial Header */}
       <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
         <View style={s.headerRow}>
-          {/* Release mode: the Fares tab header (lines.tsx) already titles this screen */}
-          {RELEASE_MODE ? <View /> : (
-            <View>
-              <Text style={s.headerLabel}>Urban mobility</Text>
-              <Text style={s.headerTitle}>Find your route</Text>
-            </View>
-          )}
+          {/* The Lines tab header (lines.tsx) already titles this screen */}
+          <View />
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
@@ -764,7 +763,7 @@ const getStyles = () => {
       marginBottom: 14,
       overflow: 'hidden',
     },
-    fotdLabel: { fontSize: 12, fontFamily: font.bold, color: '#F5A300', letterSpacing: 1 },
+    fotdLabel: { fontSize: 12, fontFamily: font.bold, color: '#FF4D1C', letterSpacing: 1 },
     fotdRoute: { fontSize: 18, fontFamily: font.bold, color: '#fff', marginTop: 6 },
     fotdCols: { flexDirection: 'row', gap: 24, marginTop: 14 },
     fotdCol: { flexShrink: 1 },

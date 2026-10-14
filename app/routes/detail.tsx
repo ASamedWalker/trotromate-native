@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Animated as RNAnimated,
-  Easing,
   LayoutAnimation,
   Platform,
   UIManager,
@@ -17,7 +15,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, BellRing, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone, Route as RouteIcon, Share as ShareIcon } from 'lucide-react-native'
+import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone, Route as RouteIcon, Share as ShareIcon } from 'lucide-react-native'
 import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
@@ -113,8 +111,6 @@ export default function RouteDetailScreen() {
   const [loadingTraffic, setLoadingTraffic] = useState(true)
   const [showVehicles, setShowVehicles] = useState(false)
   const [vehicleSearch, setVehicleSearch] = useState('')
-  const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
-  const [notifyEnabled, setNotifyEnabled] = useState(false)
   // Track the sheet's actual top Y (gorhom updates this every frame during drag —
   // reliable, unlike the onChange index). Drives the map overlays so the close X /
   // ETA pill hide once the sheet rises into them, and the recenter FAB hides once
@@ -131,9 +127,6 @@ export default function RouteDetailScreen() {
   }, [insets.top])
   // Real road distance from the Directions response — feeds the floating ETA pill.
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
-  // Animated route "draw" sweep: line-trim-offset end goes 1 (hidden) -> 0 (full).
-  const drawAnim = useRef(new RNAnimated.Value(1)).current
-  const [trimEnd, setTrimEnd] = useState(1)
   // Day/night map style (Ghana local hours): branded by day, stock nav-night after dark.
   const isNight = useMemo(() => { const h = new Date().getHours(); return h < 6 || h >= 18 }, [])
   const mapStyleURL = isNight ? MAP_STYLE_NIGHT : MAP_STYLE_DAY
@@ -181,10 +174,6 @@ export default function RouteDetailScreen() {
   const centerLon = hasCoords ? (fromCoord!.lon + toCoord!.lon) / 2 : defaultCenter.lon
   const centerLat = hasCoords ? (fromCoord!.lat + toCoord!.lat) / 2 : defaultCenter.lat
 
-  // Pulsing origin marker
-  const pulseAnim = useRef(new RNAnimated.Value(0)).current
-  const [pulseRadius, setPulseRadius] = useState(14)
-  const [pulseOpacity, setPulseOpacity] = useState(0.4)
 
   // Fit the whole corridor with a flat (pitch 0) framing — leaves room for
   // the bottom sheet (paddingBottom) so the route sits above it.
@@ -206,43 +195,10 @@ export default function RouteDetailScreen() {
   // Route line — fetch road-following geometry from Mapbox Directions API
   const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
 
-  // Pulse animation loop
-  useEffect(() => {
-    const loop = RNAnimated.loop(
-      RNAnimated.sequence([
-        RNAnimated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-        RNAnimated.timing(pulseAnim, { toValue: 0, duration: 1200, easing: Easing.in(Easing.ease), useNativeDriver: false }),
-      ])
-    )
-    loop.start()
-
-    const listener = pulseAnim.addListener(({ value }) => {
-      setPulseRadius(14 + value * 10)
-      setPulseOpacity(0.4 - value * 0.35)
-    })
-    return () => { loop.stop(); pulseAnim.removeListener(listener) }
-  }, [])
-
-  // Animated route "draw" — reveal the polyline from origin once geometry loads.
-  useEffect(() => {
-    if (!routeLine) return
-    drawAnim.setValue(1)
-    const id = drawAnim.addListener(({ value }) => setTrimEnd(value))
-    RNAnimated.timing(drawAnim, {
-      toValue: 0, duration: 1400, easing: Easing.inOut(Easing.cubic), useNativeDriver: false,
-    }).start()
-    return () => drawAnim.removeListener(id)
-  }, [routeLine])
-
-
   const snapPoints = useMemo(() => [`${Math.round(FIRST_SNAP * 100)}%`, '74%', '90%'], [])
 
 
-  // Fabricated stop timeline removed (UX-06): it rendered "Now at Market
-  // Square · updates live" from hardcoded data that never updated. Sheet 3
-  // shows an honest placeholder until real route_stops + positions exist.
-
-  // Some routes (e.g. okada corridors) have no duration: show a dash, not "NaN min".
+  // Some routes (e.g. okada corridors, deep links) have no duration: hide it, never "NaN min".
   const hasDuration = Number.isFinite(duration) && duration > 0
   const durationText = !hasDuration
     ? '—'
@@ -373,9 +329,14 @@ export default function RouteDetailScreen() {
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
   // Not exact/official (matches the "estimate" badge) → show rounded with a tilde.
   const isEstimate = !!(hasStops && dropoffFare != null && !dropoffResult?.isOfficial)
-  const fareText = isEstimate
-    ? `~${formatGHS(Math.round(Number(displayFare) * 10) / 10)}`
-    : formatGHS(Number(displayFare))
+  // Okada routes carry their own fares; anything else (pragya, okada on a trotro
+  // corridor) would just be the trotro fare relabelled, so show no number.
+  const fareUnavailable = selectedOption.id !== 'trotro' && !(selectedOption.id === 'okada' && selectedTransport === 'okada')
+  const fareText = fareUnavailable
+    ? 'Fare not available yet'
+    : isEstimate
+      ? `~${formatGHS(Math.round(Number(displayFare) * 10) / 10)}`
+      : formatGHS(Number(displayFare))
   const dropoffName = hasStops ? stops.find((s) => s.stop_order === effectiveDropoff)?.stop_name : undefined
   const [alightPickerOpen, setAlightPickerOpen] = useState(false)
   // Intermediate stops as map dots (origin/destination have their own pins).
@@ -489,7 +450,6 @@ export default function RouteDetailScreen() {
                 lineCap: 'round',
                 lineJoin: 'round',
                 lineOpacity: 1,
-                lineTrimOffset: [0, trimEnd],
               }}
             />
             {/* Brand core */}
@@ -501,7 +461,6 @@ export default function RouteDetailScreen() {
                 lineCap: 'round',
                 lineJoin: 'round',
                 lineOpacity: 1,
-                lineTrimOffset: [0, trimEnd],
               }}
             />
           </Mapbox.ShapeSource>
@@ -543,7 +502,7 @@ export default function RouteDetailScreen() {
           </Mapbox.MarkerView>
         )}
 
-        {/* Pulsing origin marker */}
+        {/* Origin ring */}
         {fromCoord && (
           <Mapbox.ShapeSource
             id="origin-pulse"
@@ -552,9 +511,9 @@ export default function RouteDetailScreen() {
             <Mapbox.CircleLayer
               id="origin-pulse-ring"
               style={{
-                circleRadius: pulseRadius,
+                circleRadius: 18,
                 circleColor: '#22c55e',
-                circleOpacity: pulseOpacity,
+                circleOpacity: 0.25,
                 circlePitchAlignment: 'map',
               }}
             />
@@ -750,15 +709,17 @@ export default function RouteDetailScreen() {
 
           {/* Headline metrics: duration/arrival + fare/mode */}
           <View style={{ marginHorizontal: 24, marginBottom: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'flex-start' }}>
-            <View>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
-              {hasDuration && selectedTransport === 'trotro' && (
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{'Leaves when full'}</Text>
-              )}
-            </View>
+            {hasDuration && (
+              <View>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
+                {selectedTransport === 'trotro' && (
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{'Leaves when full'}</Text>
+                )}
+              </View>
+            )}
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: BRAND, letterSpacing: -0.8 }}>{fareText}</Text>
-              {dropoffName ? (
+              <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 15 : 25, color: BRAND, letterSpacing: -0.8 }}>{fareText}</Text>
+              {fareUnavailable ? null : dropoffName ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
                   {/* "official" names its source — a rider can check a GPRTU or
@@ -783,11 +744,10 @@ export default function RouteDetailScreen() {
                 </Text>
               ) : (
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                  {/* okada/pragya fares are ×-multiplier estimates from trotro data — say so (UX-37) */}
-                  {selectedOption.fareMultiplier !== 1 ? `${selectedOption.label} fare (estimate)` : `${selectedOption.label} fare`}
+                  {`${selectedOption.label} fare`}
                 </Text>
               )}
-              {reportCount > 0 && (
+              {!fareUnavailable && reportCount > 0 && (
                 <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#B0B4BB', marginTop: 1 }}>
                   {reportCount} report{reportCount !== 1 ? 's' : ''}{fareFresh ? ` · ${fareFresh}` : ''}
                 </Text>
@@ -971,7 +931,7 @@ export default function RouteDetailScreen() {
           )}
 
           {/* ── Sheet 2: Available Buses (shows after Go Now) ── */}
-          {FEATURES.liveBuses && showVehicles && !selectedVehicle && (
+          {FEATURES.liveBuses && showVehicles && (
             <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
               {/* Header + back */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -1007,16 +967,14 @@ export default function RouteDetailScreen() {
                 </View>
               ) : (() => {
                 const filtered = vehicles.filter(v =>
-                  vehicleSearch.length === 0 || v.plateNumber.toLowerCase().includes(vehicleSearch.toLowerCase())
+                  Date.now() - new Date(v.updatedAt).getTime() < 30 * 60000 &&
+                  (vehicleSearch.length === 0 || v.plateNumber.toLowerCase().includes(vehicleSearch.toLowerCase()))
                 )
                 return filtered.length > 0 ? (
                   filtered.map((v) => {
-                    const etaMins = v.speed && v.speed > 0 ? Math.max(2, Math.round(15 - v.speed * 0.2)) : null
+                    const ageMins = Math.max(0, Math.floor((Date.now() - new Date(v.updatedAt).getTime()) / 60000))
                     return (
-                      <TouchableOpacity key={v.vanId} activeOpacity={0.7} onPress={() => {
-                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                        setSelectedVehicle(v)
-                      }} style={{
+                      <View key={v.vanId} style={{
                         padding: 16, borderRadius: 16,
                         backgroundColor: '#FFFFFF', marginBottom: 10,
                         borderWidth: 1, borderColor: '#F3F4F6',
@@ -1025,7 +983,7 @@ export default function RouteDetailScreen() {
                         {/* ETA headline + Live */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: v.isStale ? '#6B7280' : '#000', letterSpacing: -0.4 }}>
-                            {v.isStale ? 'Offline' : etaMins != null ? (etaMins <= 2 ? 'Arriving now' : `Arriving in ${etaMins} min`) : 'At a stop'}
+                            {v.isStale ? `Last seen ${ageMins} min ago` : 'Live'}
                           </Text>
                           {!v.isStale && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
@@ -1037,13 +995,13 @@ export default function RouteDetailScreen() {
 
                         {/* Friendly status */}
                         <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 3 }}>
-                          {v.isStale ? 'Last seen a moment ago' : v.speed && v.speed > 0 ? 'On the way' : 'Waiting at a stop'}
+                          {v.isStale ? 'Offline' : v.speed && v.speed > 0 ? 'On the way' : 'Waiting at a stop'}
                         </Text>
 
                         {/* Divider */}
                         <View style={{ height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 }} />
 
-                        {/* Plate + driver (secondary) — tap opens the bus timeline */}
+                        {/* Plate + driver (secondary) */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                           <Image
                             source={TRANSPORT_OPTIONS.find(o => o.id === selectedTransport)?.image || TRANSPORT_OPTIONS[0].image}
@@ -1056,9 +1014,8 @@ export default function RouteDetailScreen() {
                               <Text style={{ fontFamily: font.regular, color: '#6B7280' }}>{`   ·   ${(v as any).driver}`}</Text>
                             ) : null}
                           </Text>
-                          <ChevronRight size={18} color="#D1D5DB" />
                         </View>
-                      </TouchableOpacity>
+                      </View>
                     )
                   })
                 ) : (
@@ -1071,76 +1028,6 @@ export default function RouteDetailScreen() {
                   </View>
                 )
               })()}
-            </View>
-          )}
-
-          {/* ── Sheet 3: Bus Stop Timeline ── */}
-          {FEATURES.liveBuses && showVehicles && selectedVehicle && (
-            <View style={{ flex: 1 }}>
-              {/* Orange header */}
-              <View style={{
-                backgroundColor: BRAND, borderRadius: 16, marginHorizontal: 24,
-                paddingHorizontal: 18, paddingVertical: 14, marginBottom: 20,
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#fff' }}>
-                    Towards {to}
-                  </Text>
-                  <Text style={{ fontFamily: font.regular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
-                    {selectedVehicle.plateNumber} · {'driver' in selectedVehicle ? selectedVehicle.driver : ''}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                    setNotifyEnabled(!notifyEnabled)
-                  }}
-                  activeOpacity={0.7}
-                  style={{
-                    width: 40, height: 40, borderRadius: 20,
-                    backgroundColor: notifyEnabled ? '#fff' : 'rgba(255,255,255,0.2)',
-                    justifyContent: 'center', alignItems: 'center',
-                  }}
-                >
-                  <BellRing size={20} color={notifyEnabled ? BRAND : '#fff'} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Back button */}
-              <TouchableOpacity
-                onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSelectedVehicle(null) }}
-                style={{ paddingHorizontal: 24, marginBottom: 12 }}
-              >
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>← Back to list</Text>
-              </TouchableOpacity>
-
-              {/* ETA headline — live, updates as real driver data arrives */}
-              {/* Honest placeholder — the old fabricated stop timeline claimed
-                  "Now at Market Square · updates live" from hardcoded data (UX-06).
-                  Stop-by-stop tracking returns when route_stops + live positions land. */}
-              <View style={{ marginHorizontal: 24, padding: 20, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
-                <Bus size={28} color="#D1D5DB" />
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151', marginTop: 10, textAlign: 'center' }}>
-                  Stop-by-stop tracking coming soon
-                </Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#6B7280', marginTop: 4, textAlign: 'center' }}>
-                  This bus is broadcasting its live position — follow it on the map above.
-                </Text>
-              </View>
-
-              {/* Notify banner */}
-              {notifyEnabled && (
-                <View style={{
-                  marginHorizontal: 24, marginTop: 20, padding: 14, borderRadius: 14,
-                  backgroundColor: '#FFF0EB', flexDirection: 'row', alignItems: 'center', gap: 10,
-                }}>
-                  <BellRing size={18} color={BRAND} />
-                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: BRAND, flex: 1 }}>
-                    Arrival alerts are coming soon — we&apos;ll ping your phone when your bus is close
-                  </Text>
-                </View>
-              )}
             </View>
           )}
 

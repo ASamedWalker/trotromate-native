@@ -23,7 +23,7 @@ import {
 } from 'lucide-react-native'
 import { router, type Href } from 'expo-router'
 import { BackButton } from '@/components/BackButton'
-import { c, themed, font } from '@/lib/theme'
+import { themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
@@ -34,11 +34,11 @@ const ICON_MAP: Record<NotificationType, { icon: typeof Bell; color: string }> =
   fare_drop: { icon: TrendingDown, color: '#22c55e' },
   queue_alert: { icon: Users, color: '#f97316' },
   streak_risk: { icon: Flame, color: '#ef4444' },
-  level_up: { icon: Award, color: '#f59e0b' },
+  level_up: { icon: Award, color: '#FF4D1C' },
   badge_earned: { icon: Star, color: '#8b5cf6' },
   community: { icon: MessageCircle, color: '#8b5cf6' },
   post_activity: { icon: Heart, color: '#ec4899' },
-  official_announcement: { icon: Megaphone, color: '#f59e0b' },
+  official_announcement: { icon: Megaphone, color: '#FF4D1C' },
 }
 
 export default function NotificationsScreen() {
@@ -128,7 +128,7 @@ export default function NotificationsScreen() {
 
       {isLoading ? (
         <View style={s.centered}>
-          <ActivityIndicator size="large" color={c.amber500} />
+          <ActivityIndicator size="large" color="#FF4D1C" />
         </View>
       ) : notifications.length === 0 ? (
         <View style={s.centered}>
@@ -153,8 +153,8 @@ export default function NotificationsScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={c.amber500}
-              colors={[c.amber500]}
+              tintColor="#FF4D1C"
+              colors={['#FF4D1C']}
             />
           }
         />
@@ -177,7 +177,7 @@ const getStyles = (isDark: boolean) => {
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
     headerTitle: { fontSize: 24, fontFamily: font.bold, color: t.text },
-    markAllText: { fontSize: 14, fontFamily: font.medium, color: c.amber500 },
+    markAllText: { fontSize: 14, fontFamily: font.medium, color: '#FF4D1C' },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyTitle: { fontSize: 18, fontFamily: font.semibold, color: t.textSecondary, marginTop: 16 },
     emptySub: { fontSize: 14, color: t.textTertiary, marginTop: 4, textAlign: 'center' },
@@ -200,7 +200,7 @@ const getStyles = (isDark: boolean) => {
     },
     cardUnread: {
       borderLeftWidth: 3,
-      borderLeftColor: c.amber500,
+      borderLeftColor: '#FF4D1C',
     },
     iconBox: {
       width: 42,
@@ -219,7 +219,7 @@ const getStyles = (isDark: boolean) => {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: c.amber500,
+      backgroundColor: '#FF4D1C',
       marginTop: 4,
     },
   })

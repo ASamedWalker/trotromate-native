@@ -51,7 +51,7 @@ const REPORT_TYPES = [
   },
   {
     id: 'photo',
-    title: 'Trotro Tales',
+    title: 'Pulse',
     description: 'Share photos from your journey',
     icon: Camera,
     color: c.pink500,

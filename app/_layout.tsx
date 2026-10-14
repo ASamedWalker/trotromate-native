@@ -54,12 +54,12 @@ const TrotroLightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#f59e0b',
+    primary: '#FF4D1C',
     background: '#fafaf9',
     card: '#ffffff',
     text: '#1c1917',
     border: '#e7e5e3',
-    notification: '#f59e0b',
+    notification: '#FF4D1C',
   },
 }
 
@@ -67,12 +67,12 @@ const TrotroDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#f59e0b',
+    primary: '#FF4D1C',
     background: '#0c0a09',
     card: '#1c1917',
     text: '#fafaf9',
     border: '#292524',
-    notification: '#f59e0b',
+    notification: '#FF4D1C',
   },
 }
 
@@ -223,7 +223,6 @@ function AppInner() {
         <Stack.Screen name="scan/index" options={{ headerShown: false }} />
         <Stack.Screen name="scan/confirm" options={{ headerShown: false }} />
         <Stack.Screen name="scan/pin" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="ticket/paid" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="wallet/fund" options={{ headerShown: false }} />
         <Stack.Screen name="wallet/momo" options={{ headerShown: false }} />
         <Stack.Screen name="wallet/bank-transfer" options={{ headerShown: false }} />

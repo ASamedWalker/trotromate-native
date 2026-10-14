@@ -58,13 +58,8 @@ interface Service {
 
 const SERVICES: Service[] = [
   { id: 'bus', label: 'Bus', image: require('@/assets/images/home/bus_icon_bg_removed.png'), route: '/routes/search' },
-  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png'), comingSoon: true },
+  { id: 'okada', label: 'Okada', image: require('@/assets/images/home/okada_icon_bg_removed.png') },
   { id: 'train', label: 'Train', image: require('@/assets/images/home/train_bg_removed.png') },
-  { id: 'pragya', label: 'Pragya', image: require('@/assets/images/home/Pragya_icon_bg_removed.png'), comingSoon: true },
-  { id: 'courier', label: 'Courier', image: require('@/assets/images/home/van_bg_removed.png'), comingSoon: true },
-  // EV: built but gated as coming-soon until there's real GH charging data
-  // (set EXPO_PUBLIC_OCM_KEY or run migration 068, then restore route: '/ev').
-  { id: 'ev', label: 'EV', image: require('@/assets/images/home/ev_bg_removed.png'), comingSoon: true },
 ]
 
 /* ── Quick Actions ── */
@@ -164,6 +159,7 @@ function FullHomeScreen() {
   const handleServiceTap = useCallback((svc: Service) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     if (svc.comingSoon) { Alert.alert(svc.label, `${svc.label} is coming soon!`); return }
+    if (svc.id === 'okada') { router.push({ pathname: '/(tabs)/lines', params: { transport: 'okada', t: String(Date.now()) } } as any); return }
     if (svc.id === 'train') { router.push('/(tabs)/train' as any); return }
     if (svc.route) router.push(svc.route as any)
   }, [router])

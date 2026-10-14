@@ -369,13 +369,13 @@ const s = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   hero: { paddingHorizontal: space.gutter, paddingBottom: 20, overflow: 'hidden', backgroundColor: '#16110D' },
-  kindPill: { alignSelf: 'flex-start', backgroundColor: '#F5A300', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
+  kindPill: { alignSelf: 'flex-start', backgroundColor: '#FF4D1C', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
   kindText: { fontSize: 13, fontFamily: font.bold, letterSpacing: 1, color: '#1C1917' },
   heroTitle: { fontSize: 30, fontFamily: font.extrabold, color: '#FFFFFF', letterSpacing: -0.5 },
   heroMeta: { fontSize: 15, fontFamily: font.medium, color: '#D6CFC8' },
 
   board: { marginTop: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 18, padding: 16, gap: 4 },
-  boardKicker: { fontSize: 13, fontFamily: font.bold, letterSpacing: 1.2, color: '#F5A300' },
+  boardKicker: { fontSize: 13, fontFamily: font.bold, letterSpacing: 1.2, color: '#FF4D1C' },
   boardRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   boardTime: { fontSize: 42, fontFamily: font.extrabold, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
   boardWhen: { fontSize: 18, fontFamily: font.bold, color: '#FFFFFF' },

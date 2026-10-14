@@ -18,7 +18,7 @@ import { LEVELS } from '@/lib/constants/rewards'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import type { LeaderboardEntry } from '@/lib/types'
 
-const PODIUM_EMOJI = ['🥇', '🥈', '🥉']
+const PODIUM_COLORS = ['#D4A017', '#9CA3AF', '#B87333']
 
 export default function LeaderboardScreen() {
   const colorScheme = useColorScheme()
@@ -46,7 +46,9 @@ export default function LeaderboardScreen() {
       <View style={[s.row, isUser && s.rowHighlight]}>
         <View style={s.rankBox}>
           {rank <= 3 ? (
-            <Text style={s.rankEmoji}>{PODIUM_EMOJI[rank - 1]}</Text>
+            <View style={[s.rankCircle, { backgroundColor: PODIUM_COLORS[rank - 1] }]}>
+              <Text style={s.rankCircleText}>{rank}</Text>
+            </View>
           ) : (
             <Text style={s.rankNum}>#{rank}</Text>
           )}
@@ -147,7 +149,8 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       marginRight: 10,
     },
-    rankEmoji: { fontSize: 20, lineHeight: 27 },
+    rankCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    rankCircleText: { fontSize: 14, fontFamily: font.bold, color: '#FFFFFF' },
     rankNum: {
       fontSize: 14,
       fontFamily: font.bold,

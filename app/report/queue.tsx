@@ -142,11 +142,11 @@ export default function QueueReportScreen() {
             activeOpacity={0.7}
             onPress={() => setLocationModalVisible(true)}
           >
-            <MapPin size={14} color="#815100" />
+            <MapPin size={14} color="#FF4D1C" />
             <Text style={s.locationPillText} numberOfLines={1}>
               {selectedStationName || 'Select station'}
             </Text>
-            <ChevronDown size={14} color="#815100" />
+            <ChevronDown size={14} color="#FF4D1C" />
           </TouchableOpacity>
         </View>
 
@@ -253,7 +253,7 @@ export default function QueueReportScreen() {
             <Text style={s.modalTitle}>Select Station</Text>
 
             <View style={s.searchBox}>
-              <Search size={18} color="#815100" />
+              <Search size={18} color="#FF4D1C" />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
@@ -279,7 +279,7 @@ export default function QueueReportScreen() {
                   activeOpacity={0.7}
                   style={s.stationRow}
                 >
-                  <Bus size={14} color="#815100" />
+                  <Bus size={14} color="#FF4D1C" />
                   <View style={{ flex: 1 }}>
                     <Text style={s.stationName} numberOfLines={1}>
                       {station.name}
@@ -291,7 +291,7 @@ export default function QueueReportScreen() {
                     ) : null}
                   </View>
                   {selectedStationId === station.id && (
-                    <Check size={18} color="#815100" />
+                    <Check size={18} color="#FF4D1C" />
                   )}
                 </TouchableOpacity>
               )}
@@ -308,7 +308,7 @@ export default function QueueReportScreen() {
                 activeOpacity={0.7}
                 style={s.customLocBtn}
               >
-                <MapPin size={16} color="#815100" />
+                <MapPin size={16} color="#FF4D1C" />
                 <Text style={s.customLocText}>Use &ldquo;{search.trim()}&rdquo;</Text>
               </TouchableOpacity>
             )}
@@ -392,7 +392,7 @@ const getStyles = (isDark: boolean) => {
     heroLabel: {
       fontSize: 12,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#C2410C', // darker brand: 12px label needs AA contrast
       letterSpacing: 3,
       textTransform: 'uppercase',
       marginBottom: 4,
@@ -421,7 +421,7 @@ const getStyles = (isDark: boolean) => {
     },
     levelCardSelected: {
       backgroundColor: surfaceLowest,
-      borderColor: isDark ? '#f8a010' : '#f8a010',
+      borderColor: isDark ? '#FF4D1C' : '#FF4D1C',
       shadowColor: 'rgba(248,160,16,0.2)',
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 1,
@@ -440,7 +440,7 @@ const getStyles = (isDark: boolean) => {
       textTransform: 'uppercase',
     },
     levelLabelSelected: {
-      color: '#815100',
+      color: '#FF4D1C',
     },
 
     // Counter
@@ -481,7 +481,7 @@ const getStyles = (isDark: boolean) => {
       width: 56,
       height: 56,
       borderRadius: 16,
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: 'rgba(129,81,0,0.2)',
@@ -604,7 +604,7 @@ const getStyles = (isDark: boolean) => {
     customLocText: {
       fontSize: 14,
       fontFamily: font.medium,
-      color: '#815100',
+      color: '#FF4D1C',
     },
   })
 }

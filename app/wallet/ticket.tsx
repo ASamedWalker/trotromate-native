@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { ChevronLeft, WifiOff, ShieldCheck } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { requireOptionalNativeModule } from 'expo-modules-core'
@@ -77,6 +77,33 @@ export default function TicketScreen() {
     return () => { cancelled = true }
   }, [trip_code, user?.id])
 
+  // Re-check the ticket on focus and every 5s while it is still active, so a
+  // scan by the conductor flips the screen to "Used" and polling stops.
+  const activeCode = pass?.status === 'active' ? pass.trip_code : null
+  useFocusEffect(useCallback(() => {
+    if (!activeCode || !user?.id) return
+    let cancelled = false
+    let inFlight = false
+    const check = async () => {
+      if (inFlight) return // slow trotro signal: never stack requests
+      inFlight = true
+      const tickets = await fetchMyTickets(user.id).finally(() => { inFlight = false })
+      if (cancelled || !tickets) return
+      const t = tickets.find((x) => x.trip_code === activeCode)
+      if (!t || t.status === 'active') return
+      if (t.status === 'used') {
+        setPass((prev) => (prev && prev.trip_code === activeCode ? { ...prev, status: 'used' } : prev))
+      } else {
+        setPass(null)
+      }
+      // Drop it from the offline cache so it never reopens as a valid pass.
+      getCachedPasses().then((passes) => cacheActivePasses(passes.filter((p) => p.trip_code !== activeCode))).catch(() => {})
+    }
+    check()
+    const id = setInterval(check, 5000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [activeCode, user?.id]))
+
   // Max brightness while the QR is shown (restored on leave) so it scans easily
   // in a dim trotro. Best-effort — needs a native build with expo-brightness.
   useEffect(() => {
@@ -122,8 +149,18 @@ export default function TicketScreen() {
           </View>
 
           <View style={s.qrCard} accessible accessibilityLabel="Ticket QR code">
-            <QRCode value={pass.trip_code} size={240} />
+            <View style={pass.status === 'used' ? { opacity: 0.12 } : undefined}>
+              <QRCode value={pass.trip_code} size={240} />
+            </View>
             <Text style={s.code}>{pass.trip_code}</Text>
+            {pass.status === 'used' && (
+              <View style={s.usedOverlay} pointerEvents="none">
+                <View style={s.usedBadge}>
+                  <ShieldCheck size={20} color="#fff" />
+                  <Text style={s.usedText}>Scanned · Used</Text>
+                </View>
+              </View>
+            )}
           </View>
 
           <View style={s.metaRow}>
@@ -153,7 +190,7 @@ export default function TicketScreen() {
           </View>
           <View style={s.verifiedRow}>
             <ShieldCheck size={14} color="#16a34a" />
-            <Text style={s.verifiedText}>Paid · valid until expiry</Text>
+            <Text style={s.verifiedText}>{pass.status === 'used' ? 'Paid · already used' : 'Paid · valid until expiry'}</Text>
           </View>
         </View>
       )}
@@ -175,6 +212,9 @@ const s = StyleSheet.create({
   routeRow: { alignItems: 'center' },
   route: { fontFamily: font.extrabold, fontSize: 24, color: '#111', letterSpacing: -0.5 },
   qrCard: { backgroundColor: '#fff', borderRadius: 24, padding: 28, alignItems: 'center', gap: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
+  usedOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  usedBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#111', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },
+  usedText: { fontFamily: font.extrabold, fontSize: 18, color: '#fff' },
   code: { fontFamily: font.bold, fontSize: 16, color: '#111', letterSpacing: 2 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 8, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },

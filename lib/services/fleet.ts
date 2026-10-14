@@ -28,6 +28,7 @@ export async function fetchAssignedVehicle(from?: string, to?: string): Promise<
       .select('van_id, plate_number, vehicle_type, capacity, driver_id, first_name, is_on_shift, photo_url, kyc_status, driver_since')
       .ilike('route_label', `%${from.trim()}%`)
       .ilike('route_label', `%${to.trim()}%`)
+      .order('is_on_shift', { ascending: false, nullsFirst: false })
       .limit(1)
     if (error) return null
     const v = data?.[0] as

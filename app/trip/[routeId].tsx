@@ -33,7 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import GorhomBottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import Mapbox, { UserTrackingMode } from '@rnmapbox/maps'
 import { StatusBar } from 'expo-status-bar'
-import { c, font } from '@/lib/theme'
+import { font } from '@/lib/theme'
 import { getGhanaTime } from '@/lib/utils/time'
 import { TrainTimeline } from '@/components/TrainTimeline'
 
@@ -413,7 +413,7 @@ export default function TripScreen() {
   const dest = tripStations?.find((s) => s.isDestination)
   const origin = tripStations?.find((s) => s.isOrigin)
   const isActive = tripState === 'active' || tripState === 'approaching'
-  const lineColor = isTrain ? (line?.color ?? '#0ea5e9') : '#f59e0b'
+  const lineColor = isTrain ? (line?.color ?? '#0ea5e9') : '#FF4D1C'
 
   // Auto night mode — dark map between 6 PM and 6 AM Ghana time
   const { hours: ghanaHour } = getGhanaTime()
@@ -665,7 +665,7 @@ export default function TripScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <ActivityIndicator size="large" color={c.amber500} />
+          <ActivityIndicator size="large" color="#FF4D1C" />
           <Text style={s.loadingText}>Loading route...</Text>
         </View>
       </SafeAreaView>
@@ -695,7 +695,7 @@ export default function TripScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 40 }}>
-          <Navigation size={40} color={c.amber500} />
+          <Navigation size={40} color="#FF4D1C" />
           <Text style={[s.loadingText, { marginTop: 0, fontSize: 16 }]}>
             GO Mode isn't available for this route yet
           </Text>
@@ -705,7 +705,7 @@ export default function TripScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             activeOpacity={0.7}
-            style={{ backgroundColor: c.amber500, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+            style={{ backgroundColor: '#FF4D1C', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
           >
             <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 14 }}>Go Back</Text>
           </TouchableOpacity>
@@ -738,7 +738,7 @@ export default function TripScreen() {
 
           <View style={s.summaryRow}>
             <View style={s.summaryItem}>
-              <Clock size={16} color={c.amber500} />
+              <Clock size={16} color="#FF4D1C" />
               <Text style={s.summaryValue}>
                 {completedTrip?.payload.duration_mins ?? 0} min
               </Text>
@@ -746,7 +746,7 @@ export default function TripScreen() {
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryItem}>
-              <MapPin size={16} color={c.amber500} />
+              <MapPin size={16} color="#FF4D1C" />
               <Text style={s.summaryValue}>
                 {completedTrip?.payload.distance_km
                   ? `${completedTrip.payload.distance_km} km`
@@ -757,8 +757,8 @@ export default function TripScreen() {
             <View style={s.summaryDivider} />
             <View style={s.summaryItem}>
               {isTrain
-                ? <TrainFront size={16} color={c.amber500} />
-                : <Navigation size={16} color={c.amber500} />}
+                ? <TrainFront size={16} color="#FF4D1C" />
+                : <Navigation size={16} color="#FF4D1C" />}
               <Text style={s.summaryValue}>
                 {completedTrip?.payload.station_count ?? 0}
               </Text>
@@ -768,7 +768,7 @@ export default function TripScreen() {
 
           {completedTrip?.tripId && (
             <View style={s.pointsBadge}>
-              <Star size={14} color={c.amber500} />
+              <Star size={14} color="#FF4D1C" />
               <Text style={s.pointsBadgeText}>
                 +{TRIP_POINTS.completed} pts
               </Text>
@@ -836,7 +836,7 @@ export default function TripScreen() {
           style={StyleSheet.absoluteFillObject}
         >
           <View style={s.liteCenter}>
-            <View style={s.liteIconRing}><Navigation size={28} color="#f8a010" /></View>
+            <View style={s.liteIconRing}><Navigation size={28} color="#FF4D1C" /></View>
             <Text style={s.liteTitle} numberOfLines={2}>{routeLabel}</Text>
             <Text style={s.liteSub}>Data Saver is on — map paused.{'\n'}Your trip progress stays live below.</Text>
           </View>
@@ -1070,7 +1070,7 @@ export default function TripScreen() {
           {/* Approaching alert */}
           {tripState === 'approaching' && (
             <View style={s.approachBanner}>
-              <Flag size={18} color="#815100" />
+              <Flag size={18} color="#FF4D1C" />
               <Text style={s.approachText}>
                 Approaching destination — {formatDistance(effectiveDistToDest)}
               </Text>
@@ -1170,7 +1170,7 @@ export default function TripScreen() {
                 activeOpacity={0.7}
                 style={s.tripActionBtn}
               >
-                <Camera size={18} color="#815100" />
+                <Camera size={18} color="#FF4D1C" />
                 <Text style={s.tripActionText}>Post to Pulse</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1178,7 +1178,7 @@ export default function TripScreen() {
                 activeOpacity={0.7}
                 style={s.tripActionBtn}
               >
-                <Banknote size={18} color="#815100" />
+                <Banknote size={18} color="#FF4D1C" />
                 <Text style={s.tripActionText}>Report Fare</Text>
               </TouchableOpacity>
             </View>
@@ -1188,7 +1188,7 @@ export default function TripScreen() {
           {isActive && (
             <TouchableOpacity onPress={handleEndTrip} activeOpacity={0.8}>
               <LinearGradient
-                colors={['#815100', '#f8a010']}
+                colors={['#FF4D1C', '#E8431A']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={s.finishBtn}
@@ -1270,7 +1270,7 @@ export default function TripScreen() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={(!tripStations || isStarting) ? ['#9ca3af', '#d1d5db'] : ['#815100', '#f8a010']}
+                  colors={(!tripStations || isStarting) ? ['#9ca3af', '#d1d5db'] : ['#FF4D1C', '#E8431A']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={s.goBtn}
@@ -1394,7 +1394,7 @@ const getStyles = (isDark: boolean) => {
       backgroundColor: isDark ? 'rgba(28,28,30,0.85)' : 'rgba(255,255,255,0.85)',
     },
     saverChipOn: {
-      backgroundColor: '#f8a010',
+      backgroundColor: '#FF4D1C',
     },
     saverChipText: {
       fontFamily: font.bold,
@@ -1501,7 +1501,7 @@ const getStyles = (isDark: boolean) => {
     approachText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: '#815100',
+      color: '#FF4D1C',
       flex: 1,
     },
 
@@ -1576,7 +1576,7 @@ const getStyles = (isDark: boolean) => {
     progressBadgeText: {
       fontSize: 18,
       fontFamily: font.extrabold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
 
     // Gradient progress bar
@@ -1630,13 +1630,13 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 1,
     },
     trackLinePassed: {
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
     },
     dotPassed: {
       width: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1648,13 +1648,13 @@ const getStyles = (isDark: boolean) => {
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2.5,
-      borderColor: '#f8a010',
+      borderColor: '#FF4D1C',
     },
     dotActiveInner: {
       width: 10,
       height: 10,
       borderRadius: 5,
-      backgroundColor: '#f8a010',
+      backgroundColor: '#FF4D1C',
     },
     dotUpcoming: {
       width: 12,
@@ -1686,7 +1686,7 @@ const getStyles = (isDark: boolean) => {
     nextLabel: {
       fontSize: 9,
       fontFamily: font.bold,
-      color: '#f8a010',
+      color: '#FF4D1C',
       letterSpacing: 2,
       marginBottom: 2,
     },
@@ -1708,11 +1708,11 @@ const getStyles = (isDark: boolean) => {
       marginLeft: 8,
     },
     scheduleTimePassed: {
-      color: '#815100',
+      color: '#FF4D1C',
       textDecorationLine: 'line-through' as const,
     },
     stationNamePassed: {
-      color: '#815100',
+      color: '#FF4D1C',
       fontFamily: font.medium,
     },
     stationNameActive: {
@@ -1734,7 +1734,7 @@ const getStyles = (isDark: boolean) => {
     stationDist: {
       fontSize: 11,
       fontFamily: font.medium,
-      color: '#f8a010',
+      color: '#FF4D1C',
       marginTop: 2,
     },
 
@@ -1794,7 +1794,7 @@ const getStyles = (isDark: boolean) => {
     tripActionText: {
       fontSize: 13,
       fontFamily: font.semibold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
 
     // Trip summary stats (post-trip modal)
@@ -1842,7 +1842,7 @@ const getStyles = (isDark: boolean) => {
     pointsBadgeText: {
       fontSize: 14,
       fontFamily: font.bold,
-      color: '#815100',
+      color: '#FF4D1C',
     },
     pointsBonusHint: {
       fontSize: 12,
@@ -1922,7 +1922,7 @@ const getStyles = (isDark: boolean) => {
       paddingVertical: 16,
     },
     fareSubmitBtn: {
-      backgroundColor: '#815100',
+      backgroundColor: '#FF4D1C',
       paddingVertical: 18,
       borderRadius: 20,
       alignItems: 'center',
