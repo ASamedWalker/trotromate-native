@@ -17,7 +17,7 @@ import { useRouter, useFocusEffect, type Href } from 'expo-router'
 import {
   MapPin,
   Bell, Compass, BusFront as BusIcon, Users,
-  ScanLine, Plus, Trophy,
+  Plus, Trophy,
 } from 'lucide-react-native'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { WalletCard } from '@/components/WalletCard'
@@ -276,25 +276,6 @@ function FullHomeScreen() {
             >
               <Plus size={18} color={ui.onBrand} strokeWidth={2.6} />
               <Text style={[type.labelStrong, { fontSize: 15, color: ui.onBrand }]}>{t('home.topupWallet')}</Text>
-            </Tap>
-            <Tap
-              // Scan-to-pay is a non-functional mock (accepts any PIN, no real debit) —
-              // gated coming-soon like the other not-yet-live services below.
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Scan to Pay', 'Scan to Pay is coming soon!') }}
-              accessibilityRole="button"
-              accessibilityLabel={`${t('home.scanToPay')}, coming soon`}
-              accessibilityState={{ disabled: true }}
-              style={{
-                flex: 1, height: 52, borderRadius: radius.md, backgroundColor: ui.card,
-                borderWidth: 1.5, borderColor: ui.surfaceStrong, opacity: 0.75,
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
-              }}
-            >
-              <ScanLine size={17} color={ui.text} />
-              <Text style={[type.labelStrong, { fontSize: 15, color: ui.text }]}>{t('home.scanToPay')}</Text>
-              <View style={{ position: 'absolute', top: -8, right: -6 }}>
-                <Badge label="Soon" tone="dark" />
-              </View>
             </Tap>
           </View>
         </View>

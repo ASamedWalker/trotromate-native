@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, R
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Eye, EyeOff, Plus, CheckCircle2, History, ShieldCheck, Ticket, ScanLine, Landmark, Undo2, Bus } from 'lucide-react-native'
+import { Eye, EyeOff, Plus, CheckCircle2, History, ShieldCheck, Ticket, Landmark, Undo2, Bus } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { MaterialIcons } from '@expo/vector-icons'
 import { hasWalletPin } from '@/lib/services/walletPin'
@@ -340,19 +340,17 @@ export default function WalletScreen() {
               { key: 'topup', label: tr('wallet.addMoney'), Icon: Plus, onPress: handleAuthAction },
               { key: 'tickets', label: tr('wallet.myTickets'), Icon: Ticket, onPress: () => router.push('/wallet/tickets' as Href) },
               { key: 'history', label: 'History', Icon: History, onPress: () => router.push('/wallet/transactions' as Href) },
-              { key: 'pay', label: 'Pay', Icon: ScanLine, soon: true, onPress: () => Alert.alert('Coming soon', 'Scan to pay is on the way. For now, book a trip and show your QR ticket.') },
+            // Scan-to-pay hidden until it is real (owner 2026-10-14).
             ].map((a) => (
               <TouchableOpacity
                 key={a.key}
                 onPress={() => { Haptics.selectionAsync(); a.onPress() }}
-                style={[s.action, a.soon && { opacity: 0.55 }]}
+                style={s.action}
                 accessibilityRole="button"
-                accessibilityLabel={a.soon ? `${a.label}, coming soon` : a.label}
-                accessibilityState={{ disabled: !!a.soon }}
+                accessibilityLabel={a.label}
               >
                 <View style={[s.actionCircle, isDark && s.ticketCardDark]}>
                   <a.Icon size={22} color={brand.orange} />
-                  {a.soon && <View style={s.soonPill}><Text style={s.soonText}>Soon</Text></View>}
                 </View>
                 <Text style={[s.actionLabel, { color: isDark ? t.text : ui.text }]}>{a.label}</Text>
               </TouchableOpacity>
