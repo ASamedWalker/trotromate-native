@@ -36,7 +36,7 @@ import { fetchRouteSegmentFares, resolveDropoffFareSync, type RouteSegmentFare }
 import { formatGHS } from '@/lib/utils/currency'
 import Mapbox from '@rnmapbox/maps'
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
-import { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated'
+import Reanimated, { useSharedValue, useDerivedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { RELEASE_MODE, FEATURES } from '@/lib/config/release'
@@ -89,6 +89,19 @@ export default function RouteDetailScreen() {
   const insets = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
   const cameraRef = useRef<Mapbox.Camera>(null)
+  // Sheet snaps: 0 = peek (just the route header, map free to explore), 1 = default,
+  // 2/3 = taller. Tapping or panning the map drops it to the peek; tapping the peek
+  // or dragging the handle brings it back.
+  const PEEK = 100 + insets.bottom
+  const sheetIndexRef = useRef(1)
+  const [sheetIndex, setSheetIndex] = useState(1)
+  const lastStopTap = useRef(0)
+  const collapseSheet = () => {
+    if (sheetIndexRef.current > 0) sheetRef.current?.snapToIndex(0)
+  }
+  const expandSheet = () => {
+    if (sheetIndexRef.current === 0) { Haptics.selectionAsync(); sheetRef.current?.snapToIndex(1) }
+  }
 
   const params = useLocalSearchParams<{
     from: string; to: string; fare: string; duration: string
@@ -183,7 +196,7 @@ export default function RouteDetailScreen() {
     cameraRef.current.fitBounds(
       [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
       [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-      [insets.top + 120, 110, SCREEN_H * FIRST_SNAP + 48, 52],
+      [insets.top + 120, 110, (sheetIndexRef.current === 0 ? PEEK : SCREEN_H * FIRST_SNAP) + 48, 52],
       duration,
     )
   }
@@ -195,7 +208,9 @@ export default function RouteDetailScreen() {
   // Route line — fetch road-following geometry from Mapbox Directions API
   const [routeLine, setRouteLine] = useState<GeoJSON.Feature | null>(null)
 
-  const snapPoints = useMemo(() => [`${Math.round(FIRST_SNAP * 100)}%`, '74%', '90%'], [])
+  const snapPoints = useMemo(() => [PEEK, `${Math.round(FIRST_SNAP * 100)}%`, '74%', '90%'], [PEEK])
+  // Recenter FAB rides just above the sheet (peek or default).
+  const fabStyle = useAnimatedStyle(() => ({ bottom: Math.max(16, SCREEN_H - sheetPos.value + 16) }))
 
 
   // Some routes (e.g. okada corridors, deep links) have no duration: hide it, never "NaN min".
@@ -373,6 +388,10 @@ export default function RouteDetailScreen() {
         scaleBarEnabled={false}
         pitchEnabled={false}
         onDidFinishLoadingMap={() => fitRoute(900)}
+        // Tap or pan/zoom the map → drop the sheet so the map is free to explore.
+        // A stop tap also reaches here; it picks the alight stop instead.
+        onPress={() => { if (Date.now() - lastStopTap.current > 400) collapseSheet() }}
+        onCameraChanged={(state) => { if (state.gestures?.isGestureActive) collapseSheet() }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -478,7 +497,13 @@ export default function RouteDetailScreen() {
             hitbox={{ width: 28, height: 28 }}
             onPress={(e) => {
               const order = e.features?.[0]?.properties?.order
-              if (typeof order === 'number') { Haptics.selectionAsync(); setDropoffOrder(order) }
+              if (typeof order === 'number') {
+                lastStopTap.current = Date.now()
+                Haptics.selectionAsync()
+                setDropoffOrder(order)
+                // Show the new fare for this stop.
+                if (sheetIndexRef.current === 0) sheetRef.current?.snapToIndex(1)
+              }
             }}
           >
             <Mapbox.CircleLayer
@@ -624,7 +649,7 @@ export default function RouteDetailScreen() {
       {/* ── Recenter FAB — sits just above the collapsed sheet; hidden once the
             sheet is dragged up so it never floats inside the card ── */}
       {hasCoords && !fabHidden && (
-        <View style={{ position: 'absolute', right: 20, bottom: SCREEN_H * FIRST_SNAP + 16, zIndex: 10 }}>
+        <Reanimated.View style={[{ position: 'absolute', right: 20, zIndex: 10 }, fabStyle]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => { Haptics.selectionAsync(); fitRoute(900) }}
@@ -632,15 +657,16 @@ export default function RouteDetailScreen() {
           >
             <LocateFixed size={22} color={BRAND} strokeWidth={2.3} />
           </TouchableOpacity>
-        </View>
+        </Reanimated.View>
       )}
 
       {/* ── Draggable Bottom Sheet ── */}
       <BottomSheet
         ref={sheetRef}
-        index={0}
         animatedPosition={sheetPos}
         snapPoints={snapPoints}
+        index={1}
+        onChange={(i) => { sheetIndexRef.current = i; setSheetIndex(i) }}
         enableDynamicSizing={false}
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4, borderRadius: 2 }}
         backgroundStyle={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
@@ -653,8 +679,15 @@ export default function RouteDetailScreen() {
           {/* ── Sheet 1: Route info + transport picker ── */}
           {!showVehicles && (
           <>
-          {/* Route timeline: origin → destination */}
-          <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
+          {/* Route timeline: origin → destination. In the peek, tapping it brings the sheet back up. */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            disabled={sheetIndex !== 0}
+            onPress={expandSheet}
+            accessibilityRole={sheetIndex === 0 ? 'button' : undefined}
+            accessibilityLabel={sheetIndex === 0 ? `${from} to ${to}. Show route details` : undefined}
+            style={{ paddingHorizontal: 24, marginBottom: 14 }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ alignItems: 'center' }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: '#10B981', backgroundColor: '#fff' }} />
@@ -665,8 +698,15 @@ export default function RouteDetailScreen() {
                 <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>{from}</Text>
                 <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 18, color: '#000', letterSpacing: -0.4 }}>{to}</Text>
               </View>
+              {/* Peek: keep the fare in view while the map is being explored */}
+              {sheetIndex === 0 && (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 13 : 20, color: BRAND }}>{fareText}</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280' }}>Tap for details</Text>
+                </View>
+              )}
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Trip-shape meta: mode + distance + stops + GPRTU trust badge */}
           <View style={{ paddingHorizontal: 24, marginBottom: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -796,7 +836,7 @@ export default function RouteDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
                 setShowVehicles(true)
-                sheetRef.current?.snapToIndex(2)
+                sheetRef.current?.snapToIndex(3)
               }}
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#F3F4F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -938,7 +978,7 @@ export default function RouteDetailScreen() {
                 <Text style={{ fontFamily: font.bold, fontSize: 20, color: '#000' }}>
                   Available {selectedTransport === 'trotro' ? 'Buses' : selectedTransport === 'okada' ? 'Okada' : 'Pragya'}
                 </Text>
-                <TouchableOpacity onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setShowVehicles(false); setVehicleSearch(''); sheetRef.current?.snapToIndex(0) }} hitSlop={8}>
+                <TouchableOpacity onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setShowVehicles(false); setVehicleSearch(''); sheetRef.current?.snapToIndex(1) }} hitSlop={8}>
                   <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>Back</Text>
                 </TouchableOpacity>
               </View>
