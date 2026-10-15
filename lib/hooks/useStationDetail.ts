@@ -48,9 +48,21 @@ export function useStationDetail(rawId: string | undefined) {
     },
   })
 
+  const { reports, latestFresh, confirmations, confirm } = useLatestQueueReport(id, name, !!id && !!station)
+
+  return { station, isLoading: stations.isLoading, isError: stations.isError, lines, reports, latestFresh, confirmations, confirm }
+}
+
+/**
+ * The last queue reports at one station, the newest one while it is under 2 h old,
+ * its confirmation count and the "Still like this?" confirm mutation (migration 100).
+ * Shared by the station page and Pulse's "Right now" strip (same query keys).
+ */
+export function useLatestQueueReport(id: string | undefined, rawName: string, enabled = true) {
+  const name = safe(rawName)
   const reports = useQuery({
     queryKey: ['station-reports', id, name],
-    enabled: !!id && !!station,
+    enabled: !!id && enabled,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<StationReport[]> => {
       const filter = name ? `station_id.eq.${id},station_name.ilike.${name}` : `station_id.eq.${id}`
@@ -92,5 +104,5 @@ export function useStationDetail(rawId: string | undefined) {
     onSuccess: (n) => qc.setQueryData(['queue-confirmations', latestFresh?.id], n),
   })
 
-  return { station, isLoading: stations.isLoading, isError: stations.isError, lines, reports, latestFresh, confirmations, confirm }
+  return { reports, latestFresh, confirmations, confirm }
 }

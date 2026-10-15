@@ -1,22 +1,32 @@
 import React, { useMemo } from 'react'
-import { View, Text, TouchableOpacity } from 'react-native'
+import { View, Text, Pressable, Linking } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MapPin } from 'lucide-react-native'
-import { font } from '@/lib/theme'
-import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
-import { useLocation } from '@/lib/hooks/useLocation'
-import { QueueStatusLine, queueA11y } from '@/components/QueueStatusLine'
+import { font, ui, brand } from '@/lib/theme'
+import { fetchStations, type StationWithQueue, type QueueStatus } from '@/lib/services/stations'
+import type { UserLocation } from '@/lib/hooks/useLocation'
+import { HeroText } from '@/components/HeroText'
+import { QueueGlyph } from '@/components/QueueGlyph'
+import { queueA11y } from '@/components/QueueStatusLine'
+import { QUEUE_COLOR } from '@/lib/constants/queueStatus'
+import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { PressableScale } from '@/components/motion/PressableScale'
 import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
-import { CARD, ORANGE, TEXT, TEXT2 } from './tokens'
 
-// Same Ghana guard as the band's location name: a simulator in California is not "nearby".
+// Same Ghana guard as everywhere else: a simulator in California is not "near you".
 const GHANA = { minLat: 4.5, maxLat: 11.5, minLng: -3.5, maxLng: 1.5 }
+const NO_REPORT = '#78716C'
+const HAIRLINE = '#F0EFED'
 
-function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
+export function inGhana(loc: { latitude: number; longitude: number } | null | undefined): boolean {
+  return !!loc && loc.latitude >= GHANA.minLat && loc.latitude <= GHANA.maxLat &&
+    loc.longitude >= GHANA.minLng && loc.longitude <= GHANA.maxLng
+}
+
+export function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const r = (d: number) => (d * Math.PI) / 180
   const dLat = r(bLat - aLat)
   const dLng = r(bLng - aLng)
@@ -24,95 +34,141 @@ function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
   return 6371 * 2 * Math.asin(Math.sqrt(h))
 }
 
-function fmtKm(d: number): string {
-  return d < 1 ? `${Math.round(d * 1000 / 50) * 50} m` : `${d.toFixed(1)} km`
+/** Stations sorted by distance from `loc` (km). Stations without coordinates are skipped. */
+export function stationsByDistance(list: StationWithQueue[], loc: { latitude: number; longitude: number }) {
+  return list
+    .filter((s) => s.latitude != null && s.longitude != null)
+    .map((s) => ({ s, d: km(loc.latitude, loc.longitude, Number(s.latitude), Number(s.longitude)) }))
+    .sort((a, b) => a.d - b.d)
+}
+
+// ~4.8 km/h walking. Past half an hour a walk chip stops being useful, so show distance.
+function walkLabel(d: number): string {
+  const mins = Math.max(1, Math.round((d / 4.8) * 60))
+  return mins <= 30 ? `${mins} min walk` : `${d.toFixed(1)} km`
+}
+
+// One short word under the glyph (UX v2 H8/H11); the glyph is never shown alone.
+const SHORT_WORD: Record<QueueStatus, string> = {
+  empty: 'No queue',
+  short: 'Short',
+  moderate: 'Moderate',
+  long: 'Long',
+  very_long: 'Very long',
+}
+
+export const STATIONS_KEY = ['stations'] as const
+export function useStations() {
+  return useQuery({ queryKey: STATIONS_KEY, queryFn: fetchStations, staleTime: 2 * 60 * 1000 })
+}
+
+interface Props {
+  location: UserLocation | null
+  /** location permission already granted (Home never asks on its own) */
+  granted: boolean
+  requestPermission: () => Promise<boolean>
 }
 
 /**
- * Home "Nearby stations": the 3 closest stations with their queue status and age
- * (Transit's nearby list, without the map). No location → the 3 busiest major
- * stations. Reads the shared ['stations'] cache; it does not open its own
- * realtime channel (the Stations tab owns that — two channels on one topic
- * kill each other).
+ * Home "Near you" (UX v2 H8): 3 closest stations — name, "N lines · age", a walk chip,
+ * and QueueGlyph + one word. No GPS → the 3 busiest major stations + "Turn on location"
+ * (asks only when tapped). Reads the shared ['stations'] cache; it does not open its own
+ * realtime channel (two channels on one topic kill each other).
  */
-export default function NearbyStationsCard() {
+export default function NearbyStationsCard({ location, granted, requestPermission }: Props) {
   const router = useRouter()
   const lineCount = useStationLineCounts()
-  const { location } = useLocation()
-  const q = useQuery({ queryKey: ['stations'], queryFn: fetchStations, staleTime: 2 * 60 * 1000 })
-
-  const inGhana = !!location &&
-    location.latitude >= GHANA.minLat && location.latitude <= GHANA.maxLat &&
-    location.longitude >= GHANA.minLng && location.longitude <= GHANA.maxLng
+  const q = useStations()
+  const geo = granted && inGhana(location)
 
   const rows = useMemo(() => {
-    const list = (q.data ?? []).filter((s) => s.latitude != null && s.longitude != null)
-    if (inGhana) {
-      return list
-        .map((s) => ({ s, d: km(location!.latitude, location!.longitude, Number(s.latitude), Number(s.longitude)) }))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 3)
-    }
+    const list = q.data ?? []
+    if (geo) return stationsByDistance(list, location!).slice(0, 3)
     const busy = (s: StationWithQueue) => s.queue_stats?.[0]?.report_count_last_hour ?? 0
     return list
       .filter((s) => s.is_major)
       .sort((a, b) => busy(b) - busy(a))
       .slice(0, 3)
       .map((s) => ({ s, d: null as number | null }))
-  }, [q.data, inGhana, location])
+  }, [q.data, geo, location])
 
   if (q.isError || (!q.isLoading && rows.length === 0)) return null
 
+  const turnOnLocation = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    const ok = await requestPermission()
+    // Denied before: the OS won't ask again, so open Settings instead.
+    if (!ok) Linking.openSettings().catch(() => {})
+  }
+
   return (
-    <View style={{ marginHorizontal: 20, marginTop: 18, backgroundColor: CARD.bg, borderRadius: 18, borderWidth: 1, borderColor: CARD.border, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-        <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT }}>{inGhana ? 'Nearby stations' : 'Busy stations'}</Text>
-        <TouchableOpacity
+    <View style={{ marginHorizontal: 20, marginTop: 18 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <HeroText size={20} style={{ color: ui.text }}>{geo ? 'Near you' : 'Busy stations'}</HeroText>
+        <Pressable
           onPress={() => router.navigate('/(tabs)/stationlist' as any)}
-          hitSlop={8}
+          hitSlop={14}
           accessibilityRole="button"
-          accessibilityLabel="See all stations"
+          accessibilityLabel="All stations"
           style={{ flexDirection: 'row', alignItems: 'center' }}
         >
-          <Text style={{ fontFamily: font.bold, fontSize: 14, color: ORANGE }}>See all</Text>
-          <ChevronRight size={16} color={ORANGE} />
-        </TouchableOpacity>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>All stations</Text>
+          <ChevronRight size={14} color={ui.textTertiary} />
+        </Pressable>
       </View>
-      {!inGhana ? (
-        <Text style={{ fontFamily: font.regular, fontSize: 12, color: TEXT2 }}>Turn on location to see stations near you</Text>
+
+      {!geo ? (
+        <Pressable
+          onPress={turnOnLocation}
+          hitSlop={{ top: 14, bottom: 14 }}
+          accessibilityRole="button"
+          accessibilityLabel="Turn on location to see stations near you"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 2 }}
+        >
+          <MapPin size={14} color={brand.orangeText} />
+          <Text style={{ fontFamily: font.bold, fontSize: 13, color: brand.orangeText }}>Turn on location</Text>
+        </Pressable>
       ) : null}
 
-      {q.isLoading ? (
-        <View style={{ gap: 12, paddingVertical: 12 }}>
-          {[0, 1, 2].map((i) => <View key={i} style={{ height: 40, borderRadius: 10, backgroundColor: '#F3F1EF' }} />)}
-        </View>
-      ) : rows.map(({ s, d }, i) => {
-        const stat = s.queue_stats?.[0]
-        return (
-          <PressableScale
-            key={s.id}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/stations/[id]', params: { id: s.id } } as any) }}
-            accessibilityRole="button"
-            accessibilityLabel={`${s.name}${d != null ? `, ${fmtKm(d)} away` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: CARD.border }}
-          >
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3F1EF', alignItems: 'center', justifyContent: 'center' }}>
-              <MapPin size={20} color={TEXT} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: TEXT, flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                {d != null ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{fmtKm(d)}</Text> : null}
+      <View style={{ marginTop: 8, backgroundColor: ui.card, borderRadius: 16, borderWidth: 1, borderColor: ui.hairline, overflow: 'hidden' }}>
+        {q.isLoading ? (
+          <View style={{ minHeight: 64, justifyContent: 'center', paddingHorizontal: 14 }}>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>Checking stations…</Text>
+          </View>
+        ) : rows.map(({ s, d }, i) => {
+          const stat = s.queue_stats?.[0]
+          const fresh = stat ? freshness(stat.last_report_at) : 'stale'
+          const live = !!stat && fresh !== 'stale'
+          const color = live ? QUEUE_COLOR[stat!.current_status] : NO_REPORT
+          const n = lineCount(s)
+          const meta = [n ? `${n} ${n === 1 ? 'line' : 'lines'}` : null, live ? ageLabel(stat!.last_report_at) : null].filter(Boolean).join(' · ')
+          return (
+            <PressableScale
+              key={s.id}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/stations/[id]', params: { id: s.id } } as any) }}
+              accessibilityRole="button"
+              accessibilityLabel={`${s.name}${d != null ? `, ${walkLabel(d)}` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14, minHeight: 64, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: HAIRLINE }}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.text }} numberOfLines={1}>{s.name}</Text>
+                {meta ? <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }} numberOfLines={1}>{meta}</Text> : null}
               </View>
+              {d != null ? (
+                <View style={{ height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: ui.surface, justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: ui.text }}>{walkLabel(d)}</Text>
+                </View>
+              ) : null}
               <FlashOnChange token={`${stat?.current_status}:${stat?.last_report_at}`}>
-                <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
+                <View style={{ alignItems: 'flex-end', minWidth: 64 }}>
+                  <QueueGlyph status={live ? stat!.current_status : null} color={color} size={15} opacity={fresh === 'aging' ? 0.6 : 1} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color }}>{live ? SHORT_WORD[stat!.current_status] : 'No report'}</Text>
+                </View>
               </FlashOnChange>
-            </View>
-            {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
-            <ChevronRight size={18} color="#9CA3AF" />
-          </PressableScale>
-        )
-      })}
+            </PressableScale>
+          )
+        })}
+      </View>
     </View>
   )
 }

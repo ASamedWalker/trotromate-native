@@ -1,152 +1,19 @@
-import { useState } from 'react'
-import { View, Text, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
-import { ArrowLeft, Landmark, Smartphone, CreditCard, Check } from 'lucide-react-native'
-import { font, themed } from '@/lib/theme'
-import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
-import Animated, { FadeInDown } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
+import { Redirect, useLocalSearchParams } from 'expo-router'
 
-const BRAND = '#FF4D1C'
-const BRAND_TINT = '#FFF0EB'
-
-type MethodId = 'bank' | 'mtn' | 'atl' | 'tgo' | 'card'
-
-const METHODS: {
-  id: MethodId
-  label: string
-  Icon: typeof Landmark
-  network?: NetworkId
-  route: Href | null
-  soon?: boolean
-}[] = [
-  { id: 'mtn', label: 'MTN MoMo', Icon: Smartphone, network: 'mtn', route: '/wallet/momo?provider=mtn' as Href },
-  { id: 'atl', label: 'AirtelTigo Money', Icon: Smartphone, network: 'atl', route: '/wallet/momo?provider=atl' as Href },
-  { id: 'tgo', label: 'Telecel Cash', Icon: Smartphone, network: 'tgo', route: '/wallet/momo?provider=tgo' as Href },
-  { id: 'bank', label: 'Bank Transfer', Icon: Landmark, route: null, soon: true },
-  { id: 'card', label: 'Add Debit Card', Icon: CreditCard, route: null, soon: true },
-]
-
-export default function TopUpWalletScreen() {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
-  const router = useRouter()
-  // A booking checkout can deep-link here with the exact shortfall to pre-fill.
-  const { amount: amountParam, return: returnTo } = useLocalSearchParams<{ amount?: string; return?: string }>()
-  const [selected, setSelected] = useState<MethodId>('mtn')
-
-  const handleProceed = () => {
-    const method = METHODS.find((m) => m.id === selected)
-    if (!method) return
-    // "Coming soon" rows can't be selected (no Alert in the top-up flow, TU8).
-    if (method.soon || !method.route) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    // Carry the pre-fill amount into the MoMo screen when one was passed.
-    let dest = method.route
-    if (amountParam && typeof dest === 'string' && dest.includes('/wallet/momo')) {
-      dest = `${dest}&amount=${amountParam}` as Href
-    }
-    // Came from checkout's shortfall: let the MoMo screen send the rider back to pay.
-    if (returnTo === 'checkout' && typeof dest === 'string') dest = `${dest}&return=checkout` as Href
-    router.push(dest)
-  }
-
+/**
+ * Top-up is one screen now (UX v2 TU2/TU3): the network is chosen once on
+ * app/wallet/momo.tsx, and bank / card stay hidden until they work. This route
+ * stays so existing links (Home's "Top up", deep links) land on that screen
+ * with their params (amount pre-fill, return=checkout).
+ */
+export default function FundRedirect() {
+  const { amount, return: returnTo } = useLocalSearchParams<{ amount?: string; return?: string }>()
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={s.iconBtn}>
-          <ArrowLeft size={24} color={t.text} />
-        </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>Top up</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={s.body}>
-        <Animated.View entering={FadeInDown.duration(400)}>
-          <Text style={[s.title, { color: t.text }]}>Choose mode of payment</Text>
-          <Text style={[s.subtitle, { color: t.textSecondary }]}>
-            Select any of the payment options below to top-up wallet
-          </Text>
-        </Animated.View>
-
-        <View style={s.list}>
-          {METHODS.map((m, i) => {
-            const active = selected === m.id
-            return (
-              <Animated.View key={m.id} entering={FadeInDown.delay(80 + i * 70).duration(400)}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  disabled={m.soon}
-                  onPress={() => { setSelected(m.id); Haptics.selectionAsync() }}
-                  style={[s.row, {
-                    backgroundColor: isDark ? '#1c1917' : '#ffffff',
-                    borderColor: active ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F1F0'),
-                    opacity: m.soon ? 0.6 : 1,
-                  }]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: active, disabled: !!m.soon }}
-                >
-                  {m.network ? (
-                    <NetworkLogo id={m.network} width={44} height={44} />
-                  ) : (
-                    <View style={[s.iconTile, { backgroundColor: active ? BRAND_TINT : (isDark ? '#292524' : '#F6F6F5') }]}>
-                      <m.Icon size={20} color={active ? BRAND : (isDark ? '#a8a29e' : '#57534e')} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.rowLabel, { color: t.text }]}>{m.label}</Text>
-                    {m.soon && <Text style={s.soon}>Coming soon</Text>}
-                  </View>
-                  <View style={[s.radio, active ? { backgroundColor: BRAND, borderColor: BRAND } : { borderColor: isDark ? '#44403c' : '#D4D4D2' }]}>
-                    {active && <Check size={13} color="#fff" strokeWidth={3} />}
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            )
-          })}
-        </View>
-
-        <View style={{ flex: 1 }} />
-
-        <TouchableOpacity activeOpacity={0.9} onPress={handleProceed} style={s.proceed}>
-          <Text style={s.proceedText}>Proceed</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    <Redirect
+      href={{
+        pathname: '/wallet/momo',
+        params: { ...(amount ? { amount } : {}), ...(returnTo ? { return: returnTo, pops: '1' } : {}) },
+      } as never}
+    />
   )
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8,
-  },
-  iconBtn: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: font.bold },
-
-  body: { flex: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
-  title: { fontSize: 20, fontFamily: font.bold, letterSpacing: -0.3 },
-  subtitle: { fontSize: 14, fontFamily: font.regular, marginTop: 6, lineHeight: 20 },
-
-  list: { gap: 12, marginTop: 24 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 14, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5,
-  },
-  iconTile: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  rowLabel: { fontSize: 15, fontFamily: font.semibold },
-  soon: { fontSize: 11, fontFamily: font.medium, color: '#6B7280', marginTop: 2 },
-  radio: {
-    width: 22, height: 22, borderRadius: 11, borderWidth: 2,
-    justifyContent: 'center', alignItems: 'center',
-  },
-
-  proceed: {
-    height: 54, borderRadius: 14, backgroundColor: BRAND,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  proceedText: { fontSize: 16, fontFamily: font.bold, color: '#fff' },
-})

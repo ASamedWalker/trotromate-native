@@ -1,81 +1,148 @@
-import { useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, ScrollView, Keyboard, Platform, InputAccessoryView } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState, useEffect } from 'react'
+import {
+  View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Keyboard, Platform,
+  InputAccessoryView, Modal, KeyboardAvoidingView,
+} from 'react-native'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { ArrowLeft } from 'lucide-react-native'
-import { MaterialIcons } from '@expo/vector-icons'
-import { font, themed, ui } from '@/lib/theme'
+import { ChevronLeft, Smartphone, X, Check } from 'lucide-react-native'
+import { font, brand, ui } from '@/lib/theme'
 import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
-import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { formatGHS } from '@/lib/utils/currency'
-import { startTopup, topupStatusHref } from '@/lib/services/topup'
+import { startTopup, topupStatusHref, maskPhone } from '@/lib/services/topup'
+import { getSavedMomo, saveMomo } from '@/lib/services/momoPrefs'
+import { getCachedWallet } from '@/lib/services/walletCache'
+import { authedFetch } from '@/lib/services/authedFetch'
 
-const BRAND = '#FF4D1C'
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 const AMOUNTS = [5, 10, 20, 50]
-const PROVIDERS = [
-  { id: 'mtn', label: 'MTN MoMo', color: '#FFCC00', textColor: '#000' },
-  { id: 'tgo', label: 'Telecel Cash', color: '#E60000', textColor: '#fff' },
-  { id: 'atl', label: 'AirtelTigo', color: '#ED1C24', textColor: '#fff' },
+const PROVIDERS: { id: NetworkId; label: string }[] = [
+  { id: 'mtn', label: 'MTN MoMo' },
+  { id: 'tgo', label: 'Telecel Cash' },
+  { id: 'atl', label: 'AirtelTigo Money' },
 ]
+const providerLabel = (id: string) => PROVIDERS.find((p) => p.id === id)?.label ?? 'MoMo'
 
 // Shared iOS keyboard toolbar id (decimal/phone pads have no Done key)
 const DONE_ACCESSORY_ID = 'momo-done'
 
+/** Clean local digits: "+233 24 456 7890" → "244567890". */
+const localDigits = (v: string) => v.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
+// Ghana mobile: 9 local digits, 2nd digit 2 or 5 (MTN/Telecel/AirtelTigo prefixes).
+const validPhone = (v: string) => /^[25]\d{8}$/.test(localDigits(v))
+
+/** "GH₵10" chip label, "GH₵10.00" money lines (no space, as on the mockup). */
+const ghs = (n: number) => formatGHS(n).replace('GH₵ ', 'GH₵')
+
+/**
+ * Top up — one screen (UX v2 TU2–TU4): amount chips + Other amount with a live
+ * "New balance after approval", the saved MoMo number (network chosen once, in
+ * a "Choose your network" modal the first time), an honest fee box, and a
+ * pinned "Send prompt to my phone". Sending only REQUESTS money: on success we
+ * replace this screen with app/wallet/topup-status.tsx (pending → credited /
+ * failed). Errors are inline, never Alert (TU8).
+ */
 export default function MomoTopUpScreen() {
-  const isDark = useColorScheme() === 'dark'
-  const t = themed(isDark)
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { user } = useAuthContext()
   const { provider: providerParam, amount: amountParam, return: returnTo, pops } = useLocalSearchParams<{ provider?: string; amount?: string; return?: string; pops?: string }>()
-  const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
-  // Normalise the stored auth phone to a clean local number (strip +233 / 233 / leading 0)
-  const initialPhone = (user?.phone || '').replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
 
   // Pre-fill the amount when a booking shortfall was passed in (selects a preset
   // chip if it matches, else fills the custom field).
   const prefill = amountParam ? parseFloat(amountParam) : NaN
   const validPrefill = isFinite(prefill) && prefill > 0
-  const [amount, setAmount] = useState<number | null>(validPrefill && AMOUNTS.includes(prefill) ? prefill : null)
+  const [amount, setAmount] = useState<number | null>(validPrefill ? (AMOUNTS.includes(prefill) ? prefill : null) : 10)
   const [customAmount, setCustomAmount] = useState(validPrefill && !AMOUNTS.includes(prefill) ? String(prefill) : '')
-  const [phone, setPhone] = useState(initialPhone)
-  const [provider, setProvider] = useState<string>(initialProvider)
+
+  // Saved network + number (TU3). null until loaded / chosen.
+  const [provider, setProvider] = useState<NetworkId | null>(null)
+  const [phone, setPhone] = useState('')
+  const [prefsLoaded, setPrefsLoaded] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  // Draft values inside the "Choose your network" modal.
+  const [draftProvider, setDraftProvider] = useState<NetworkId>('mtn')
+  const [draftPhone, setDraftPhone] = useState('')
+  const [draftError, setDraftError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getSavedMomo().then((saved) => {
+      if (!alive) return
+      const paramProvider = PROVIDERS.some((p) => p.id === providerParam) ? (providerParam as NetworkId) : null
+      if (saved) {
+        setProvider(paramProvider ?? saved.provider)
+        setPhone(saved.phone)
+      } else {
+        // First time: open the network picker, pre-filled with the sign-in number.
+        setDraftProvider(paramProvider ?? 'mtn')
+        setDraftPhone(localDigits(user?.phone || ''))
+        setSheetOpen(true)
+      }
+      setPrefsLoaded(true)
+    })
+    return () => { alive = false }
+  }, [providerParam, user?.phone])
+
+  // Current balance for "New balance after approval" (cache first, then a read).
+  const [balance, setBalance] = useState<number | null>(null)
+  useEffect(() => {
+    if (!user?.id) return
+    let alive = true
+    getCachedWallet(user.id).then((snap) => { if (alive && snap) setBalance((cur) => cur ?? snap.balance) }).catch(() => {})
+    authedFetch(`${API_URL}/api/wallet/balance?auth_user_id=${user.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.balance != null && isFinite(Number(d.balance))) setBalance(Number(d.balance)) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [user?.id])
+
   const [loading, setLoading] = useState(false)
   // Inline errors (TU8): never Alert.alert in the top-up flow.
   const [amountError, setAmountError] = useState<string | null>(null)
-  const [phoneError, setPhoneError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const effectiveAmount = amount || (customAmount ? parseFloat(customAmount) : 0)
+  const parsedCustom = customAmount ? parseFloat(customAmount.replace(',', '.')) : 0
+  const effectiveAmount = amount ?? (isFinite(parsedCustom) ? parsedCustom : 0)
+  const amountOk = effectiveAmount >= 1 && effectiveAmount <= 500
 
-  const handleFund = async () => {
+  const openSheet = () => {
+    Haptics.selectionAsync()
+    setDraftProvider(provider ?? 'mtn')
+    setDraftPhone(phone || localDigits(user?.phone || ''))
+    setDraftError(null)
+    setSheetOpen(true)
+  }
+  const confirmSheet = () => {
+    if (!validPhone(draftPhone)) {
+      setDraftError('Enter a valid Ghana MoMo number, like 024 123 4567.')
+      return
+    }
+    Haptics.selectionAsync()
+    setProvider(draftProvider)
+    setPhone(localDigits(draftPhone))
+    setSheetOpen(false)
+    setFormError(null)
+  }
+
+  const handleSend = async () => {
     if (loading) return
     setFormError(null)
-    let bad = false
-    if (!effectiveAmount || !isFinite(effectiveAmount) || effectiveAmount < 1) {
-      setAmountError('Choose or enter an amount of at least GH₵ 1.')
-      bad = true
-    } else if (effectiveAmount > 500) {
-      setAmountError('You can top up at most GH₵ 500 at a time.')
-      bad = true
-    } else setAmountError(null)
-    // Ghana mobile: 9 local digits (optionally a leading 0), 2nd digit 2 or 5
-    // (MTN/Telecel/AirtelTigo prefixes). Catches typos before the backend rejects.
-    if (!/^0?[25]\d{8}$/.test(phone.replace(/\D/g, ''))) {
-      setPhoneError('Enter a valid Ghana MoMo number, like 024 123 4567.')
-      bad = true
-    } else setPhoneError(null)
-    if (bad) return
+    if (!amountOk) {
+      setAmountError(effectiveAmount > 500 ? 'You can top up at most GH₵ 500 at a time.' : 'Choose or enter an amount of at least GH₵ 1.')
+      return
+    }
+    setAmountError(null)
+    if (!provider || !validPhone(phone)) { openSheet(); return }
     if (!user?.id) {
       setFormError('Verify your phone number first, then top up.')
       return
     }
 
-    // The field holds a clean local number (e.g. 200000000) for editability, but
-    // Backend validates against /^(?:\+233|0)[2345]\d{8}$/ — it needs the
-    // +233 (or 0) prefix, NOT a bare 233. Build the E.164 form so it passes.
-    const msisdn = '+233' + phone.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
+    // Backend validates against /^(?:\+233|0)[2345]\d{8}$/ — send E.164.
+    const msisdn = '+233' + localDigits(phone)
 
     // Sending a prompt is a request, not a payment: light tap only, no success
     // haptic or check here (TU1). The pending screen reports what actually happens.
@@ -85,6 +152,7 @@ export default function MomoTopUpScreen() {
     const r = await startTopup({ userId: user.id, amount: amountToSend, phone: msisdn, provider })
     setLoading(false)
     if (r.ok) {
+      saveMomo({ provider, phone: localDigits(phone) })
       router.replace(topupStatusHref({
         reference: r.reference,
         amount: amountToSend,
@@ -92,8 +160,8 @@ export default function MomoTopUpScreen() {
         provider,
         createdAt: new Date().toISOString(),
         returnTo: returnTo === 'checkout' ? 'checkout' : undefined,
-        // Screens to pop to get back to checkout: checkout → fund → (momo, replaced) = 2.
-        pops: returnTo === 'checkout' ? (pops ?? '2') : undefined,
+        // Screens to pop to get back to checkout: checkout → (momo, replaced by status) = 1.
+        pops: returnTo === 'checkout' ? (pops ?? '1') : undefined,
       }) as never)
       return
     }
@@ -101,153 +169,166 @@ export default function MomoTopUpScreen() {
     setFormError(r.error)
   }
 
+  const newBalance = balance != null && amountOk ? balance + effectiveAmount : null
+
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#0c0a09' : '#fafaf9' }]}>
+    <SafeAreaView edges={['top']} style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
-          <ArrowLeft size={24} color={t.text} />
+        <TouchableOpacity onPress={() => router.back()} hitSlop={4} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+          <ChevronLeft size={24} color={ui.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>{PROVIDERS.find((p) => p.id === provider)?.label ?? 'Mobile Money'}</Text>
-        <View style={{ width: 24 }} />
+        <Text style={s.headerTitle}>Top up</Text>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingBottom: 140 + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {/* Amount selection */}
-        <Animated.View entering={FadeInDown.duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>SELECT AMOUNT</Text>
-          <View style={s.amountGrid}>
-            {AMOUNTS.map((a) => (
+        {/* TU2: how much */}
+        <Text style={s.sectionLabel}>HOW MUCH?</Text>
+        <View style={s.amountRow}>
+          {AMOUNTS.map((a) => {
+            const on = amount === a
+            return (
               <TouchableOpacity
                 key={a}
-                style={[s.amountBtn, {
-                  backgroundColor: amount === a ? BRAND : (isDark ? '#1c1917' : '#f5f5f4'),
-                  borderColor: amount === a ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                }]}
-                onPress={() => { setAmount(a); setCustomAmount(''); setAmountError(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
+                style={[s.amountChip, on ? s.amountChipOn : s.amountChipOff]}
+                onPress={() => { setAmount(a); setCustomAmount(''); setAmountError(null); Haptics.selectionAsync() }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
               >
-                <Text style={[s.amountBtnText, { color: amount === a ? '#fff' : t.text }]}>
-                  GH₵ {a}
-                </Text>
+                <Text style={[s.amountChipText, { color: on ? '#FFFFFF' : ui.text }]}>GH₵{a}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            )
+          })}
+        </View>
+        <View style={[s.otherRow, amount == null && customAmount ? s.otherRowOn : null]}>
+          {(customAmount || amount == null) ? <Text style={s.otherPrefix}>GH₵</Text> : null}
+          <TextInput
+            style={s.otherInput}
+            placeholder="Other amount"
+            placeholderTextColor="#6B7280"
+            keyboardType="decimal-pad"
+            inputAccessoryViewID={DONE_ACCESSORY_ID}
+            value={customAmount}
+            onChangeText={(v) => { setCustomAmount(v); setAmount(null); setAmountError(null) }}
+            accessibilityLabel="Other amount in cedis"
+          />
+        </View>
+        {amountError ? (
+          <Text style={s.fieldError} accessibilityLiveRegion="polite">{amountError}</Text>
+        ) : newBalance != null ? (
+          <Text style={s.newBalance}>New balance after approval: <Text style={s.newBalanceValue}>{ghs(newBalance)}</Text></Text>
+        ) : null}
 
-          {/* Custom amount */}
-          <View style={[s.customRow, {
-            backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <Text style={[s.customPrefix, { color: t.textSecondary }]}>GH₵</Text>
-            <TextInput
-              style={[s.customInput, { color: t.text }]}
-              placeholder="Other amount"
-              placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-              keyboardType="decimal-pad"
-              inputAccessoryViewID={DONE_ACCESSORY_ID}
-              value={customAmount}
-              onChangeText={(v) => { setCustomAmount(v); setAmount(null); setAmountError(null) }}
-            />
-          </View>
-          {amountError && <Text style={s.fieldError} accessibilityLiveRegion="polite">{amountError}</Text>}
-        </Animated.View>
+        {/* TU3: pay from — saved number, network chosen once */}
+        <Text style={[s.sectionLabel, { marginTop: 22 }]}>PAY FROM</Text>
+        {provider && phone ? (
+          <TouchableOpacity activeOpacity={0.85} onPress={openSheet} style={s.payFrom} accessibilityRole="button" accessibilityLabel={`Pay from ${maskPhone(phone)}, ${providerLabel(provider)}. Change`}>
+            <NetworkLogo id={provider} width={44} height={44} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.payFromNumber}>{maskPhone(phone)}</Text>
+              <Text style={s.payFromNet}>{providerLabel(provider)}</Text>
+            </View>
+            <Text style={s.change}>Change</Text>
+          </TouchableOpacity>
+        ) : prefsLoaded ? (
+          <TouchableOpacity activeOpacity={0.85} onPress={openSheet} style={s.payFrom} accessibilityRole="button">
+            <View style={s.phoneIcon}><Smartphone size={20} color={ui.textSecondary} /></View>
+            <Text style={[s.payFromNumber, { flex: 1 }]}>Choose your network</Text>
+            <Text style={s.change}>Choose</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={[s.payFrom, { backgroundColor: ui.surface, borderColor: ui.surface }]} />
+        )}
 
-        {/* Phone number */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>MOMO NUMBER</Text>
-          <View style={[s.phoneRow, {
-            backgroundColor: isDark ? '#1c1917' : '#f5f5f4',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <Text style={s.phoneFlag}>🇬🇭</Text>
-            <Text style={[s.phonePrefix, { color: t.text }]}>+233</Text>
-            <TextInput
-              style={[s.phoneInput, { color: t.text }]}
-              placeholder="24 XXX XXXX"
-              placeholderTextColor={isDark ? '#57534e' : '#a8a29e'}
-              keyboardType="phone-pad"
-              inputAccessoryViewID={DONE_ACCESSORY_ID}
-              maxLength={10}
-              value={phone}
-              onChangeText={(v) => { setPhone(v); setPhoneError(null) }}
-            />
+        {/* TU4: honest fee box */}
+        <View style={s.feeBox}>
+          <View style={s.feeRow}>
+            <Text style={s.feeLabel}>Amount</Text>
+            <Text style={s.feeValue}>{amountOk ? ghs(effectiveAmount) : '—'}</Text>
           </View>
-          {phoneError && <Text style={s.fieldError} accessibilityLiveRegion="polite">{phoneError}</Text>}
-        </Animated.View>
+          <View style={s.feeRow}>
+            <Text style={s.feeLabel}>Troski fee</Text>
+            <Text style={[s.feeValue, { color: '#15803D', fontFamily: font.bold }]}>GH₵0.00</Text>
+          </View>
+          <Text style={s.feeNote}>Your network may charge its usual MoMo fee or e-levy.</Text>
+          <View style={[s.feeRow, s.feeTotal]}>
+            <Text style={s.feeTotalText}>Total from your MoMo</Text>
+            <Text style={s.feeTotalText}>{amountOk ? ghs(effectiveAmount) : '—'}</Text>
+          </View>
+        </View>
+      </ScrollView>
 
-        {/* Provider selection */}
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <Text style={[s.sectionLabel, { color: t.textSecondary }]}>NETWORK</Text>
-          <View style={s.providerRow}>
+      {/* Pinned send */}
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
+        {formError && <Text style={[s.fieldError, s.formError]} accessibilityLiveRegion="polite">{formError}</Text>}
+        <TouchableOpacity
+          onPress={handleSend}
+          disabled={loading}
+          activeOpacity={0.85}
+          style={[s.sendBtn, (loading || !amountOk) && { opacity: 0.5 }]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: loading, busy: loading }}
+        >
+          <Smartphone size={20} color="#FFFFFF" />
+          <Text style={s.sendText}>{loading ? 'Sending prompt…' : 'Send prompt to my phone'}</Text>
+        </TouchableOpacity>
+        <Text style={s.sendHint}>You approve it on your phone with your MoMo PIN.</Text>
+      </View>
+
+      {/* TU3: "Choose your network" — first time, or Change */}
+      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.backdrop}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setSheetOpen(false)} accessibilityLabel="Close" />
+          <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+            <View style={s.sheetHead}>
+              <Text style={s.sheetTitle}>Choose your network</Text>
+              <TouchableOpacity onPress={() => setSheetOpen(false)} style={s.sheetClose} accessibilityRole="button" accessibilityLabel="Close">
+                <X size={22} color={ui.text} />
+              </TouchableOpacity>
+            </View>
             {PROVIDERS.map((p) => {
-              const sel = provider === p.id
+              const on = draftProvider === p.id
               return (
                 <TouchableOpacity
                   key={p.id}
-                  style={[s.providerBtn, {
-                    backgroundColor: sel ? (isDark ? 'rgba(255,77,28,0.12)' : '#FFF0EB') : (isDark ? '#1c1917' : '#f5f5f4'),
-                    borderColor: sel ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                  }]}
-                  onPress={() => { setProvider(p.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
+                  onPress={() => { Haptics.selectionAsync(); setDraftProvider(p.id) }}
+                  style={[s.netRow, on && s.netRowOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
                 >
-                  <NetworkLogo id={p.id as NetworkId} width={46} height={30} />
-                  <Text style={[s.providerText, { color: sel ? BRAND : t.text }]}>
-                    {p.label}
-                  </Text>
+                  <NetworkLogo id={p.id} width={44} height={32} />
+                  <Text style={s.netLabel}>{p.label}</Text>
+                  <View style={[s.radio, on && s.radioOn]}>{on && <Check size={14} color="#FFFFFF" strokeWidth={3} />}</View>
                 </TouchableOpacity>
               )
             })}
+            <Text style={[s.sectionLabel, { marginTop: 14 }]}>MOMO NUMBER</Text>
+            <View style={[s.phoneField, draftError ? { borderColor: ui.danger } : null]}>
+              <Text style={s.phonePrefix}>+233</Text>
+              <TextInput
+                style={s.phoneInput}
+                placeholder="24 123 4567"
+                placeholderTextColor="#6B7280"
+                keyboardType="phone-pad"
+                inputAccessoryViewID={DONE_ACCESSORY_ID}
+                maxLength={13}
+                value={draftPhone}
+                onChangeText={(v) => { setDraftPhone(v); setDraftError(null) }}
+                accessibilityLabel="MoMo number"
+              />
+            </View>
+            {draftError && <Text style={s.fieldError} accessibilityLiveRegion="polite">{draftError}</Text>}
+            <TouchableOpacity onPress={confirmSheet} activeOpacity={0.9} style={[s.sendBtn, { marginTop: 16 }]} accessibilityRole="button">
+              <Text style={s.sendText}>Use this number</Text>
+            </TouchableOpacity>
           </View>
-        </Animated.View>
-
-        {/* Summary */}
-        {effectiveAmount > 0 && (
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={[s.summaryCard, {
-            backgroundColor: isDark ? '#1c1917' : '#ffffff',
-            borderColor: isDark ? 'rgba(255,77,28,0.1)' : 'rgba(0,0,0,0.04)',
-          }]}>
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Amount</Text>
-              <Text style={[s.summaryValue, { color: t.text }]}>{formatGHS(effectiveAmount)}</Text>
-            </View>
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.textSecondary }]}>Fee</Text>
-              <Text style={[s.summaryValue, { color: '#22c55e' }]}>Free</Text>
-            </View>
-            <View style={[s.summaryDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]} />
-            <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: t.text, fontFamily: font.bold }]}>Total</Text>
-              <Text style={[s.summaryTotal, { color: BRAND }]}>{formatGHS(effectiveAmount)}</Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Top up button */}
-        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-          {formError && <Text style={[s.fieldError, s.formError]} accessibilityLiveRegion="polite">{formError}</Text>}
-          <TouchableOpacity
-            onPress={handleFund}
-            disabled={loading}
-            activeOpacity={0.85}
-            style={[s.fundBtn, { opacity: loading || effectiveAmount < 1 ? 0.5 : 1 }]}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: loading, busy: loading }}
-          >
-            <MaterialIcons name="add-circle" size={20} color="#fff" />
-            <Text style={s.fundBtnText}>
-              {loading ? 'Sending prompt…' : effectiveAmount >= 1 ? `Top up ${formatGHS(effectiveAmount)}` : 'Top up'}
-            </Text>
-          </TouchableOpacity>
-          <Text style={[s.fundHint, { color: t.textSecondary }]}>We send a prompt to your phone. You approve it with your MoMo PIN.</Text>
-        </Animated.View>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={DONE_ACCESSORY_ID}>
@@ -258,77 +339,92 @@ export default function MomoTopUpScreen() {
           </View>
         </InputAccessoryView>
       )}
-
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
+  container: { flex: 1, backgroundColor: ui.bg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 52 },
+  backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 20, fontFamily: font.bold, color: ui.text },
+  scroll: { paddingHorizontal: 20, paddingTop: 10 },
+
+  sectionLabel: { fontSize: 12, fontFamily: font.bold, letterSpacing: 0.8, color: ui.textTertiary, marginBottom: 8 },
+
+  // TU2 amount chips (64 × 48 minimum)
+  amountRow: { flexDirection: 'row', gap: 8 },
+  amountChip: { flex: 1, minWidth: 64, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  amountChipOn: { backgroundColor: '#0A0A0A' },
+  amountChipOff: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E7E5E4' },
+  amountChipText: { fontSize: 17, fontFamily: font.extrabold },
+  otherRow: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 8, height: 48, borderRadius: 12,
+    backgroundColor: ui.surface, paddingHorizontal: 14, borderWidth: 1.5, borderColor: ui.surface,
   },
-  headerTitle: { fontSize: 20, fontFamily: font.bold },
-  scroll: { paddingHorizontal: 20, gap: 24 },
+  otherRowOn: { backgroundColor: '#FFFFFF', borderColor: '#0A0A0A' },
+  otherPrefix: { fontSize: 16, fontFamily: font.bold, color: ui.text, marginRight: 6 },
+  otherInput: { flex: 1, fontSize: 16, fontFamily: font.semibold, color: ui.text, paddingVertical: 0 },
+  newBalance: { fontSize: 13, fontFamily: font.medium, color: ui.textSecondary, marginTop: 8 },
+  newBalanceValue: { fontFamily: font.bold, color: ui.text },
 
-  sectionLabel: { fontSize: 10, fontFamily: font.bold, letterSpacing: 2, marginBottom: 10 },
-
-  // Amounts
-  amountGrid: { flexDirection: 'row', gap: 10 },
-  amountBtn: {
-    flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center',
-    borderWidth: 1,
+  // TU3 pay-from row
+  payFrom: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, backgroundColor: '#FFFFFF',
+    borderRadius: 16, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, paddingVertical: 12,
   },
-  amountBtnText: { fontSize: 16, fontFamily: font.bold },
+  phoneIcon: { width: 44, height: 44, borderRadius: 10, backgroundColor: ui.surface, alignItems: 'center', justifyContent: 'center' },
+  payFromNumber: { fontSize: 16, fontFamily: font.bold, color: ui.text, fontVariant: ['tabular-nums'] },
+  payFromNet: { fontSize: 13, fontFamily: font.medium, color: ui.textSecondary },
+  change: { fontSize: 15, fontFamily: font.bold, color: brand.orangeText, paddingVertical: 12 },
 
-  customRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 10,
-    paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, height: 56,
+  // TU4 fee box
+  feeBox: { marginTop: 18, backgroundColor: '#F5F5F4', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, gap: 6 },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  feeLabel: { fontSize: 15, fontFamily: font.medium, color: ui.text },
+  feeValue: { fontSize: 15, fontFamily: font.medium, color: ui.text, fontVariant: ['tabular-nums'] },
+  feeNote: { fontSize: 12, fontFamily: font.medium, color: ui.textSecondary },
+  feeTotal: { borderTopWidth: 1, borderTopColor: '#E7E5E4', paddingTop: 8, marginTop: 2 },
+  feeTotalText: { fontSize: 15, fontFamily: font.extrabold, color: ui.text, fontVariant: ['tabular-nums'] },
+
+  // Pinned send
+  footer: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: ui.bg },
+  sendBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 56, borderRadius: 14, backgroundColor: brand.orange,
   },
-  customPrefix: { fontSize: 16, fontFamily: font.bold, marginRight: 8 },
-  customInput: { flex: 1, fontSize: 18, fontFamily: font.bold },
+  sendText: { fontSize: 16, fontFamily: font.bold, color: '#FFFFFF' },
+  sendHint: { fontSize: 12, fontFamily: font.medium, color: ui.textSecondary, textAlign: 'center', marginTop: 8 },
 
-  // Phone
-  phoneRow: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
-    borderRadius: 14, borderWidth: 1, height: 56, gap: 8,
+  // Choose-your-network modal
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 8 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  sheetTitle: { fontSize: 18, fontFamily: font.bold, color: ui.text },
+  sheetClose: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: -12 },
+  netRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 12,
+    borderRadius: 12, borderWidth: 1.5, borderColor: '#EEEEEE', marginBottom: 8,
   },
-  phoneFlag: { fontSize: 20 },
-  phonePrefix: { fontSize: 16, fontFamily: font.bold },
-  phoneInput: { flex: 1, fontSize: 18, fontFamily: font.semibold, letterSpacing: 1 },
-
-  // Providers
-  providerRow: { flexDirection: 'row', gap: 8 },
-  providerBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, gap: 8,
+  netRowOn: { borderColor: '#0A0A0A' },
+  netLabel: { flex: 1, fontSize: 15, fontFamily: font.bold, color: ui.text },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  radioOn: { backgroundColor: '#0A0A0A', borderColor: '#0A0A0A' },
+  phoneField: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, height: 52, borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#E7E5E4', paddingHorizontal: 14,
   },
-  providerText: { fontSize: 11, fontFamily: font.bold, textAlign: 'center' },
-
-  // Summary
-  summaryCard: { borderRadius: 14, padding: 16, gap: 10, borderWidth: 1 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontSize: 14, fontFamily: font.medium },
-  summaryValue: { fontSize: 14, fontFamily: font.bold },
-  summaryDivider: { height: 1, marginVertical: 4 },
-  summaryTotal: { fontSize: 20, fontFamily: font.extrabold },
+  phonePrefix: { fontSize: 16, fontFamily: font.bold, color: ui.text },
+  phoneInput: { flex: 1, fontSize: 17, fontFamily: font.semibold, color: ui.text, letterSpacing: 0.5, paddingVertical: 0 },
 
   // iOS keyboard Done bar
   accessoryBar: {
     flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 10,
     backgroundColor: '#f5f5f4', borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
   },
-  accessoryDone: { fontSize: 16, fontFamily: font.bold, color: BRAND },
-
-  // Fund button
-  fundBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 14, backgroundColor: BRAND,
-  },
-  fundBtnText: { fontSize: 16, fontFamily: font.bold, color: '#fff' },
-  fundHint: { fontSize: 13, fontFamily: font.medium, textAlign: 'center', marginTop: 10 },
+  accessoryDone: { fontSize: 16, fontFamily: font.bold, color: brand.orange },
 
   // Inline validation (TU8)
   fieldError: { fontSize: 13, fontFamily: font.semibold, color: ui.danger, marginTop: 6 },
-  formError: { marginTop: 0, marginBottom: 10, textAlign: 'center' },
+  formError: { marginTop: 0, marginBottom: 8, textAlign: 'center' },
 })

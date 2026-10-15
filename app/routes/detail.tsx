@@ -16,33 +16,54 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { X, Clock, Navigation, Zap, AlertTriangle, Bus, Search, Info, ChevronRight, ChevronDown, MapPin, LocateFixed, TrafficCone, Route as RouteIcon, Share as ShareIcon } from 'lucide-react-native'
+import { Clock, Navigation, Zap, AlertTriangle, Bus, Search, Info, ChevronRight, ChevronDown, ChevronLeft, MapPin, LocateFixed, Share as ShareIcon } from 'lucide-react-native'
 import StopPickerModal from '@/components/StopPickerModal'
 import { font } from '@/lib/theme'
 
 const { height: SCREEN_H } = Dimensions.get('window')
 // First sheet snap as a fraction of screen height (map padding + recenter FAB follow it).
 const FIRST_SNAP = 0.6
-// Calm pale Mapbox Light by day (stops + route pop on it); stock dark-v11 after
-// dark (navigation-night bakes traffic colours in, defeating the Traffic toggle).
+// Calm pale Mapbox Light by day (stops + route pop on it); stock dark-v11 after dark.
+// TODO(UX v2 M3): light basemap in all light-mode hours (dark only in dark mode) and the
+// 5 dp brand route with a 2 dp white casing need Mapbox style work; not done here.
 const MAP_STYLE_DAY = 'mapbox://styles/mapbox/light-v11'
 const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/dark-v11'
 import * as Haptics from 'expo-haptics'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { fetchRouteTraffic } from '@/lib/services/traffic-api'
+import { fetchQueueStatus } from '@/lib/services/queueStatus'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { fetchRouteSegmentFares, resolveDropoffFareSync, type RouteSegmentFare } from '@/lib/services/segment-fares'
 import { formatGHS } from '@/lib/utils/currency'
 import Mapbox from '@rnmapbox/maps'
-import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import Reanimated, { useSharedValue, useDerivedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { RELEASE_MODE, FEATURES } from '@/lib/config/release'
 
 const BRAND = '#FF4D1C'
+
+// Stop layers (UX v2 M6). Module constants so re-renders never push new
+// filter/style objects to the native layers.
+const STOP_MINOR_FILTER = ['all', ['!=', ['get', 'sel'], 1], ['!=', ['get', 'major'], 1]] as const
+const STOP_KEY_FILTER = ['any', ['==', ['get', 'sel'], 1], ['==', ['get', 'major'], 1]] as const
+const STOP_MINOR_STYLE = {
+  circleRadius: 4,
+  circleColor: '#FFFFFF',
+  circleStrokeWidth: 2,
+  circleStrokeColor: '#FF4D1C',
+  circlePitchAlignment: 'map',
+} as const
+const STOP_KEY_STYLE = {
+  circleRadius: ['case', ['==', ['get', 'sel'], 1], 7, 5],
+  circleColor: ['case', ['==', ['get', 'sel'], 1], '#FF4D1C', '#FFFFFF'],
+  circleStrokeWidth: 2,
+  circleStrokeColor: '#FF4D1C',
+  circlePitchAlignment: 'map',
+} as const
 
 // Case-insensitive coord lookup
 const COORDS_LOWER: Record<string, { lat: number; lon: number }> = {}
@@ -93,7 +114,8 @@ export default function RouteDetailScreen() {
   // Sheet snaps: 0 = peek (just the route header, map free to explore), 1 = default,
   // 2/3 = taller. Tapping or panning the map drops it to the peek; tapping the peek
   // or dragging the handle brings it back.
-  const PEEK = 100 + insets.bottom
+  // UX v2 M1: exactly two lines (route + fare, then trip shape + source chip).
+  const PEEK = 112 + insets.bottom
   const sheetIndexRef = useRef(1)
   const [sheetIndex, setSheetIndex] = useState(1)
   const lastStopTap = useRef(0)
@@ -114,7 +136,6 @@ export default function RouteDetailScreen() {
   const baseFare = params.fare ? parseFloat(params.fare) : 0
   const duration = params.duration ? parseInt(params.duration) : 0
   const routeId = params.route_id || ''
-  const routeType = params.type || 'direct'
 
   // Transport mode is chosen on the Plan a Trip screen and passed in via params —
   // no longer selectable here.
@@ -131,16 +152,13 @@ export default function RouteDetailScreen() {
   // the sheet covers it.
   const sheetPos = useSharedValue(99999)
   const [overlayHidden, setOverlayHidden] = useState(false)
-  // Traffic raster tiles are OFF by default — they're the biggest data cost on
-  // this screen and Google Maps does live traffic better (UX-32).
-  const [showTraffic, setShowTraffic] = useState(false)
+  // UX v2 M4: no Traffic toggle or km pill (traffic tiles cost data for no rider
+  // value). Recenter rides 12 dp above the sheet at every height, hidden at full.
   const [fabHidden, setFabHidden] = useState(false)
   useDerivedValue(() => {
     runOnJS(setOverlayHidden)(sheetPos.value < insets.top + 96)
-    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * (1 - FIRST_SNAP - 0.03))
+    runOnJS(setFabHidden)(sheetPos.value < SCREEN_H * 0.2)
   }, [insets.top])
-  // Real road distance from the Directions response — feeds the floating ETA pill.
-  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null)
   // Day/night map style (Ghana local hours): branded by day, stock nav-night after dark.
   const isNight = useMemo(() => { const h = new Date().getHours(); return h < 6 || h >= 18 }, [])
   const mapStyleURL = isNight ? MAP_STYLE_NIGHT : MAP_STYLE_DAY
@@ -211,7 +229,7 @@ export default function RouteDetailScreen() {
 
   const snapPoints = useMemo(() => [PEEK, `${Math.round(FIRST_SNAP * 100)}%`, '74%', '90%'], [PEEK])
   // Recenter FAB rides just above the sheet (peek or default).
-  const fabStyle = useAnimatedStyle(() => ({ bottom: Math.max(16, SCREEN_H - sheetPos.value + 16) }))
+  const fabStyle = useAnimatedStyle(() => ({ bottom: Math.max(16, SCREEN_H - sheetPos.value + 12) }))
 
 
   // Some routes (e.g. okada corridors, deep links) have no duration: hide it, never "NaN min".
@@ -221,7 +239,6 @@ export default function RouteDetailScreen() {
     : duration >= 60
       ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
       : `${duration} min`
-  const selectedFare = (baseFare * selectedOption.fareMultiplier).toFixed(2)
 
   // ── Crowdsourced fare: show an honest avg + range, not a single "fixed" price.
   // Trotro fares vary, so a range + report count + freshness is the trust signal.
@@ -312,10 +329,8 @@ export default function RouteDetailScreen() {
       .then(best => {
         if (cancelled) return
         if (best) {
-          setRouteDistanceKm(best.distance / 1000)
           setRouteLine({ type: 'Feature', properties: {}, geometry: best.geometry })
         } else {
-          setRouteDistanceKm(null) // never show a stale distance
           setRouteLine(straight)
         }
       })
@@ -377,285 +392,288 @@ export default function RouteDetailScreen() {
       .map((s) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [s.longitude, s.latitude] },
-        properties: { order: s.stop_order, name: s.stop_name, sel: s.stop_order === effectiveDropoff ? 1 : 0 },
+        properties: { order: s.stop_order, name: s.stop_name, sel: s.stop_order === effectiveDropoff ? 1 : 0, major: s.is_terminal ? 1 : 0 },
       })),
   }), [stops, effectiveDropoff])
   const selectedStop = hasStops && effectiveDropoff !== lastOrder
     ? stops.find((s) => s.stop_order === effectiveDropoff && Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
     : undefined
+  // M9: until the segment fares load, a corridor with stops shows a skeleton, not a
+  // corridor-wide estimate that would flash and then change.
+  const fareLoading = hasStops && !segFaresLoaded && !fareUnavailable
+  // Choosing a stop (map dot or picker) drops the sheet to half so the new fare shows.
+  const chooseStop = (order: number) => {
+    setDropoffOrder(order)
+    if (sheetIndexRef.current !== 1) sheetRef.current?.snapToIndex(1)
+  }
+  const shareFare = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    const src = ` (${fareIsOfficial ? (fareSourceLabel === 'GPRTU fare' ? 'official GPRTU' : fareSourceLabel) : !stageShown && corridorSrc?.kind === 'riders' ? 'reported by riders' : 'estimate'})`
+    Share.share({
+      message: `Trotro fare ${from} → ${dropoffName || to}: ${fareText}${src}. Check any trotro fare free on Troski: https://troski.me`,
+    }).catch(() => {})
+  }
+  // M8: a queue report at the origin from the last 15 min earns a map callout; older is hidden.
+  const [originQueueAge, setOriginQueueAge] = useState<number | null>(null)
+  useEffect(() => {
+    const origin = from.trim().toLowerCase()
+    if (!origin) return
+    let cancelled = false
+    fetchQueueStatus(Date.now()).then((r) => {
+      if (cancelled) return
+      const match = r.stations.find((st) => {
+        const n = st.stationName.toLowerCase()
+        return n === origin || n.includes(origin) || origin.includes(n)
+      })
+      setOriginQueueAge(match && match.ageMins < 15 ? match.ageMins : null)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [from])
+
   // Fare per stop for the picker rows (Transit-style fare-per-option).
   const alightFareLabel = (order: number) =>
     hasStops ? formatGHS(resolveDropoffFareSync(segFares, stops[0].stop_order, order, stops, corridorBase).fare * mult) : undefined
 
+  // The native map must not re-render on sheet moves (peek/half/full) — a prop
+  // churn there dropped the route + stop layers on tap-to-peek. Memoised on the
+  // data it draws; handlers only touch refs and state setters.
+  const mapEl = useMemo(() => (
+        <Mapbox.MapView
+          style={{ flex: 1 }}
+          styleURL={mapStyleURL}
+          logoEnabled={false}
+          attributionEnabled={false}
+          compassEnabled={true}
+          compassFadeWhenNorth={true}
+          compassPosition={{ top: insets.top + 64, right: 16 }}
+          scaleBarEnabled={false}
+          pitchEnabled={false}
+          onDidFinishLoadingMap={() => fitRoute(900)}
+          // Tap or pan/zoom the map → drop the sheet so the map is free to explore.
+          // A stop tap also reaches here; it picks the alight stop instead.
+          onPress={() => { if (Date.now() - lastStopTap.current > 400) collapseSheet() }}
+          onCameraChanged={(state) => { if (state.gestures?.isGestureActive) collapseSheet() }}
+        >
+          <Mapbox.Camera
+            ref={cameraRef}
+            pitch={0}
+            defaultSettings={hasCoords ? {
+              bounds: {
+                ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
+                sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
+                paddingTop: insets.top + 120,
+                paddingBottom: SCREEN_H * FIRST_SNAP + 48,
+                paddingLeft: 52,
+                paddingRight: 110,
+              },
+            } : {
+              centerCoordinate: [centerLon, centerLat],
+              zoomLevel: 12,
+            }}
+          />
+
+          {/* 3D buildings come baked into the custom Mapbox style — adding a
+              FillExtrusionLayer here referenced a "composite" source that the
+              custom style doesn't have, which errored on every load. */}
+
+          {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
+              casing, brand-orange core, revealed with a draw sweep (lineTrimOffset). */}
+          {routeLine && (
+            <Mapbox.ShapeSource id="route-line" shape={routeLine} lineMetrics={true}>
+              {/* Soft ground shadow for depth */}
+              <Mapbox.LineLayer
+                id="route-line-shadow"
+                style={{
+                  lineColor: '#000000',
+                  lineWidth: 15,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  lineOpacity: 0.12,
+                  lineBlur: 8,
+                }}
+              />
+              {/* High-contrast casing — white pops on the dark map, classic nav look */}
+              <Mapbox.LineLayer
+                id="route-line-outline"
+                style={{
+                  lineColor: '#FFFFFF',
+                  lineWidth: 11,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  lineOpacity: 1,
+                }}
+              />
+              {/* Brand core */}
+              <Mapbox.LineLayer
+                id="route-line-core"
+                style={{
+                  lineColor: BRAND,
+                  lineWidth: 6.5,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  lineOpacity: 1,
+                }}
+              />
+            </Mapbox.ShapeSource>
+          )}
+
+          {/* Stop dots — white with brand stroke; selected alight stop is larger + filled.
+              Tap a dot to set it as the alight stop (fare updates). */}
+          {stopsGeojson.features.length > 0 && (
+            <Mapbox.ShapeSource
+              // Remount once the route line exists so the dots are added ABOVE it
+              // (the line source mounts after the Directions/Matching fetch).
+              key={routeLine ? 'stops-above-line' : 'stops'}
+              id="route-stops"
+              shape={stopsGeojson}
+              hitbox={{ width: 28, height: 28 }}
+              onPress={(e) => {
+                const order = e.features?.[0]?.properties?.order
+                if (typeof order === 'number') {
+                  lastStopTap.current = Date.now()
+                  Haptics.selectionAsync()
+                  chooseStop(order)
+                }
+              }}
+            >
+              {/* UX v2 M6: ordinary stops only from zoom 13; the chosen stop and
+                  major stations (terminals) show at every zoom. */}
+              <Mapbox.CircleLayer
+                id="route-stops-dot"
+                aboveLayerID={routeLine ? 'route-line-core' : undefined}
+                minZoomLevel={13}
+                filter={STOP_MINOR_FILTER}
+                style={STOP_MINOR_STYLE}
+              />
+              <Mapbox.CircleLayer
+                id="route-stops-key"
+                aboveLayerID={routeLine ? 'route-line-core' : undefined}
+                filter={STOP_KEY_FILTER}
+                style={STOP_KEY_STYLE}
+              />
+            </Mapbox.ShapeSource>
+          )}
+
+          {/* Selected alight stop label (only this one — labelling all stops is clutter) */}
+          {selectedStop && (
+            <Mapbox.MarkerView id="alight-label" coordinate={[selectedStop.longitude, selectedStop.latitude]} anchor={{ x: 0.5, y: 1.6 }} allowOverlap>
+              <View pointerEvents="none" style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{selectedStop.stop_name}</Text></View>
+            </Mapbox.MarkerView>
+          )}
+
+          {/* Origin ring */}
+          {fromCoord && (
+            <Mapbox.ShapeSource
+              id="origin-pulse"
+              shape={{ type: 'Feature', geometry: { type: 'Point', coordinates: [fromCoord.lon, fromCoord.lat] }, properties: {} }}
+            >
+              <Mapbox.CircleLayer
+                id="origin-pulse-ring"
+                style={{
+                  circleRadius: 18,
+                  circleColor: '#22c55e',
+                  circleOpacity: 0.25,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+            </Mapbox.ShapeSource>
+          )}
+
+          {/* Origin pin — solid start dot with a label chip */}
+          {fromCoord && (
+            <Mapbox.MarkerView id="origin-pin" coordinate={[fromCoord.lon, fromCoord.lat]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap>
+              <View style={{ alignItems: 'center' }}>
+                <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{from}</Text></View>
+                <View style={mapPinStyles.originDot} />
+              </View>
+            </Mapbox.MarkerView>
+          )}
+
+          {/* Destination pin — teardrop with a MapPin glyph, tip anchored to the point */}
+          {toCoord && (
+            <Mapbox.MarkerView id="dest-pin" coordinate={[toCoord.lon, toCoord.lat]} anchor={{ x: 0.5, y: 1 }} allowOverlap>
+              <View style={{ alignItems: 'center' }}>
+                <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{to}</Text></View>
+                <View style={mapPinStyles.destPin}>
+                  <MapPin size={16} color="#fff" strokeWidth={2.6} fill="#fff" />
+                </View>
+                <View style={mapPinStyles.destTip} />
+              </View>
+            </Mapbox.MarkerView>
+          )}
+
+          {/* Live trotros — crowdsourced from riders in GO Mode (1-2s fresh) */}
+          {liveTrips.length > 0 && (
+            <Mapbox.ShapeSource id="live-trips" shape={liveTripsGeojson}>
+              <Mapbox.CircleLayer
+                id="live-trip-halo"
+                style={{
+                  circleRadius: 15,
+                  circleColor: BRAND,
+                  circleOpacity: 0.22,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+              <Mapbox.CircleLayer
+                id="live-trip-dot"
+                style={{
+                  circleRadius: 8,
+                  circleColor: BRAND,
+                  circleStrokeWidth: 2.5,
+                  circleStrokeColor: '#ffffff',
+                  circlePitchAlignment: 'map',
+                }}
+              />
+            </Mapbox.ShapeSource>
+          )}
+        </Mapbox.MapView>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [mapStyleURL, routeLine, stopsGeojson, selectedStop, fromCoord, toCoord, from, to, liveTripsGeojson, liveTrips.length, hasCoords, insets.top])
+
   return (
     <View style={{ flex: 1 }}>
 
-      {/* ── Full screen map ── */}
-      <Mapbox.MapView
-        style={{ flex: 1 }}
-        styleURL={mapStyleURL}
-        logoEnabled={false}
-        attributionEnabled={false}
-        compassEnabled={true}
-        compassFadeWhenNorth={true}
-        compassPosition={{ top: insets.top + 64, right: 16 }}
-        scaleBarEnabled={false}
-        pitchEnabled={false}
-        onDidFinishLoadingMap={() => fitRoute(900)}
-        // Tap or pan/zoom the map → drop the sheet so the map is free to explore.
-        // A stop tap also reaches here; it picks the alight stop instead.
-        onPress={() => { if (Date.now() - lastStopTap.current > 400) collapseSheet() }}
-        onCameraChanged={(state) => { if (state.gestures?.isGestureActive) collapseSheet() }}
-      >
-        <Mapbox.Camera
-          ref={cameraRef}
-          pitch={0}
-          defaultSettings={hasCoords ? {
-            bounds: {
-              ne: [Math.max(fromCoord!.lon, toCoord!.lon), Math.max(fromCoord!.lat, toCoord!.lat)],
-              sw: [Math.min(fromCoord!.lon, toCoord!.lon), Math.min(fromCoord!.lat, toCoord!.lat)],
-              paddingTop: insets.top + 120,
-              paddingBottom: SCREEN_H * FIRST_SNAP + 48,
-              paddingLeft: 52,
-              paddingRight: 110,
-            },
-          } : {
-            centerCoordinate: [centerLon, centerLat],
-            zoomLevel: 12,
-          }}
-        />
+      {mapEl}
 
-        {/* 3D buildings come baked into the custom Mapbox style — adding a
-            FillExtrusionLayer here referenced a "composite" source that the
-            custom style doesn't have, which errored on every load. */}
-
-        {/* Traffic overlay — opt-in via the Traffic pill (UX-32). Vector tiles,
-            only congested segments drawn, kept below the route line. */}
-        {showTraffic && (
-          <Mapbox.VectorSource
-            // Remount when the route line appears so traffic re-adds BELOW it
-            key={routeLine ? 'traffic-under-line' : 'traffic'}
-            id="traffic-source"
-            url="mapbox://mapbox.mapbox-traffic-v1"
-          >
-            <Mapbox.LineLayer
-              id="traffic-layer"
-              sourceLayerID="traffic"
-              belowLayerID={routeLine ? 'route-line-shadow' : undefined}
-              filter={['match', ['get', 'congestion'], ['moderate', 'heavy', 'severe'], true, false]}
-              style={{
-                lineWidth: 3,
-                lineCap: 'round',
-                lineColor: [
-                  'match', ['get', 'congestion'],
-                  'moderate', '#F59E0B',
-                  'heavy', '#EF4444',
-                  'severe', '#991B1B',
-                  '#F59E0B',
-                ],
-              }}
-            />
-          </Mapbox.VectorSource>
-        )}
-
-        {/* Route line — high-contrast (Uber-style): soft ground shadow, near-black
-            casing, brand-orange core, revealed with a draw sweep (lineTrimOffset). */}
-        {routeLine && (
-          <Mapbox.ShapeSource id="route-line" shape={routeLine} lineMetrics={true}>
-            {/* Soft ground shadow for depth */}
-            <Mapbox.LineLayer
-              id="route-line-shadow"
-              style={{
-                lineColor: '#000000',
-                lineWidth: 15,
-                lineCap: 'round',
-                lineJoin: 'round',
-                lineOpacity: 0.12,
-                lineBlur: 8,
-              }}
-            />
-            {/* High-contrast casing — white pops on the dark map, classic nav look */}
-            <Mapbox.LineLayer
-              id="route-line-outline"
-              style={{
-                lineColor: '#FFFFFF',
-                lineWidth: 11,
-                lineCap: 'round',
-                lineJoin: 'round',
-                lineOpacity: 1,
-              }}
-            />
-            {/* Brand core */}
-            <Mapbox.LineLayer
-              id="route-line-core"
-              style={{
-                lineColor: BRAND,
-                lineWidth: 6.5,
-                lineCap: 'round',
-                lineJoin: 'round',
-                lineOpacity: 1,
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-        {/* Stop dots — white with brand stroke; selected alight stop is larger + filled.
-            Tap a dot to set it as the alight stop (fare updates). */}
-        {stopsGeojson.features.length > 0 && (
-          <Mapbox.ShapeSource
-            // Remount once the route line exists so the dots are added ABOVE it
-            // (the line source mounts after the Directions/Matching fetch).
-            key={routeLine ? 'stops-above-line' : 'stops'}
-            id="route-stops"
-            shape={stopsGeojson}
-            hitbox={{ width: 28, height: 28 }}
-            onPress={(e) => {
-              const order = e.features?.[0]?.properties?.order
-              if (typeof order === 'number') {
-                lastStopTap.current = Date.now()
-                Haptics.selectionAsync()
-                setDropoffOrder(order)
-                // Show the new fare for this stop.
-                if (sheetIndexRef.current === 0) sheetRef.current?.snapToIndex(1)
-              }
-            }}
-          >
-            <Mapbox.CircleLayer
-              id="route-stops-dot"
-              aboveLayerID={routeLine ? 'route-line-core' : undefined}
-              style={{
-                circleRadius: ['case', ['==', ['get', 'sel'], 1], 7, 4],
-                circleColor: ['case', ['==', ['get', 'sel'], 1], BRAND, '#FFFFFF'],
-                circleStrokeWidth: 2,
-                circleStrokeColor: BRAND,
-                circlePitchAlignment: 'map',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-        {/* Selected alight stop label (only this one — labelling all stops is clutter) */}
-        {selectedStop && (
-          <Mapbox.MarkerView id="alight-label" coordinate={[selectedStop.longitude, selectedStop.latitude]} anchor={{ x: 0.5, y: 1.6 }} allowOverlap>
-            <View pointerEvents="none" style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{selectedStop.stop_name}</Text></View>
-          </Mapbox.MarkerView>
-        )}
-
-        {/* Origin ring */}
-        {fromCoord && (
-          <Mapbox.ShapeSource
-            id="origin-pulse"
-            shape={{ type: 'Feature', geometry: { type: 'Point', coordinates: [fromCoord.lon, fromCoord.lat] }, properties: {} }}
-          >
-            <Mapbox.CircleLayer
-              id="origin-pulse-ring"
-              style={{
-                circleRadius: 18,
-                circleColor: '#22c55e',
-                circleOpacity: 0.25,
-                circlePitchAlignment: 'map',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-
-        {/* Origin pin — solid start dot with a label chip */}
-        {fromCoord && (
-          <Mapbox.MarkerView id="origin-pin" coordinate={[fromCoord.lon, fromCoord.lat]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap>
-            <View style={{ alignItems: 'center' }}>
-              <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{from}</Text></View>
-              <View style={mapPinStyles.originDot} />
-            </View>
-          </Mapbox.MarkerView>
-        )}
-
-        {/* Destination pin — teardrop with a MapPin glyph, tip anchored to the point */}
-        {toCoord && (
-          <Mapbox.MarkerView id="dest-pin" coordinate={[toCoord.lon, toCoord.lat]} anchor={{ x: 0.5, y: 1 }} allowOverlap>
-            <View style={{ alignItems: 'center' }}>
-              <View style={mapPinStyles.chip}><Text style={mapPinStyles.chipText} numberOfLines={1}>{to}</Text></View>
-              <View style={mapPinStyles.destPin}>
-                <MapPin size={16} color="#fff" strokeWidth={2.6} fill="#fff" />
-              </View>
-              <View style={mapPinStyles.destTip} />
-            </View>
-          </Mapbox.MarkerView>
-        )}
-
-        {/* Live trotros — crowdsourced from riders in GO Mode (1-2s fresh) */}
-        {liveTrips.length > 0 && (
-          <Mapbox.ShapeSource id="live-trips" shape={liveTripsGeojson}>
-            <Mapbox.CircleLayer
-              id="live-trip-halo"
-              style={{
-                circleRadius: 15,
-                circleColor: BRAND,
-                circleOpacity: 0.22,
-                circlePitchAlignment: 'map',
-              }}
-            />
-            <Mapbox.CircleLayer
-              id="live-trip-dot"
-              style={{
-                circleRadius: 8,
-                circleColor: BRAND,
-                circleStrokeWidth: 2.5,
-                circleStrokeColor: '#ffffff',
-                circlePitchAlignment: 'map',
-              }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-      </Mapbox.MapView>
-
-      {/* ── Close button (map overlay — hides when the sheet rises into it) ── */}
+      {/* ── Back (44 dp white circle) — hides when the sheet rises into it (M4) ── */}
       {!overlayHidden && (
         <View style={{ position: 'absolute', top: insets.top + 8, left: 20, zIndex: 10 }}>
           <TouchableOpacity
             onPress={() => router.back()}
             activeOpacity={0.7}
+            hitSlop={4}
             accessibilityRole="button"
-            accessibilityLabel="Close map"
-            style={{
-              width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
-              justifyContent: 'center', alignItems: 'center',
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
-            }}
+            accessibilityLabel="Back"
+            style={mapPinStyles.mapBtn}
           >
-            <X size={22} color="#000" />
+            <ChevronLeft size={24} color="#000" />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* ── Traffic toggle — off by default to save data (UX-32) ── */}
-      {!overlayHidden && (
-        <View style={{ position: 'absolute', top: insets.top + 12, right: 20, zIndex: 10 }}>
+      {/* ── Share fare (optional, top-right) ── */}
+      {!overlayHidden && selectedTransport === 'trotro' && !fareUnavailable && (
+        <View style={{ position: 'absolute', top: insets.top + 8, right: 20, zIndex: 10 }}>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); setShowTraffic(v => !v) }}
-            activeOpacity={0.8}
-            hitSlop={8}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: showTraffic }}
-            accessibilityLabel="Show traffic"
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16,
-              backgroundColor: showTraffic ? BRAND : '#fff',
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
-            }}
+            onPress={shareFare}
+            activeOpacity={0.7}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Share fare"
+            style={mapPinStyles.mapBtn}
           >
-            <TrafficCone size={14} color={showTraffic ? '#fff' : '#374151'} strokeWidth={2.4} />
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: showTraffic ? '#fff' : '#374151' }}>Traffic</Text>
+            <ShareIcon size={19} color="#000" />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* ── Floating ETA · distance pill (glanceable trip summary) ── */}
-      {hasCoords && !overlayHidden && (routeDistanceKm ?? route?.distance_km) != null && (
-        <View style={{ position: 'absolute', top: insets.top + 10, alignSelf: 'center', zIndex: 10 }}>
-          <View style={mapPinStyles.etaPill}>
-            <RouteIcon size={15} color="#fff" strokeWidth={2.4} />
-            <Text style={mapPinStyles.etaText}>{(routeDistanceKm ?? route?.distance_km ?? 0).toFixed(1)} km</Text>
+      {/* ── Freshness callout: only a queue report under 15 min old (M8) ── */}
+      {!overlayHidden && originQueueAge != null && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 64, alignSelf: 'center', zIndex: 10 }}>
+          <View style={mapPinStyles.callout}>
+            <Text style={mapPinStyles.calloutText}>
+              {originQueueAge < 1 ? 'Queue reported just now' : `Queue reported ${originQueueAge} min ago`}
+            </Text>
           </View>
         </View>
       )}
@@ -681,6 +699,8 @@ export default function RouteDetailScreen() {
         snapPoints={snapPoints}
         index={1}
         onChange={(i) => { sheetIndexRef.current = i; setSheetIndex(i) }}
+        // Swap peek/half content as soon as a snap starts, not when it ends.
+        onAnimate={(_from, to) => { if (to >= 0) setSheetIndex(to) }}
         enableDynamicSizing={false}
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4, borderRadius: 2 }}
         backgroundStyle={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
@@ -693,15 +713,36 @@ export default function RouteDetailScreen() {
           {/* ── Sheet 1: Route info + transport picker ── */}
           {!showVehicles && (
           <>
-          {/* Route timeline: origin → destination. In the peek, tapping it brings the sheet back up. */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            disabled={sheetIndex !== 0}
-            onPress={expandSheet}
-            accessibilityRole={sheetIndex === 0 ? 'button' : undefined}
-            accessibilityLabel={sheetIndex === 0 ? `${from} to ${to}. Show route details` : undefined}
-            style={{ paddingHorizontal: 24, marginBottom: 14 }}
-          >
+          {sheetIndex === 0 ? (
+            /* UX v2 M1: peek is exactly two lines. Tapping it brings the sheet back up. */
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={expandSheet}
+              accessibilityRole="button"
+              accessibilityLabel={`${from} to ${to}. ${fareLoading ? 'Fare loading' : fareText}. Show route details`}
+              style={{ paddingHorizontal: 24, paddingBottom: 12 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 18, color: '#0A0A0A', letterSpacing: -0.3 }}>{from} → {to}</Text>
+                {fareLoading ? (
+                  <View style={[mapPinStyles.skel, { width: 72, height: 20 }]} />
+                ) : (
+                  <Text style={{ fontFamily: font.bold, fontSize: fareUnavailable ? 13 : 18, color: '#0A0A0A', fontVariant: ['tabular-nums'] }}>{fareText}</Text>
+                )}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
+                  {[selectedOption.label, stopCount > 0 ? `${stopCount} stops` : null, hasStops ? 'tap to choose your stop' : 'tap for details'].filter(Boolean).join(' · ')}
+                </Text>
+                {!fareUnavailable && !fareLoading && (
+                  <View style={[mapPinStyles.srcChip, { backgroundColor: fareIsOfficial ? '#DCFCE7' : '#F3F4F6' }]}>
+                    <Text style={[mapPinStyles.srcChipText, { color: fareIsOfficial ? '#15803D' : '#4B5563' }]}>{fareIsOfficial ? fareSourceLabel : 'estimate'}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          ) : (
+          <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ alignItems: 'center' }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: '#10B981', backgroundColor: '#fff' }} />
@@ -712,18 +753,12 @@ export default function RouteDetailScreen() {
                 <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>{from}</Text>
                 <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 18, color: '#000', letterSpacing: -0.4 }}>{to}</Text>
               </View>
-              {/* Peek: keep the fare in view while the map is being explored */}
-              {sheetIndex === 0 && (
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 13 : 20, color: BRAND }}>{fareText}</Text>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: fareIsOfficial ? '#059669' : '#6B7280' }}>
-                    {fareUnavailable ? 'Tap for details' : fareIsOfficial ? fareSourceLabel : !stageShown && corridorSrc?.kind === 'riders' ? 'Riders say' : 'estimate'}
-                  </Text>
-                </View>
-              )}
             </View>
-          </TouchableOpacity>
+          </View>
+          )}
 
+          {/* M1: nothing below the two peek lines may half-show at the peek height. */}
+          <View style={{ opacity: sheetIndex === 0 ? 0 : 1 }} pointerEvents={sheetIndex === 0 ? 'none' : 'auto'}>
           {/* Trip-shape meta: mode + stops. The GPRTU source chip lives on the fare (UX v2 M2). */}
           <View style={{ paddingHorizontal: 24, marginBottom: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 100, paddingLeft: 6, paddingRight: 12, paddingVertical: 5 }}>
@@ -768,8 +803,16 @@ export default function RouteDetailScreen() {
               </View>
             )}
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
+              {fareLoading ? (
+                /* M9: skeleton until the official stage fare loads, so an estimate never flashes first */
+                <View style={{ alignItems: 'flex-end', gap: 6 }} accessible accessibilityLabel="Loading fare">
+                  <View style={[mapPinStyles.skel, { width: 110, height: 28 }]} />
+                  <View style={[mapPinStyles.skel, { width: 150, height: 14 }]} />
+                </View>
+              ) : (
               <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 15 : 25, color: BRAND, letterSpacing: -0.8 }}>{fareText}</Text>
-              {fareUnavailable ? null : (
+              )}
+              {fareUnavailable || fareLoading ? null : (
                 <>
                   {/* Before a stop is chosen the fare is to the end of the route — say so (UX v2 M5). */}
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2, textAlign: 'right' }} numberOfLines={2}>
@@ -884,13 +927,7 @@ export default function RouteDetailScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Share fare"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  const src = ` (${fareIsOfficial ? (fareSourceLabel === 'GPRTU fare' ? 'official GPRTU' : fareSourceLabel) : !stageShown && corridorSrc?.kind === 'riders' ? 'reported by riders' : 'estimate'})`
-                  Share.share({
-                    message: `Trotro fare ${from} → ${dropoffName || to}: ${fareText}${src}. Check any trotro fare free on Troski: https://troski.me`,
-                  }).catch(() => {})
-                }}
+                onPress={shareFare}
               >
                 <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <ShareIcon size={18} color="#fff" />
@@ -982,6 +1019,7 @@ export default function RouteDetailScreen() {
           </View>
           )}
 
+          </View>
           </>
           )}
 
@@ -1097,7 +1135,7 @@ export default function RouteDetailScreen() {
           selectedOrder={effectiveDropoff}
           minOrder={stops[0].stop_order}
           fareLabel={alightFareLabel}
-          onSelect={setDropoffOrder}
+          onSelect={chooseStop}
           onClose={() => setAlightPickerOpen(false)}
         />
       )}
@@ -1143,6 +1181,22 @@ const mapPinStyles = StyleSheet.create({
   // Header meta chips (distance / stops)
   metaChip: { backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 },
   metaChipText: { fontFamily: font.bold, fontSize: 12.5, color: '#374151' },
+  // 44 dp white map buttons (back / share)
+  mapBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff',
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+  },
+  // Black freshness callout (M8)
+  callout: {
+    backgroundColor: '#0A0A0A', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 6,
+  },
+  calloutText: { fontFamily: font.bold, fontSize: 13, color: '#fff' },
+  // Fare source chip in the peek (M1/M2)
+  srcChip: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  srcChipText: { fontFamily: font.bold, fontSize: 12 },
+  skel: { backgroundColor: '#EEEEEE', borderRadius: 6 },
   // Recenter FAB
   fab: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',

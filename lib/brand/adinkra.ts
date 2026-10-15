@@ -178,3 +178,24 @@ export function landmarkSceneXml(kind: LandmarkScene, w: number, h: number, colo
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><g transform="translate(0,${top}) scale(${(w / 200).toFixed(4)})">${inner}</g></svg>`
 }
+
+/** Width of one repeat of the ticket band (Gye Nyame, Nkyinkyim, Adinkrahene). */
+export const BAND_TILE = 131
+
+/**
+ * Ticket "live" band (UX v2 TK1): Gye Nyame, a Nkyinkyim zigzag (twisting
+ * path: adaptability) and Adinkrahene, repeated every BAND_TILE px on a solid
+ * colour. Height is 72 (the tile is laid out for it). `w` should be a multiple
+ * of BAND_TILE so a translateX loop of one or more tiles is seamless.
+ */
+export function adinkraBandXml(w: number, bg: string, ink = '#FFFFFF', inkOpacity = 0.32): string {
+  const h = 72
+  const out: string[] = []
+  for (let x = 0; x < w; x += BAND_TILE) {
+    out.push(placed('gye_nyame', x + 10, 14, 44, ink))
+    // Nkyinkyim: drawn as a stroked zigzag (no public-domain vector in the set).
+    out.push(`<path transform="translate(${x + 62},10) scale(0.5,0.52)" d="M20 2 34 16 8 34 34 52 8 70 34 88 20 98" fill="none" stroke="${ink}" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>`)
+    out.push(placed('adinkrahene', x + 90, 18, 36, ink))
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${bg}"/><g opacity="${inkOpacity}">${out.join('')}</g></svg>`
+}

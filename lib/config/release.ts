@@ -5,7 +5,7 @@ import * as Updates from 'expo-updates'
 // Local test: EXPO_PUBLIC_RELEASE_MODE=1 npx expo start  (restart Metro after changing)
 //
 // Nothing behind these flags is deleted. RELEASE_MODE drives the tab set
-// (app/(tabs)/_layout.tsx) and Home (ReleaseHome vs FullHomeScreen); each FEATURES
+// (app/(tabs)/_layout.tsx) and the Home wallet line (components/home/CommuteBoardHome); each FEATURES
 // flag gates the pieces below. To bring a feature back in store builds, change its
 // value here to `true` and publish:
 //   wallet               onboarding wallet slide. The Wallet TAB and the old Home's wallet card /

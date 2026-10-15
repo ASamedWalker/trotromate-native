@@ -30,7 +30,15 @@ export interface BookingTicket {
   expires_at: string
   route_label: string
   fare: number
+  /** Trotro fare part of `fare`, when the server reports it. */
+  busFare?: number
+  /** Troski service fee (incl. VAT) part of `fare`, when the server reports it. */
+  serviceFee?: number
+  /** When the server created/confirmed the booking (ISO), if reported. */
+  bookedAt?: string
 }
+const optNum = (v: unknown): number | undefined => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined)
+
 
 export type BookingResult =
   | { ok: true; ticket: BookingTicket; bookingId: string; newBalance: number }
@@ -93,6 +101,11 @@ export async function createBooking(req: BookingRequest): Promise<BookingResult>
           expires_at: data.ticket.expires_at,
           route_label: data.booking?.route_label ?? req.routeLabel,
           fare: Number(data.booking?.fare ?? req.fare),
+          busFare: optNum(data.booking?.bus_fare),
+          serviceFee: optNum(data.booking?.service_fee),
+          bookedAt: typeof (data.booking?.confirmed_at ?? data.booking?.created_at) === 'string'
+            ? (data.booking?.confirmed_at ?? data.booking?.created_at)
+            : undefined,
         },
       }
     }

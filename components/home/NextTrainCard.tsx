@@ -1,64 +1,66 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { SvgXml } from 'react-native-svg'
-import { ChevronRight } from 'lucide-react-native'
-import { adinkraPatternXml } from '@/lib/brand/adinkra'
-import { nextDepartures, formatRemaining } from '@/lib/utils/train-stations'
-import { font } from '@/lib/theme'
+import { TrainFront } from 'lucide-react-native'
+import { nextDepartures, formatRemaining, LINE_COLORS } from '@/lib/utils/train-stations'
+import { font, ui } from '@/lib/theme'
+import { HeroText } from '@/components/HeroText'
+import { PressableScale } from '@/components/motion/PressableScale'
 
-const patternCache = new Map<string, string>()
-function trainPattern(w: number, h: number): string {
-  const key = `${w}x${h}`
-  let xml = patternCache.get(key)
-  if (!xml) { xml = adinkraPatternXml(w, h, 26, 'rgba(255,255,255,0.05)'); patternCache.set(key, xml) }
-  return xml
-}
+const NAVY = '#0B1B3F'
+const GREEN = '#15803D'
+const SOON_MIN = 15
 
-// Next scheduled departure across all lines (same util the Train tab's board uses).
+/**
+ * Home next-train row (UX v2 H9): line chip, route, departure time, and the wait —
+ * green only when 15 min or less. Times come from the published GRDA timetable
+ * (same util as the Train tab), so the row says "Timetable · GRDA", never "live".
+ */
 export default function NextTrainCard() {
   const router = useRouter()
   const [now, setNow] = useState(() => new Date())
-  const [size, setSize] = useState({ w: 0, h: 0 })
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
-    timer.current = setInterval(() => setNow(new Date()), 30000)
-    return () => { if (timer.current) clearInterval(timer.current) }
+    const id = setInterval(() => setNow(new Date()), 30000)
+    return () => clearInterval(id)
   }, [])
 
   const next = nextDepartures(now)[0]
   if (!next) return null
   const today = next.offset === 0
+  const mins = next.remainingMinutes ?? null
+  const soon = today && mins != null && mins <= SOON_MIN
+  const wait = today && mins != null ? `in ${mins < 60 ? `${mins} min` : formatRemaining(mins)}` : next.when
+  const chip = LINE_COLORS[next.lineCode] ?? { main: ui.text, tint: ui.surface }
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
+    <PressableScale
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.navigate('/(tabs)/train' as any) }}
-      onLayout={(e) => setSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) })}
       accessibilityRole="button"
-      accessibilityLabel={`Next train, ${next.lineName}, ${next.origin} to ${next.destination}, ${next.when} ${next.departTime}`}
-      style={{ marginHorizontal: 20, borderRadius: 18, backgroundColor: '#0c1220', padding: 18, overflow: 'hidden' }}
+      accessibilityLabel={`Next train, ${next.lineName}, ${next.origin} to ${next.destination}, ${next.departTime}, ${wait}. From the GRDA timetable`}
+      style={{
+        marginHorizontal: 20, marginTop: 18, backgroundColor: ui.card, borderRadius: 16, borderWidth: 1, borderColor: ui.hairline,
+        paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12,
+      }}
     >
-      {size.w > 0 ? (
-        <View style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
-          <SvgXml xml={trainPattern(size.w, size.h)} width={size.w} height={size.h} />
-        </View>
-      ) : null}
-      <Text style={{ fontFamily: font.bold, fontSize: 11, letterSpacing: 1, color: 'rgba(255,255,255,0.6)' }}>
-        NEXT TRAIN · {next.lineName.toUpperCase()}
-      </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 17, color: '#FFFFFF' }} numberOfLines={2}>
+      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center' }}>
+        <TrainFront size={22} color="#FFFFFF" />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ backgroundColor: chip.tint, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 1 }}>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.6, color: chip.main }}>{next.lineCode}</Text>
+          </View>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary, flexShrink: 1 }} numberOfLines={1}>
             {next.origin} → {next.destination}
           </Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-            {today ? `in ${formatRemaining(next.remainingMinutes!)}` : next.when} · departs {next.departTime}
-          </Text>
         </View>
-        <ChevronRight size={22} color="rgba(255,255,255,0.7)" />
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+          <HeroText size={20} style={{ color: ui.text, fontVariant: ['tabular-nums'] }}>{next.departTime}</HeroText>
+          <Text style={{ fontFamily: font.bold, fontSize: 14, color: soon ? GREEN : ui.textTertiary }}>{wait}</Text>
+        </View>
       </View>
-    </TouchableOpacity>
+      <Text style={{ fontFamily: font.medium, fontSize: 12, color: ui.textTertiary, textAlign: 'right' }}>{'Timetable\nGRDA'}</Text>
+    </PressableScale>
   )
 }

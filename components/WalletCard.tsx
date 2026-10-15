@@ -43,6 +43,20 @@ export function Wordmark({ size, ink, pin }: { size: number; ink: string; pin: s
 
 const ASPECT = 1.586 // ID-1 card ratio
 
+/** "GH₵ 2.05" → small "GH₵ ", big "2", small ".05". Anything else renders as-is. */
+function SplitAmount({ text, size }: { text: string; size: number }) {
+  const m = /^(\D*?)([\d,]+)(\.\d+)?$/.exec(text)
+  if (!m) return <>{text}</>
+  const small = { fontSize: Math.round(size * 0.6) }
+  return (
+    <>
+      {m[1] ? <Text style={small}>{m[1]}</Text> : null}
+      <Text>{m[2]}</Text>
+      {m[3] ? <Text style={small}>{m[3]}</Text> : null}
+    </>
+  )
+}
+
 // Pattern xml is large (~100 KB); build it once per size and share it between
 // the Home and Wallet cards instead of re-generating per mount.
 const artCache = new Map<string, { scene: string; pattern: string; guilloche: string }>()
@@ -70,6 +84,8 @@ export function WalletCard({
   theme = 'orange',
   onPressCard,
   compact = false,
+  splitPesewas = false,
+  footnoteColor,
 }: {
   balanceText: string
   label?: string
@@ -82,6 +98,10 @@ export function WalletCard({
   onPressCard?: () => void
   /** Picker thumbnails: no balance row, no eye. */
   compact?: boolean
+  /** Set "GH₵" and the pesewas smaller than the cedis (UX v2 W5). */
+  splitPesewas?: boolean
+  /** Footnote colour; defaults to amber (stale-balance notices). */
+  footnoteColor?: string
 }) {
   const t = THEMES[theme]
   const [w, setW] = useState(0)
@@ -143,7 +163,7 @@ export function WalletCard({
                   minimumFontScale={0.6}
                   accessibilityLabel={`${label}: ${balanceVisible ? balanceText : 'hidden'}${footnote ? `. ${footnote}` : ''}`}
                 >
-                  {balanceText}
+                  {splitPesewas ? <SplitAmount text={balanceText} size={27 * fs} /> : balanceText}
                 </Text>
                 <Pressable
                   onPress={onToggleBalance}
@@ -155,7 +175,7 @@ export function WalletCard({
                 </Pressable>
               </View>
               {footnote ? (
-                <Text pointerEvents="none" style={[s.footnote, { fontSize: 11 * fs }]} numberOfLines={2} accessibilityElementsHidden importantForAccessibility="no">
+                <Text pointerEvents="none" style={[s.footnote, { fontSize: Math.max(12, 11 * fs) }, footnoteColor ? { color: footnoteColor } : null]} numberOfLines={2} accessibilityElementsHidden importantForAccessibility="no">
                   {footnote}
                 </Text>
               ) : null}

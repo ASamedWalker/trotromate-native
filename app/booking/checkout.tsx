@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, TextInput, StyleSheet, Image, Alert,
+  View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Image, Alert,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import {
-  ArrowLeft, ChevronRight, Check, X,
+  ChevronLeft, ChevronRight, X, Wallet, ArrowRight, Bus, Clock,
   ShieldCheck, Star, BadgeCheck, Camera, UserCheck,
 } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
@@ -16,15 +16,17 @@ import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { useRouteDetail } from '@/lib/hooks/useRoutes'
 import { useVehiclePositions } from '@/lib/hooks/useVehiclePositions'
 import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
-import { fetchRouteTraffic } from '@/lib/services/traffic-api'
-import { fetchQueueStatus, QUEUE_META, type StationQueue } from '@/lib/services/queueStatus'
+import { fetchQueueStatus, type StationQueue } from '@/lib/services/queueStatus'
 import { fetchAssignedVehicle, type AssignedVehicle } from '@/lib/services/fleet'
 import { fetchDriverRatingStats, fetchDriverReviews, fetchDriverRides, type DriverReview } from '@/lib/services/driver-ratings'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { createBooking } from '@/lib/services/booking'
 import { cacheWalletBalance } from '@/lib/services/walletCache'
 import PinModal from '@/components/PinModal'
-import { Bus, Clock, Users as UsersIcon } from 'lucide-react-native'
+import { HeroText } from '@/components/HeroText'
+import { SERVICE_FEE_INCL, splitServiceFee } from '@/lib/utils/serviceFee'
+import { QueueGlyph } from '@/components/QueueGlyph'
+import { QUEUE_WORD, QUEUE_COLOR } from '@/lib/constants/queueStatus'
 import { authedFetch } from '@/lib/services/authedFetch'
 import { pendingTopups, shortGHS, topupStatusHref, NETWORK_NAME, type PendingTopup } from '@/lib/services/topup'
 
@@ -44,6 +46,7 @@ const VERIFY_ITEMS = [
 
 export default function CheckoutScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ from?: string; to?: string; route_id?: string; fare?: string }>()
 
   // A booking needs real route context — no placeholder names, ever (UX-02).
@@ -82,18 +85,8 @@ export default function CheckoutScreen() {
     fetchDriverReviews(id).then((r) => { if (!cancelled) setDriverReviews(r) }).catch(() => {})
     return () => { cancelled = true }
   }, [assigned?.driverId])
-  const durationMin = route?.estimated_duration_mins ?? null
-  const [traffic, setTraffic] = useState<{ condition: string; etaMin: number | null } | null>(null)
-  useEffect(() => {
-    if (!params.route_id) return
-    let cancelled = false
-    fetchRouteTraffic(params.route_id).then((d) => {
-      if (cancelled || !d) return
-      setTraffic({ condition: d.traffic_condition ?? '', etaMin: d.duration_in_traffic_mins })
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [params.route_id])
-  const etaMin = traffic?.etaMin ?? durationMin
+  // C3: trip time only when it is measured from commuter trips. Neither the
+  // route's static estimate nor the Directions traffic ETA is, so none is shown.
   // Wait predictability — the #1 pain. Latest crowdsourced queue at the origin.
   const [originQueue, setOriginQueue] = useState<StationQueue | null>(null)
   useEffect(() => {
@@ -120,19 +113,16 @@ export default function CheckoutScreen() {
   const [serverBusFare, setServerBusFare] = useState<number | null>(null)
   const knownFare = serverBusFare ?? route?.official_fare ?? passedFare ?? route?.fare_stats?.avg_reported_fare ?? null
   const fareKnown = knownFare != null
+  // C3: the fare carries its source — the server/official fare is GPRTU's,
+  // anything else (passed-in or rider average) is an estimate.
+  const fareIsOfficial = serverBusFare != null || route?.official_fare != null
   const busFare = knownFare ?? 0
-  // Ghana VAT Act 2025 (Act 1151): public passenger transport is VAT-exempt, so
-  // the trotro fare carries no tax (it's the driver's takings). Troski's platform
-  // service fee IS a taxable supply → 15% VAT + 2.5% NHIL + 2.5% GETFund (≈20%).
-  // The service fee is tax-INCLUSIVE, so the rider's total is unchanged.
-  const SERVICE_FEE_INCL = 0.25
-  const TAX_RATE = 0.20
-  const serviceBase = SERVICE_FEE_INCL / (1 + TAX_RATE)
-  const serviceTax = SERVICE_FEE_INCL - serviceBase
+  // Service fee is tax-inclusive (see lib/utils/serviceFee.ts); the VAT split lives on the receipt (C2).
+  const { base: serviceBase, tax: serviceTax } = splitServiceFee()
   const fare = { bus: busFare, serviceBase, serviceTax, serviceIncl: SERVICE_FEE_INCL }
   const total = fare.bus + SERVICE_FEE_INCL
 
-  const [payment, setPayment] = useState('wallet')
+  const payment = 'wallet'
   const [showDriver, setShowDriver] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
   const [booking, setBooking] = useState(false)
@@ -178,7 +168,7 @@ export default function CheckoutScreen() {
   useFocusEffect(useCallback(() => { fetchBalance() }, [fetchBalance]))
   const goTopup = (amount?: number) => {
     if (topupSinceRef.current == null) topupSinceRef.current = Date.now()
-    router.push({ pathname: '/wallet/fund', params: { ...(amount ? { amount: String(Math.ceil(amount)) } : {}), return: 'checkout' } } as never)
+    router.push({ pathname: '/wallet/momo', params: { ...(amount ? { amount: String(Math.ceil(amount)) } : {}), return: 'checkout', pops: '1' } } as never)
   }
   // While a top-up is pending and this screen is focused, re-check every 5s
   // (20s once it's 3+ min old). One request at a time; stops on blur.
@@ -202,9 +192,7 @@ export default function CheckoutScreen() {
 
   // Wallet is the only wired payment method. MoMo was listed here before but
   // silently charged the wallet regardless — removed until actually wired (UX-15).
-  const payments = [
-    { id: 'wallet', label: 'Troski Wallet', sub: balanceLoading ? 'Checking balance…' : walletBalance != null ? formatGHS(walletBalance) : "Couldn't load balance — tap to retry" },
-  ]
+  // The source now sits right above the Pay button (C1).
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
   // Short AND our top-up is still waiting: show "Waiting for top-up…", Pay locked.
   const awaitingCredit = insufficient && pendingTopup != null
@@ -263,6 +251,9 @@ export default function CheckoutScreen() {
           trip_code: result.ticket.trip_code,
           expires_at: result.ticket.expires_at,
           fare: String(result.ticket.fare),
+          bus_fare: result.ticket.busFare != null ? String(result.ticket.busFare) : '',
+          service_fee: result.ticket.serviceFee != null ? String(result.ticket.serviceFee) : '',
+          booked_at: result.ticket.bookedAt ?? '',
           route_id: params.route_id ?? '',
           van: assigned?.vanId ?? '',
         },
@@ -326,134 +317,79 @@ export default function CheckoutScreen() {
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
-          <ArrowLeft size={22} color="#111" />
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} hitSlop={4} accessibilityRole="button" accessibilityLabel="Back">
+          <ChevronLeft size={24} color="#111" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Confirm Booking</Text>
-        <View style={{ width: 36 }} />
+        <Text style={s.headerTitle}>Checkout</Text>
       </View>
 
-      {/* paddingBottom clears the sticky pay footer — at 20 the payment section
-          was hidden underneath it and looked truncated. */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 150 }}>
-        {/* ── Route + details card ── */}
+      {/* paddingBottom clears the pinned pay-from + Pay footer. */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 190 }}>
+        {/* ── Route card: route, trip shape, queue at the origin ── */}
         <View style={s.card}>
-          {/* From → To */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.tinyLabel}>From</Text>
-              <Text style={s.placeName}>{fromName}</Text>
+          <Text style={s.routeTitle}>{fromName} → {toName}</Text>
+          <Text style={s.routeMeta}>
+            {['Trotro', route?.stops?.length ? `${route.stops.length} stops` : null].filter(Boolean).join(' · ')}
+          </Text>
+          {originQueue ? (
+            <View style={s.queueRow}>
+              <QueueGlyph status={originQueue.status} color={QUEUE_COLOR[originQueue.status]} size={14} />
+              <Text style={s.queueWord}>{QUEUE_WORD[originQueue.status]}</Text>
+              <Text style={s.queueAge}>· reported {originQueue.ageMins < 1 ? 'just now' : `${originQueue.ageMins} min ago`}</Text>
             </View>
-            <View style={{ alignItems: 'center', paddingHorizontal: 8 }}>
-              <View style={s.dash} />
-              <View style={s.busBadge}>
-                <Image source={require('@/assets/images/home/bus_icon_bg_removed.png')} style={{ width: 30, height: 30 }} resizeMode="contain" />
-              </View>
-              <View style={s.dash} />
+          ) : null}
+          {liveTrotros > 0 && !assigned && (
+            <View style={s.queueRow}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />
+              <Text style={s.queueAge}>{liveTrotros} trotro{liveTrotros === 1 ? '' : 's'} live on this route</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.tinyLabel, { textAlign: 'right' }]}>To</Text>
-              <Text style={[s.placeName, { textAlign: 'right' }]}>{toName}</Text>
-            </View>
-          </View>
-
-          <View style={s.divider} />
-
-          {/* Route status — assigned bus capacity (Phase 1 fleet), or live count */}
-          {(assigned || liveTrotros > 0) && (
-          <View style={[s.detailRow, { paddingTop: 4 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Bus size={16} color="#374151" />
-              <Text style={s.detailLabel}>{assigned ? 'Bus' : 'Live trotros'}</Text>
-            </View>
-            {assigned ? (
-              <Text style={s.detailValue}>{assigned.capacity ? `${assigned.capacity}-seater` : 'Trotro'}{assigned.vehicleType ? ` · ${assigned.vehicleType}` : ''}</Text>
-            ) : liveTrotros > 0 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />
-                <Text style={s.detailValue}>{liveTrotros} active now</Text>
-              </View>
-            ) : null}
-          </View>
           )}
-          <View style={s.detailRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Clock size={16} color="#374151" />
-              <Text style={s.detailLabel}>Est. trip time</Text>
-            </View>
-            <Text style={s.detailValue}>
-              {etaMin != null ? `~${etaMin} min` : '—'}{traffic?.condition ? ` · ${traffic.condition} traffic` : ''}
-            </Text>
-          </View>
-          <View style={s.detailRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <UsersIcon size={16} color="#374151" />
-              <Text style={s.detailLabel}>Queue at {fromName}</Text>
-            </View>
-            {originQueue ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ backgroundColor: QUEUE_META[originQueue.status].bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: QUEUE_META[originQueue.status].color }}>{QUEUE_META[originQueue.status].label}</Text>
-                </View>
-                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#6B7280' }}>{originQueue.ageMins}m ago</Text>
-              </View>
-            ) : (
-              <Text style={[s.detailValue, { color: '#6B7280', fontSize: 13 }]}>Leaves when full</Text>
-            )}
-          </View>
         </View>
 
-        {/* ── Driver + bus assigned to this route (Phase 1 = own fleet). Shows the
-              real driver & plate at booking; a green "Live" badge once the bus is
-              broadcasting, else "On shift"/"Assigned". Honest placeholder if no
-              bus is assigned to the route yet. ── */}
+        {/* ── Driver + plate (Phase 1 = own fleet). Reviews and "What Troski
+              verifies" sit behind "About this driver" (C5). ── */}
         {(() => {
           const plate = liveBus?.plateNumber ?? assigned?.plate ?? null
           const driver = assigned?.driverName ?? null
           const live = !!liveBus
           const onShift = assigned?.isOnShift ?? false
-          const Card: any = driver ? TouchableOpacity : View
+          const statusWord = live ? 'Live' : onShift ? 'On shift' : 'Assigned'
           return (
-            <Card
-              {...(driver ? { activeOpacity: 0.7, onPress: () => setShowDriver(true) } : {})}
-              style={[s.card, { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }]}
-            >
+            <View style={[s.card, s.driverCard]}>
               {driver && assigned?.driverPhotoUrl ? (
                 <Image source={{ uri: assigned.driverPhotoUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
               ) : driver ? (
                 <InitialsAvatar name={driver} size={44} />
               ) : (
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: plate ? 'rgba(34,197,94,0.12)' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={s.busAvatar}>
                   <Bus size={22} color={plate ? '#16A34A' : '#6B7280'} />
                 </View>
               )}
-              {driver ? (
+              {plate ? (
                 <>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       {live && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />}
-                      <Text style={s.driverName}>{driver}</Text>
+                      <Text style={s.driverRole} numberOfLines={1}>{driver ? `${driver} · ${statusWord}` : `Troski bus · ${statusWord}`}</Text>
                     </View>
-                    {/* No "Bus Driver ·" prefix: this row is plainly the driver,
-                        and the words pushed the plate and shift status off the
-                        line. Plate + status are the parts a rider checks. */}
-                    <Text numberOfLines={1} style={s.driverRole}>{plate}{live ? ' · Live' : onShift ? ' · On shift' : ''}</Text>
+                    <HeroText size={24} style={s.plate} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{plate}</HeroText>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                    <Text style={s.linkText}>Driver Details</Text>
-                    <ChevronRight size={16} color={BRAND} />
-                  </View>
+                  {driver && (
+                    <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowDriver(true) }} style={s.aboutBtn} accessibilityRole="button">
+                      <Text style={s.linkText}>About this driver</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
-              ) : plate ? (
+              ) : driver ? (
+                /* Driver assigned, no plate yet: name + status, details still reachable */
                 <>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.driverName}>{plate}</Text>
-                    <Text style={s.driverRole}>Troski bus on this route</Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.driverName} numberOfLines={1}>{driver}</Text>
+                    <Text style={s.driverRole}>{statusWord}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: live ? 'rgba(34,197,94,0.12)' : '#F3F4F6', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 }}>
-                    {live && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' }} />}
-                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: live ? '#16A34A' : '#6B7280' }}>{live ? 'Live' : 'Assigned'}</Text>
-                  </View>
+                  <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowDriver(true) }} style={s.aboutBtn} accessibilityRole="button">
+                    <Text style={s.linkText}>About this driver</Text>
+                  </TouchableOpacity>
                 </>
               ) : (
                 <View style={{ flex: 1 }}>
@@ -461,72 +397,46 @@ export default function CheckoutScreen() {
                   <Text style={s.driverRole}>Show your QR ticket to the mate</Text>
                 </View>
               )}
-            </Card>
+            </View>
           )
         })()}
 
-        {/* ── Fare breakdown ── */}
-        <Text style={s.sectionTitle}>Fare Breakdown</Text>
-        <View style={s.card}>
+        {/* ── Fare: source chip on the fare (C3), one service-fee line (C2) ── */}
+        <View style={[s.card, { marginTop: 12 }]}>
           <View style={s.fareRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={s.detailLabel}>Bus Fare</Text>
-              <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#6B7280' }}>VAT exempt</Text>
-              </View>
+              <Text style={s.fareLabel}>Fare</Text>
+              {fareKnown && (
+                <View style={[s.srcChip, fareIsOfficial ? s.srcChipGprtu : s.srcChipEst]}>
+                  <Text style={[s.srcChipText, { color: fareIsOfficial ? '#15803D' : '#4B5563' }]}>{fareIsOfficial ? 'GPRTU fare' : 'estimate'}</Text>
+                </View>
+              )}
             </View>
             <Text style={s.fareValue}>{fareKnown ? formatGHS(fare.bus) : '—'}</Text>
           </View>
-          <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.serviceBase)}</Text></View>
-          <View style={s.fareRow}><Text style={s.detailLabel}>VAT on service fee (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
-          <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{fareKnown ? formatGHS(total) : '—'}</Text></View>
+          <View style={s.fareRow}>
+            <Text style={s.fareLabel}>Service fee <Text style={s.fareHint}>(incl. VAT)</Text></Text>
+            <Text style={s.fareValue}>{formatGHS(fare.serviceIncl)}</Text>
+          </View>
+          <View style={s.totalRow}>
+            <Text style={s.totalLabel}>Total</Text>
+            <Text style={s.totalValue}>{fareKnown ? formatGHS(total) : '—'}</Text>
+          </View>
           {missingRouteId && (
-            <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
+            <Text style={s.warnText}>
               This trip can&apos;t be booked from here. Go back and open the route to book.
             </Text>
           )}
           {!fareKnown && (
-            <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
+            <Text style={s.warnText}>
               We couldn&apos;t load the fare for this route. Go back and reopen the route to book.
             </Text>
           )}
         </View>
-
-        {/* ── Payment method ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 10 }}>
-          <Text style={[s.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>Payment Method</Text>
-        </View>
-        <View style={s.card}>
-          {payments.map((p, i) => {
-            const sel = payment === p.id
-            return (
-              <TouchableOpacity
-                key={p.id}
-                activeOpacity={0.7}
-                onPress={() => {
-                  Haptics.selectionAsync()
-                  setPayment(p.id)
-                  // Failed balance fetch → tapping the row retries (UX-02 followup)
-                  if (p.id === 'wallet' && balanceUnknown) { setBalanceLoading(true); fetchBalance() }
-                }}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#F3F4F6' }}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: sel }}
-              >
-                <View style={s.payIcon}><Text style={{ fontSize: 18 }}>{p.id === 'wallet' ? '👛' : '🏦'}</Text></View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={s.payLabel}>{p.label}</Text>
-                  <Text style={s.paySub}>{p.sub}</Text>
-                </View>
-                <View style={[s.radio, sel && s.radioOn]}>{sel && <Check size={13} color="#fff" strokeWidth={3} />}</View>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
       </ScrollView>
 
-      {/* ── Pay button ── */}
-      <View style={s.payBar}>
+      {/* ── Pinned: pay-from row (C1) + Pay. Only this bar changes between states. ── */}
+      <View style={[s.payBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
         {awaitingCredit && pendingTopup ? (
           <>
             <TouchableOpacity
@@ -539,8 +449,8 @@ export default function CheckoutScreen() {
               <Clock size={16} color={WAIT} />
               <Text style={s.waitText}>Waiting for top-up… unlocks when {NETWORK_NAME[pendingTopup.provider] ?? 'MoMo'} confirms</Text>
             </TouchableOpacity>
-            <View style={[s.payBtn, { opacity: 0.5 }]} accessible accessibilityRole="button" accessibilityLabel={`Pay ${formatGHS(total)}`} accessibilityState={{ disabled: true }}>
-              <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
+            <View style={[s.payBtn, s.payBtnOff]} accessible accessibilityRole="button" accessibilityLabel={`Pay ${formatGHS(total)}`} accessibilityState={{ disabled: true }}>
+              <Text style={[s.payBtnText, { color: '#A8A29E' }]}>Pay {formatGHS(total)}</Text>
             </View>
           </>
         ) : insufficient ? (
@@ -566,24 +476,57 @@ export default function CheckoutScreen() {
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            disabled={booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId}
-            onPress={payNow}
-            style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId) && { opacity: 0.6 }]}
-            accessibilityRole="button"
-            accessibilityLabel={`Pay ${formatGHS(total)}`}
-            accessibilityState={{ disabled: booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId }}
-          >
-            <Text style={s.payBtnText}>
-              {booking ? 'Processing…'
-                : missingRouteId ? 'Route unavailable'
-                : !fareKnown ? 'Fare unavailable'
-                : waitingBalance ? 'Checking balance…'
-                : balanceUnknown ? 'Balance unavailable'
-                : `Pay ${formatGHS(total)}`}
-            </Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              disabled={!balanceUnknown}
+              onPress={() => { Haptics.selectionAsync(); setBalanceLoading(true); fetchBalance() }}
+              style={s.payFrom}
+              accessibilityRole={balanceUnknown ? 'button' : 'text'}
+              accessibilityLabel={
+                balanceUnknown ? "Troski wallet. Couldn't load the balance. Tap to retry"
+                  : walletBalance != null && fareKnown ? `Pay from Troski wallet. ${formatGHS(walletBalance)}, ${formatGHS(walletBalance - total)} after`
+                  : 'Pay from Troski wallet'
+              }
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Wallet size={16} color="#111" />
+                <Text style={s.payFromLabel}>Troski wallet</Text>
+              </View>
+              {waitingBalance ? (
+                <Text style={s.payFromValue}>Checking balance…</Text>
+              ) : balanceUnknown ? (
+                <Text style={[s.payFromValue, { color: WAIT }]}>{"Couldn't load · tap to retry"}</Text>
+              ) : walletBalance != null && fareKnown ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={s.payFromValue}>{formatGHS(walletBalance)}</Text>
+                  <ArrowRight size={13} color="#6B7280" />
+                  <Text style={[s.payFromValue, { fontFamily: font.bold, color: '#0A0A0A' }]}>{formatGHS(walletBalance - total)}</Text>
+                  <Text style={s.payFromValue}>after</Text>
+                </View>
+              ) : walletBalance != null ? (
+                <Text style={s.payFromValue}>{formatGHS(walletBalance)}</Text>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              disabled={booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId}
+              onPress={payNow}
+              style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId) && s.payBtnOff]}
+              accessibilityRole="button"
+              accessibilityLabel={`Pay ${formatGHS(total)}`}
+              accessibilityState={{ disabled: booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId }}
+            >
+              <Text style={[s.payBtnText, (booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId) && { color: '#A8A29E' }]}>
+                {booking ? 'Processing…'
+                  : missingRouteId ? 'Route unavailable'
+                  : !fareKnown ? 'Fare unavailable'
+                  : waitingBalance ? 'Checking balance…'
+                  : balanceUnknown ? 'Balance unavailable'
+                  : `Pay ${formatGHS(total)}`}
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 
@@ -707,54 +650,59 @@ function DriverHeader({ driver, rides, rating, onVerify }: { driver: AssignedVeh
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 52 },
+  iconBtn: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontFamily: font.bold, fontSize: 18, color: '#111' },
 
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F1F1F0' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
 
-  tinyLabel: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
-  placeName: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 2 },
-  placeSub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
-  dash: { width: 1.5, height: 10, backgroundColor: '#E5E7EB' },
-  busBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF0EB', justifyContent: 'center', alignItems: 'center', marginVertical: 4 },
+  routeTitle: { fontFamily: font.bold, fontSize: 18, color: '#0A0A0A', letterSpacing: -0.2 },
+  routeMeta: { fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 },
+  queueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  queueWord: { fontFamily: font.bold, fontSize: 14, color: '#0A0A0A' },
+  queueAge: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
 
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 14 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  detailLabel: { fontFamily: font.medium, fontSize: 14, color: '#6B7280' },
-  detailValue: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-
+  driverCard: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 12, paddingVertical: 12 },
+  busAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   driverName: { fontFamily: font.bold, fontSize: 15, color: '#111' },
-  driverRole: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
-  linkText: { fontFamily: font.bold, fontSize: 13, color: BRAND },
+  driverRole: { fontFamily: font.medium, fontSize: 12, color: '#6B7280' },
+  plate: { color: '#0A0A0A', letterSpacing: 1, fontVariant: ['tabular-nums'] },
+  aboutBtn: { minHeight: 48, justifyContent: 'center', paddingLeft: 4 },
+  linkText: { fontFamily: font.bold, fontSize: 13, color: '#C2360F' },
 
   sectionTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 20, marginBottom: 10 },
-  fareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
-  fareValue: { fontFamily: font.semibold, fontSize: 14, color: '#111' },
-  totalLabel: { fontFamily: font.bold, fontSize: 15, color: '#111' },
-  totalValue: { fontFamily: font.extrabold, fontSize: 16, color: '#111' },
+  fareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  fareLabel: { fontFamily: font.medium, fontSize: 15, color: '#0A0A0A' },
+  fareHint: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
+  fareValue: { fontFamily: font.semibold, fontSize: 15, color: '#111', fontVariant: ['tabular-nums'] },
+  srcChip: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  srcChipGprtu: { backgroundColor: '#DCFCE7' },
+  srcChipEst: { backgroundColor: '#F3F4F6' },
+  srcChipText: { fontFamily: font.bold, fontSize: 12 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  totalLabel: { fontFamily: font.extrabold, fontSize: 18, color: '#111' },
+  totalValue: { fontFamily: font.extrabold, fontSize: 18, color: '#111', fontVariant: ['tabular-nums'] },
+  warnText: { fontFamily: font.medium, fontSize: 13, color: '#B45309', marginTop: 8 },
 
-  payIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  payLabel: { fontFamily: font.bold, fontSize: 14, color: '#111' },
-  paySub: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 1 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
-  radioOn: { backgroundColor: BRAND, borderColor: BRAND },
-
-  payBar: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, backgroundColor: '#FAFAF9', borderTopWidth: 1, borderTopColor: '#F1F1F0' },
-  payBtn: { height: 54, borderRadius: 16, backgroundColor: BRAND, justifyContent: 'center', alignItems: 'center' },
+  payBar: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  payFrom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, minHeight: 24 },
+  payFromLabel: { fontFamily: font.bold, fontSize: 14, color: '#0A0A0A' },
+  payFromValue: { fontFamily: font.medium, fontSize: 14, color: '#6B7280', fontVariant: ['tabular-nums'] },
+  payBtn: { height: 56, borderRadius: 14, backgroundColor: BRAND, justifyContent: 'center', alignItems: 'center' },
+  payBtnOff: { backgroundColor: '#E7E5E4' },
   payBtnText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
   shortRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
-    backgroundColor: WAIT_SOFT, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+    backgroundColor: WAIT_SOFT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
   },
   shortText: { fontFamily: font.bold, fontSize: 14, color: WAIT },
   shortWallet: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
   topupFailedText: { fontFamily: font.semibold, fontSize: 13, color: '#DC2626', textAlign: 'center', marginBottom: 8 },
   waitRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, minHeight: 40,
-    backgroundColor: WAIT_SOFT, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, minHeight: 40,
+    backgroundColor: WAIT_SOFT, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
   },
-  waitText: { fontFamily: font.semibold, fontSize: 13, color: WAIT, flexShrink: 1 },
+  waitText: { fontFamily: font.bold, fontSize: 13, color: WAIT, flexShrink: 1 },
 
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAFAF9', borderRadius: 16, paddingVertical: 14, marginTop: 18, width: '100%' },

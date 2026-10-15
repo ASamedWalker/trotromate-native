@@ -49,7 +49,7 @@ const LOCATIONS = [
 
 export default function TrotroTalesPostScreen() {
   const router = useRouter()
-  const { mode, location: locationParam } = useLocalSearchParams<{ mode?: string; location?: string }>()
+  const { mode, location: locationParam, kind: kindParam } = useLocalSearchParams<{ mode?: string; location?: string; kind?: string }>()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
@@ -85,7 +85,8 @@ export default function TrotroTalesPostScreen() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   // null = plain text post (opened from "What's happening on your route?")
-  const [kind, setKind] = useState<ComposerKind | null>(mode === 'text' ? null : 'media')
+  // Pulse's Ask tile opens straight into a question (mode=text&kind=question).
+  const [kind, setKind] = useState<ComposerKind | null>(mode === 'text' ? (kindParam === 'question' ? 'question' : null) : 'media')
   const [fareFrom, setFareFrom] = useState('')
   const [fareTo, setFareTo] = useState('')
   const [fareAmount, setFareAmount] = useState('')

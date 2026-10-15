@@ -4,13 +4,13 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { ChevronLeft, ArrowDownLeft, ArrowUpRight, Clock } from 'lucide-react-native'
+import { ChevronLeft, Clock } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
-import { formatGHS } from '@/lib/utils/currency'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { LoadErrorState, StaleDataBanner } from '@/components/StateViews'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { txView, txDetailHref, TX_TONE, TX_PILL } from '@/lib/utils/walletTx'
 
 const BRAND = '#FF4D1C'
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -134,47 +134,34 @@ export default function TransactionsScreen() {
               <Text style={s.groupLabel}>{label}</Text>
               <View style={s.card}>
                 {items.map((tx, i) => {
-                  const credit = tx.type === 'topup' || tx.type === 'refund'
-                  const pending = tx.status === 'pending'
-                  const failed = tx.status === 'failed'
-                  const muted = pending || failed
-                  const title = tx.description || (credit ? 'MoMo Top-up' : 'Payment')
-                  const time = new Date(tx.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })
-                  const statusSuffix = failed ? ' · Failed' : pending ? ' · Pending' : ''
-                  const iconColor = failed ? '#6B7280' : credit ? '#16a34a' : BRAND
+                  const v = txView(tx)
+                  const tone = TX_TONE[v.tone]
                   return (
                     <TouchableOpacity
                       key={tx.id}
                       activeOpacity={0.6}
-                      onPress={() => {
-                        Haptics.selectionAsync()
-                        router.push({
-                          pathname: '/wallet/transaction-detail',
-                          params: {
-                            type: tx.type, amount: String(tx.amount), status: tx.status,
-                            description: tx.description ?? '', created_at: tx.created_at,
-                            reference: (tx as any).paystack_reference ?? tx.id,
-                            balance_after: String((tx as any).balance_after ?? ''),
-                          },
-                        } as never)
-                      }}
+                      onPress={() => { Haptics.selectionAsync(); router.push(txDetailHref(tx) as never) }}
                       style={[s.row, i > 0 && s.rowBorder]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${v.title}, ${v.amountText.replace('−', 'minus ').replace('+', 'plus ')}, ${v.sub}${v.pill ? `, ${v.pill}` : ''}`}
                     >
-                      <View style={[s.icon, { backgroundColor: failed ? '#F3F4F6' : credit ? '#ECFDF3' : '#FEF0EB' }]}>
-                        {credit ? <ArrowDownLeft size={18} color={iconColor} /> : <ArrowUpRight size={18} color={iconColor} />}
+                      <View style={[s.icon, { backgroundColor: tone.bg }]}>
+                        <v.Icon size={19} color={tone.fg} />
                       </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[s.txTitle, failed && { color: '#6B7280' }]} numberOfLines={1}>{title}</Text>
-                        <Text style={[s.txTime, failed && { color: '#EF4444' }]}>{time}{statusSuffix}</Text>
+                      <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                        <Text style={s.txTitle} numberOfLines={1}>{v.title}</Text>
+                        <Text style={s.txTime} numberOfLines={1}>{v.sub}</Text>
                       </View>
-                      <Text style={[
-                        s.amount,
-                        { color: credit ? '#16a34a' : '#111' },
-                        muted && { color: '#6B7280' },
-                        failed && { textDecorationLine: 'line-through' },
-                      ]}>
-                        {credit ? '+' : '-'}{formatGHS(Number(tx.amount))}
-                      </Text>
+                      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                        <Text style={[s.amount, { color: v.amountColor }, v.strike && { textDecorationLine: 'line-through' }]}>
+                          {v.amountText}
+                        </Text>
+                        {v.pill && (
+                          <View style={[s.pill, { backgroundColor: TX_PILL[v.pill].bg }]}>
+                            <Text style={[s.pillText, { color: TX_PILL[v.pill].fg }]}>{v.pill}</Text>
+                          </View>
+                        )}
+                      </View>
                     </TouchableOpacity>
                   )
                 })}
@@ -212,13 +199,15 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#111', marginTop: 8 },
   emptySub: { fontFamily: font.regular, fontSize: 13, color: '#6B7280', textAlign: 'center' },
 
-  groupLabel: { fontFamily: font.bold, fontSize: 12, color: '#6B7280', letterSpacing: 0.5, marginLeft: 24, marginBottom: 8, textTransform: 'uppercase' },
+  groupLabel: { fontFamily: font.bold, fontSize: 12, color: '#5F6670', letterSpacing: 0.5, marginLeft: 24, marginBottom: 8, textTransform: 'uppercase' },
   card: { backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, minHeight: 64 },
   rowBorder: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  txTitle: { fontFamily: font.semibold, fontSize: 14, color: '#111' },
-  txTime: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', marginTop: 2 },
-  amount: { fontFamily: font.bold, fontSize: 15 },
+  icon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  txTitle: { fontFamily: font.bold, fontSize: 15, color: '#0A0A0A' },
+  txTime: { fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 1 },
+  amount: { fontFamily: font.extrabold, fontSize: 15, fontVariant: ['tabular-nums'] },
+  pill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  pillText: { fontFamily: font.bold, fontSize: 12 },
   note: { fontFamily: font.regular, fontSize: 12, color: '#6B7280', textAlign: 'center', marginTop: 20 },
 })
