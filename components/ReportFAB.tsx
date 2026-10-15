@@ -205,7 +205,7 @@ export default function ReportFAB() {
                 <View style={s.rewardsTextRow}>
                   <Text style={s.rewardsLabel}>Daily Contributor</Text>
                   <Text style={s.rewardsXp}>
-                    {progress.pointsNeeded} XP until {nextLevel.name}
+                    {progress.pointsNeeded} coins until {nextLevel.name}
                   </Text>
                 </View>
                 <View style={s.progressTrack}>

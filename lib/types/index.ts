@@ -300,6 +300,8 @@ export interface TalePost {
   video_duration_secs: number | null
   /** Author's real rewards tier, merged client-side from contributor_profiles */
   author_level?: LevelSlug
+  /** Set by a DB trigger to the poster's auth uid; null only for server-made (Troski team) posts */
+  auth_user_id?: string | null
 }
 
 export interface TalePostWithMeta extends TalePost {

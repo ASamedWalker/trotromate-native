@@ -23,6 +23,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { useAlerts } from '@/lib/hooks/useAlerts'
 import { AlertCard } from '@/components/AlertRow'
+import { TrustPill, postTrust, ageState, isTimeSensitive, LiveDot } from '@/components/pulse/PulseTrust'
 import { RELEASE_MODE as REDESIGN } from '@/lib/config/release'
 import { useRouter, type Href } from 'expo-router'
 import { Image as ExpoImage } from 'expo-image'
@@ -235,6 +236,10 @@ const TaleCard = React.memo(function TaleCard({
   const displayName = getDisplayName(post)
   const kind = pulseKind(post)
   const chip = kind === 'post' ? null : KIND_CHIP[kind]
+  // UX v2 P1/P2: one trust pill per card; an age state on the meta row.
+  const trust = postTrust(post)
+  const age = ageState(post.created_at)
+  const timeBound = isTimeSensitive(kind)
 
   const caption = post.caption ?? ''
   // Composer posts parse exactly; free-text fare posts fall back to the heuristics.
@@ -259,8 +264,9 @@ const TaleCard = React.memo(function TaleCard({
     })
     return () => { cancelled = true }
   }, [kind, post.id])
-  const botText =
-    bot && (bot.status === 'no_route' || bot.status === 'not_found' || bot.status === 'found') ? bot.text : null
+  // Only a real answer gets the bot box; a miss is one quiet meta line (UX v2 P4).
+  const botText = bot && bot.status === 'found' ? bot.text : null
+  const botMissed = !!bot && (bot.status === 'no_route' || bot.status === 'not_found')
 
   // Sync localLiked with userReactions prop
   useEffect(() => {
@@ -315,7 +321,7 @@ const TaleCard = React.memo(function TaleCard({
   const hasMedia = post.media_type !== 'text' && (post.media_type === 'video' ? !!post.video_url : !!post.image_url)
 
   return (
-    <View style={s.card}>
+    <View style={[s.card, timeBound && age === 'stale' ? { opacity: 0.6 } : null]}>
       {/* ── Header ── */}
       <View style={s.header}>
         <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${displayName} profile`}>
@@ -328,18 +334,22 @@ const TaleCard = React.memo(function TaleCard({
             {badge ? <Text style={s.meta}>{` · ${badge.label.replace(/^\S+\s/, '')}`}</Text> : null}
           </Text>
           <View style={s.headerMeta}>
+            {chip && (
+              <View style={[s.typeChip, { backgroundColor: chip.bg }]}>
+                <Text style={[s.typeChipText, { color: chip.fg }]}>{chip.label}</Text>
+              </View>
+            )}
+            {age === 'live' ? <LiveDot /> : null}
             {post.location_name ? <MapPin size={14} color="#57534E" /> : null}
             <Text style={s.locationText} numberOfLines={1}>
-              {post.location_name ? `${post.location_name} · ${timeAgo(post.created_at)}` : timeAgo(post.created_at)}
+              {post.location_name ? `${post.location_name} · ` : ''}
+              <Text style={age === 'live' ? s.liveTime : undefined}>{timeAgo(post.created_at)}</Text>
+              {timeBound && age === 'ageing' ? ' · may have changed' : ''}
             </Text>
           </View>
         </View>
 
-        {chip && (
-          <View style={[s.typeChip, { backgroundColor: chip.bg }]}>
-            <Text style={[s.typeChipText, { color: chip.fg }]}>{chip.label}</Text>
-          </View>
-        )}
+        <TrustPill tier={trust} />
 
         <TouchableOpacity
           onPress={() => setShowMenu(!showMenu)}
@@ -406,14 +416,18 @@ const TaleCard = React.memo(function TaleCard({
           <Text style={s.botText}>{botText}</Text>
         </View>
       ) : null}
+      {kind === 'question' && !botLoading && botMissed ? (
+        <Text style={s.botMissLine}>Troski Bot didn&apos;t know this one. Can you help?</Text>
+      ) : null}
+      {/* No coin amount on a call to action (UX v2 P3): a secondary outline "Answer". */}
       {kind === 'question' && (
         <Tap
           onPress={onComment}
           style={s.answerBtn}
           accessibilityRole="button"
-          accessibilityLabel="Answer this question and earn 8 coins"
+          accessibilityLabel="Answer this question"
         >
-          <Text style={s.answerBtnText}>Answer this · +8 coins</Text>
+          <Text style={s.answerBtnText}>Answer</Text>
         </Tap>
       )}
 
@@ -883,26 +897,33 @@ const cardStyles = () => {
       lineHeight: 20,
       color: '#57534E',
     },
+    // Wraps on narrow (360dp) screens so the type chip never squeezes the location/age.
     headerMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      flexWrap: 'wrap',
+      columnGap: 4,
+      rowGap: 2,
     },
     locationText: {
       fontSize: 14,
       lineHeight: 20,
       fontFamily: font.regular,
       color: '#57534E',
-      flex: 1,
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 120,
     },
     typeChip: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 1,
       borderRadius: 999,
+      marginRight: 2,
     },
+    liveTime: { fontFamily: font.semibold, color: '#15803D' },
     typeChipText: {
       fontFamily: font.bold,
-      fontSize: 13,
+      fontSize: 12,
       lineHeight: 18,
     },
     menuBtn: {
@@ -953,14 +974,17 @@ const cardStyles = () => {
     botTitle: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: '#7C4A03' },
     botText: { fontFamily: font.regular, fontSize: 16, lineHeight: 24, color: '#1C1917' },
     botSkeleton: { height: 14, borderRadius: 7, backgroundColor: '#F3E3BC', width: '70%' },
+    botMissLine: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, color: '#57534E' },
     answerBtn: {
-      height: 46,
-      borderRadius: 14,
-      backgroundColor: brand.orange,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: brand.orange,
+      backgroundColor: '#FFFFFF',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    answerBtnText: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: '#FFFFFF' },
+    answerBtnText: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: brand.orange },
 
     // ── Media ──
     mediaWrap: {

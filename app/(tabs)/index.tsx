@@ -36,6 +36,10 @@ import { authedFetch } from '@/lib/services/authedFetch'
 import { RELEASE_MODE } from '@/lib/config/release'
 import ReleaseHome from '@/components/home/ReleaseHome'
 import MyRoutesCard from '@/components/home/MyRoutesCard'
+import { UpdatedStamp } from '@/components/home/UpdatedStamp'
+
+// The live data Home's "Updated N min ago" stamp speaks for (the My lines blocks).
+const STAMP_QUERIES = [['home-commute']]
 
 // Approx Ghana bounding box — used only to guard against implausible
 // reverse-geocode results (e.g. simulator default location showing
@@ -213,6 +217,7 @@ function FullHomeScreen() {
                     {locationName}
                   </Text>
                 </View>
+                <UpdatedStamp keys={STAMP_QUERIES} style={{ color: ui.textSecondary, marginTop: 2 }} />
               </View>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -221,7 +226,7 @@ function FullHomeScreen() {
                 onPress={() => router.push('/(tabs)/rewards' as any)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Rewards and coins"
+                accessibilityLabel={`Rewards, ${profile?.total_points ?? 0} coins`}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 5,
                   height: 44, paddingHorizontal: space.md, borderRadius: radius.pill,
@@ -230,7 +235,7 @@ function FullHomeScreen() {
               >
                 <Trophy size={18} color={ui.warning} />
                 <Text style={[type.labelStrong, { color: ui.warning }]}>
-                  {profile?.total_points ?? 0}
+                  {profile?.total_points ?? 0} {(profile?.total_points ?? 0) === 1 ? 'coin' : 'coins'}
                 </Text>
               </Pressable>
               <Pressable

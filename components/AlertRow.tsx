@@ -5,6 +5,7 @@ import { TriangleAlert, ChevronRight } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { adinkraXml } from '@/lib/brand/adinkra'
 import { ageLabel } from '@/lib/utils/freshness'
+import { TrustPill } from '@/components/pulse/PulseTrust'
 import { CATEGORY_LABEL, SEVERITY_STYLE, type ServiceAlert } from '@/lib/hooks/useAlerts'
 
 function scope(a: ServiceAlert): string {
@@ -52,8 +53,12 @@ export function AlertCard({ alert, width = 280 }: { alert: ServiceAlert; width?:
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <TriangleAlert size={15} color={sev.fg} />
-        <Text style={{ fontFamily: font.extrabold, fontSize: 11, letterSpacing: 0.8, color: sev.fg }}>{CATEGORY_LABEL[alert.category]}</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.8, color: sev.fg }}>{CATEGORY_LABEL[alert.category]}</Text>
         <Text style={{ fontFamily: font.regular, fontSize: 12, color: sev.fg }}>· {ageLabel(alert.created_at)}</Text>
+        {/* One trust pill top right (UX v2 P1): service alerts are official and name their source. */}
+        <View style={{ flex: 1, alignItems: 'flex-end', minWidth: 0 }}>
+          <TrustPill tier="official" source={alert.source} />
+        </View>
       </View>
       <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#111111' }} numberOfLines={2}>{alert.title}</Text>
       {alert.body ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#1F2937' }} numberOfLines={3}>{alert.body}</Text> : null}

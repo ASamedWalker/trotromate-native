@@ -123,7 +123,7 @@ export default function ReportScreen() {
                     <View style={s.cardTitleRow}>
                       <Text style={s.cardTitle}>{type.title}</Text>
                       <View style={[s.pointsBadge, { backgroundColor: isDark ? c.stone800 : type.lightBg }]}>
-                        <Text style={[s.pointsText, { color: type.color }]}>+{type.points} pts</Text>
+                        <Text style={[s.pointsText, { color: type.color }]}>+{type.points} coins</Text>
                       </View>
                     </View>
                     <Text style={s.cardDescription}>{type.description}</Text>

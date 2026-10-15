@@ -313,7 +313,6 @@ export default function IncidentReportScreen() {
                 </View>
               </View>
               <Text style={s.cameraTitle}>TAP TO PHOTO</Text>
-              <Text style={s.cameraBonus}>+20 XP BONUS</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -593,13 +592,6 @@ const getStyles = (isDark: boolean) => {
       color: isDark ? 'rgba(255,255,255,0.7)' : '#FF4D1C',
       letterSpacing: 3,
       textTransform: 'uppercase',
-    },
-    cameraBonus: {
-      fontSize: 11,
-      fontFamily: font.medium,
-      color: onSurfaceVariant,
-      marginTop: 6,
-      letterSpacing: 1,
     },
     photoPreview: {
       width: '100%',

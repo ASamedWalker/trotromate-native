@@ -37,7 +37,6 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SvgXml } from 'react-native-svg'
 import { adinkraPatternXml } from '@/lib/brand/adinkra'
 import { RELEASE_MODE } from '@/lib/config/release'
-import { REPORT_POINTS } from '@/lib/constants/rewards'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Chip, Badge, Button } from '@/components/ui'
@@ -45,10 +44,10 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
 import { fareConfidence } from '@/lib/utils/fare-confidence'
+import { fareSource, FARE_WARN_COLOR } from '@/lib/utils/fare-source'
 import { useQueryClient, useQuery as useRQ } from '@tanstack/react-query'
 import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
-import { timeAgo } from '@/lib/utils/time'
 import { titleCase } from '@/lib/utils/title-case'
 import { ReleaseLineCard } from '@/components/lines/ReleaseLineCard'
 import { corridorFor } from '@/lib/constants/corridors'
@@ -246,14 +245,14 @@ export default function RoutesScreen() {
         />
       )
     }
-    const displayFare = item.fare_stats?.avg_reported_fare ?? item.official_fare
-    const lastUpdated = timeAgo(item.fare_stats?.last_report_at ?? null)
+    // One fare-source label per row (UX v2 L1): GPRTU when verified, else riders, else an estimate.
+    const src = fareSource(item)
+    const displayFare = src.amount ?? item.official_fare
+    const approx = src.amount == null || src.approx
     const isOkada = item.transport_type === 'okada'
     const accent = lineColorFor(item.id)
     const confidence = fareConfidence(item.fare_stats)
     const hasFareReports = (item.fare_stats?.report_count ?? 0) > 0
-    // GPRTU-verified official fares are authoritative — never label them estimates
-    const fareTrusted = hasFareReports || (item.is_gprtu_verified && item.official_fare != null)
 
     return (
       <TouchableOpacity
@@ -277,8 +276,8 @@ export default function RoutesScreen() {
               </Text>
             </View>
             <View style={s.fareWrap}>
-              <Text style={[s.fareAmount, { color: fareTrusted ? ui.text : ui.textSecondary }]}>
-                {fareTrusted ? '' : 'Est. '}GH₵ {displayFare.toFixed(2)}
+              <Text style={[s.fareAmount, { color: src.kind === 'none' ? ui.textSecondary : ui.text }]}>
+                {approx ? '~' : ''}GH₵ {displayFare.toFixed(2)}
               </Text>
               <Text style={s.fareLabel}>Per seat</Text>
               {!hasFareReports && (
@@ -292,7 +291,7 @@ export default function RoutesScreen() {
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                   <Plus size={11} color={ui.warning} />
-                  <Text style={s.reportFareCtaText}>Report fare (+pts)</Text>
+                  <Text style={s.reportFareCtaText}>Report fare</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -300,11 +299,13 @@ export default function RoutesScreen() {
 
           {/* Meta row */}
           <View style={s.metaRow}>
-            <View style={s.metaItem}>
-              <Clock size={14} color={ui.textTertiary} />
-              <Text style={s.metaText}>{lastUpdated}</Text>
-            </View>
-            {confidence && (
+            {src.provenance ? (
+              <View style={[s.metaItem, { opacity: src.aged ? 0.6 : 1, flexShrink: 1 }]}>
+                {src.hasAge ? <Clock size={14} color={src.warn ? FARE_WARN_COLOR : ui.textTertiary} /> : null}
+                <Text style={[s.metaText, src.warn && { color: FARE_WARN_COLOR, fontFamily: font.semibold }]} numberOfLines={1}>{src.provenance}</Text>
+              </View>
+            ) : null}
+            {confidence && src.kind !== 'riders' && (
               <View style={s.metaItem}>
                 <View style={[s.confidenceDot, { backgroundColor: confidence.color }]} />
                 <Text style={[s.metaText, { color: confidence.color, fontFamily: font.semibold }]}>
@@ -320,17 +321,16 @@ export default function RoutesScreen() {
                 </Text>
               </View>
             )}
-            {item.is_gprtu_verified && (
+            {src.chip === 'GPRTU' ? (
               <View style={s.sourceBadgeOfficial}>
                 <ShieldCheck size={12} color="#166534" />
-                <Text style={s.sourceBadgeOfficialText}>GPRTU verified</Text>
+                <Text style={s.sourceBadgeOfficialText}>GPRTU fare</Text>
               </View>
-            )}
-            {hasFareReports && (
+            ) : src.chip === 'RIDERS' ? (
               <View style={s.sourceBadgeRider}>
-                <Text style={s.sourceBadgeRiderText}>Rider-reported</Text>
+                <Text style={s.sourceBadgeRiderText}>Riders say</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
         </View>
@@ -545,7 +545,7 @@ export default function RoutesScreen() {
           style={[s.reportFab, { bottom: TAB_BAR_CLEARANCE + insets.bottom - 8 }]}
         >
           <Plus size={18} color="#fff" />
-          <Text style={s.reportFabText}>Report a fare · +{REPORT_POINTS.fare}</Text>
+          <Text style={s.reportFabText}>Report a fare</Text>
         </TouchableOpacity>
       )}
 
@@ -710,7 +710,7 @@ const getStyles = () => {
       marginTop: 6,
     },
     reportFareCtaText: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: font.semibold,
       color: ui.warning,
     },
@@ -746,14 +746,14 @@ const getStyles = () => {
       borderRadius: 999,
       backgroundColor: '#DCFCE7',
     },
-    sourceBadgeOfficialText: { fontSize: 11, fontFamily: font.semibold, color: '#166534' },
+    sourceBadgeOfficialText: { fontSize: 12, fontFamily: font.semibold, color: '#166534' },
     sourceBadgeRider: {
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 999,
       backgroundColor: '#FFEDD5',
     },
-    sourceBadgeRiderText: { fontSize: 11, fontFamily: font.semibold, color: '#9A3412' },
+    sourceBadgeRiderText: { fontSize: 12, fontFamily: font.semibold, color: '#9A3412' },
 
     // Fare of the day (release mode)
     fotdCard: {

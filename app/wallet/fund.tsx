@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { ArrowLeft, Landmark, Smartphone, CreditCard, Check } from 'lucide-react-native'
@@ -39,11 +39,8 @@ export default function TopUpWalletScreen() {
   const handleProceed = () => {
     const method = METHODS.find((m) => m.id === selected)
     if (!method) return
-    if (method.soon || !method.route) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
-      Alert.alert('Coming soon', 'This top-up method is on the way. Use MTN MoMo, AirtelTigo Money, or Telecel Cash for now.')
-      return
-    }
+    // "Coming soon" rows can't be selected (no Alert in the top-up flow, TU8).
+    if (method.soon || !method.route) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // Carry the pre-fill amount into the MoMo screen when one was passed.
     let dest = method.route
@@ -62,7 +59,7 @@ export default function TopUpWalletScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={s.iconBtn}>
           <ArrowLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: t.text }]}>Topup Wallet</Text>
+        <Text style={[s.headerTitle, { color: t.text }]}>Top up</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -81,13 +78,15 @@ export default function TopUpWalletScreen() {
               <Animated.View key={m.id} entering={FadeInDown.delay(80 + i * 70).duration(400)}>
                 <TouchableOpacity
                   activeOpacity={0.85}
+                  disabled={m.soon}
                   onPress={() => { setSelected(m.id); Haptics.selectionAsync() }}
                   style={[s.row, {
                     backgroundColor: isDark ? '#1c1917' : '#ffffff',
                     borderColor: active ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F1F0'),
+                    opacity: m.soon ? 0.6 : 1,
                   }]}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: active }}
+                  accessibilityState={{ checked: active, disabled: !!m.soon }}
                 >
                   {m.network ? (
                     <NetworkLogo id={m.network} width={44} height={44} />

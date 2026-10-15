@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { fareSource, FARE_WARN_COLOR } from '@/lib/utils/fare-source'
 import {
   View,
   Text,
@@ -226,14 +227,17 @@ export default function RouteDetailScreen() {
   // Trotro fares vary, so a range + report count + freshness is the trust signal.
   const mult = selectedOption.fareMultiplier
   const fareStats = route?.fare_stats
-  const avgFare = (fareStats?.avg_reported_fare ?? route?.official_fare ?? baseFare) * mult
   const minFare = fareStats?.min_reported_fare != null ? fareStats.min_reported_fare * mult : null
   const maxFare = fareStats?.max_reported_fare != null ? fareStats.max_reported_fare * mult : null
   const reportCount = fareStats?.report_count ?? 0
   const hasFareRange = reportCount > 0 && minFare != null && maxFare != null && maxFare - minFare > 0.01
   const fareFresh = fareStats?.last_report_at ? timeAgo(fareStats.last_report_at) : null
-  const gprtuVerified = !!route?.is_gprtu_verified
-  const headlineFare = (reportCount > 0 ? avgFare : baseFare * mult).toFixed(2)
+  // One source per fare (UX v2 L1/M2): a GPRTU-verified corridor shows the GPRTU fare;
+  // otherwise the rider average, otherwise the search estimate.
+  // Same rule + wording as the Lines list (lib/utils/fare-source.ts).
+  const corridorSrc = route ? fareSource({ ...route, official_fare: Number(route.official_fare) }) : null
+  const corridorOfficial = corridorSrc?.chip === 'GPRTU'
+  const headlineFare = (corridorSrc?.amount != null ? corridorSrc.amount * mult : baseFare * mult).toFixed(2)
 
   // Trip shape for the header meta row
   const stopCount = route?.stops?.length ?? 0
@@ -342,8 +346,18 @@ export default function RouteDetailScreen() {
 
   // Fare actually shown / charged: drop-off stage fare when available, else corridor.
   const displayFare = (hasStops && dropoffFare != null) ? dropoffFare.toFixed(2) : headlineFare
-  // Not exact/official (matches the "estimate" badge) → show rounded with a tilde.
-  const isEstimate = !!(hasStops && dropoffFare != null && !dropoffResult?.isOfficial)
+  const stageShown = hasStops && dropoffFare != null
+  const fareIsOfficial = stageShown ? !!dropoffResult?.isOfficial : corridorOfficial
+  // Not exact/official (matches the "estimate" chip) → show rounded with a tilde.
+  const isEstimate = !fareIsOfficial
+  // The source chip that sits next to the fare (UX v2 M2).
+  const fareSourceLabel = fareIsOfficial
+    ? (stageShown && dropoffResult?.origin === 'station' ? 'station chart' : 'GPRTU fare')
+    : !stageShown && corridorSrc?.kind === 'riders'
+      ? `Riders say · ${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`
+      : reportCount > 0
+      ? `estimate · from ${reportCount} rider ${reportCount === 1 ? 'report' : 'reports'}`
+      : 'estimate · no reports yet'
   // Okada routes carry their own fares; anything else (pragya, okada on a trotro
   // corridor) would just be the trotro fare relabelled, so show no number.
   const fareUnavailable = selectedOption.id !== 'trotro' && !(selectedOption.id === 'okada' && selectedTransport === 'okada')
@@ -702,13 +716,15 @@ export default function RouteDetailScreen() {
               {sheetIndex === 0 && (
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 13 : 20, color: BRAND }}>{fareText}</Text>
-                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280' }}>Tap for details</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: fareIsOfficial ? '#059669' : '#6B7280' }}>
+                    {fareUnavailable ? 'Tap for details' : fareIsOfficial ? fareSourceLabel : !stageShown && corridorSrc?.kind === 'riders' ? 'Riders say' : 'estimate'}
+                  </Text>
                 </View>
               )}
             </View>
           </TouchableOpacity>
 
-          {/* Trip-shape meta: mode + distance + stops + GPRTU trust badge */}
+          {/* Trip-shape meta: mode + stops. The GPRTU source chip lives on the fare (UX v2 M2). */}
           <View style={{ paddingHorizontal: 24, marginBottom: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 100, paddingLeft: 6, paddingRight: 12, paddingVertical: 5 }}>
               <Image source={selectedOption.image} style={{ width: 18, height: 18 }} resizeMode="contain" />
@@ -716,12 +732,6 @@ export default function RouteDetailScreen() {
             </View>
             {stopCount > 0 && (
               <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{stopCount} stops</Text></View>
-            )}
-            {gprtuVerified && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 5 }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#059669' }}>GPRTU</Text>
-              </View>
             )}
           </View>
 
@@ -759,38 +769,43 @@ export default function RouteDetailScreen() {
             )}
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={{ fontFamily: font.extrabold, fontSize: fareUnavailable ? 15 : 25, color: BRAND, letterSpacing: -0.8 }}>{fareText}</Text>
-              {fareUnavailable ? null : dropoffName ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280' }}>to {dropoffName}</Text>
-                  {/* "official" names its source — a rider can check a GPRTU or
-                      station chart. Only an authoritative origin earns the green
-                      badge; our own seeded numbers read as estimates. */}
-                  {dropoffResult?.isOfficial ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
-                      <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#10B981' }} />
-                      <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: '#059669' }}>
-                        {dropoffResult.origin === 'station' ? 'station chart' : 'GPRTU'}
-                      </Text>
+              {fareUnavailable ? null : (
+                <>
+                  {/* Before a stop is chosen the fare is to the end of the route — say so (UX v2 M5). */}
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2, textAlign: 'right' }} numberOfLines={2}>
+                    {dropoffName && dropoffOrder != null && dropoffOrder !== lastOrder
+                      ? `Fare to ${dropoffName}`
+                      : `Fare to ${dropoffName || to} (end of route)`}
+                  </Text>
+                  {/* "official" names its source — a rider can check a GPRTU or station
+                      chart. Only an authoritative origin earns the green chip; everything
+                      else says it is an estimate and what it is based on. */}
+                  {fareIsOfficial ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: 'rgba(16,185,129,0.12)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
+                      <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#059669' }}>{fareSourceLabel}</Text>
                     </View>
                   ) : (
-                    <View style={{ backgroundColor: '#F3F4F6', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
-                      <Text style={{ fontFamily: font.medium, fontSize: 10.5, color: '#6B7280' }}>estimate</Text>
+                    <View style={{ marginTop: 4, backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#4B5563' }}>{fareSourceLabel}</Text>
                     </View>
                   )}
-                </View>
-              ) : hasFareRange ? (
-                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                  {formatGHS(minFare!)}–{formatGHS(maxFare!)} · {selectedOption.label}
-                </Text>
-              ) : (
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                  {`${selectedOption.label} fare`}
-                </Text>
-              )}
-              {!fareUnavailable && reportCount > 0 && (
-                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: '#B0B4BB', marginTop: 1 }}>
-                  {reportCount} report{reportCount !== 1 ? 's' : ''}{fareFresh ? ` · ${fareFresh}` : ''}
-                </Text>
+                  {/* GPRTU vs riders, worded like the Lines list: "Riders agree · 2h ago", or amber
+                      "Riders paid GH₵X · 2h ago" when riders pay over 20% more. Corridor-level, so
+                      only when the fare shown is to the end of the route. */}
+                  {corridorSrc && (corridorSrc.kind === 'agree' || corridorSrc.kind === 'differ') && (!stageShown || effectiveDropoff === lastOrder) ? (
+                    <Text style={{
+                      fontFamily: corridorSrc.warn ? font.semibold : font.medium, fontSize: 12, marginTop: 4,
+                      color: corridorSrc.warn ? FARE_WARN_COLOR : '#6B7280', opacity: corridorSrc.aged ? 0.6 : 1, textAlign: 'right',
+                    }}>
+                      {corridorSrc.provenance}
+                    </Text>
+                  ) : !stageShown && hasFareRange ? (
+                    <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', marginTop: 4, opacity: corridorSrc?.aged ? 0.6 : 1 }}>
+                      Riders paid {formatGHS(minFare!)}–{formatGHS(maxFare!)}{fareFresh ? ` · ${fareFresh}` : ''}
+                    </Text>
+                  ) : null}
+                </>
               )}
             </View>
           </View>
@@ -871,7 +886,7 @@ export default function RouteDetailScreen() {
                 accessibilityLabel="Share fare"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  const src = isEstimate ? ' (estimate)' : gprtuVerified ? ' (official GPRTU)' : ' (reported by commuters)'
+                  const src = ` (${fareIsOfficial ? (fareSourceLabel === 'GPRTU fare' ? 'official GPRTU' : fareSourceLabel) : !stageShown && corridorSrc?.kind === 'riders' ? 'reported by riders' : 'estimate'})`
                   Share.share({
                     message: `Trotro fare ${from} → ${dropoffName || to}: ${fareText}${src}. Check any trotro fare free on Troski: https://troski.me`,
                   }).catch(() => {})

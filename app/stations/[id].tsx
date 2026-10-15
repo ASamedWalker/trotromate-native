@@ -8,6 +8,7 @@ import { font } from '@/lib/theme'
 import { BackButton } from '@/components/BackButton'
 import { HeroText } from '@/components/HeroText'
 import { FreshnessDot } from '@/components/FreshnessDot'
+import { QueueGlyph } from '@/components/QueueGlyph'
 import { LineBadge } from '@/components/LineBadge'
 import { QUEUE_COLOR, QUEUE_WORD } from '@/lib/constants/queueStatus'
 import { freshness, ageLabel } from '@/lib/utils/freshness'
@@ -74,7 +75,9 @@ export default function StationDetailScreen() {
           accessible
           accessibilityLabel={kind === 'stale' || !status ? 'No recent queue report' : `${QUEUE_WORD[status]}, reported ${ageLabel(stat?.last_report_at)}`}
         >
-          <FreshnessDot kind={kind} color={heroColor} size={14} />
+          {kind === 'stale' || !status
+            ? <FreshnessDot kind={kind} color={heroColor} size={14} />
+            : <QueueGlyph status={status} color={heroColor} size={24} opacity={kind === 'aging' ? 0.8 : 1} />}
           <FlashOnChange token={`${status}:${stat?.last_report_at}`} style={{ flexShrink: 1 }}>
             <HeroText size={32} style={{ color: heroColor }}>{kind === 'stale' || !status ? 'No recent report' : QUEUE_WORD[status]}</HeroText>
           </FlashOnChange>
@@ -167,7 +170,7 @@ export default function StationDetailScreen() {
             const c = k === 'stale' ? '#6B7280' : QUEUE_COLOR[r.queue_status]
             return (
               <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: CARD.border }}>
-                <FreshnessDot kind={k} color={c} />
+                {k === 'stale' ? <FreshnessDot kind={k} color={c} /> : <QueueGlyph status={r.queue_status} color={c} size={14} opacity={k === 'aging' ? 0.8 : 1} />}
                 <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: c }}>{QUEUE_WORD[r.queue_status] ?? r.queue_status}</Text>
                 <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 13, color: TEXT2 }} numberOfLines={1}>
                   {r.source === 'reporter' ? '· Station reporter' : r.source === 'whatsapp' ? '· via WhatsApp' : r.source === 'rider' ? '· Rider' : ''}

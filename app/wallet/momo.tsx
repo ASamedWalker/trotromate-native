@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, Alert, ScrollView, Keyboard, Platform, InputAccessoryView } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, useColorScheme, StyleSheet, ScrollView, Keyboard, Platform, InputAccessoryView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
 import { MaterialIcons } from '@expo/vector-icons'
-import { font, themed } from '@/lib/theme'
+import { font, themed, ui } from '@/lib/theme'
 import NetworkLogo, { type NetworkId } from '@/components/NetworkLogo'
-import WalletTopUpAnimation from '@/components/WalletTopUpAnimation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { formatGHS } from '@/lib/utils/currency'
-import { authedFetch } from '@/lib/services/authedFetch'
+import { startTopup, topupStatusHref } from '@/lib/services/topup'
 
 const BRAND = '#FF4D1C'
 const AMOUNTS = [5, 10, 20, 50]
@@ -24,14 +23,12 @@ const PROVIDERS = [
 // Shared iOS keyboard toolbar id (decimal/phone pads have no Done key)
 const DONE_ACCESSORY_ID = 'momo-done'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
-
 export default function MomoTopUpScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const router = useRouter()
   const { user } = useAuthContext()
-  const { provider: providerParam, amount: amountParam, return: returnTo } = useLocalSearchParams<{ provider?: string; amount?: string; return?: string }>()
+  const { provider: providerParam, amount: amountParam, return: returnTo, pops } = useLocalSearchParams<{ provider?: string; amount?: string; return?: string; pops?: string }>()
   const initialProvider = PROVIDERS.some((p) => p.id === providerParam) ? providerParam! : 'mtn'
   // Normalise the stored auth phone to a clean local number (strip +233 / 233 / leading 0)
   const initialPhone = (user?.phone || '').replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
@@ -45,23 +42,33 @@ export default function MomoTopUpScreen() {
   const [phone, setPhone] = useState(initialPhone)
   const [provider, setProvider] = useState<string>(initialProvider)
   const [loading, setLoading] = useState(false)
-  const [anim, setAnim] = useState<{ state: 'loading' | 'success'; message: string } | null>(null)
+  // Inline errors (TU8): never Alert.alert in the top-up flow.
+  const [amountError, setAmountError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const effectiveAmount = amount || (customAmount ? parseFloat(customAmount) : 0)
 
   const handleFund = async () => {
-    if (!effectiveAmount || effectiveAmount < 1) {
-      Alert.alert('Invalid Amount', 'Please select or enter an amount (min GH₵ 1)')
-      return
-    }
+    if (loading) return
+    setFormError(null)
+    let bad = false
+    if (!effectiveAmount || !isFinite(effectiveAmount) || effectiveAmount < 1) {
+      setAmountError('Choose or enter an amount of at least GH₵ 1.')
+      bad = true
+    } else if (effectiveAmount > 500) {
+      setAmountError('You can top up at most GH₵ 500 at a time.')
+      bad = true
+    } else setAmountError(null)
     // Ghana mobile: 9 local digits (optionally a leading 0), 2nd digit 2 or 5
     // (MTN/Telecel/AirtelTigo prefixes). Catches typos before the backend rejects.
     if (!/^0?[25]\d{8}$/.test(phone.replace(/\D/g, ''))) {
-      Alert.alert('Invalid Phone', 'Enter a valid Ghana MoMo number (e.g. 024 XXX XXXX)')
-      return
-    }
+      setPhoneError('Enter a valid Ghana MoMo number, like 024 123 4567.')
+      bad = true
+    } else setPhoneError(null)
+    if (bad) return
     if (!user?.id) {
-      Alert.alert('Auth Required', 'Please verify your phone number first')
+      setFormError('Verify your phone number first, then top up.')
       return
     }
 
@@ -70,43 +77,28 @@ export default function MomoTopUpScreen() {
     // +233 (or 0) prefix, NOT a bare 233. Build the E.164 form so it passes.
     const msisdn = '+233' + phone.replace(/\D/g, '').replace(/^233/, '').replace(/^0/, '')
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    // Sending a prompt is a request, not a payment: light tap only, no success
+    // haptic or check here (TU1). The pending screen reports what actually happens.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setLoading(true)
-    // Request, not result — nothing has landed yet (UX-19)
-    setAnim({ state: 'loading', message: `Requesting ${formatGHS(effectiveAmount)} top-up…` })
-
-    try {
-      const res = await authedFetch(`${API_URL}/api/wallet/topup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          auth_user_id: user.id,
-          amount: effectiveAmount,
-          phone: msisdn,
-          provider,
-        }),
-      })
-
-      const data = await res.json()
-      setLoading(false)
-
-      if (data.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        setAnim({
-          state: 'success',
-          message: data.display_text || `A MoMo prompt was sent to ${msisdn}. Approve it to add ${formatGHS(effectiveAmount)} to your wallet.`,
-        })
-      } else {
-        setAnim(null)
-        console.warn('[topup] backend rejected:', res.status, JSON.stringify(data))
-        Alert.alert('Top-up failed', data.error || 'We could not start the MoMo prompt. Please check the number and try again.')
-      }
-    } catch (err) {
-      setLoading(false)
-      setAnim(null)
-      console.warn('[topup] network error:', err)
-      Alert.alert('Network error', 'Could not reach the top-up service. Please check your connection and try again.')
+    const amountToSend = Math.round(effectiveAmount * 100) / 100
+    const r = await startTopup({ userId: user.id, amount: amountToSend, phone: msisdn, provider })
+    setLoading(false)
+    if (r.ok) {
+      router.replace(topupStatusHref({
+        reference: r.reference,
+        amount: amountToSend,
+        phone: msisdn,
+        provider,
+        createdAt: new Date().toISOString(),
+        returnTo: returnTo === 'checkout' ? 'checkout' : undefined,
+        // Screens to pop to get back to checkout: checkout → fund → (momo, replaced) = 2.
+        pops: returnTo === 'checkout' ? (pops ?? '2') : undefined,
+      }) as never)
+      return
     }
+    console.warn('[topup] not started:', r.status, r.error)
+    setFormError(r.error)
   }
 
   return (
@@ -137,7 +129,7 @@ export default function MomoTopUpScreen() {
                   backgroundColor: amount === a ? BRAND : (isDark ? '#1c1917' : '#f5f5f4'),
                   borderColor: amount === a ? BRAND : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
                 }]}
-                onPress={() => { setAmount(a); setCustomAmount(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
+                onPress={() => { setAmount(a); setCustomAmount(''); setAmountError(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) }}
               >
                 <Text style={[s.amountBtnText, { color: amount === a ? '#fff' : t.text }]}>
                   GH₵ {a}
@@ -159,9 +151,10 @@ export default function MomoTopUpScreen() {
               keyboardType="decimal-pad"
               inputAccessoryViewID={DONE_ACCESSORY_ID}
               value={customAmount}
-              onChangeText={(v) => { setCustomAmount(v); setAmount(null) }}
+              onChangeText={(v) => { setCustomAmount(v); setAmount(null); setAmountError(null) }}
             />
           </View>
+          {amountError && <Text style={s.fieldError} accessibilityLiveRegion="polite">{amountError}</Text>}
         </Animated.View>
 
         {/* Phone number */}
@@ -181,9 +174,10 @@ export default function MomoTopUpScreen() {
               inputAccessoryViewID={DONE_ACCESSORY_ID}
               maxLength={10}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(v) => { setPhone(v); setPhoneError(null) }}
             />
           </View>
+          {phoneError && <Text style={s.fieldError} accessibilityLiveRegion="polite">{phoneError}</Text>}
         </Animated.View>
 
         {/* Provider selection */}
@@ -235,17 +229,21 @@ export default function MomoTopUpScreen() {
 
         {/* Top up button */}
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+          {formError && <Text style={[s.fieldError, s.formError]} accessibilityLiveRegion="polite">{formError}</Text>}
           <TouchableOpacity
             onPress={handleFund}
-            disabled={loading || effectiveAmount < 1}
+            disabled={loading}
             activeOpacity={0.85}
-            style={[s.fundBtn, { opacity: effectiveAmount < 1 ? 0.5 : 1 }]}
+            style={[s.fundBtn, { opacity: loading || effectiveAmount < 1 ? 0.5 : 1 }]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: loading, busy: loading }}
           >
             <MaterialIcons name="add-circle" size={20} color="#fff" />
             <Text style={s.fundBtnText}>
-              {loading ? 'Processing...' : `Topup ${formatGHS(effectiveAmount)}`}
+              {loading ? 'Sending prompt…' : effectiveAmount >= 1 ? `Top up ${formatGHS(effectiveAmount)}` : 'Top up'}
             </Text>
           </TouchableOpacity>
+          <Text style={[s.fundHint, { color: t.textSecondary }]}>We send a prompt to your phone. You approve it with your MoMo PIN.</Text>
         </Animated.View>
 
         <View style={{ height: 40 }} />
@@ -261,22 +259,6 @@ export default function MomoTopUpScreen() {
         </InputAccessoryView>
       )}
 
-      <WalletTopUpAnimation
-        visible={anim !== null}
-        state={anim?.state ?? 'loading'}
-        message={anim?.message ?? ''}
-        doneLabel={returnTo === 'checkout' ? 'Back to booking' : 'View Wallet'}
-        onDone={() => {
-          setAnim(null)
-          // Shortfall top-up from checkout: pop momo + fund, back to Confirm
-          // Booking, which polls the balance until the credit lands.
-          if (returnTo === 'checkout' && router.canDismiss()) { router.dismiss(2); return }
-          // Exit the top-up stack and land on the Wallet tab, where the new
-          // balance + transaction appear once the MoMo prompt is approved.
-          if (router.canDismiss()) router.dismissAll()
-          router.navigate('/wallet' as Href)
-        }}
-      />
     </SafeAreaView>
   )
 }
@@ -344,4 +326,9 @@ const s = StyleSheet.create({
     paddingVertical: 16, borderRadius: 14, backgroundColor: BRAND,
   },
   fundBtnText: { fontSize: 16, fontFamily: font.bold, color: '#fff' },
+  fundHint: { fontSize: 13, fontFamily: font.medium, textAlign: 'center', marginTop: 10 },
+
+  // Inline validation (TU8)
+  fieldError: { fontSize: 13, fontFamily: font.semibold, color: ui.danger, marginTop: 6 },
+  formError: { marginTop: 0, marginBottom: 10, textAlign: 'center' },
 })

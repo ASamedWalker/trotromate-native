@@ -116,7 +116,7 @@ export default function PublicProfileScreen() {
         <View style={s.xpCard}>
           <View style={s.xpHeader}>
             <View>
-              <Text style={s.xpLabel}>CURRENT XP</Text>
+              <Text style={s.xpLabel}>CURRENT COINS</Text>
               <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {isTopTier ? 'MAX' : nextThreshold}</Text></Text>
             </View>
             <Text style={s.xpRemaining}>{isTopTier ? 'Top tier reached' : `${Math.max(0, nextThreshold - currentXP)} to next level`}</Text>
@@ -141,7 +141,7 @@ export default function PublicProfileScreen() {
           <View style={s.statCard}>
             <Star size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.total_points}</Text>
-            <Text style={s.statCardLabel}>XP Earned</Text>
+            <Text style={s.statCardLabel}>Coins earned</Text>
           </View>
           <View style={s.statCard}>
             <Radio size={20} color={c.amber600} />

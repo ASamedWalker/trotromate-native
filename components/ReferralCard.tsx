@@ -87,7 +87,7 @@ export function ReferralCard() {
         </View>
         <View>
           <Text style={s.title}>Invite Friends</Text>
-          <Text style={s.subtitle}>Get 500 pts per referral</Text>
+          <Text style={s.subtitle}>Get 500 coins per referral</Text>
         </View>
       </View>
 

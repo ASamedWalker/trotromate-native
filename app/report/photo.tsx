@@ -282,7 +282,7 @@ export default function TrotroTalesPostScreen() {
       refreshProfile()
       await maybePromptReview()
       Alert.alert(
-        'Posted to Pulse! +' + reward.points_awarded + ' pts',
+        'Posted to Pulse! +' + reward.points_awarded + ' coins',
         fareFailed
           ? "Your post went up, but the fare couldn't be added to Troski's fare data."
           : 'Your post has been shared with the community.',

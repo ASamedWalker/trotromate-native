@@ -770,7 +770,7 @@ export default function TripScreen() {
             <View style={s.pointsBadge}>
               <Star size={14} color="#FF4D1C" />
               <Text style={s.pointsBadgeText}>
-                +{TRIP_POINTS.completed} pts
+                +{TRIP_POINTS.completed} coins
               </Text>
               {!fareInput && (
                 <Text style={s.pointsBonusHint}>
@@ -809,7 +809,7 @@ export default function TripScreen() {
             style={[s.fareSubmitBtn, !fareInput && { opacity: 0.5 }]}
           >
             <Text style={s.fareSubmitText}>
-              {`Submit Fare (+${TRIP_POINTS.completed + TRIP_POINTS.fare_bonus} pts)`}
+              Submit fare
             </Text>
           </TouchableOpacity>
 

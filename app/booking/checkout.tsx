@@ -26,6 +26,11 @@ import { cacheWalletBalance } from '@/lib/services/walletCache'
 import PinModal from '@/components/PinModal'
 import { Bus, Clock, Users as UsersIcon } from 'lucide-react-native'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { pendingTopups, shortGHS, topupStatusHref, NETWORK_NAME, type PendingTopup } from '@/lib/services/topup'
+
+// Amber = waiting on money that hasn't landed (C4).
+const WAIT = '#B45309'
+const WAIT_SOFT = '#FFFBEB'
 
 const BRAND = '#FF4D1C'
 
@@ -139,6 +144,13 @@ export default function CheckoutScreen() {
   const { user } = useAuthContext()
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(true)
+  // C4: a top-up started from THIS checkout that is still waiting for MoMo approval.
+  // While it is pending (and the wallet is still short) Pay stays locked; it unlocks
+  // only when the re-checked balance covers the total (i.e. the credit landed).
+  const topupSinceRef = useRef<number | null>(null)
+  const [pendingTopup, setPendingTopup] = useState<PendingTopup | null>(null)
+  const [topupFailed, setTopupFailed] = useState(false)
+  const lastTopupRefRef = useRef<string | null>(null)
   const fetchBalance = useCallback(async () => {
     if (!user?.id) { setBalanceLoading(false); return }
     try {
@@ -146,6 +158,17 @@ export default function CheckoutScreen() {
       if (!res.ok) throw new Error(`wallet ${res.status}`)
       const data = await res.json()
       if (data.balance != null) setWalletBalance(Number(data.balance))
+      const since = topupSinceRef.current
+      if (since != null && Array.isArray(data.transactions)) {
+        // 60s slack for phone/server clock skew.
+        const mine = pendingTopups(data.transactions).filter((p) => new Date(p.createdAt).getTime() >= since - 60000)
+        setPendingTopup(mine[0] ?? null)
+        if (mine[0]) { lastTopupRefRef.current = mine[0].reference; setTopupFailed(false) }
+        else if (lastTopupRefRef.current) {
+          const tx = data.transactions.find((t: any) => t?.paystack_reference === lastTopupRefRef.current)
+          setTopupFailed(tx?.status === 'failed')
+        }
+      }
     } catch { /* leave null → "Tap to check" */ }
     finally { setBalanceLoading(false) }
   }, [API_URL, user?.id])
@@ -153,23 +176,29 @@ export default function CheckoutScreen() {
   // Re-check the balance when returning to checkout (e.g. after topping up) so
   // the button flips from "Top up" to "Pay" without a manual reload.
   useFocusEffect(useCallback(() => { fetchBalance() }, [fetchBalance]))
-  // After a shortfall top-up the MoMo credit lands a few seconds later (webhook),
-  // so keep re-checking for up to a minute instead of leaving "Top up" stuck.
-  const awaitingTopupRef = useRef(false)
   const goTopup = (amount?: number) => {
-    awaitingTopupRef.current = true
+    if (topupSinceRef.current == null) topupSinceRef.current = Date.now()
     router.push({ pathname: '/wallet/fund', params: { ...(amount ? { amount: String(Math.ceil(amount)) } : {}), return: 'checkout' } } as never)
   }
+  // While a top-up is pending and this screen is focused, re-check every 5s
+  // (20s once it's 3+ min old). One request at a time; stops on blur.
+  const pendingRef = pendingTopup?.reference ?? null
+  const pendingCreatedAt = pendingTopup?.createdAt ?? null
   useFocusEffect(useCallback(() => {
-    if (!awaitingTopupRef.current) return
-    let n = 0
-    const id = setInterval(() => {
-      n += 1
-      if (!awaitingTopupRef.current || n > 20) { clearInterval(id); awaitingTopupRef.current = false; return }
-      fetchBalance()
-    }, 3000)
-    return () => clearInterval(id)
-  }, [fetchBalance]))
+    if (!pendingRef) return
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const schedule = () => {
+      const age = Date.now() - new Date(pendingCreatedAt ?? Date.now()).getTime()
+      timer = setTimeout(async () => {
+        if (stopped) return
+        await fetchBalance()
+        if (!stopped) schedule()
+      }, age >= 180000 ? 20000 : 5000)
+    }
+    schedule()
+    return () => { stopped = true; if (timer) clearTimeout(timer) }
+  }, [pendingRef, pendingCreatedAt, fetchBalance]))
 
   // Wallet is the only wired payment method. MoMo was listed here before but
   // silently charged the wallet regardless — removed until actually wired (UX-15).
@@ -177,8 +206,8 @@ export default function CheckoutScreen() {
     { id: 'wallet', label: 'Troski Wallet', sub: balanceLoading ? 'Checking balance…' : walletBalance != null ? formatGHS(walletBalance) : "Couldn't load balance — tap to retry" },
   ]
   const insufficient = payment === 'wallet' && walletBalance != null && walletBalance < total
-  // Credit landed: stop the post-topup polling.
-  useEffect(() => { if (!insufficient) awaitingTopupRef.current = false }, [insufficient])
+  // Short AND our top-up is still waiting: show "Waiting for top-up…", Pay locked.
+  const awaitingCredit = insufficient && pendingTopup != null
   const shortfall = insufficient ? total - (walletBalance ?? 0) : 0
   // Don't let the user pay from the wallet until we know the balance — avoids a
   // silent overdraw path when the balance fetch is slow, timed out, or failed.
@@ -246,7 +275,7 @@ export default function CheckoutScreen() {
     } else if (result.reason === 'insufficient_balance') {
       Alert.alert('Insufficient balance', 'Top up your wallet to complete this booking.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Topup', onPress: () => goTopup() },
+        { text: 'Top up', onPress: () => goTopup() },
       ])
     } else {
       // A key reused with different trip details can never succeed: start a fresh attempt.
@@ -498,11 +527,31 @@ export default function CheckoutScreen() {
 
       {/* ── Pay button ── */}
       <View style={s.payBar}>
-        {insufficient ? (
+        {awaitingCredit && pendingTopup ? (
           <>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
-              Wallet balance {formatGHS(walletBalance ?? 0)} · short {formatGHS(shortfall)}
-            </Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push(topupStatusHref({ ...pendingTopup, returnTo: 'checkout', pops: '1' }) as never)}
+              style={s.waitRow}
+              accessibilityRole="button"
+              accessibilityLabel={`Waiting for top-up. Pay unlocks when ${NETWORK_NAME[pendingTopup.provider] ?? 'MoMo'} confirms. Open top-up`}
+            >
+              <Clock size={16} color={WAIT} />
+              <Text style={s.waitText}>Waiting for top-up… unlocks when {NETWORK_NAME[pendingTopup.provider] ?? 'MoMo'} confirms</Text>
+            </TouchableOpacity>
+            <View style={[s.payBtn, { opacity: 0.5 }]} accessible accessibilityRole="button" accessibilityLabel={`Pay ${formatGHS(total)}`} accessibilityState={{ disabled: true }}>
+              <Text style={s.payBtnText}>Pay {formatGHS(total)}</Text>
+            </View>
+          </>
+        ) : insufficient ? (
+          <>
+            <View style={s.shortRow}>
+              <Text style={s.shortText}>Short by {formatGHS(shortfall)}</Text>
+              <Text style={s.shortWallet}>Wallet {formatGHS(walletBalance ?? 0)}</Text>
+            </View>
+            {topupFailed && (
+              <Text style={s.topupFailedText}>{"Your top-up didn't go through. You can try again."}</Text>
+            )}
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => {
@@ -511,8 +560,9 @@ export default function CheckoutScreen() {
                 goTopup(shortfall)
               }}
               style={s.payBtn}
+              accessibilityRole="button"
             >
-              <Text style={s.payBtnText}>Topup {formatGHS(Math.ceil(shortfall))} to pay</Text>
+              <Text style={s.payBtnText}>Top up {shortGHS(Math.max(1, Math.ceil(shortfall)))} and continue</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -693,6 +743,18 @@ const s = StyleSheet.create({
   payBar: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, backgroundColor: '#FAFAF9', borderTopWidth: 1, borderTopColor: '#F1F1F0' },
   payBtn: { height: 54, borderRadius: 16, backgroundColor: BRAND, justifyContent: 'center', alignItems: 'center' },
   payBtnText: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
+  shortRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
+    backgroundColor: WAIT_SOFT, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  shortText: { fontFamily: font.bold, fontSize: 14, color: WAIT },
+  shortWallet: { fontFamily: font.medium, fontSize: 13, color: '#6B7280' },
+  topupFailedText: { fontFamily: font.semibold, fontSize: 13, color: '#DC2626', textAlign: 'center', marginBottom: 8 },
+  waitRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, minHeight: 40,
+    backgroundColor: WAIT_SOFT, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  waitText: { fontFamily: font.semibold, fontSize: 13, color: WAIT, flexShrink: 1 },
 
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAFAF9', borderRadius: 16, paddingVertical: 14, marginTop: 18, width: '100%' },

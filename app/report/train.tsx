@@ -155,7 +155,7 @@ export default function TrainReportScreen() {
               </View>
               <View style={s.pointsBadge}>
                 <Sparkles size={12} color={c.white} />
-                <Text style={s.pointsText}>+10 pts</Text>
+                <Text style={s.pointsText}>+10 coins</Text>
               </View>
             </View>
 

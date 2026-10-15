@@ -67,7 +67,7 @@ export default function LeaderboardScreen() {
         </View>
         <View style={s.pointsBox}>
           <Text style={s.points}>{item.weekly_points}</Text>
-          <Text style={s.pointsLabel}>pts</Text>
+          <Text style={s.pointsLabel}>coins</Text>
         </View>
       </View>
     )

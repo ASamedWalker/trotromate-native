@@ -52,7 +52,7 @@ const en: Dict = {
   // Wallet
   'wallet.title': 'Wallet',
   'wallet.balance': 'Total Wallet Balance',
-  'wallet.addMoney': 'Topup',
+  'wallet.addMoney': 'Top up',
   'wallet.scanToPay': 'Scan To Pay',
   'wallet.myTickets': 'My Tickets',
   'wallet.recentTransactions': 'Recent Transactions',

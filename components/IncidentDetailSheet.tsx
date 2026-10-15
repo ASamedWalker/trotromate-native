@@ -144,7 +144,7 @@ export function IncidentDetailSheet({ incident, onClose }: Props) {
 
         {/* XP reward hint */}
         <View style={s.xpRow}>
-          <Text style={s.xpText}>Confirming earns you <Text style={s.xpBold}>+2 XP</Text></Text>
+          <Text style={s.xpText}>Confirming earns you <Text style={s.xpBold}>+2 coins</Text></Text>
         </View>
       </BottomSheetView>
     </BottomSheet>

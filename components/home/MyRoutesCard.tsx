@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Heart, Users, TriangleAlert } from 'lucide-react-native'
+import { ChevronRight, Heart, Users, TriangleAlert, WifiOff } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { useFavorites } from '@/lib/hooks/useFavorites'
@@ -83,6 +83,14 @@ export default function MyRoutesCard({ style }: { style?: object }) {
 
   if (!isLoaded) return null
 
+  // No network → react-query pauses the fetch ("Offline"); a server error while online is
+  // "Couldn't refresh". Either way the persisted cache still holds the last answer.
+  const offline = q.fetchStatus === 'paused'
+  const failed = q.isError && !offline
+  const savedAt = q.dataUpdatedAt
+    ? new Date(q.dataUpdatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Accra' })
+    : ''
+
   if (saved.length === 0) {
     return (
       <TouchableOpacity
@@ -123,6 +131,13 @@ export default function MyRoutesCard({ style }: { style?: object }) {
         </TouchableOpacity>
       </View>
 
+      {(offline || failed) && q.data ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }} accessibilityRole="text">
+          <WifiOff size={14} color={TEXT2} />
+          <Text style={{ fontFamily: font.semibold, fontSize: 13, color: TEXT2 }}>{offline ? 'Offline' : "Couldn't refresh"} · saved {savedAt}</Text>
+        </View>
+      ) : null}
+
       <View style={{ borderRadius: 18, overflow: 'hidden' }}>
         {saved.map((f) => {
           const info = infoById.get(f.id)
@@ -146,10 +161,13 @@ export default function MyRoutesCard({ style }: { style?: object }) {
                 <HeroText size={22} style={{ color: '#FFFFFF', letterSpacing: 0.3 }}>{code}</HeroText>
                 <Text style={{ fontFamily: font.extrabold, fontSize: 16, color: '#FFFFFF' }} numberOfLines={1}>→ {to}</Text>
                 <Text style={{ fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.85)' }} numberOfLines={1}>from {from}</Text>
-                <View style={{ marginTop: 6, minHeight: 20 }}>
+                <View style={{ marginTop: 6, minHeight: 20, justifyContent: 'center' }}>
+                  {/* Never a grey bar inside a colour block (UX v2 H2): loading and offline are words. */}
                   {q.isLoading ? (
-                    <View style={{ height: 12, width: 140, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.25)' }} />
-                  ) : q.isError ? null : (
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,0.85)' }} numberOfLines={1}>Checking {from}…</Text>
+                  ) : (offline || failed) && !q.data ? (
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,0.85)' }} numberOfLines={1}>{offline ? `Offline · couldn't check ${from}` : `Couldn't check ${from}`}</Text>
+                  ) : (
                     <FlashOnChange token={`${info?.queue?.status}:${info?.queue?.reportedAt}:${info?.queue?.confirmations ?? 0}`} color="rgba(255,255,255,0.18)">
                     <QueueStatusLine
                       status={info?.queue?.status}
@@ -172,8 +190,8 @@ export default function MyRoutesCard({ style }: { style?: object }) {
                   <HeroText size={26} style={{ color: '#FFFFFF' }}>
                     {fare.source === 'reported' ? '~' : ''}{formatGHS(fare.amount)}
                   </HeroText>
-                  <Text style={{ fontFamily: font.extrabold, fontSize: 10, color: 'rgba(255,255,255,0.9)', letterSpacing: 0.6 }}>
-                    {fare.source === 'gprtu' ? 'GPRTU FARE' : 'REPORTED FARE'}
+                  <Text style={{ fontFamily: font.extrabold, fontSize: 12, color: 'rgba(255,255,255,0.9)', letterSpacing: 0.6 }}>
+                    {fare.source === 'gprtu' ? 'GPRTU' : 'RIDERS SAY'}
                   </Text>
                 </View>
               ) : null}

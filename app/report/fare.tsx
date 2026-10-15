@@ -166,7 +166,7 @@ export default function FareReportScreen() {
             <View style={s.rewardIcon}>
               <Banknote size={32} color="#FF4D1C" />
             </View>
-            <Text style={s.rewardText}>Earn +10 XP</Text>
+            <Text style={s.rewardText}>Earn +10 coins</Text>
           </View>
 
           {/* Step 1: Location */}

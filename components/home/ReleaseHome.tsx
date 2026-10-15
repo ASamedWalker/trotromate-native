@@ -28,6 +28,7 @@ import { corridorKey } from '@/lib/constants/corridors'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { formatGHS } from '@/lib/utils/currency'
 import NextTrainCard from './NextTrainCard'
+import { UpdatedStamp } from './UpdatedStamp'
 import ReleaseWhatsOn from './ReleaseWhatsOn'
 import { CARD, ORANGE, TEXT, TEXT2 } from './tokens'
 
@@ -131,6 +132,9 @@ function greeting(): string {
 // Everything Home shows: commute card, stations, alerts, line counts, events, Pulse question.
 const HOME_QUERIES = [['home-commute'], ['stations'], ['service-alerts'], ['station-line-ends'], ['release-home-events'], ['release-home-question']]
 
+// The live data the "Updated N min ago" stamp speaks for (commute blocks + station queues).
+const STAMP_QUERIES = [['home-commute'], ['stations']]
+
 const DAY_BAND = '#FFF3EA'
 const NIGHT_BAND = '#16110D'
 
@@ -209,6 +213,7 @@ export default function ReleaseHome() {
                 {variant === 'morning' ? 'Heading out?' : 'Heading home?'} · {locationName}
               </Text>
             </View>
+            <UpdatedStamp keys={STAMP_QUERIES} style={{ color: sub }} />
           </View>
           {!isAuthenticated ? (
             <TouchableOpacity
@@ -229,7 +234,7 @@ export default function ReleaseHome() {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: chipBg }}
           >
             <Trophy size={16} color={coinColor} />
-            <CountText value={profile?.total_points ?? 0} style={{ fontFamily: font.extrabold, fontSize: 14, color: coinColor }} />
+            <CountText value={profile?.total_points ?? 0} format={(n) => `${n} ${n === 1 ? 'coin' : 'coins'}`} style={{ fontFamily: font.extrabold, fontSize: 14, color: coinColor }} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/activity' as any)}

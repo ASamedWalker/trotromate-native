@@ -8,6 +8,7 @@ import { QueueStatusBar } from './QueueStatusBar'
 import { formatDistance } from '@/lib/utils/distance'
 import { openDirections } from '@/lib/utils/navigation'
 import { type QueueStatus, type QueueStat, getWaitEstimate } from '@/lib/services/stations'
+import { QueueGlyph } from '@/components/QueueGlyph'
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
   empty: '#22c55e',
@@ -124,7 +125,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
       {/* Queue label + dynamic estimate */}
       {queueLabel && queueColor ? (
         <View style={styles.statusRow}>
-          <View style={[styles.statusDot, { backgroundColor: queueColor }]} />
+          <QueueGlyph status={queueStatus} color={queueColor} size={13} />
           <Text style={[styles.statusLabel, { color: queueColor }]}>
             {queueLabel}
           </Text>
@@ -152,7 +153,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
             activeOpacity={0.7}
           >
             <Plus size={11} color={c.amber500} />
-            <Text style={styles.reportCtaText}>Report (+pts)</Text>
+            <Text style={styles.reportCtaText}>Report queue</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -245,11 +246,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   statusLabel: {
     fontSize: 13,

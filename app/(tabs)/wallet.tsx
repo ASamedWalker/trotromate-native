@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, useColorScheme, StyleSheet, ScrollView, R
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Eye, EyeOff, Plus, CheckCircle2, History, ShieldCheck, Ticket, Landmark, Undo2, Bus } from 'lucide-react-native'
+import { Eye, EyeOff, Plus, CheckCircle2, History, ShieldCheck, Ticket, Landmark, Undo2, Bus, Clock, ChevronRight } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { MaterialIcons } from '@expo/vector-icons'
 import { hasWalletPin } from '@/lib/services/walletPin'
@@ -24,6 +24,11 @@ import { SkeletonActivityItem } from '@/components/Skeleton'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { pendingTopups, shortGHS, topupStatusHref, NETWORK_NAME } from '@/lib/services/topup'
+
+// Amber = money that hasn't landed yet (W1). Never green.
+const WAIT = '#B45309'
+const WAIT_SOFT = '#FFFBEB'
 
 // Tickets last hours, so today's expiry reads as a time ("2:46 AM").
 function validUntil(iso: string): string {
@@ -201,6 +206,8 @@ export default function WalletScreen() {
   }
 
   const activePass = passes[0] ?? null
+  // Top-ups whose MoMo prompt is still waiting for approval (last hour).
+  const pending = isAuthenticated ? pendingTopups(transactions) : []
   // Never flash GH₵ 0.00 before the real balance arrives (or for a guest).
   const balanceText = !balanceVisible
     ? 'GH₵ ••••••'
@@ -321,6 +328,38 @@ export default function WalletScreen() {
               </View>
             )}
           </Animated.View>
+        )}
+
+        {/* ── Pending top-ups: amber strip per prompt still waiting (max 2) ── */}
+        {pending.length > 0 && (
+          <View style={[s.section, { gap: space.sm }]}>
+            {pending.slice(0, 2).map((p) => {
+              const net = NETWORK_NAME[p.provider] ?? 'MoMo'
+              const sent = new Date(p.createdAt).toLocaleTimeString('en-GH', { hour: 'numeric', minute: '2-digit' })
+              return (
+                <TouchableOpacity
+                  key={p.reference}
+                  activeOpacity={0.85}
+                  onPress={() => { Haptics.selectionAsync(); router.push(topupStatusHref(p) as never) }}
+                  style={s.pendingStrip}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${shortGHS(p.amount)} top-up waiting for you to approve. Sent ${sent}. Open`}
+                >
+                  <Clock size={18} color={WAIT} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.pendingTitle} numberOfLines={1}>{shortGHS(p.amount)} top-up waiting for you to approve</Text>
+                    <Text style={s.pendingSub} numberOfLines={1}>Check your {net} phone for the prompt · sent {sent}</Text>
+                  </View>
+                  <ChevronRight size={18} color={WAIT} />
+                </TouchableOpacity>
+              )
+            })}
+            {pending.length > 2 && (
+              <TouchableOpacity onPress={() => router.push('/wallet/transactions' as Href)} style={s.pendingMore} accessibilityRole="button">
+                <Text style={s.pendingMoreText}>+{pending.length - 2} more waiting</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Credit celebration — appears when a top-up lands */}
@@ -481,6 +520,17 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   creditedText: { ...type.labelStrong, color: ui.success },
+
+  // Pending top-up strip (amber, W1)
+  pendingStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56,
+    backgroundColor: WAIT_SOFT, borderRadius: radius.lg, borderWidth: 1, borderColor: ui.warningSoft,
+    paddingHorizontal: space.lg, paddingVertical: space.md,
+  },
+  pendingTitle: { ...type.labelStrong, color: WAIT },
+  pendingSub: { ...type.caption, color: ui.textSecondary, marginTop: 1 },
+  pendingMore: { alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center', paddingHorizontal: space.xs },
+  pendingMoreText: { ...type.labelStrong, color: WAIT },
 
   // Quick actions
   actionsRow: { flexDirection: 'row', justifyContent: 'space-between' },
