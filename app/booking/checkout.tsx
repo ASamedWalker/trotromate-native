@@ -110,7 +110,10 @@ export default function CheckoutScreen() {
   // the route's crowdsourced/official fare for entry points that pass no fare.
   const passedFare = params.fare != null && isFinite(parseFloat(params.fare)) ? parseFloat(params.fare) : null
   // No hardcoded fallback fare — if we don't know the fare, we don't charge one (UX-02).
-  const knownFare = passedFare ?? route?.fare_stats?.avg_reported_fare ?? route?.official_fare ?? null
+  // The server charges routes.official_fare, so show that first (money safety, 2026-10-14).
+  // A server-reported fare change (FARE_CHANGED) overrides everything below.
+  const [serverBusFare, setServerBusFare] = useState<number | null>(null)
+  const knownFare = serverBusFare ?? route?.official_fare ?? passedFare ?? route?.fare_stats?.avg_reported_fare ?? null
   const fareKnown = knownFare != null
   const busFare = knownFare ?? 0
   // Ghana VAT Act 2025 (Act 1151): public passenger transport is VAT-exempt, so
@@ -185,7 +188,7 @@ export default function CheckoutScreen() {
   // Pay → require the wallet PIN, then book. PIN protects spending if the phone
   // is unlocked by someone else.
   const payNow = () => {
-    if (!user?.id || booking || !fareKnown || balanceUnknown) return
+    if (!user?.id || booking || !fareKnown || balanceUnknown || missingRouteId) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     setPinVisible(true)
   }
@@ -193,17 +196,25 @@ export default function CheckoutScreen() {
   // The actual booking: debits the wallet + issues a ticket on the backend,
   // then hands the real ticket to the processing/receipt flow.
   const bookingRef = useRef(false)
+  // One idempotency key per payment attempt: a retry after a timeout reuses it (server replays
+  // instead of charging twice); regenerated only after a successful booking.
+  const idemKeyRef = useRef<string | null>(null)
+  const newIdemKey = () => `trk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 8)}`
+  const missingRouteId = !params.route_id
   // Only trotro trips are bookable (okada/pragya rides aren't live).
   const notTrotro = !!route?.transport_type && route.transport_type !== 'trotro'
   const notBookable = notTrotro || !TROTRO_BOOKING_ENABLED
 
   const doBooking = async () => {
-    if (!user?.id || bookingRef.current || notBookable) return
+    if (!user?.id || bookingRef.current || notBookable || !params.route_id) return
     bookingRef.current = true
     setBooking(true)
+    if (!idemKeyRef.current) idemKeyRef.current = newIdemKey()
     const result = await createBooking({
       authUserId: user.id,
       routeLabel: `${fromName} → ${toName}`,
+      routeId: params.route_id,
+      idempotencyKey: idemKeyRef.current,
       pickupName: fromName,
       dropoffName: toName,
       vehicleType: 'everyday',
@@ -213,6 +224,7 @@ export default function CheckoutScreen() {
     setBooking(false)
     bookingRef.current = false
     if (result.ok) {
+      idemKeyRef.current = null
       // Home/Wallet paint from this snapshot on focus, so the debit shows at once.
       if (Number.isFinite(result.newBalance)) cacheWalletBalance(result.newBalance, user.id)
       router.push({
@@ -226,12 +238,19 @@ export default function CheckoutScreen() {
           van: assigned?.vanId ?? '',
         },
       } as any)
+    } else if (result.reason === 'fare_changed') {
+      // Nothing was charged. Show the new price and let the rider confirm again.
+      idemKeyRef.current = null
+      setServerBusFare(Math.max(0, Number((result.total - SERVICE_FEE_INCL).toFixed(2))))
+      Alert.alert('Fare updated', `The fare for this trip is now ${formatGHS(result.total)}. Review it and tap Pay again to confirm.`)
     } else if (result.reason === 'insufficient_balance') {
       Alert.alert('Insufficient balance', 'Top up your wallet to complete this booking.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Topup', onPress: () => goTopup() },
       ])
     } else {
+      // A key reused with different trip details can never succeed: start a fresh attempt.
+      if (result.conflict) idemKeyRef.current = null
       Alert.alert('Booking failed', (result.message || 'Could not complete the booking. Please try again.') + '\n\nIf money left your wallet, check My Tickets before trying again.')
     }
   }
@@ -432,6 +451,11 @@ export default function CheckoutScreen() {
           <View style={s.fareRow}><Text style={s.detailLabel}>Service Fee</Text><Text style={s.fareValue}>{formatGHS(fare.serviceBase)}</Text></View>
           <View style={s.fareRow}><Text style={s.detailLabel}>VAT on service fee (20%)</Text><Text style={s.fareValue}>{formatGHS(fare.serviceTax)}</Text></View>
           <View style={[s.fareRow, { marginTop: 4 }]}><Text style={s.totalLabel}>Total</Text><Text style={s.totalValue}>{fareKnown ? formatGHS(total) : '—'}</Text></View>
+          {missingRouteId && (
+            <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
+              This trip can&apos;t be booked from here. Go back and open the route to book.
+            </Text>
+          )}
           {!fareKnown && (
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 8 }}>
               We couldn&apos;t load the fare for this route. Go back and reopen the route to book.
@@ -494,15 +518,16 @@ export default function CheckoutScreen() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}
-            disabled={booking || waitingBalance || !fareKnown || balanceUnknown}
+            disabled={booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId}
             onPress={payNow}
-            style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown) && { opacity: 0.6 }]}
+            style={[s.payBtn, (booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId) && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel={`Pay ${formatGHS(total)}`}
-            accessibilityState={{ disabled: booking || waitingBalance || !fareKnown || balanceUnknown }}
+            accessibilityState={{ disabled: booking || waitingBalance || !fareKnown || balanceUnknown || missingRouteId }}
           >
             <Text style={s.payBtnText}>
               {booking ? 'Processing…'
+                : missingRouteId ? 'Route unavailable'
                 : !fareKnown ? 'Fare unavailable'
                 : waitingBalance ? 'Checking balance…'
                 : balanceUnknown ? 'Balance unavailable'

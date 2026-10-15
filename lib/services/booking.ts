@@ -2,9 +2,11 @@
  * Booking client — calls the real backend POST /api/bookings/create, which
  * atomically debits the wallet (debit_wallet) and issues a ticket.
  * Backend contract (trotromate/app/api/bookings/create):
- *   body: { auth_user_id, route_label, pickup_name, dropoff_name, vehicle_type, fare, plate_number? }
- *   200:  { success, booking:{id,status,route_label,fare,vehicle_type}, ticket:{trip_code,expires_at}, new_balance }
+ *   body: { auth_user_id, route_id, idempotency_key, pickup_name, dropoff_name, vehicle_type, fare?, plate_number? }
+ *         (fare = the TOTAL shown, incl. service fee; the server prices the trip itself)
+ *   200:  { success, booking:{id,status,route_label,fare(total),bus_fare,service_fee,vehicle_type}, ticket:{trip_code,expires_at}, new_balance, replayed }
  *   400:  { error: 'Insufficient balance', balance } | other validation
+ *   409:  { code: 'FARE_CHANGED', total } | { code: 'IDEMPOTENCY_CONFLICT' }
  */
 import { authedFetch } from '@/lib/services/authedFetch'
 
@@ -13,6 +15,9 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 export interface BookingRequest {
   authUserId: string
   routeLabel: string
+  routeId: string
+  /** Stable per payment attempt — a retry with the same key can never double-charge. */
+  idempotencyKey: string
   pickupName?: string
   dropoffName?: string
   vehicleType?: string
@@ -30,7 +35,8 @@ export interface BookingTicket {
 export type BookingResult =
   | { ok: true; ticket: BookingTicket; bookingId: string; newBalance: number }
   | { ok: false; reason: 'insufficient_balance'; balance?: number }
-  | { ok: false; reason: 'error'; message?: string }
+  | { ok: false; reason: 'fare_changed'; total: number }
+  | { ok: false; reason: 'error'; message?: string; conflict?: boolean }
 
 export type CancelResult =
   | { ok: true; refunded: number; newBalance: number; alreadyCancelled?: boolean }
@@ -66,7 +72,8 @@ export async function createBooking(req: BookingRequest): Promise<BookingResult>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         auth_user_id: req.authUserId,
-        route_label: req.routeLabel,
+        route_id: req.routeId,
+        idempotency_key: req.idempotencyKey,
         pickup_name: req.pickupName ?? null,
         dropoff_name: req.dropoffName ?? null,
         vehicle_type: req.vehicleType ?? 'everyday',
@@ -88,6 +95,12 @@ export async function createBooking(req: BookingRequest): Promise<BookingResult>
           fare: Number(data.booking?.fare ?? req.fare),
         },
       }
+    }
+    if (res.status === 409 && data?.code === 'FARE_CHANGED' && Number.isFinite(Number(data?.total))) {
+      return { ok: false, reason: 'fare_changed', total: Number(data.total) }
+    }
+    if (res.status === 409 && data?.code === 'IDEMPOTENCY_CONFLICT') {
+      return { ok: false, reason: 'error', conflict: true, message: data?.error || 'This booking was already sent with different details. Please start again.' }
     }
     if (res.status === 400 && /insufficient/i.test(data?.error ?? '')) {
       return { ok: false, reason: 'insufficient_balance', balance: data?.balance }
