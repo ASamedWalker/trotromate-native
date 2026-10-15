@@ -313,35 +313,39 @@ export const PulseEarlierRow = React.memo(function PulseEarlierRow({ post, onExp
   )
 })
 
-// ── From the road: photo/video posts last, 120×90 placeholder until tapped (P10) ──
+// ── From the road: photo/video posts last as 120×90 thumbnails (P10). The thumbnail
+// loads on its own (disk-cached, so once per image); the full photo/video only on tap. ──
 
 export const PulseRoadRow = React.memo(function PulseRoadRow({ post, actions }: { post: TalePost; actions: CardActions }) {
-  const [loaded, setLoaded] = useState(false)
   const video = isVideo(post)
   const urls = photoUrlsOf(post)
   const thumb = video ? post.video_thumbnail_url : urls[0]
   const caption = stripHashtags(post.caption ?? '')
   const open = () => {
-    setLoaded(true)
     if (video) actions.onVideo(post)
     else if (urls.length) actions.onOpenImages(post, urls, 0)
   }
   const hint = video
     ? `Tap to play${post.video_duration_secs ? ` · ${Math.floor(post.video_duration_secs / 60)}:${String(Math.floor(post.video_duration_secs % 60)).padStart(2, '0')}` : ''}`
-    : urls.length > 1 ? `Tap to load ${urls.length} photos` : 'Tap to load photo'
+    : urls.length > 1 ? `${urls.length} photos · tap to view` : 'Tap to view'
   return (
     <View style={{ ...cardBase, marginHorizontal: PAD, marginTop: 6, padding: 10, flexDirection: 'row', gap: 12 }}>
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={open}
         accessibilityRole="imagebutton"
-        accessibilityLabel={video ? 'Play video' : 'Load photo'}
+        accessibilityLabel={video ? 'Play video' : 'View photo'}
         style={{ width: 120, height: 90, borderRadius: 10, overflow: 'hidden' }}
       >
         <LinearGradient colors={['#B8C4CC', '#8A9AA4']} start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          {loaded && thumb ? (
-            <ExpoImage source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="disk" />
-          ) : video ? <Play size={22} color="rgba(255,255,255,0.9)" fill="rgba(255,255,255,0.9)" /> : <ImageIcon size={22} color="rgba(255,255,255,0.9)" />}
+          {thumb ? (
+            <ExpoImage source={{ uri: thumb }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="disk" recyclingKey={thumb} transition={150} />
+          ) : null}
+          {video ? (
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+              <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
+            </View>
+          ) : !thumb ? <ImageIcon size={22} color="rgba(255,255,255,0.9)" /> : null}
         </LinearGradient>
         <View style={{ position: 'absolute', left: 6, bottom: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6, paddingHorizontal: 6 }}>
           <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#FFFFFF' }}>{shortAge(post.created_at)}</Text>
