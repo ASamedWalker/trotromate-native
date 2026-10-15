@@ -122,6 +122,28 @@ export async function fetchTales(params: {
 }
 
 /**
+ * One post by id (read-only; the Pulse post screen). Hidden posts read as not found.
+ * Returns null when the post doesn't exist; throws on a network/query error so the
+ * screen can say "couldn't load" instead of "not found".
+ */
+export async function fetchTaleById(id: string): Promise<TalePost | null> {
+  const { data, error } = await supabase
+    .from('tale_posts')
+    .select('*')
+    .eq('id', id)
+    .eq('is_hidden', false)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const post = data as TalePost
+  if (!post.is_anonymous) {
+    const levels = await fetchAuthorLevels([post.device_id])
+    if (levels[post.device_id]) post.author_level = levels[post.device_id]
+  }
+  return post
+}
+
+/**
  * Likes belong to the signed-in ACCOUNT (migration 085: auth_user_id is set by
  * a DB trigger, so inserts need no change). Signed in: "mine" = rows owned by
  * the account on any phone, plus this phone's likes from before sign-in (no

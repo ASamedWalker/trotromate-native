@@ -9,6 +9,7 @@ import { hasWalletPin } from '@/lib/services/walletPin'
 import { font, themed, brand, ui, space, radius, type } from '@/lib/theme'
 import { Button } from '@/components/ui'
 import { WalletCard } from '@/components/WalletCard'
+import { AdinkraAccent, AdinkraBand, ADINKRA_BAND_DAY, ADINKRA_INK_NIGHT } from '@/components/AdinkraAccent'
 import { useWalletCardTheme } from '@/lib/hooks/useWalletCardTheme'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
@@ -196,14 +197,15 @@ export default function WalletScreen() {
   const textColor = isDark ? t.text : ui.text
 
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : ui.bg }]} edges={['top']}>
-      {/* Header */}
-      <View style={s.header}>
+    <SafeAreaView style={[s.container, { backgroundColor: isDark ? '#19120b' : ADINKRA_BAND_DAY }]} edges={['top']}>
+      {/* Header on the Adinkra band */}
+      <AdinkraBand bg={isDark ? '#19120b' : undefined} ink={isDark ? ADINKRA_INK_NIGHT : undefined} patternHeight={110} style={s.header}>
         <Text style={[s.headerTitle, { color: t.text }]}>{tr('wallet.title')}</Text>
-      </View>
+      </AdinkraBand>
 
       <ScrollView
         ref={scrollRef}
+        style={{ backgroundColor: isDark ? '#19120b' : ui.bg }}
         showsVerticalScrollIndicator={false}
         // W6: tab-bar height + 24 (TAB_BAR_CLEARANCE = 72 bar + 24) + the bar's
         // own bottom offset, so the last row never sits under the floating bar.
@@ -248,6 +250,8 @@ export default function WalletScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${shortGHS(p.amount)} top-up waiting for you to approve. Sent ${sent}. Open`}
                 >
+                  {/* Sankofa (go back and get it): come back and approve. Faint corner mark. */}
+                  <AdinkraAccent symbol="sankofa" size={60} color={WAIT} opacity={0.08} position="bottomRight" inset={-14} rotate={-8} />
                   <Clock size={20} color={WAIT} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={s.pendingTitle}>{shortGHS(p.amount)} top-up waiting for you to approve</Text>
@@ -312,6 +316,8 @@ export default function WalletScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Ticket ${activePass.route_label}${activePass.expires_at ? `, valid till ${hhmm(activePass.expires_at)}` : ''}. Show`}
             >
+              {/* Gye Nyame peeking from the left edge, behind the ticket icon (Show stays clean). */}
+              <AdinkraAccent symbol="gye_nyame" size={64} color={brand.orange} opacity={0.07} position="topLeft" inset={-18} rotate={-12} />
               <Ticket size={22} color={brand.orange} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[s.passRoute, { color: textColor }]} numberOfLines={1}>{activePass.route_label}</Text>
@@ -443,7 +449,7 @@ const s = StyleSheet.create({
   pendingStrip: {
     flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 72,
     backgroundColor: WAIT_SOFT, borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A',
-    paddingHorizontal: 14, paddingVertical: space.md,
+    paddingHorizontal: 14, paddingVertical: space.md, overflow: 'hidden',
   },
   pendingTitle: { fontFamily: font.bold, fontSize: 15, color: ui.text },
   pendingSub: { ...type.caption, color: ui.textSecondary, marginTop: 1 },
@@ -469,7 +475,7 @@ const s = StyleSheet.create({
   passRow: {
     flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 64,
     backgroundColor: '#FFF8F5', borderWidth: 1, borderColor: '#FFD6C7', borderRadius: radius.lg,
-    paddingHorizontal: 14, paddingVertical: space.md,
+    paddingHorizontal: 14, paddingVertical: space.md, overflow: 'hidden',
   },
   passRoute: { fontFamily: font.bold, fontSize: 15 },
   passSub: { ...type.caption, color: ui.textSecondary },

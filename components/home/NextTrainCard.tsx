@@ -7,6 +7,7 @@ import { nextDepartures, formatRemaining, LINE_COLORS } from '@/lib/utils/train-
 import { font, ui } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
 import { PressableScale } from '@/components/motion/PressableScale'
+import { AdinkraAccent } from '@/components/AdinkraAccent'
 
 const NAVY = '#0B1B3F'
 const GREEN = '#15803D'
@@ -40,9 +41,11 @@ export default function NextTrainCard() {
       accessibilityLabel={`Next train, ${next.lineName}, ${next.origin} to ${next.destination}, ${next.departTime}, ${wait}. From the GRDA timetable`}
       style={{
         marginHorizontal: 20, marginTop: 18, backgroundColor: ui.card, borderRadius: 16, borderWidth: 1, borderColor: ui.hairline,
-        paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12,
+        paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden',
       }}
     >
+      {/* Owo foro adobe (perseverance) bleeding off the right edge, navy, very faint. */}
+      <AdinkraAccent symbol="owo_foro_adobe" size={76} color={NAVY} opacity={0.06} position="right" inset={-18} />
       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center' }}>
         <TrainFront size={22} color="#FFFFFF" />
       </View>

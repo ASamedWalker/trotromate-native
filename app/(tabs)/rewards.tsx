@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Share,
   Dimensions,
+  useWindowDimensions,
   Modal,
   Animated as RNAnimated,
   Easing,
@@ -43,6 +44,8 @@ import { font, brand, ui, space, radius } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import TroskiCoin from '@/components/TroskiCoin'
 import { HeroText } from '@/components/HeroText'
+import { AdinkraAccent, AdinkraBand, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
+import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { FareIcon, QueueIcon, IncidentIcon, GiftIcon } from '@/components/RewardIcons'
 import { BackButton } from '@/components/BackButton'
 import { useProfile, usePointsHistory } from '@/lib/hooks/useRewards'
@@ -161,6 +164,7 @@ function Ayekoo({ tierName }: { tierName: string }) {
 
 export default function RewardsScreen() {
   const insets = useSafeAreaInsets()
+  const { width: winW } = useWindowDimensions()
   const { deviceId, refreshProfile } = useApp()
 
   const { profile, isLoading, refetch: refetchProfile } = useProfile(deviceId)
@@ -308,9 +312,9 @@ export default function RewardsScreen() {
   const heroGlyph = useMemo(() => adinkraXml('adinkrahene', 120, '#FFFFFF'), [])
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      {/* Header: back on the left, coins + tier small on the right (RW1) */}
-      <View style={s.header}>
+    <SafeAreaView style={[s.container, { backgroundColor: ADINKRA_BAND_DAY }]} edges={['top']}>
+      {/* Header on the Adinkra band: back on the left, coins + tier small on the right (RW1) */}
+      <AdinkraBand patternHeight={120} style={s.header}>
         <BackButton />
         <View style={{ flex: 1 }} />
         <View style={s.headChip} accessible accessibilityLabel={`${coins} coins`}>
@@ -320,10 +324,10 @@ export default function RewardsScreen() {
         <View style={[s.headChip, { backgroundColor: brand.orangeSoft }]}>
           <Text style={[s.headChipText, { color: brand.orangeText }]}>{level.name}</Text>
         </View>
-      </View>
+      </AdinkraBand>
 
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: ui.bg }}
         contentContainerStyle={{ paddingHorizontal: space.gutter, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.orange} colors={[brand.orange]} />}
@@ -334,7 +338,9 @@ export default function RewardsScreen() {
           <View>
             {/* ═══ RW1 Impact hero ═══ */}
             <View style={s.hero}>
-              <View style={s.heroGlyph} pointerEvents="none">
+              {/* Faint white Adinkra print behind the hero, under the big Adinkrahene. */}
+              <AdinkraWallpaper width={winW - space.gutter * 2} height={280} size={26} color="rgba(255,255,255,0.07)" />
+              <View style={s.heroGlyph} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <SvgXml xml={heroGlyph} width={120} height={120} />
               </View>
               {impact ? (
@@ -365,7 +371,9 @@ export default function RewardsScreen() {
 
             {/* ═══ RW2 Weekday streak (insights only) ═══ */}
             {streak && (
-              <View style={[s.card, s.block]}>
+              <View style={[s.card, s.block, { overflow: 'hidden' }]}>
+                {/* Owo foro adobe (perseverance): keep the streak going. */}
+                <AdinkraAccent symbol="owo_foro_adobe" size={72} color={brand.orange} opacity={0.07} position="bottomRight" inset={-16} rotate={-8} />
                 <View style={s.rowBetween}>
                   <Text style={s.cardTitle}>{`${streak.streakDays}-day streak`}</Text>
                   <Text style={s.meta}>Weekends never count</Text>
@@ -391,7 +399,10 @@ export default function RewardsScreen() {
             {/* ═══ RW3 Your stations (insights only) ═══ */}
             {stations && stations.length > 0 && (
               <View style={s.block}>
-                <Text style={s.sectionTitle}>Your stations</Text>
+                <View style={s.titleRow}>
+                  <Text style={s.sectionTitle}>Your stations</Text>
+                  <AdinkraAccent symbol="esono_anantam" size={22} color={brand.orange} opacity={0.45} position="inline" />
+                </View>
                 <View style={[s.listCard, { marginTop: 8 }]}>
                   {stations.map((st, i) => (
                     <View key={st.stationName} style={[s.listRow, i > 0 && s.rowTop]}>
@@ -423,7 +434,10 @@ export default function RewardsScreen() {
             {/* ═══ RW4 Weekly corridor league (insights only) ═══ */}
             {league && league.rows.length > 0 && (
               <View style={s.block}>
-                <Text style={s.sectionTitle}>{`${league.corridorName} riders`}</Text>
+                <View style={s.titleRow}>
+                  <Text style={[s.sectionTitle, { flexShrink: 1 }]} numberOfLines={2}>{`${league.corridorName} riders`}</Text>
+                  <AdinkraAccent symbol="funtunfunefu" size={22} color={brand.orange} opacity={0.45} position="inline" />
+                </View>
                 <Text style={s.meta}>
                   {`This week · top 5 get a gold star on their posts${league.daysLeft != null ? ` · ${plural(league.daysLeft, 'day')} left` : ''}`}
                 </Text>
@@ -641,12 +655,13 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: ui.bg },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: space.gutter, paddingTop: 4, paddingBottom: 6 },
-  headChip: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: ui.surface },
+  headChip: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: ui.card },
   headChipText: { fontFamily: font.bold, fontSize: 13, color: ui.text },
 
   block: { marginTop: 18 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   rowTop: { borderTopWidth: 1, borderTopColor: ui.hairline },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   /* hero */
   hero: { backgroundColor: brand.orange, borderRadius: 22, padding: 20, overflow: 'hidden', marginTop: 6 },

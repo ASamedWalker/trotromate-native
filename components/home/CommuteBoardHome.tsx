@@ -26,6 +26,7 @@ import NearbyStationsCard, { inGhana, stationsByDistance, useStations } from './
 import NextTrainCard from './NextTrainCard'
 import WalletLine from './WalletLine'
 import { UpdatedStamp } from './UpdatedStamp'
+import { AdinkraBand, ADINKRA_BAND_DAY, ADINKRA_BAND_NIGHT } from '@/components/AdinkraAccent'
 
 // UX v2 Home, Direction A "Commute Board" (canvas https://claude.ai/artifact/DKeQW7FFEXLn8fmPaSs8Qd,
 // row Home → Proposed). One Home for both layouts: store (RELEASE_MODE) and full (wallet).
@@ -40,6 +41,12 @@ const STAMP_QUERIES = [['home-commute'], ['stations']]
 const PROMPT_RADIUS_KM = 0.25
 // A cached fix older than this can't place the rider at a station.
 const PROMPT_MAX_FIX_AGE_MS = 15 * 60 * 1000
+
+// Daylight (05:00–18:00 Ghana time, UTC+0) = warm Adinkra band; after sunset = dark band.
+function isNight(): boolean {
+  const h = new Date().getUTCHours()
+  return h >= 18 || h < 5
+}
 
 function greeting(): string {
   const h = new Date().getUTCHours() // Ghana = UTC+0
@@ -81,16 +88,16 @@ function AlertStrip({ alert, onPress }: { alert: ServiceAlert; onPress: () => vo
 }
 
 /** Grey shortcut chip under "Where to?" (32 pt visual, 48 pt touch). */
-function Chip({ label, onPress }: { label: string; onPress: () => void }) {
+function Chip({ label, onPress, night }: { label: string; onPress: () => void; night?: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       hitSlop={{ top: 8, bottom: 8 }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={{ height: 32, paddingHorizontal: 12, borderRadius: 999, backgroundColor: ui.surface, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}
+      style={{ height: 32, paddingHorizontal: 12, borderRadius: 999, backgroundColor: night ? 'rgba(255,255,255,0.14)' : ui.card, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}
     >
-      <Text style={{ fontFamily: font.semibold, fontSize: 14, color: ui.text }} numberOfLines={1}>{label}</Text>
+      <Text style={{ fontFamily: font.semibold, fontSize: 14, color: night ? '#FFFFFF' : ui.text }} numberOfLines={1}>{label}</Text>
     </Pressable>
   )
 }
@@ -138,8 +145,16 @@ export default function CommuteBoardHome() {
   const { getRecentSearches } = useSearchHistory()
   const alertsQ = useAlerts()
 
-  // Plain light header (no band): dark status-bar icons.
-  useFocusEffect(useCallback(() => { setStatusBarStyle('dark') }, []))
+  // Adinkra header band: warm by day, dark in the evening (light status-bar icons then).
+  const night = isNight()
+  useFocusEffect(useCallback(() => {
+    setStatusBarStyle(night ? 'light' : 'dark')
+    return () => setStatusBarStyle('dark')
+  }, [night]))
+  const bandBg = night ? ADINKRA_BAND_NIGHT : ADINKRA_BAND_DAY
+  const fg = night ? '#FFFFFF' : ui.text
+  const sub = night ? 'rgba(255,255,255,0.75)' : ui.textTertiary
+  const chipBg = night ? 'rgba(255,255,255,0.14)' : ui.card
 
   const displayName = profile?.display_name || 'Commuter'
   // Auto-assigned names ("Troski Fan #CD13") aren't a person's name — greet plainly.
@@ -178,16 +193,18 @@ export default function CommuteBoardHome() {
     <ScrollView
       style={{ flex: 1, backgroundColor: ui.bg }}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingTop: insets.top + 6, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 8 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.orange} colors={[brand.orange]} progressBackgroundColor="#FFFFFF" />}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 8 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={night ? '#FFFFFF' : brand.orange} colors={[brand.orange]} progressBackgroundColor="#FFFFFF" />}
     >
+      {/* ── Adinkra band: header + Where to? ── */}
+      <AdinkraBand night={night} patternHeight={insets.top + 240} patternSize={28} style={{ paddingTop: insets.top + 6, paddingBottom: 14 }}>
       {/* ── Header: greeting + updated stamp · coins · bell ── */}
       <View style={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <HeroText size={20} numberOfLines={2} style={{ color: ui.text }}>
+          <HeroText size={20} numberOfLines={2} style={{ color: fg }}>
             {firstName ? `${greeting()}, ${firstName}` : greeting()}
           </HeroText>
-          <UpdatedStamp keys={STAMP_QUERIES} style={{ fontSize: 13, color: ui.textTertiary }} />
+          <UpdatedStamp keys={STAMP_QUERIES} style={{ fontSize: 13, color: sub }} />
         </View>
         {!isAuthenticated ? (
           <Pressable
@@ -195,9 +212,9 @@ export default function CommuteBoardHome() {
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel="Sign in"
-            style={{ height: 36, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: ui.text, justifyContent: 'center' }}
+            style={{ height: 36, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: fg, justifyContent: 'center' }}
           >
-            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: ui.text }}>Sign in</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: fg }}>Sign in</Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -215,9 +232,9 @@ export default function CommuteBoardHome() {
           hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel="Notifications"
-          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ui.surface, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: chipBg, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Bell size={20} color={ui.text} />
+          <Bell size={20} color={fg} />
         </Pressable>
         {/* Profile has no other entry point yet, so the avatar stays (small) until it does.
             Signed out, "Sign in" takes its place. */}
@@ -248,10 +265,11 @@ export default function CommuteBoardHome() {
         </Pressable>
         {chips.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {chips.map((c) => <Chip key={c.key} label={c.label} onPress={c.onPress} />)}
+            {chips.map((c) => <Chip key={c.key} label={c.label} onPress={c.onPress} night={night} />)}
           </ScrollView>
         ) : null}
       </View>
+      </AdinkraBand>
 
       {/* ── Alerts (≤2, each with source + age) ── */}
       {homeAlerts.length > 0 ? (
@@ -278,7 +296,7 @@ export default function CommuteBoardHome() {
       {!RELEASE_MODE && isAuthenticated && authUser?.id ? <WalletLine authUserId={authUser.id} /> : null}
     </ScrollView>
     {/* Opaque backdrop under the status bar so scrolled content never runs beneath the clock. */}
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: ui.bg }} />
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: bandBg }} />
     </View>
   )
 }

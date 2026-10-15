@@ -304,7 +304,7 @@ export const PulseEarlierRow = React.memo(function PulseEarlierRow({ post, onExp
       activeOpacity={0.7}
       onPress={() => onExpand(post.id)}
       accessibilityRole="button"
-      accessibilityLabel={`${label}. ${age}. Show more`}
+      accessibilityLabel={`${label}. ${age}. Open post`}
       style={{ ...cardBase, marginHorizontal: PAD, marginTop: 6, opacity: 0.6, minHeight: 48, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}
     >
       <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 14, color: ui.text }} numberOfLines={1}>{label}</Text>

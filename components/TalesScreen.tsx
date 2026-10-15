@@ -12,12 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, RefreshCw } from 'lucide-react-native'
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react-native'
 import { SvgXml } from 'react-native-svg'
 import { adinkraXml } from '@/lib/brand/adinkra'
 import { brand, ui, font } from '@/lib/theme'
 import { Button } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
+import { AdinkraBand, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useAlerts } from '@/lib/hooks/useAlerts'
@@ -68,6 +69,7 @@ type Row =
   | { t: 'earlierDivider'; key: string }
   | { t: 'earlier'; key: string; post: TalePost }
   | { t: 'earlierMore'; key: string; count: number }
+  | { t: 'earlierFewer'; key: string }
   | { t: 'roadLabel'; key: string }
   | { t: 'road'; key: string; post: TalePost }
 
@@ -130,7 +132,6 @@ export function TalesScreen() {
   const [filter, setFilter] = useState<PulseFilter>('all')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [placeId, setPlaceId] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [earlierAll, setEarlierAll] = useState(false)
   const [viewer, setViewer] = useState<{ images: string[]; index: number; author: string; caption: string } | null>(null)
 
@@ -203,9 +204,10 @@ export function TalesScreen() {
     },
   }), [deviceId, deletePost, reportPost, router, reactionSummaries])
 
-  const expand = useCallback((id: string) => {
-    setExpanded((prev) => new Set(prev).add(id))
-  }, [])
+  // An Earlier row opens the post on its own screen (Back returns to the feed).
+  const openPost = useCallback((id: string) => {
+    router.push({ pathname: '/tales/[id]', params: { id } } as unknown as Href)
+  }, [router])
 
   const rows = useMemo<Row[]>(() => {
     const visible = filter === 'all' ? posts : posts.filter((p) => pulseKind(p) === filter)
@@ -237,8 +239,9 @@ export function TalesScreen() {
       if (earlier.length > 0) {
         out.push({ t: 'earlierDivider', key: 'h-earlier' })
         const shownEarlier = earlierAll ? earlier : earlier.slice(0, EARLIER_CAP)
-        shownEarlier.forEach((p) => out.push(expanded.has(p.id) ? { t: 'post', key: p.id, post: p } : { t: 'earlier', key: `e-${p.id}`, post: p }))
+        shownEarlier.forEach((p) => out.push({ t: 'earlier', key: `e-${p.id}`, post: p }))
         if (shownEarlier.length < earlier.length) out.push({ t: 'earlierMore', key: 'm-earlier', count: earlier.length - shownEarlier.length })
+        else if (earlierAll && earlier.length > EARLIER_CAP) out.push({ t: 'earlierFewer', key: 'f-earlier' })
       }
     } else {
       out.push({ t: 'today', key: 'h-today', title: 'Photos and videos' })
@@ -249,7 +252,7 @@ export function TalesScreen() {
       road.forEach((p) => out.push({ t: 'road', key: `r-${p.id}`, post: p }))
     }
     return out
-  }, [posts, filter, saved, incidentsQ.data, expanded, earlierAll])
+  }, [posts, filter, saved, incidentsQ.data, earlierAll])
 
   const renderItem = useCallback(({ item }: { item: Row }) => {
     switch (item.t) {
@@ -284,13 +287,27 @@ export function TalesScreen() {
           </View>
         )
       case 'earlier':
-        return <PulseEarlierRow post={item.post} onExpand={expand} />
+        return <PulseEarlierRow post={item.post} onExpand={openPost} />
+      case 'earlierFewer':
+        return (
+          <TouchableOpacity
+            onPress={() => setEarlierAll(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Show fewer earlier posts"
+            accessibilityState={{ expanded: true }}
+            style={{ marginHorizontal: PAD, marginTop: 6, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+          >
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: brand.orangeText }}>Show less</Text>
+            <ChevronUp size={16} color={brand.orangeText} />
+          </TouchableOpacity>
+        )
       case 'earlierMore':
         return (
           <TouchableOpacity
             onPress={() => setEarlierAll(true)}
             accessibilityRole="button"
             accessibilityLabel={`Show ${item.count} more earlier posts`}
+            accessibilityState={{ expanded: false }}
             style={{ marginHorizontal: PAD, marginTop: 6, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
           >
             <Text style={{ fontFamily: font.bold, fontSize: 14, color: brand.orangeText }}>Show {item.count} more</Text>
@@ -301,13 +318,14 @@ export function TalesScreen() {
       case 'road':
         return <PulseRoadRow post={item.post} actions={actions} />
     }
-  }, [actions, expand, filter])
+  }, [actions, openPost, filter])
 
   const placeLabel = place ? `Near ${place.name}` : 'Near me'
 
   const header = (
     <View style={{ paddingBottom: 4 }}>
-      {/* Compact header: title, place chip, freshness (no subtitle) */}
+      {/* Compact header on the Adinkra band: title, place chip, freshness (no subtitle) */}
+      <AdinkraBand patternHeight={140} style={{ paddingBottom: 12 }}>
       <View style={{ paddingHorizontal: PAD, paddingTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
           <HeroText size={28} style={{ color: ui.text }}>Pulse</HeroText>
@@ -324,6 +342,7 @@ export function TalesScreen() {
         </View>
         <UpdatedLabel at={updatedAt} onRefresh={refresh} />
       </View>
+      </AdinkraBand>
       <PulseAlerts alerts={alerts} />
       <PulseRightNow rows={candidates} known={known} />
       <PulseReportBar station={place ? { id: place.id, name: place.name } : null} />
@@ -355,8 +374,9 @@ export function TalesScreen() {
   const showFeed = !isLoading && posts.length > 0
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: ui.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: ADINKRA_BAND_DAY }} edges={['top']}>
       <FlatList
+        style={{ flex: 1, backgroundColor: ui.bg }}
         data={showFeed ? rows : []}
         ListHeaderComponent={header}
         ListEmptyComponent={listEmpty}

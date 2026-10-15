@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
 import { Button } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
+import { AdinkraBand } from '@/components/AdinkraAccent'
 import { QueueGlyph } from '@/components/QueueGlyph'
 import { REGIONS, REGION_HEROES } from '@/lib/config/regions'
 import { useRoutes } from '@/lib/hooks/useRoutes'
@@ -254,7 +255,8 @@ export default function RoutesScreen() {
   }, [s])
 
   const header = (
-    <View style={s.header}>
+    // Adinkra header band (owner rule: every header carries Adinkra), behind title → segments.
+    <AdinkraBand patternHeight={300} style={s.header}>
       {/* L3: title and region chip share one row */}
       <View style={s.headerRow}>
         <HeroText size={28} style={{ color: ui.text }} accessibilityRole="header">Lines</HeroText>
@@ -335,7 +337,7 @@ export default function RoutesScreen() {
           </Text>
         </View>
       )}
-    </View>
+    </AdinkraBand>
   )
 
   const listHeader = (
@@ -479,7 +481,7 @@ const getStyles = () => {
     container: { flex: 1, backgroundColor: ui.bg },
 
     // Header (L3/L4) — mockup gutter is 20
-    header: { paddingHorizontal: space.xl, paddingTop: 4, paddingBottom: 6 },
+    header: { paddingHorizontal: space.xl, paddingTop: 4, paddingBottom: 12 },
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
     regionChip: {
       flexDirection: 'row',

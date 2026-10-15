@@ -5,8 +5,10 @@ import { TrafficCone, Banknote, TriangleAlert, MessageCircleQuestionMark, Camera
 import { brand, font, ui } from '@/lib/theme'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { META, PAD } from '@/components/pulse/PulseBits'
+import { AdinkraAccent } from '@/components/AdinkraAccent'
+import type { AdinkraName } from '@/lib/brand/adinkra'
 
-type Tile = { key: string; label: string; Icon: typeof TrafficCone; href: Href; hint: string }
+type Tile = { key: string; label: string; Icon: typeof TrafficCone; href: Href; hint: string; symbol: AdinkraName }
 
 /**
  * One-tap report bar (UX v2 P6): Queue · Fare · Problem · Ask, plus a quiet "+ Photo" link.
@@ -17,15 +19,15 @@ export function PulseReportBar({ station }: { station: { id: string; name: strin
   const haptics = useHaptics()
   const tiles: Tile[] = [
     {
-      key: 'queue', label: 'Queue', Icon: TrafficCone, hint: 'Say how long the queue is',
+      key: 'queue', label: 'Queue', Icon: TrafficCone, hint: 'Say how long the queue is', symbol: 'funtunfunefu',
       href: (station
         ? { pathname: '/report/queue', params: { station_id: station.id, station_name: station.name } }
         : '/report/queue') as Href,
     },
-    { key: 'fare', label: 'Fare', Icon: Banknote, hint: 'Report what you paid', href: '/report/fare' as Href },
-    { key: 'problem', label: 'Problem', Icon: TriangleAlert, hint: 'Report a breakdown, accident or road closure', href: '/report/incident' as Href },
+    { key: 'fare', label: 'Fare', Icon: Banknote, hint: 'Report what you paid', symbol: 'nteasee', href: '/report/fare' as Href },
+    { key: 'problem', label: 'Problem', Icon: TriangleAlert, hint: 'Report a breakdown, accident or road closure', symbol: 'denkyem', href: '/report/incident' as Href },
     // Nyansapo banner copy moved here: the wisdom knot, ask or answer the way.
-    { key: 'ask', label: 'Ask', Icon: MessageCircleQuestionMark, hint: 'Ask riders which car to take. Know the way? Answer someone else.', href: '/report/photo?mode=text&kind=question' as Href },
+    { key: 'ask', label: 'Ask', Icon: MessageCircleQuestionMark, symbol: 'nyansapo', hint: 'Ask riders which car to take. Know the way? Answer someone else.', href: '/report/photo?mode=text&kind=question' as Href },
   ]
   return (
     <View style={{ paddingHorizontal: PAD, marginTop: 14 }}>
@@ -40,9 +42,11 @@ export function PulseReportBar({ station }: { station: { id: string; name: strin
             accessibilityHint={t.hint}
             style={{
               flex: 1, height: 88, borderRadius: 16, backgroundColor: ui.card, borderWidth: 1, borderColor: '#E7E5E4',
-              alignItems: 'center', justifyContent: 'center', gap: 6,
+              alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden',
             }}
           >
+            {/* Corner symbol per tile (Nyansapo, the wisdom knot, on Ask). */}
+            <AdinkraAccent symbol={t.symbol} size={40} color={brand.orange} opacity={0.1} position="topRight" inset={-8} rotate={-12} />
             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: brand.orangeSoft, alignItems: 'center', justifyContent: 'center' }}>
               <t.Icon size={20} color={brand.orangeText} />
             </View>

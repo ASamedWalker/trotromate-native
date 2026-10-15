@@ -28,6 +28,7 @@ import {
 import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
 import { Tap } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
+import { AdinkraBand, AdinkraAccent, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
@@ -488,6 +489,8 @@ export default function TrainLinesScreen() {
     const canRemind = best ? armed || best.seconds > REMINDER_LEAD_MINUTES * 60 : false
     return (
       <View style={s.tripCard}>
+        {/* Same navy-board Adinkra mark as the next-train card. */}
+        <AdinkraAccent symbol="adinkrahene" size={120} color="#FFFFFF" opacity={0.08} position="topRight" inset={-34} />
         <View style={s.tripTopRow}>
           <Text style={s.tripLabel}>MY TRIP</Text>
           <TouchableOpacity
@@ -607,7 +610,7 @@ export default function TrainLinesScreen() {
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Status-bar scrim so content never collides with the clock */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: PAPER, zIndex: 10 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: ADINKRA_BAND_DAY, zIndex: 10 }} />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -623,11 +626,11 @@ export default function TrainLinesScreen() {
         }
       >
         {/* ─── Header (T2: one clock — the phone's own status bar) ─── */}
-        <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+        <AdinkraBand patternHeight={insets.top + 160} style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 14 }]}>
           <HeroText size={28} style={{ color: ui.text, letterSpacing: -0.3 }} accessibilityRole="header">Trains</HeroText>
           <Text style={s.headerSub}>Timetables from GRDA and GRCL · checked {formatVerified(SCHEDULE_VERIFIED)}</Text>
           {deviceOffAccraTime() ? <Text style={s.headerSub}>Times shown in Accra time</Text> : null}
-        </View>
+        </AdinkraBand>
 
         {/* ─── Next train (saved trip takes this slot when one exists) ─── */}
         {trip ? renderMyTrip() : <ReleaseTrainTop now={now} />}
@@ -917,6 +920,7 @@ const getStyles = () => {
       marginTop: 12,
       backgroundColor: BOARD_NAVY,
       borderRadius: 20,
+      overflow: 'hidden',
       paddingHorizontal: 18,
       paddingVertical: 16,
       gap: 10,

@@ -5,6 +5,7 @@ import { Bell, BellRing } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
 import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
+import { AdinkraAccent } from '@/components/AdinkraAccent'
 import { LINE_META, toMinutes } from '@/lib/utils/train-stations'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
@@ -71,7 +72,9 @@ export function ReleaseTrainTop({ now }: { now: Date }) {
 
   return (
     <View style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: BOARD_NAVY, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 16, overflow: 'hidden' }}>
-      <AdinkraWallpaper width={width - 40} height={360} size={28} color="rgba(255,255,255,0.06)" />
+      <AdinkraWallpaper width={width - 40} height={360} size={28} color="rgba(255,255,255,0.075)" />
+      {/* One larger Adinkrahene (greatness) rising off the top-right corner, above the faint pattern. */}
+      <AdinkraAccent symbol="adinkrahene" size={120} color="#FFFFFF" opacity={0.08} position="topRight" inset={-34} />
       <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.7, color: 'rgba(255,255,255,0.75)' }} numberOfLines={1}>
         {today ? `NEXT TRAIN · ${lineName.toUpperCase()} LINE` : `${lineName.toUpperCase()} LINE`}
       </Text>

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { TriangleAlert, ChevronDown } from 'lucide-react-native'
+import { TriangleAlert, ChevronDown, ChevronUp } from 'lucide-react-native'
 import { font, ui } from '@/lib/theme'
 import { TrustPill } from '@/components/pulse/PulseTrust'
 import { ageLabel } from '@/lib/utils/freshness'
 import type { ServiceAlert } from '@/lib/hooks/useAlerts'
 import { cardBase, META, PAD } from '@/components/pulse/PulseBits'
+import { AdinkraAccent } from '@/components/AdinkraAccent'
 
 const SEEN_KEY = '@troski_pulse_alerts_seen_v1'
 const BLUE = '#1D4ED8'
@@ -34,7 +35,8 @@ async function readSeen(): Promise<string[]> {
 export function PulseAlerts({ alerts }: { alerts: ServiceAlert[] }) {
   // null = storage not read yet (render collapsed-free nothing to avoid a flash)
   const [seenAtLoad, setSeenAtLoad] = useState<Set<string> | null>(null)
-  const [open, setOpen] = useState<Set<string>>(new Set())
+  // Alerts the rider tapped: each tap flips that alert from its default (open if unseen, folded if seen).
+  const [toggled, setToggled] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     readSeen().then((ids) => setSeenAtLoad(new Set(ids)))
@@ -54,13 +56,14 @@ export function PulseAlerts({ alerts }: { alerts: ServiceAlert[] }) {
   return (
     <View style={{ paddingHorizontal: PAD, marginTop: 12, gap: 8 }}>
       {alerts.slice(0, 3).map((a) => {
-        const expanded = !seenAtLoad.has(a.id) || open.has(a.id)
+        const byDefault = !seenAtLoad.has(a.id)
+        const expanded = toggled.has(a.id) ? !byDefault : byDefault
         return (
           <AlertCardBody
             key={a.id}
             alert={a}
             expanded={expanded}
-            onToggle={() => setOpen((prev) => {
+            onToggle={() => setToggled((prev) => {
               const n = new Set(prev)
               if (n.has(a.id)) n.delete(a.id)
               else n.add(a.id)
@@ -83,14 +86,16 @@ function AlertCardBody({ alert, expanded, onToggle }: { alert: ServiceAlert; exp
       accessibilityRole="button"
       accessibilityLabel={a11y}
       accessibilityState={{ expanded }}
-      style={{ ...cardBase, borderLeftWidth: 4, borderLeftColor: BLUE, paddingVertical: expanded ? 12 : 10, paddingHorizontal: 14, minHeight: 48, justifyContent: 'center' }}
+      style={{ ...cardBase, overflow: 'hidden', borderLeftWidth: 4, borderLeftColor: BLUE, paddingVertical: expanded ? 12 : 10, paddingHorizontal: 14, minHeight: 48, justifyContent: 'center' }}
     >
+      {/* Adinkrahene (leadership) in the corner: the official voice. Faint, behind the text. */}
+      {expanded ? <AdinkraAccent symbol="adinkrahene" size={64} color={BLUE} opacity={0.07} position="bottomRight" inset={-14} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <TriangleAlert size={18} color={BLUE} />
         <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 16, color: ui.text }} numberOfLines={expanded ? 2 : 1}>
           {alert.title}
         </Text>
-        {!expanded ? <ChevronDown size={18} color={META} /> : null}
+        {expanded ? <ChevronUp size={18} color={META} /> : <ChevronDown size={18} color={META} />}
       </View>
       {expanded ? (
         <>
