@@ -18,7 +18,7 @@ const FALLBACK_TIPS: CommuterTip[] = [
   { id: 'f4', tip: 'The Kasoa-Kaneshie route has more vehicles on Mondays. Queue is usually shorter.', author_name: 'Kwaku D.', category: 'trotro', upvotes: 0 },
   { id: 'f5', tip: 'Train from Tema departs sharp at 6 AM. Arrive 10 mins early — it doesn\'t wait.', author_name: 'Nana A.', category: 'train', upvotes: 0 },
   { id: 'f6', tip: 'GPRTU-verified fares are always displayed at the station. Check before boarding to avoid overcharges.', author_name: 'GPRTU', category: 'gprtu', upvotes: 0 },
-  { id: 'f7', tip: 'Mpakadan train has scenic river views after Akosombo. Try to sit on the left side.', author_name: 'Yaw P.', category: 'train', upvotes: 0 },
+  { id: 'f7', tip: 'Going past Afienya towards Adomi? Change trains at Afienya — it is a separate shuttle, so check the connection time.', author_name: 'Yaw P.', category: 'train', upvotes: 0 },
   { id: 'f8', tip: 'If a trotro mate quotes a higher fare than what\'s posted, you can report it on Troski.', author_name: 'Adjoa F.', category: 'gprtu', upvotes: 0 },
 ]
 

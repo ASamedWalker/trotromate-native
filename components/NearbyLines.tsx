@@ -180,9 +180,11 @@ export function NearbyLines({
       })
     }
 
-    result.push(...getTrainLines())
-    result.sort((a, b) => a.sortKey - b.sortKey)
-    return result.slice(0, 8)
+    // Trains are capped (getTrainLines: next run per direction, max 3) and
+    // always listed after trotro lines so they never crowd them out.
+    const trains = getTrainLines()
+    const trotro = result.sort((a, b) => a.sortKey - b.sortKey).slice(0, 8 - trains.length)
+    return [...trotro, ...trains]
   }, [stations, routes, userLat, userLng])
 
   const trotroLines = lines.filter((l) => l.type !== 'train')
@@ -283,7 +285,7 @@ export function NearbyLines({
       {/* ── Train cards ── */}
       {trainLines.map((line, idx) => {
         const accentColor = TRANSPORT_COLORS.train
-        const isLive = line.liveTag === 'live'
+        const isLive = line.liveTag === 'in-transit-scheduled'
 
         return (
           <AnimatedCard

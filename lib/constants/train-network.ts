@@ -1,33 +1,48 @@
-// LEGAL NOTE: neutral factual bulletins in Troski's OWN words — public facts,
-// NOT reproductions of any media outlet's article, and NO links to media orgs.
-// Facts aren't copyrightable; naming/quoting/linking a publication is the risk,
-// so we don't. Keep this style when refreshing.
-export interface NetworkBulletin { tag: "SERVICE UPDATE" | "NETWORK UPDATE" | "NOTICE"; date: string; text: string }
+// Copy of trotromate/lib/train-network.ts — keep in sync.
+/**
+ * Ghana rail network context — how-to-ride guidance and per-line facts for the
+ * train surfaces (troski.me/train + per-line pages). INFORMATION ONLY (no booking).
+ * Rail news + line status now live in lib/constants/train-news.ts (curated,
+ * sourced, our own words). Last verified: 2026-10-14.
+ */
 
-export const NETWORK_BULLETINS: NetworkBulletin[] = [
-  { tag: "NETWORK UPDATE", date: "2026-09-08", text: "Road transport unions and the Ministry of Transport met on 8 September 2026 over a proposed fare review. No increase was approved — approved road fares stay unchanged until further notice while a joint committee reviews operating costs. Any higher fare charged in the meantime is not an approved one." },
-  { tag: "NETWORK UPDATE", date: "2026-08-26", text: "A World Bank economic update published on 26 August 2026 put transport at the centre of Ghana's growth and jobs agenda, noting that roads carry over 95% of passenger and freight traffic and calling for rail freight to be revived along key trade corridors." },
-  { tag: "SERVICE UPDATE", date: "2026-07-30", text: "A Tema–Mpakadan passenger train struck livestock on the track on 30 July 2026; no passengers were hurt, but train DMU002 was damaged and taken in for repairs, with some services running at reduced capacity. No public update on its return to service since — confirm departures at the station." },
-  { tag: "SERVICE UPDATE", date: "2026-04-24", text: "Passenger service on the 15 km Kojokrom–Sekondi–Takoradi commuter line resumed in April 2026 after rehabilitation." },
-  { tag: "SERVICE UPDATE", date: "2025-10-01", text: "The new 96.7 km standard-gauge Tema–Mpakadan line began commercial passenger service in October 2025, running between Tema Port and Mpakadan, near Akosombo." },
-  { tag: "NETWORK UPDATE", date: "2025-09-01", text: "A new standard-gauge railway from Nsawam through Kumasi to Paga has been announced as part of Ghana's national rail expansion." },
-  { tag: "NETWORK UPDATE", date: "2025-09-02", text: "Feasibility studies are underway for new Accra suburban rail toward Kasoa, Winneba and Madina — early-stage, not yet operational." },
-  { tag: "NOTICE", date: "2026-07-12", text: "Schedules and fares shown are indicative and compiled from public announcements — always confirm current times and prices at the station." },
-]
+// LEGAL NOTE (owner, 2026-10-15): all rail copy here and in train-news.ts is in
+// Troski's OWN words — never reproduced article text or headlines — and names or
+// links NO media outlet. Only official sources (GRDA, Ghana Railway Company Ltd,
+// Ministry of Transport) may be named and linked. Keep this style when refreshing.
 
-export interface RideTip { title: string; text: string }
+/** How to ride — practical, factual guidance riders actually ask for. */
+export interface RideTip {
+  title: string
+  text: string
+}
+
 export const HOW_TO_RIDE: RideTip[] = [
-  { title: "Pay with Tap n' Go", text: "Ghana's rail uses the contactless Tap n' Go card — the same card as road transport. Tap on the validator at the station; the system charges the correct fare. Buy or top up a card at the station." },
-  { title: "No cash on board", text: "Fares aren't collected on the train. Sort your Tap n' Go card at the station counter before you board." },
-  { title: "Arrive early", text: "Services are limited (often two a day) and depart on time — the train doesn't wait. Get to the platform at least 10 minutes before departure." },
-  { title: "No Sunday service", text: "Commuter lines run Monday–Saturday (the Kojokrom–Sekondi–Takoradi shuttle runs Monday–Friday). There is no Sunday service on any line." },
-  { title: "Where fares come from", text: "Tema–Mpakadan zone fares are GRDA's published prices. The Tema–Accra and Kojokrom–Sekondi–Takoradi fares are the best figures we have and have not been published by GRDA — treat them as a guide and confirm at the counter." },
+  {
+    title: "Buy the train card at the station",
+    text: "Buy the train card at the station (GRDA lists the card at ₵10 adult, ₵5 child), then pay your fare with it. Troski does not sell train tickets.",
+  },
+  {
+    title: "Change at Afienya",
+    text: "The Tema–Mpakadan line runs as two shuttles: Tema Harbour–Afienya and Afienya–Adomi. To go beyond Afienya, change trains there. There is no passenger train to Mpakadan.",
+  },
+  {
+    title: "Arrive early",
+    text: "Services are limited and the train doesn't wait. Get to the platform at least 10 minutes before departure.",
+  },
+  {
+    title: "Service days",
+    text: "GRDA lists the Tema–Afienya–Adomi and Sekondi–Takoradi trains as daily. Tema–Accra's last published timetable is Monday to Saturday — confirm Sunday service at the station.",
+  },
+  {
+    title: "Where fares come from",
+    text: "Tema–Afienya–Adomi and Sekondi–Takoradi fares are from the GRDA website (checked 14 Oct 2026). The Tema–Accra fare is unconfirmed (GRCL's site lists ₵5–₵7). Where no fare is published we say so — confirm at the counter.",
+  },
 ]
 
-/** How well-sourced this line's fare is.
- *  confirmed  — stated in public announcements we could verify
- *  unverified — our own figure, never corroborated publicly
- *  Drives the fare label: only `confirmed` may be called an official fare. */
+/** Per-line status + verified facts, keyed by schedule code (TMA/TMP/STK). */
+/** How well-sourced this line's fare is. Only `confirmed` may be presented as
+ *  an official fare; `unverified` is our own figure with no public source. */
 export type FareConfidence = "confirmed" | "unverified"
 
 export interface LineStatus {
@@ -35,11 +50,42 @@ export interface LineStatus {
   statusNote: string
   facts: string[]
   fareConfidence: FareConfidence
-  /** Shown to riders when the fare isn't corroborated. */
   fareNote?: string
 }
+
 export const LINE_STATUS: Record<string, LineStatus> = {
-  TMA: { fareConfidence: "unverified", fareNote: "Fare last corroborated publicly in 2025 — confirm at the station.", status: "running", statusNote: "Suburban commuter service, Monday–Saturday.", facts: ["Connects Tema and Accra Central along the coastal corridor.", "Two services a day — 06:00 from Tema, 17:40 return from Accra.", "Flat GH₵15 fare, paid via Tap n' Go."] },
-  TMP: { fareConfidence: "confirmed", status: "running", statusNote: "Commercial service since 1 October 2025.", facts: ["96.7 km standard-gauge line, Tema Port to Mpakadan (Akosombo).", "Operated with two Polish-built Pesa diesel multiple units.", "Crosses a 300-metre rail bridge over the Volta River near Senchi.", "Zone fares: Tema–Afienya GH₵15, Afienya–Adome GH₵25, full trip GH₵40.", "US$440m project funded by the Export–Import Bank of India."] },
-  STK: { fareConfidence: "unverified", fareNote: "GRDA has not published this fare — confirm at the station before you travel.", status: "resumed", statusNote: "Reopened 24 April 2026 after a two-year suspension.", facts: ["15 km commuter shuttle, Kojokrom–Sekondi–Takoradi (Western Region).", "Rehabilitated and relaunched under the railway 'Reset Agenda'.", "Runs Monday–Friday; reliability can vary as works continue."] },
+  TMA: {
+    fareConfidence: "unverified",
+    fareNote: "Fare unconfirmed (GRCL site lists ₵5–₵7) · confirm at station.",
+    status: "running",
+    statusNote: "Suburban commuter service run by GRCL — last published schedule.",
+    facts: [
+      "Connects Tema (Community 1) and Accra Central along the coastal corridor.",
+      "Two services a day on the last published schedule — 06:00 from Tema, 17:40 return from Accra.",
+      "Last published as Monday to Saturday — confirm Sunday service at the station.",
+      "Some reports list an Avenor stop between Odaw and Alajo — confirm at the station.",
+    ],
+  },
+  TMP: {
+    fareConfidence: "confirmed",
+    fareNote: "Afienya–Adomi fares other than Doryumu Junction are not published — confirm at station.",
+    status: "running",
+    statusNote: "Commercial service since 1 October 2025 — two shuttles that meet at Afienya.",
+    facts: [
+      "Tema Harbour–Afienya shuttle (stops Tema Industrial Area, Ashaiman) and Afienya–Adomi shuttle (stops Shai Hills, Doryumu Junction, Akuse Halt, Kpong, Senchi Halt).",
+      "Change at Afienya — there is no through train.",
+      "No passenger trains to Juapong or Mpakadan; Mpakadan is a freight terminal.",
+      "Standard-gauge line built towards Mpakadan near Akosombo.",
+    ],
+  },
+  STK: {
+    fareConfidence: "confirmed",
+    status: "resumed",
+    statusNote: "Relaunched 24 April 2026 — two daily shuttles from Kojokrom.",
+    facts: [
+      "Kojokrom–Sekondi via Gyandu Halt: ₵5 adult, ₵3 child.",
+      "Kojokrom–Takoradi via Ketan, Adiembra, Essaman and Butuah: ₵7 adult, ₵4 child.",
+      "Shuttle buses run from Takoradi station to the business district.",
+    ],
+  },
 }

@@ -12,7 +12,9 @@ export interface TrainStationCoords {
 }
 
 // ─── TMA Line: Community 1 ↔ Accra Central (8 stations) ───
-// ─── TMP Line: Tema Harbour ↔ Mpakadan (9 stations) ───
+// ─── TMP Line: Tema Harbour ↔ Afienya ↔ Adomi (passenger). Juapong/Mpakadan
+// removed 2026-10-14: no passenger service (Mpakadan = freight terminal, GRDA).
+// Akuse Halt, Senchi Halt and Adomi have no reliable OSM station node yet. ───
 
 export const TRAIN_STATION_COORDS: TrainStationCoords[] = [
   // ── TMA Line ──
@@ -33,8 +35,6 @@ export const TRAIN_STATION_COORDS: TrainStationCoords[] = [
   { name: 'Shai Hills', lat: 5.8840, lng: 0.0386, line: 'TMP', accuracy: 'approximate' },
   { name: 'Doryumu', lat: 5.9007, lng: 0.0232, line: 'TMP', accuracy: 'approximate' },
   { name: 'Kpong', lat: 6.1759, lng: 0.0591, line: 'TMP', accuracy: 'exact', osmNodeId: 'N16943966' },
-  { name: 'Juapong', lat: 6.2545, lng: 0.1353, line: 'TMP', accuracy: 'approximate' },
-  { name: 'Mpakadan', lat: 6.3322, lng: 0.1090, line: 'TMP', accuracy: 'approximate' },
 ]
 
 /** Get coordinates for a station by name (fuzzy match) */

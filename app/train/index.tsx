@@ -8,9 +8,6 @@ import {
   useColorScheme,
   RefreshControl,
   StyleSheet,
-  Animated as RNAnimated,
-  Easing,
-  type DimensionValue,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Haptics from 'expo-haptics'
@@ -19,31 +16,26 @@ import { SkeletonTrainCard } from '@/components/Skeleton'
 import { useRouter, useFocusEffect } from 'expo-router'
 import {
   TrainFront,
-  Clock,
-  ArrowRight,
   Bell,
   BellRing,
   ChevronDown,
   MapPin,
-  Plus,
-  ArrowUpDown,
+  ArrowLeftRight,
   Check,
   X,
+  Repeat,
 } from 'lucide-react-native'
-import { font, brand, ui, space, radius, type, cardShadow } from '@/lib/theme'
-import { SvgXml } from 'react-native-svg'
-import { LinearGradient } from 'expo-linear-gradient'
-import { adinkraPatternXml } from '@/lib/brand/adinkra'
-import { Badge, Tap } from '@/components/ui'
-import { dur } from '@/lib/motion'
-import Animated, { FadeInDown } from 'react-native-reanimated'
+import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
+import { Tap } from '@/components/ui'
+import { HeroText } from '@/components/HeroText'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
 import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
-import { getGhanaTime, formatGhanaTime } from '@/lib/utils/time'
-import { TRAIN_SCHEDULES, SCHEDULE_VERIFIED, type TrainSchedule } from '@/lib/constants/train-schedule'
-import { NETWORK_BULLETINS, HOW_TO_RIDE } from '@/lib/constants/train-network'
+import { getGhanaTime } from '@/lib/utils/time'
+import { TRAIN_SCHEDULES, SCHEDULE_VERIFIED, TRAIN_CARD_TEXT, arrivalLabel, runsOnDay, type TrainSchedule } from '@/lib/constants/train-schedule'
+import { HOW_TO_RIDE } from '@/lib/constants/train-network'
+import { RailNewsList, RailLineStatusCard, RailSafetyCard } from '@/components/train/RailNewsSection'
 import {
   LINE_COLORS,
   STATION_NAMES,
@@ -51,17 +43,24 @@ import {
   searchStations,
   lineStationNames,
   getFare,
+  fareWithChild,
+  noConnectionText,
   lineFareLabel,
-  nextDepartures,
   serviceDayNumbers,
   toMinutes,
-  formatRemaining,
 } from '@/lib/utils/train-stations'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
-import { RELEASE_MODE } from '@/lib/config/release'
-import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { ReleaseTrainTop } from '@/components/train/ReleaseTrainTop'
-import { Dimensions } from 'react-native'
+import {
+  BOARD_NAVY,
+  useMinuteNow,
+  formatIn,
+  ghCedi,
+  runFareGh,
+  deviceOffAccraTime,
+  departuresBoard,
+  type DepartureRow,
+} from '@/components/train/trainTime'
 
 // ─── Schedule helpers ────────────────────────────────────
 
@@ -71,13 +70,17 @@ function parseTimeToMinutes(t: string): number {
 }
 
 function getCurrentStation(schedule: TrainSchedule, currentMinutes: number) {
+  // Only stops with a published time count — GRDA publishes end-to-end times
+  // only on TMP/STK, so intermediate stops can have no time at all.
   for (let i = schedule.stops.length - 1; i >= 0; i--) {
-    const time = parseTimeToMinutes(schedule.stops[i].arrive || schedule.stops[i].depart!)
-    if (currentMinutes >= time) {
+    const t = schedule.stops[i].arrive || schedule.stops[i].depart
+    if (!t) continue
+    if (currentMinutes >= parseTimeToMinutes(t)) {
+      const next = schedule.stops.slice(i + 1).find((x) => x.arrive || x.depart) ?? null
       return {
         current: schedule.stops[i].station,
-        next: i < schedule.stops.length - 1 ? schedule.stops[i + 1].station : null,
-        nextArr: i < schedule.stops.length - 1 ? schedule.stops[i + 1].arrive : null,
+        next: next?.station ?? null,
+        nextArr: next?.arrive ?? null,
       }
     }
   }
@@ -112,7 +115,9 @@ export type DepartureInfo =
     }
   | { type: 'no-service' }
 
-/** Compute next departure for a single line (direction-agnostic) */
+/** Compute next departure for a single line (direction-agnostic). Service
+ *  days are per run (`days`: "Daily", "Mon – Sat") — TMP/STK run daily per GRDA,
+ *  TMA's last published timetable is Mon–Sat. */
 export function computeLineDeparture(
   lineCode: string,
   schedules: TrainSchedule[]
@@ -125,20 +130,12 @@ export function computeLineDeparture(
 
   if (schedules.length === 0) return { type: 'no-service' }
 
-  // Check if any schedule runs today
-  const isSunday = day === 0
-  const isSaturday = day === 6
-  const hasWeekdayOnly = schedules.every((s) => s.days.includes('Fri') && !s.days.includes('Sat'))
-  const hasNoSunday = schedules.every((s) => !s.days.includes('Sun'))
-
-  if (isSunday && hasNoSunday) return { type: 'no-service' }
-  if (isSaturday && hasWeekdayOnly) return { type: 'no-service' }
-
   const sorted = [...schedules].sort(
     (a, b) => parseTimeToMinutes(a.stops[0].depart!) - parseTimeToMinutes(b.stops[0].depart!)
   )
 
   for (const sched of sorted) {
+    if (!runsOnDay(sched.days, day)) continue
     const depart = parseTimeToMinutes(sched.stops[0].depart!)
     const arrive = parseTimeToMinutes(sched.stops[sched.stops.length - 1].arrive!)
 
@@ -160,109 +157,56 @@ export function computeLineDeparture(
         type: 'in-transit',
         lineCode,
         schedule: sched,
-        progress: (currentMinutes - depart) / (arrive - depart),
+        progress: (currentMinutes - depart) / Math.max(1, arrive - depart),
         destination: sched.stops[sched.stops.length - 1].station,
         currentStation: pos.current,
         nextStation: pos.next,
         nextArrival: pos.nextArr,
-        arrivalTime: sched.stops[sched.stops.length - 1].arrive!,
+        arrivalTime: arrivalLabel(sched),
       }
     }
   }
 
-  // Today's runs are done — count down to the NEXT SERVICE DAY, not blindly to
-  // tomorrow: Saturday night must roll to Monday (Sunday has no service), and
-  // weekday-only lines must skip Saturday too. Otherwise the board (and the
-  // reminder button armed from it) targets a phantom Sunday train.
-  const first = sorted[0]
-  const firstDepart = parseTimeToMinutes(first.stops[0].depart!)
-  const serviceMax = hasWeekdayOnly ? 5 : 6 // last weekday with service (Fri or Sat)
-  let daysAhead = 1
-  let d = (day + 1) % 7
-  while (d === 0 || d > serviceMax) {
-    daysAhead++
-    d = (d + 1) % 7
-  }
-  const remaining = (daysAhead * 24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
-  return {
-    type: 'waiting',
-    lineCode,
-    schedule: first,
-    remaining,
-    origin: first.stops[0].station,
-    destination: first.stops[first.stops.length - 1].station,
-    departTime: first.stops[0].depart!,
-    tomorrow: daysAhead === 1,
-  }
-}
-
-function getNextDeparture(): DepartureInfo {
-  const codes = Object.keys(TRAIN_SCHEDULES)
-  let bestWaiting: Extract<DepartureInfo, { type: 'waiting' }> | null = null
-  let firstInTransit: Extract<DepartureInfo, { type: 'in-transit' }> | null = null
-
-  for (const code of codes) {
-    const dep = computeLineDeparture(code, TRAIN_SCHEDULES[code])
-    if (dep.type === 'in-transit' && !firstInTransit) {
-      firstInTransit = dep
-    } else if (dep.type === 'waiting') {
-      if (!bestWaiting || dep.remaining < bestWaiting.remaining) {
-        bestWaiting = dep
-      }
+  // Today's runs are done (or none today) — count down to the first run on the
+  // NEXT day this line runs, so the board (and the reminder armed from it)
+  // never targets a phantom train.
+  for (let daysAhead = 1; daysAhead <= 7; daysAhead++) {
+    const d = (day + daysAhead) % 7
+    const first = sorted.find((sc) => runsOnDay(sc.days, d))
+    if (!first) continue
+    const firstDepart = parseTimeToMinutes(first.stops[0].depart!)
+    const remaining = (daysAhead * 24 * 60 - currentMinutes + firstDepart) * 60 - currentSeconds
+    return {
+      type: 'waiting',
+      lineCode,
+      schedule: first,
+      remaining,
+      origin: first.stops[0].station,
+      destination: first.stops[first.stops.length - 1].station,
+      departTime: first.stops[0].depart!,
+      tomorrow: daysAhead === 1,
     }
   }
-
-  if (firstInTransit) return firstInTransit
-  if (bestWaiting) return bestWaiting
   return { type: 'no-service' }
 }
 
-// ─── Flip-digit component ────────────────────────────────
 
-function FlipDigit({ digit, s }: { digit: string; s: ReturnType<typeof getStyles> }) {
-  // Core RN Animated (NOT reanimated — this sits inside a ScrollView, which
-  // breaks reanimated width on Android). On each digit change the new glyph
-  // ticks down into place with a quick slide + fade, like a mechanical board.
-  const anim = useRef(new RNAnimated.Value(1)).current
-  const prev = useRef(digit)
-
-  useEffect(() => {
-    if (prev.current === digit) return
-    prev.current = digit
-    anim.setValue(0)
-    RNAnimated.timing(anim, {
-      toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start()
-  }, [digit, anim])
-
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] })
-
-  return (
-    <View style={s.digit}>
-      <RNAnimated.Text style={[s.digitText, { opacity: anim, transform: [{ translateY }] }]}>
-        {digit}
-      </RNAnimated.Text>
-    </View>
-  )
-}
-
-
-// ─── Redesign helpers (My trip, Find a train, Next trains) ───
+// ─── Screen helpers (My trip, Find a train, Departures) ───
 
 const MY_TRIP_KEY = 'troski_my_train_trip'
-const PAPER = '#FAF6F2'
+const PAPER = ui.bg // #FAFAF9 — UX v2 mockup screen ground
 const INK = '#1C1917'
-const MY_TRIP_CARD = '#16110D'
+const MUTED = '#5F6670'
+const HAIRLINE = '#F0EFED'
 const LINE_NAMES: Record<string, string> = {
   TMA: 'Tema – Accra',
-  TMP: 'Tema – Mpakadan',
+  TMP: 'Tema – Afienya – Adomi',
   STK: 'Sekondi – Takoradi',
 }
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** Upcoming rows shown before "Show all" (plus the last departed one). */
+const DEPARTURES_PREVIEW = 5
 
 type MyTrip = { from: string; to: string }
 
@@ -309,10 +253,14 @@ function tripReminderKey(schedule: TrainSchedule, from: string): string {
   return schedule.stops[0].station === from ? schedule.id : `${schedule.id}@${from}`
 }
 
+
 const PICKER_LINES = ['TMA', 'TMP', 'STK']
 
-function scheduleForRun(lineCode: string, runCode: string): TrainSchedule | undefined {
-  return TRAIN_SCHEDULES[lineCode]?.find((x) => x.code === runCode)
+/** "(52 min)" / "(1 h 15 min)" */
+function durationText(min: number): string {
+  if (min < 60) return `(${min} min)`
+  const h = Math.floor(min / 60)
+  return min % 60 ? `(${h} h ${min % 60} min)` : `(${h} h)`
 }
 
 function Collapsible({ title, children, s }: { title: string; children: React.ReactNode; s: ReturnType<typeof getStyles> }) {
@@ -338,16 +286,69 @@ function Collapsible({ title, children, s }: { title: string; children: React.Re
   )
 }
 
+/** T5 departures row: 72pt, "06:00 – 06:52 (52 min)", line chip, countdown
+ *  (green only at 15 min or less), GH₵ fare; past trains greyed. */
+function DepartureListRow({
+  r,
+  dayLabel,
+  first,
+  onPress,
+  s,
+}: {
+  r: DepartureRow
+  dayLabel: string | null
+  first: boolean
+  onPress?: () => void
+  s: ReturnType<typeof getStyles>
+}) {
+  const color = LINE_COLORS[r.lineCode] ?? { main: INK, tint: '#F3F4F6' }
+  const times = `${r.depart}${r.arrive ? ` – ${r.arrivalApprox ? 'about ' : ''}${r.arrive}` : ''}`
+  const dur = r.durationMin !== null && r.durationMin > 0 ? durationText(r.durationMin) : ''
+  const soon = !r.departed && r.remainingMin <= 15
+  const when = dayLabel ?? formatIn(r.remainingMin)
+  const fare = runFareGh(r.schedule)
+  const unconfirmed = r.schedule.fare === null
+  return (
+    <Tap
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={`${r.departed ? 'Departed, scheduled ' : ''}${r.depart} from ${r.origin} to ${r.destination}${
+        r.arrive ? `, arrives ${r.arrivalApprox ? 'about ' : ''}${r.arrive}` : ''
+      }, ${LINE_NAMES[r.lineCode] ?? r.lineCode} line${r.departed ? '' : `, ${when}`}, ${fare}`}
+      style={[r.departed ? s.depRowPast : s.depRow, !first && s.depRowBorder]}
+    >
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text style={r.departed ? s.depTimesPast : s.depTimes} numberOfLines={1}>
+          {times}
+          {dur ? <Text style={r.departed ? s.depDurPast : s.depDur}> {dur}</Text> : null}
+        </Text>
+        {r.departed ? (
+          <Text style={s.depPastNote}>Departed (scheduled)</Text>
+        ) : (
+          <View style={s.depMetaRow}>
+            <View style={[s.lineChip, { backgroundColor: color.tint }]}>
+              <Text style={[s.lineChipText, { color: color.main }]}>{r.lineCode}</Text>
+            </View>
+            <Text style={soon ? s.depSoon : s.depLater}>{when}</Text>
+            <Text style={s.depRoute} numberOfLines={1}>· {r.origin} → {r.destination}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={[unconfirmed ? s.depFareNote : s.depFare, r.departed && { color: '#A8A29E' }]} numberOfLines={2}>
+        {fare}
+      </Text>
+    </Tap>
+  )
+}
 
 // ─── Main screen ─────────────────────────────────────────
-
-const HEADER_BAND = '#FFF3EA'
 
 export default function TrainLinesScreen() {
   const router = useRouter()
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const s = useMemo(() => getStyles(isDark), [isDark])
+  const s = useMemo(() => getStyles(), [])
   const insets = useSafeAreaInsets()
 
   const { lines, isLoading, refetch } = useTrainLines()
@@ -357,11 +358,10 @@ export default function TrainLinesScreen() {
       refresh()
     }, [refresh]),
   )
+  const lineIdByCode = useMemo(() => Object.fromEntries((lines ?? []).map((l) => [l.code, l.id])) as Record<string, string>, [lines])
 
   // Arm / disarm a departure reminder. `key` is the storage key (the bare
-  // schedule id for whole-line reminders, "<id>@<station>" for My trip).
-  // secondsUntilDeparture is the live countdown so the alert lines up with
-  // what the rider sees ticking.
+  // schedule id for whole-run reminders, "<id>@<station>" for My trip).
   const toggleKeyed = useCallback(
     async (p: {
       key: string
@@ -389,38 +389,8 @@ export default function TrainLinesScreen() {
     [toggle],
   )
 
-  const toggleReminder = useCallback(
-    (dep: Extract<DepartureInfo, { type: 'waiting' }>) =>
-      toggleKeyed({
-        key: dep.schedule.id,
-        lineCode: dep.schedule.code,
-        origin: dep.origin,
-        destination: dep.destination,
-        departTime: dep.departTime,
-        seconds: dep.remaining,
-      }),
-    [toggleKeyed],
-  )
-
-  // Live clock — ticks every second (Ghana time)
-  const [tick, setTick] = useState(0)
-  const [boardSize, setBoardSize] = useState({ w: 0, h: 0 })
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const departure = useMemo(() => getNextDeparture(), [tick])
-
-  const lineColor = useMemo(() => {
-    if (departure.type === 'no-service') return ui.info
-    const line = lines.find((l) => l.code === departure.lineCode)
-    return line?.color || ui.info
-  }, [departure, lines])
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const currentTime = useMemo(() => formatGhanaTime(), [tick])
+  // T1: one clock that only changes on the minute — no per-second ticking.
+  const now = useMinuteNow()
 
   // ── My trip (saved in AsyncStorage) ──
   const [trip, setTrip] = useState<MyTrip | null>(null)
@@ -451,8 +421,6 @@ export default function TrainLinesScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
   }, [])
 
-  const now = useMemo(() => new Date(), [tick]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const tripInfo = useMemo(() => {
     if (!trip) return null
     const runs = findDirectRuns(trip.from, trip.to)
@@ -469,7 +437,7 @@ export default function TrainLinesScreen() {
   const [toName, setToName] = useState('')
   const [picker, setPicker] = useState<'from' | 'to' | null>(null)
   const scrollRef = useRef<ScrollView>(null)
-  const findY = useRef(0)
+  const resultY = useRef(0)
 
   const result = useMemo(
     () => (fromName && toName ? searchStations(fromName, toName) : null),
@@ -486,18 +454,29 @@ export default function TrainLinesScreen() {
   useEffect(() => {
     if (!result) return
     const id = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, findY.current + 120), animated: true })
+      scrollRef.current?.scrollTo({ y: Math.max(0, resultY.current - 120), animated: true })
     }, 350)
     return () => clearTimeout(id)
   }, [result])
 
   const swapStations = () => {
+    Haptics.selectionAsync()
     setFromName(toName)
     setToName(fromName)
   }
 
-  // ── Next trains ──
-  const next = useMemo(() => nextDepartures(now), [now])
+  // ── Departures (T5) ──
+  const board = useMemo(() => departuresBoard(now), [now])
+  const [showAllDeps, setShowAllDeps] = useState(false)
+  const depRows = useMemo(() => {
+    const upcoming = board.rows.filter((r) => !r.departed)
+    const past = board.rows.filter((r) => r.departed)
+    const lastPast = past.length ? [past[past.length - 1]] : []
+    return {
+      visible: [...lastPast, ...(showAllDeps ? upcoming : upcoming.slice(0, DEPARTURES_PREVIEW))],
+      hidden: Math.max(0, upcoming.length - DEPARTURES_PREVIEW),
+    }
+  }, [board, showAllDeps])
 
   const renderMyTrip = () => {
     if (!trip || !tripInfo) return null
@@ -505,9 +484,10 @@ export default function TrainLinesScreen() {
     const key = best ? tripReminderKey(best.run.schedule, trip.from) : ''
     const armed = best ? isSet(key) : false
     const lineName = best ? (LINE_NAMES[best.run.lineCode] ?? best.run.lineCode).replace(/ – /g, '–') : ''
-    const arriveMin = best ? hhmm(toMinutes(best.run.arriveTo)) : ''
+    const arriveMin = best ? best.run.arriveLabel : ''
+    const canRemind = best ? armed || best.seconds > REMINDER_LEAD_MINUTES * 60 : false
     return (
-      <Animated.View entering={FadeInDown.duration(dur.entrance)} style={s.tripCard}>
+      <View style={s.tripCard}>
         <View style={s.tripTopRow}>
           <Text style={s.tripLabel}>MY TRIP</Text>
           <TouchableOpacity
@@ -529,41 +509,54 @@ export default function TrainLinesScreen() {
           </TouchableOpacity>
         </View>
         <View>
-          <Text style={s.tripRoute}>{trip.from} → {trip.to}</Text>
+          <HeroText size={20} style={{ color: '#FFFFFF' }}>{trip.from} → {trip.to}</HeroText>
           {best ? (
             <Text style={s.tripSub}>
-              {lineName} line · {getFare(best.run.lineCode, trip.from, trip.to).label} · {compactDays(best.run.schedule.days)}
+              {lineName} line · {ghCedi(getFare(best.run.lineCode, trip.from, trip.to).label)} · {compactDays(best.run.schedule.days)}
             </Text>
           ) : null}
         </View>
         {best ? (
           <>
             <View style={s.tripTimeRow}>
-              <Text style={s.tripTime}>{best.run.departFrom}</Text>
+              <HeroText size={44} style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{best.run.departFrom}</HeroText>
               <Text style={s.tripWhen}>{whenLabel(best.offset, now)} · arrives {arriveMin}</Text>
             </View>
-            <Text style={s.tripLeaves}>Leaves in {formatRemaining(Math.ceil(best.seconds / 60))}</Text>
+            <Text style={s.tripLeaves}>Leaves {formatIn(Math.ceil(best.seconds / 60))}</Text>
+            <View style={s.tripChipRow}>
+              <View style={s.tripChip}>
+                <Text style={s.tripChipText}>TIMETABLE</Text>
+              </View>
+              <Text style={s.tripChipNote}>Not live tracking</Text>
+            </View>
+            {!best.run.timesExact ? (
+              <Text style={s.tripNote}>
+                {`${trip.from} time not published — ${best.run.departFrom} is when it leaves ${best.run.schedule.stops[0].station}.`}
+              </Text>
+            ) : null}
             <View style={s.tripBtnRow}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={armed ? 'Turn reminder off' : 'Turn reminder on'}
-                accessibilityState={{ selected: armed }}
-                activeOpacity={0.85}
-                style={armed ? s.tripBtnOn : s.tripBtn}
-                onPress={() =>
-                  toggleKeyed({
-                    key,
-                    lineCode: best.run.schedule.code,
-                    origin: trip.from,
-                    destination: trip.to,
-                    departTime: best.run.departFrom,
-                    seconds: best.seconds,
-                  })
-                }
-              >
-                {armed ? <BellRing size={18} color={ui.onBrand} /> : <Bell size={18} color={ui.onBrand} />}
-                <Text style={s.tripBtnText}>{armed ? 'Reminder on' : 'Reminder off'}</Text>
-              </TouchableOpacity>
+              {canRemind ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={armed ? 'Reminder on. Tap to cancel' : `Remind me ${REMINDER_LEAD_MINUTES} minutes before`}
+                  accessibilityState={{ selected: armed }}
+                  activeOpacity={0.85}
+                  style={s.tripBtn}
+                  onPress={() =>
+                    toggleKeyed({
+                      key,
+                      lineCode: best.run.schedule.code,
+                      origin: trip.from,
+                      destination: trip.to,
+                      departTime: best.run.departFrom,
+                      seconds: best.seconds,
+                    })
+                  }
+                >
+                  {armed ? <BellRing size={18} color={BOARD_NAVY} /> : <Bell size={18} color={BOARD_NAVY} />}
+                  <Text style={s.tripBtnText}>{armed ? 'Reminder on' : 'Remind me'}</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="Return times"
@@ -572,7 +565,7 @@ export default function TrainLinesScreen() {
                 style={s.tripBtnGhost}
                 onPress={() => setShowReturn((v) => !v)}
               >
-                <Text style={s.tripBtnText}>Return times</Text>
+                <Text style={s.tripBtnGhostText}>Return times</Text>
               </TouchableOpacity>
             </View>
             {showReturn && (
@@ -583,7 +576,7 @@ export default function TrainLinesScreen() {
                 ) : (
                   tripInfo.returnRuns.map((r) => (
                     <Text key={r.schedule.id} style={s.returnRow}>
-                      {r.departFrom} → {r.arriveTo} · {compactDays(r.schedule.days)}
+                      {r.departLabel} → {r.arriveLabel} · {compactDays(r.schedule.days)}
                     </Text>
                   ))
                 )}
@@ -593,8 +586,6 @@ export default function TrainLinesScreen() {
               <Text style={s.tripNote}>
                 {`We'll notify you at ${hhmm(toMinutes(best.run.departFrom) - REMINDER_LEAD_MINUTES)}. Works offline.`}
               </Text>
-            ) : best.seconds > REMINDER_LEAD_MINUTES * 60 ? (
-              <Text style={s.tripNote}>Turn on a reminder for {REMINDER_LEAD_MINUTES} minutes before.</Text>
             ) : null}
           </>
         ) : (
@@ -604,14 +595,19 @@ export default function TrainLinesScreen() {
               : 'There is no direct train for this trip any more. Tap Change to pick another.'}
           </Text>
         )}
-      </Animated.View>
+      </View>
     )
+  }
+
+  const openLine = (code: string) => {
+    const id = lineIdByCode[code]
+    if (id) router.push({ pathname: '/train/[lineId]', params: { lineId: id } })
   }
 
   return (
     <SafeAreaView style={s.container} edges={['bottom']}>
       {/* Status-bar scrim so content never collides with the clock */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: RELEASE_MODE ? HEADER_BAND : PAPER, zIndex: 10 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: PAPER, zIndex: 10 }} />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -626,411 +622,167 @@ export default function TrainLinesScreen() {
           />
         }
       >
-        {/* ─── Header ─────────────────────────────────────── */}
-        <View style={[s.header, { paddingTop: insets.top + 12 }, RELEASE_MODE && { backgroundColor: HEADER_BAND, overflow: 'hidden', paddingBottom: 16 }]}>
-          {/* Store release: Adinkra wallpaper behind the tab header (redesign) */}
-          {RELEASE_MODE ? <AdinkraWallpaper width={Dimensions.get('window').width} height={insets.top + 140} size={26} color="rgba(232,70,26,0.10)" /> : null}
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Trains</Text>
-            <Text style={s.headerSub}>GRDA schedule · verified {formatVerified(SCHEDULE_VERIFIED)}</Text>
-          </View>
-          <View style={s.clockPill} accessibilityLabel={`Ghana time ${currentTime}`}>
-            <Clock size={14} color="#44403C" />
-            <Text style={s.clockPillText}>Accra {currentTime}</Text>
-          </View>
+        {/* ─── Header (T2: one clock — the phone's own status bar) ─── */}
+        <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+          <HeroText size={28} style={{ color: ui.text, letterSpacing: -0.3 }} accessibilityRole="header">Trains</HeroText>
+          <Text style={s.headerSub}>Timetables from GRDA and GRCL · checked {formatVerified(SCHEDULE_VERIFIED)}</Text>
+          {deviceOffAccraTime() ? <Text style={s.headerSub}>Times shown in Accra time</Text> : null}
         </View>
 
-        {/* ─── My trip ─────────────────────────────────────── */}
-        {renderMyTrip()}
+        {/* ─── Next train (saved trip takes this slot when one exists) ─── */}
+        {trip ? renderMyTrip() : <ReleaseTrainTop now={now} />}
 
-        {/* ─── Store release: next departure + all lines (redesign) ─── */}
-        {!trip && RELEASE_MODE && (
-          <ReleaseTrainTop lineIdByCode={Object.fromEntries((lines ?? []).map((l) => [l.code, l.id]))} />
-        )}
-
-        {/* ─── Departure Board (no saved trip) ─────────── */}
-        {!trip && !RELEASE_MODE && (
-        <>
-        <Animated.View entering={FadeInDown.delay(150).duration(dur.entrance)} style={s.board}>
-          <View
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            onLayout={(e) => setBoardSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) })}
+        {/* ─── Find a train (T4: directly under the next-departure card) ─── */}
+        <View style={s.findCard}>
+          <Tap
+            onPress={() => setPicker('from')}
+            accessibilityRole="button"
+            accessibilityLabel={`Find a train. From station: ${fromName || 'not chosen'}`}
+            style={s.findField}
           >
-            {boardSize.w > 0 && (
-              <SvgXml xml={boardPattern(boardSize.w, boardSize.h)} width={boardSize.w} height={boardSize.h} />
-            )}
-            {/* Fade the print out down the card: texture around the header and
-                countdown, clean navy behind the route/time text so it stays readable. */}
-            <LinearGradient
-              colors={['rgba(12,18,32,0)', 'rgba(12,18,32,0.35)', '#0c1220']}
-              locations={[0, 0.3, 0.55]}
-              style={StyleSheet.absoluteFill}
-            />
-          </View>
-
-          {/* Top row */}
-          <View style={s.boardTopRow}>
-            {/* No live GPS/telemetry feed exists for trains yet — schedules
-                are static, so the board always shows a neutral Schedule chip
-                instead of a fake Live one. */}
-            <View style={s.scheduleBadge}>
-              <View style={s.scheduleDot} />
-              <Text style={s.scheduleText}>Schedule</Text>
-            </View>
-            <View style={{ flex: 1 }} />
-            <Text style={s.boardLabel}>
-              {departure.type === 'in-transit' ? 'In transit' : 'Departures'}
-            </Text>
-          </View>
-
-          {/* ── Waiting state — countdown ── */}
-          {departure.type === 'waiting' && (
-            <>
-              <View style={s.clockRow}>
-                {(() => {
-                  const h = String(Math.floor(departure.remaining / 3600)).padStart(2, '0')
-                  const m = String(
-                    Math.floor((departure.remaining % 3600) / 60)
-                  ).padStart(2, '0')
-                  const sec = String(departure.remaining % 60).padStart(2, '0')
-                  return (
-                    <>
-                      <View style={s.clockGroup}>
-                        <View style={s.digitPair}>
-                          <FlipDigit digit={h[0]} s={s} />
-                          <FlipDigit digit={h[1]} s={s} />
-                        </View>
-                        <Text style={s.clockUnit}>HRS</Text>
-                      </View>
-                      <Text style={s.clockColon}>:</Text>
-                      <View style={s.clockGroup}>
-                        <View style={s.digitPair}>
-                          <FlipDigit digit={m[0]} s={s} />
-                          <FlipDigit digit={m[1]} s={s} />
-                        </View>
-                        <Text style={s.clockUnit}>MIN</Text>
-                      </View>
-                      <Text style={s.clockColon}>:</Text>
-                      <View style={s.clockGroup}>
-                        <View style={s.digitPair}>
-                          <FlipDigit digit={sec[0]} s={s} />
-                          <FlipDigit digit={sec[1]} s={s} />
-                        </View>
-                        <Text style={s.clockUnit}>SEC</Text>
-                      </View>
-                    </>
-                  )
-                })()}
-              </View>
-
-              <View style={s.depInfo}>
-                <View style={s.depCodeBadge}>
-                  <Text style={s.depCodeText}>{departure.schedule.code}</Text>
-                </View>
-                <Text style={s.depLabel}>{departure.schedule.label}</Text>
-              </View>
-
-              <View style={s.depRoute}>
-                <Text style={s.depStation}>{departure.origin}</Text>
-                <ArrowRight size={14} color="rgba(255,255,255,0.4)" />
-                <Text style={s.depStation}>{departure.destination}</Text>
-              </View>
-
-              <View style={s.depFooter}>
-                <Text style={s.depTime}>
-                  Departs {departure.departTime}
-                  {departure.tomorrow ? ' tomorrow' : ''}
-                </Text>
-                <View style={s.scheduledBadge}>
-                  <View style={[s.statusDot, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
-                  <Text style={s.scheduledText}>Scheduled</Text>
-                </View>
-              </View>
-
-              {/* Remind me — fires REMINDER_LEAD_MINUTES before this departure */}
-              {(() => {
-                const armed = isSet(departure.schedule.id)
-                const tooSoon = departure.remaining <= REMINDER_LEAD_MINUTES * 60
-                if (tooSoon && !armed) return null
-                return (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => toggleReminder(departure)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: armed }}
-                    style={armed ? s.remindBtnOnFull : s.remindBtn}
-                  >
-                    {armed ? (
-                      <BellRing size={16} color={ui.success} />
-                    ) : (
-                      <Bell size={16} color={BOARD_ACCENT} />
-                    )}
-                    <Text style={[s.remindText, armed && { color: ui.success }]}>
-                      {armed
-                        ? `Reminder set · ${REMINDER_LEAD_MINUTES} min before`
-                        : `Remind me ${REMINDER_LEAD_MINUTES} min before`}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              })()}
-            </>
-          )}
-
-          {/* ── In-transit state — progress ── */}
-          {departure.type === 'in-transit' && (
-            <>
-              <View style={s.transitSection}>
-                <View style={s.progressTrack}>
-                  <View
-                    style={[
-                      s.progressFill,
-                      { width: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      s.progressDot,
-                      { left: `${Math.min(departure.progress * 100, 100)}%` as DimensionValue },
-                    ]}
-                  />
-                </View>
-                <View style={s.transitEndpoints}>
-                  <Text style={s.transitEndpoint}>
-                    {departure.schedule.stops[0].station}
-                  </Text>
-                  <Text style={s.transitEndpoint}>{departure.destination}</Text>
-                </View>
-              </View>
-
-              <View style={s.depInfo}>
-                <View style={[s.depCodeBadge, { backgroundColor: 'rgba(14,165,233,0.25)' }]}>
-                  <Text style={s.depCodeText}>{departure.schedule.code}</Text>
-                </View>
-                <Text style={s.depLabel}>{departure.schedule.label}</Text>
-              </View>
-
-              <View style={s.transitDetails}>
-                {/* Position is schedule math, not telemetry — no green live dot,
-                    hedged wording (UX-10) */}
-                <View style={s.transitRow}>
-                  <Text style={s.transitText}>
-                    Should be near{' '}
-                    <Text style={s.transitHighlight}>{departure.currentStation}</Text>
-                    {' '}(per schedule)
-                  </Text>
-                </View>
-                {departure.nextStation && (
-                  <View style={s.transitRow}>
-                    <ArrowRight size={12} color="rgba(255,255,255,0.35)" />
-                    <Text style={s.transitText}>
-                      Next:{' '}
-                      <Text style={s.transitHighlight}>{departure.nextStation}</Text>
-                      {departure.nextArrival ? ` · ${departure.nextArrival}` : ''}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={s.depFooter}>
-                <Text style={s.depTime}>
-                  Arriving {departure.destination} at {departure.arrivalTime}
-                </Text>
-                <View style={s.transitBadge}>
-                  <View style={[s.statusDot, { backgroundColor: BOARD_ACCENT }]} />
-                  <Text style={s.transitBadgeText}>In transit</Text>
-                </View>
-              </View>
-            </>
-          )}
-
-          {/* ── No service state ── */}
-          {departure.type === 'no-service' && (
-            <View style={s.noService}>
-              <TrainFront size={32} color="rgba(255,255,255,0.25)" />
-              <Text style={s.noServiceTitle}>No service today</Text>
-              <Text style={s.noServiceSub}>
-                {(() => {
-                  const allSchedules = Object.values(TRAIN_SCHEDULES).flat()
-                  const earliest = allSchedules.reduce((min, s) => {
-                    const t = s.stops[0].depart!
-                    return t < min ? t : min
-                  }, '23:59')
-                  return `Resumes next service day at ${earliest}`
-                })()}
-              </Text>
-            </View>
-          )}
-
-          {/* Bottom info strip */}
-          <View style={s.boardStrip}>
-            <Text style={s.stripText}>
-              {departure.type !== 'no-service' && departure.lineCode
-                ? TRAIN_SCHEDULES[departure.lineCode]?.[0]?.days || 'Mon – Sat'
-                : 'Mon – Sat'}
-            </Text>
-            {departure.type !== 'no-service' && (
-              <>
-                <View style={s.stripDot} />
-                <View style={[s.stripLineDot, { backgroundColor: lineColor }]} />
-                <Text style={s.stripText}>{departure.lineCode}</Text>
-                <View style={s.stripDot} />
-                <Text style={s.stripText}>
-                  {lineFareLabel(departure.lineCode)}
-                </Text>
-              </>
-            )}
-          </View>
-
-        </Animated.View>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Save a trip to pin it here"
-          activeOpacity={0.7}
-          style={s.saveHint}
-          onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, findY.current - 8), animated: true })}
-        >
-          <Plus size={18} color="#C2410C" />
-          <Text style={s.saveHintText}>Save a trip to pin it here</Text>
-        </TouchableOpacity>
-        </>
-        )}
-
-        {/* ─── Find a train ───────────────────────────────── */}
-        <View style={s.findCard} onLayout={(e) => { findY.current = e.nativeEvent.layout.y }}>
-          <Text style={s.cardTitle}>Find a train</Text>
-          <View style={s.fieldRow}>
-            <Tap
-              onPress={() => setPicker('from')}
-              accessibilityRole="button"
-              accessibilityLabel={`From station: ${fromName || 'not chosen'}`}
-              style={s.field}
-            >
-              <Text style={s.fieldLabel}>From</Text>
-              <Text style={fromName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{fromName || 'Choose station'}</Text>
-            </Tap>
-            <Tap
-              onPress={() => setPicker('to')}
-              accessibilityRole="button"
-              accessibilityLabel={`To station: ${toName || 'not chosen'}`}
-              style={s.field}
-            >
-              <Text style={s.fieldLabel}>To</Text>
-              <Text style={toName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{toName || 'Choose station'}</Text>
-            </Tap>
-          </View>
+            <Text style={s.fieldLabel}>From</Text>
+            <Text style={fromName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{fromName || 'Choose station'}</Text>
+          </Tap>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Swap direction"
+            accessibilityLabel="Swap From and To"
             activeOpacity={0.7}
-            style={s.swapBtn}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={s.swapCircle}
             onPress={swapStations}
           >
-            <ArrowUpDown size={16} color="#44403C" />
-            <Text style={s.swapText}>Swap direction ⇄</Text>
+            <ArrowLeftRight size={18} color={INK} />
           </TouchableOpacity>
+          <Tap
+            onPress={() => setPicker('to')}
+            accessibilityRole="button"
+            accessibilityLabel={`To station: ${toName || 'not chosen'}`}
+            style={[s.findField, { alignItems: 'flex-end' }]}
+          >
+            <Text style={s.fieldLabel}>To</Text>
+            <Text style={toName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{toName || 'Choose station'}</Text>
+          </Tap>
+        </View>
 
-          {result?.kind === 'unknown' && <Text style={s.resultNote}>{result.message}</Text>}
-          {result?.kind === 'none' && (
-            <Text style={s.resultNote}>
-              No direct train between {result.from.name} and {result.to.name}.
-            </Text>
-          )}
-          {result?.kind === 'direct' && (
-            <View style={s.resultBox}>
-              {result.runs.map((r) => (
-                <View key={r.schedule.id} style={s.resultRow}>
-                  <Text style={s.resultTimes}>{r.departFrom} → {r.arriveTo}</Text>
-                  <Text style={s.resultMeta}>
-                    <Text style={{ color: LINE_COLORS[r.lineCode]?.main ?? INK, fontFamily: font.extrabold }}>
-                      {(LINE_NAMES[r.lineCode] ?? r.lineCode).replace(/ – /g, '–')}
+        {result && (
+          <View style={s.resultCard} onLayout={(e) => { resultY.current = e.nativeEvent.layout.y }}>
+            {result.kind === 'unknown' && <Text style={s.resultNote}>{result.message}</Text>}
+            {result.kind === 'none' && (
+              <Text style={s.resultNote}>
+                No direct train between {result.from.name} and {result.to.name}.
+              </Text>
+            )}
+            {result.kind === 'transfer' && (
+              <View style={s.resultBox}>
+                <View style={s.changeChip}>
+                  <Repeat size={16} color="#92400E" />
+                  <Text style={s.changeChipText}>Change at {result.via} · two separate shuttles</Text>
+                </View>
+                {([
+                  { label: `1. ${result.from.name} → ${result.via}`, runs: result.first, fare: result.firstFare },
+                  { label: `2. ${result.via} → ${result.to.name}`, runs: result.second, fare: result.secondFare },
+                ] as const).map((leg) => (
+                  <View key={leg.label} style={{ gap: 4 }}>
+                    <Text style={s.resultMeta}>
+                      <Text style={{ color: INK, fontFamily: font.extrabold }}>{leg.label}</Text>
+                      {' · '}{ghCedi(fareWithChild(leg.fare))}
                     </Text>
-                    {' · '}{compactDays(r.schedule.days)} · {getFare(r.lineCode, result.from.name, result.to.name).label}
-                  </Text>
-                </View>
+                    {leg.runs.map((r) => (
+                      <View key={r.schedule.id} style={s.resultRow}>
+                        <Text style={s.resultTimes}>{r.departLabel} → {r.arriveLabel}</Text>
+                        {r.schedule.note ? <Text style={s.resultMeta}>{r.schedule.note}</Text> : null}
+                        {leg.runs === result.first && result.noConnection.includes(r) ? (
+                          <Text style={[s.resultMeta, { color: '#B91C1C', fontFamily: font.bold }]}>{noConnectionText(r, result.to.name)}</Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+                <Text style={s.resultMeta}>{compactDays(result.days)} · check the connection time at {result.via}. Timetable times, not live tracking.</Text>
+              </View>
+            )}
+            {result.kind === 'direct' && (
+              <View style={s.resultBox}>
+                {result.runs.map((r) => (
+                  <View key={r.schedule.id} style={s.resultRow}>
+                    <Text style={s.resultTimes}>{r.departLabel} → {r.arriveLabel}</Text>
+                    <Text style={s.resultMeta}>
+                      <Text style={{ color: LINE_COLORS[r.lineCode]?.main ?? INK, fontFamily: font.extrabold }}>
+                        {(LINE_NAMES[r.lineCode] ?? r.lineCode).replace(/ – /g, '–')}
+                      </Text>
+                      {' · '}{compactDays(r.schedule.days)} · {ghCedi(fareWithChild(getFare(r.lineCode, result.from.name, result.to.name)))}
+                    </Text>
+                    {r.schedule.note ? <Text style={s.resultMeta}>{r.schedule.note}</Text> : null}
+                  </View>
+                ))}
+                {result.runs.some((r) => !r.timesExact) ? (
+                  <Text style={s.resultMeta}>“after” / “by” = the train’s first or last stop time. GRDA does not publish times for every stop.</Text>
+                ) : null}
+                {trip && trip.from === result.from.name && trip.to === result.to.name ? (
+                  <View style={s.savedRow} accessibilityLabel="Saved as My trip">
+                    <Check size={18} color="#15803D" />
+                    <Text style={s.savedText}>Saved as My trip</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Save as My trip"
+                    activeOpacity={0.85}
+                    style={s.saveBtn}
+                    onPress={() => saveTrip({ from: result.from.name, to: result.to.name })}
+                  >
+                    <Text style={s.saveBtnText}>Save as My trip</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ─── Departures (T5) ─────────────────────────────── */}
+        {board.rows.length > 0 && (
+          <View style={s.depSection}>
+            <Text style={s.sectionLabel}>DEPARTURES · {board.label.toUpperCase()}</Text>
+            <View style={s.depCard}>
+              {depRows.visible.map((r, i) => (
+                <DepartureListRow
+                  key={r.key}
+                  r={r}
+                  first={i === 0}
+                  dayLabel={board.offset === 0 ? null : board.label}
+                  onPress={lineIdByCode[r.lineCode] ? () => openLine(r.lineCode) : undefined}
+                  s={s}
+                />
               ))}
-              {trip && trip.from === result.from.name && trip.to === result.to.name ? (
-                <View style={s.savedRow} accessibilityLabel="Saved as My trip">
-                  <Check size={18} color="#15803D" />
-                  <Text style={s.savedText}>Saved as My trip</Text>
-                </View>
-              ) : (
-                <TouchableOpacity
+              {depRows.hidden > 0 && (
+                <Tap
+                  onPress={() => setShowAllDeps((v) => !v)}
                   accessibilityRole="button"
-                  accessibilityLabel="Save as My trip"
-                  activeOpacity={0.85}
-                  style={s.saveBtn}
-                  onPress={() => saveTrip({ from: result.from.name, to: result.to.name })}
+                  accessibilityState={{ expanded: showAllDeps }}
+                  style={[s.depMore, s.depRowBorder]}
                 >
-                  <Text style={s.saveBtnText}>Save as My trip</Text>
-                </TouchableOpacity>
+                  <Text style={s.depMoreText}>
+                    {showAllDeps ? 'Show fewer' : `Show all ${board.label.toLowerCase() === 'today' ? "today's" : board.label === 'Tomorrow' ? "tomorrow's" : `${board.label}'s`} trains`}
+                  </Text>
+                  <ChevronDown size={18} color={MUTED} style={showAllDeps ? { transform: [{ rotate: '180deg' }] } : undefined} />
+                </Tap>
               )}
             </View>
-          )}
-        </View>
-
-        {/* ─── Next trains ────────────────────────────────── */}
-        <View style={s.nextCard}>
-          <Text style={s.cardTitle}>Next trains</Text>
-          {next.map((d, i) => {
-            const sched = scheduleForRun(d.lineCode, d.runCode)
-            const occ = sched ? nextOccurrence(d.departTime, sched.days, now) : null
-            const armed = sched ? isSet(sched.id) : false
-            const color = LINE_COLORS[d.lineCode]?.main ?? INK
-            return (
-              <View key={d.runCode} style={[s.nextRow, i > 0 && s.nextRowBorder]}>
-                <Text style={s.nextTime}>{d.departTime}</Text>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.nextRoute} numberOfLines={1}>{d.origin} → {d.destination}</Text>
-                  <Text style={s.nextMeta} numberOfLines={1}>
-                    <Text style={{ color, fontFamily: font.extrabold }}>{d.lineName.replace(/ – /g, '–')}</Text>
-                    {' · '}{d.offset != null ? whenLabel(d.offset, now) : ''} · {d.fareLabel}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={`${armed ? 'Reminder on for' : 'Remind me about'} the ${d.departTime} to ${d.destination}`}
-                  accessibilityState={{ selected: armed }}
-                  activeOpacity={0.7}
-                  disabled={!sched || !occ}
-                  style={armed ? s.bellOn : s.bell}
-                  onPress={() => {
-                    if (!sched || !occ) return
-                    toggleKeyed({
-                      key: sched.id,
-                      lineCode: sched.code,
-                      origin: d.origin,
-                      destination: d.destination,
-                      departTime: d.departTime,
-                      seconds: occ.seconds,
-                    })
-                  }}
-                >
-                  {armed ? (
-                    <BellRing size={20} color="#FF4D1C" fill="#FF4D1C" />
-                  ) : (
-                    <Bell size={20} color="#44403C" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            )
-          })}
-        </View>
+          </View>
+        )}
 
         {/* ─── Akosombo tip ───────────────────────────────── */}
         <View style={s.akosombo}>
           <MapPin size={22} color="#FF4D1C" fill="#FF4D1C" style={{ marginTop: 3 }} />
           <Text style={s.akosomboText}>
             <Text style={{ fontFamily: font.extrabold, color: INK }}>Going to Akosombo? </Text>
-            {"Take the Tema–Mpakadan train to Mpakadan, the line's last stop."}
+            {'Take the Tema–Afienya train, change at Afienya, then ride to Adomi, the last passenger stop. There is no passenger train to Mpakadan.'}
           </Text>
         </View>
 
         {/* ─── Lines ──────────────────────────────────────── */}
         <View style={s.linesSection}>
-          <Text style={s.linesTitle}>Lines</Text>
+          <HeroText size={22} style={s.linesTitle} accessibilityRole="header">Lines</HeroText>
           {isLoading ? (
             <View style={{ gap: space.lg }}>
               <SkeletonTrainCard isDark={isDark} />
@@ -1065,53 +817,34 @@ export default function TrainLinesScreen() {
                       {sch[0] ? `${compactDays(sch[0].days)} · ` : ''}{stationCount} stations
                     </Text>
                   </View>
-                  <Text style={s.lineFare}>{lineFareLabel(item.code)}</Text>
+                  <Text style={s.lineFare}>{ghCedi(lineFareLabel(item.code))}</Text>
                 </Tap>
               )
             })
           )}
         </View>
 
-        {/* ─── How to ride / Network updates (collapsed) ─── */}
+        {/* ─── How to ride (collapsed) ─── */}
         <View style={s.collSection}>
           <Collapsible title="How to ride" s={s}>
             {HOW_TO_RIDE.map((tip) => (
               <View key={tip.title} style={s.rideItem}>
                 <Text style={s.rideCardTitle}>{tip.title}</Text>
-                <Text style={s.rideCardText}>{tip.text}</Text>
+                <Text style={s.rideCardText}>{ghCedi(tip.text)}</Text>
               </View>
             ))}
           </Collapsible>
-          <Collapsible title="Network updates" s={s}>
-            {(() => {
-              // Two bulletins + the NOTICE disclaimer always pinned last (it is
-              // the honesty statement about this whole screen).
-              // One of each, newest of its kind: the latest SERVICE UPDATE (what
-              // affects the train you are about to catch) and the latest other
-              // bulletin. Ranking purely by tag buried this month's news behind a
-              // five-month-old service note; ranking purely by date buried an
-              // active reduced-capacity warning behind sector news.
-              const byDate = [...NETWORK_BULLETINS].sort((a, b) => b.date.localeCompare(a.date))
-              const notice = byDate.find((b) => b.tag === 'NOTICE')
-              const service = byDate.find((b) => b.tag === 'SERVICE UPDATE')
-              const latestOther = byDate.find((b) => b.tag !== 'NOTICE' && b !== service)
-              const news = [service, latestOther].filter(Boolean) as typeof byDate
-              const shown = notice ? [...news, notice] : news
-              return shown.map((b) => {
-                const tone = b.tag === 'SERVICE UPDATE' ? 'info' : b.tag === 'NETWORK UPDATE' ? 'brand' : 'neutral'
-                const tagLabel = b.tag.charAt(0) + b.tag.slice(1).toLowerCase()
-                return (
-                  <View key={b.text} style={s.bulletinItem}>
-                    <View style={s.bulletinMeta}>
-                      <Badge label={tagLabel} tone={tone} />
-                      <Text style={s.bulletinDate}>{b.date}</Text>
-                    </View>
-                    <Text style={s.bulletinText}>{b.text}</Text>
-                  </View>
-                )
-              })
-            })()}
-          </Collapsible>
+          <Text style={s.cardNote}>{ghCedi(TRAIN_CARD_TEXT)}</Text>
+        </View>
+
+        {/* ─── Rail news, line status, safety ─── */}
+        <View style={s.newsSection}>
+          <RailLineStatusCard
+            lineIdByCode={lineIdByCode}
+            onOpenLine={(id) => router.push({ pathname: '/train/[lineId]', params: { lineId: id } })}
+          />
+          <RailNewsList limit={5} />
+          <RailSafetyCard />
         </View>
 
         {/* Daily Commuter Tip — train-focused (kept) */}
@@ -1167,60 +900,29 @@ export default function TrainLinesScreen() {
 
 // ─── Styles ──────────────────────────────────────────────
 
-// Board backdrop: the brand adinkra print (same tile as the route hero and the
-// Troski card), faint enough that the countdown digits stay the focus.
-const boardPatternCache = new Map<string, string>()
-function boardPattern(w: number, h: number): string {
-  const key = `${w}x${h}`
-  let xml = boardPatternCache.get(key)
-  if (!xml) { xml = adinkraPatternXml(w, h, 26, 'rgba(255,255,255,0.07)'); boardPatternCache.set(key, xml) }
-  return xml
-}
-
-const BOARD_ACCENT = '#0ea5e9' // departure-board sky blue — board-only, keeps the station-display look
-
-const getStyles = (isDark: boolean) => {
-  const surfaceLowest = isDark ? '#1c1c1e' : ui.card
-  const onSurface = INK
-  const onSurfaceVariant = '#57534E'
-  const outlineVariant = '#EDE5DC'
-  const M = 14 // horizontal margin of the redesigned cards (approved mockup)
+const getStyles = () => {
+  const outline = '#EEEEEE'
+  const M = 20 // screen gutter of the UX v2 mockup
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: PAPER },
 
     // ── Header ──
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 18,
-      paddingBottom: 10,
-      gap: 10,
-    },
-    headerTitle: { fontSize: 32, lineHeight: 44, fontFamily: font.extrabold, color: INK, letterSpacing: -0.5 },
-    headerSub: { fontSize: 14, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
-    clockPill: {
-      height: 32,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-      backgroundColor: '#EFE9E3',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    clockPillText: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#44403C' },
+    header: { paddingHorizontal: M, paddingBottom: 0 },
+    headerSub: { fontSize: 13, lineHeight: 20, fontFamily: font.medium, color: MUTED },
 
-    // ── My trip ──
+    // ── My trip (navy board, T7 white reminder button) ──
     tripCard: {
       marginHorizontal: M,
-      marginTop: 4,
-      backgroundColor: MY_TRIP_CARD,
-      borderRadius: 24,
-      padding: 16,
-      gap: 12,
+      marginTop: 12,
+      backgroundColor: BOARD_NAVY,
+      borderRadius: 20,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      gap: 10,
     },
     tripTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    tripLabel: { fontSize: 15, lineHeight: 22, fontFamily: font.extrabold, color: '#FFD25A', letterSpacing: 0.3 },
+    tripLabel: { fontSize: 12, lineHeight: 18, fontFamily: font.extrabold, color: 'rgba(255,255,255,0.75)', letterSpacing: 0.7 },
     tripChange: {
       minHeight: 36,
       paddingHorizontal: 12,
@@ -1231,91 +933,78 @@ const getStyles = (isDark: boolean) => {
       justifyContent: 'center',
     },
     tripChangeText: { fontSize: 13, lineHeight: 20, fontFamily: font.bold, color: '#FFFFFF' },
-    tripRoute: { fontSize: 22, lineHeight: 30, fontFamily: font.bold, color: '#FFFFFF' },
-    tripSub: { fontSize: 15, lineHeight: 22, fontFamily: font.regular, color: '#D6D3D1' },
-    tripTimeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
-    tripTime: { fontSize: 44, lineHeight: 60, fontFamily: font.extrabold, color: '#FFFFFF' },
-    tripWhen: { fontSize: 16, lineHeight: 24, fontFamily: font.regular, color: '#D6D3D1' },
-    tripLeaves: { fontSize: 15, lineHeight: 22, fontFamily: font.bold, color: '#86EFAC' },
-    tripBtnRow: { flexDirection: 'row', gap: 8 },
+    tripSub: { fontSize: 14, lineHeight: 20, fontFamily: font.regular, color: 'rgba(255,255,255,0.8)' },
+    tripTimeRow: { flexDirection: 'row', alignItems: 'flex-end', columnGap: 10, flexWrap: 'wrap' },
+    tripWhen: { fontSize: 16, lineHeight: 24, fontFamily: font.medium, color: 'rgba(255,255,255,0.85)', marginBottom: 10 },
+    tripLeaves: { fontSize: 16, lineHeight: 22, fontFamily: font.bold, color: '#FFFFFF' },
+    tripChipRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    tripChip: { backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+    tripChipText: { fontSize: 12, fontFamily: font.extrabold, letterSpacing: 0.6, color: '#FFFFFF' },
+    tripChipNote: { fontSize: 13, fontFamily: font.medium, color: 'rgba(255,255,255,0.8)' },
+    tripBtnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
     tripBtn: {
       flex: 1,
       height: 48,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.25)',
+      borderRadius: 12,
+      backgroundColor: '#FFFFFF',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
     },
-    tripBtnOn: {
-      flex: 1,
-      height: 48,
-      borderRadius: 14,
-      backgroundColor: '#FF4D1C',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
+    tripBtnText: { fontSize: 16, lineHeight: 22, fontFamily: font.bold, color: BOARD_NAVY },
     tripBtnGhost: {
       flex: 1,
       height: 48,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.25)',
+      borderColor: 'rgba(255,255,255,0.3)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    tripBtnText: { fontSize: 15, lineHeight: 22, fontFamily: font.extrabold, color: '#FFFFFF' },
+    tripBtnGhostText: { fontSize: 16, lineHeight: 22, fontFamily: font.bold, color: '#FFFFFF' },
     returnBox: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 4 },
-    returnTitle: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#FFD25A' },
+    returnTitle: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#FFFFFF' },
     returnRow: { fontSize: 15, lineHeight: 22, fontFamily: font.medium, color: '#FFFFFF' },
-    tripNote: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#D6D3D1' },
+    tripNote: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: 'rgba(255,255,255,0.8)' },
 
-    saveHint: {
-      marginHorizontal: M,
-      marginTop: 10,
-      minHeight: 44,
-      paddingHorizontal: 14,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: '#D6CCC2',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    saveHintText: { fontSize: 15, lineHeight: 22, fontFamily: font.semibold, color: '#C2410C' },
-
-    // ── Find a train ──
+    // ── Find a train (one compact From | swap | To card) ──
     findCard: {
       marginHorizontal: M,
       marginTop: 14,
       backgroundColor: '#FFFFFF',
-      borderRadius: 22,
-      padding: 14,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: outlineVariant,
+      borderColor: outline,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    findField: { flex: 1, minWidth: 0, minHeight: 48, justifyContent: 'center' },
+    fieldLabel: { fontSize: 12, lineHeight: 18, fontFamily: font.medium, color: MUTED },
+    fieldValue: { fontSize: 16, lineHeight: 22, fontFamily: font.bold, color: ui.text },
+    fieldPlaceholder: { fontSize: 16, lineHeight: 22, fontFamily: font.bold, color: '#78716C' },
+    swapCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    resultCard: {
+      marginHorizontal: M,
+      marginTop: 10,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: outline,
+      padding: 14,
       gap: 10,
     },
     cardTitle: { fontSize: 18, lineHeight: 26, fontFamily: font.extrabold, color: INK },
-    fieldRow: { flexDirection: 'row', gap: 8 },
-    field: { flex: 1, minWidth: 0, backgroundColor: '#F5F1EC', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
-    fieldLabel: { fontSize: 13, lineHeight: 20, fontFamily: font.bold, color: '#57534E' },
-    fieldValue: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: INK },
-    fieldPlaceholder: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: '#78716C' },
-    swapBtn: {
-      minHeight: 44,
-      borderRadius: 14,
-      backgroundColor: '#F5F1EC',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    swapText: { fontSize: 15, lineHeight: 22, fontFamily: font.bold, color: '#44403C' },
     savedRow: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     savedText: { fontSize: 16, lineHeight: 24, fontFamily: font.extrabold, color: '#15803D' },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -1329,64 +1018,64 @@ const getStyles = (isDark: boolean) => {
       paddingBottom: 24,
     },
     modalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-    modalClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    modalClose: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     pickerGroupHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
     pickerBar: { width: 8, height: 24, borderRadius: 4 },
     pickerGroupTitle: { fontSize: 17, lineHeight: 26, fontFamily: font.extrabold, color: INK },
-    suggestRow: { minHeight: 44, paddingHorizontal: 6, justifyContent: 'center' },
+    suggestRow: { minHeight: 48, paddingHorizontal: 6, justifyContent: 'center' },
     suggestText: { fontSize: 16, lineHeight: 24, fontFamily: font.semibold, color: INK },
     resultNote: { fontSize: 15, lineHeight: 22, fontFamily: font.medium, color: '#44403C' },
     resultBox: { gap: 10 },
-    resultRow: { gap: 2, paddingTop: 4, borderTopWidth: 1, borderTopColor: '#F0ECE8' },
+    resultRow: { gap: 2, paddingTop: 4, borderTopWidth: 1, borderTopColor: HAIRLINE },
     resultTimes: { fontSize: 19, lineHeight: 28, fontFamily: font.extrabold, color: INK },
     resultMeta: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
     saveBtn: {
       height: 48,
-      borderRadius: 14,
+      borderRadius: 12,
       backgroundColor: '#FF4D1C',
       alignItems: 'center',
       justifyContent: 'center',
     },
     saveBtnText: { fontSize: 16, lineHeight: 24, fontFamily: font.extrabold, color: '#FFFFFF' },
+    changeChip: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: '#FFF3D6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+    changeChipText: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: '#92400E' },
 
-    // ── Next trains ──
-    nextCard: {
-      marginHorizontal: M,
-      marginTop: 14,
+    // ── Departures (T5) ──
+    depSection: { marginHorizontal: M, marginTop: 14 },
+    sectionLabel: { fontSize: 12, lineHeight: 18, fontFamily: font.extrabold, letterSpacing: 0.7, color: MUTED },
+    depCard: {
+      marginTop: 6,
       backgroundColor: '#FFFFFF',
-      borderRadius: 22,
-      padding: 14,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: outlineVariant,
+      borderColor: outline,
+      overflow: 'hidden',
     },
-    nextRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-    nextRowBorder: { borderTopWidth: 1, borderTopColor: '#F0ECE8' },
-    nextTime: { width: 56, fontSize: 19, lineHeight: 28, fontFamily: font.extrabold, color: INK },
-    nextRoute: { fontSize: 16, lineHeight: 24, fontFamily: font.bold, color: INK },
-    nextMeta: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
-    bell: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      backgroundColor: '#F5F1EC',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bellOn: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      backgroundColor: '#FFEDE5',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    depRow: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    depRowPast: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    depRowBorder: { borderTopWidth: 1, borderTopColor: HAIRLINE },
+    depTimes: { fontSize: 16, lineHeight: 24, fontFamily: font.extrabold, color: ui.text, fontVariant: ['tabular-nums'] },
+    depTimesPast: { fontSize: 16, lineHeight: 24, fontFamily: font.bold, color: '#A8A29E', fontVariant: ['tabular-nums'] },
+    depDur: { fontFamily: font.medium, color: MUTED },
+    depDurPast: { fontFamily: font.medium, color: '#A8A29E' },
+    depPastNote: { fontSize: 13, lineHeight: 18, fontFamily: font.medium, color: '#A8A29E' },
+    depMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    lineChip: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 1 },
+    lineChipText: { fontSize: 12, lineHeight: 18, fontFamily: font.extrabold, letterSpacing: 0.6 },
+    depSoon: { fontSize: 14, lineHeight: 20, fontFamily: font.extrabold, color: '#15803D' },
+    depLater: { fontSize: 14, lineHeight: 20, fontFamily: font.bold, color: MUTED },
+    depRoute: { flexShrink: 1, fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: MUTED },
+    depFare: { fontSize: 16, lineHeight: 24, fontFamily: font.bold, color: ui.text, fontVariant: ['tabular-nums'] },
+    depFareNote: { maxWidth: 84, textAlign: 'right', fontSize: 13, lineHeight: 18, fontFamily: font.semibold, color: MUTED },
+    depMore: { minHeight: 48, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+    depMoreText: { fontSize: 15, lineHeight: 22, fontFamily: font.bold, color: ui.text },
 
     // ── Akosombo tip ──
     akosombo: {
       marginHorizontal: M,
       marginTop: 14,
       backgroundColor: '#FFF8E8',
-      borderRadius: 20,
+      borderRadius: 16,
       padding: 14,
       flexDirection: 'row',
       gap: 10,
@@ -1396,12 +1085,12 @@ const getStyles = (isDark: boolean) => {
 
     // ── Lines ──
     linesSection: { paddingHorizontal: M, paddingTop: 20, gap: 10 },
-    linesTitle: { marginHorizontal: 4, fontSize: 22, lineHeight: 30, fontFamily: font.extrabold, color: INK },
+    linesTitle: { marginHorizontal: 4, color: INK },
     lineRow: {
       backgroundColor: '#FFFFFF',
-      borderRadius: 20,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: outlineVariant,
+      borderColor: outline,
       paddingVertical: 14,
       paddingHorizontal: 16,
       flexDirection: 'row',
@@ -1411,15 +1100,15 @@ const getStyles = (isDark: boolean) => {
     lineBar: { width: 10, height: 44, borderRadius: 6 },
     lineName: { fontSize: 18, lineHeight: 26, fontFamily: font.bold, color: INK },
     lineMeta: { fontSize: 14, lineHeight: 20, fontFamily: font.regular, color: '#57534E' },
-    lineFare: { fontSize: 18, lineHeight: 26, fontFamily: font.bold, color: INK },
+    lineFare: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: INK },
 
     // ── Collapsible sections ──
     collSection: { paddingHorizontal: M, paddingTop: 20, gap: 8 },
     collCard: {
       backgroundColor: '#FFFFFF',
       borderWidth: 1,
-      borderColor: outlineVariant,
-      borderRadius: 18,
+      borderColor: outline,
+      borderRadius: 16,
       paddingHorizontal: 16,
     },
     collHead: {
@@ -1430,325 +1119,18 @@ const getStyles = (isDark: boolean) => {
     },
     collTitle: { fontSize: 17, lineHeight: 26, fontFamily: font.bold, color: INK },
     collBody: { paddingBottom: 14, gap: 12 },
+    cardNote: { fontSize: 13, lineHeight: 20, fontFamily: font.regular, color: '#57534E', paddingHorizontal: 4 },
+    newsSection: { paddingHorizontal: M, paddingTop: 20, gap: 14 },
     rideItem: { gap: 2 },
-    bulletinItem: { gap: 6 },
-
-    // ── Departure Board (always dark — like a real station display) ──
-    board: {
-      backgroundColor: '#0c1220',
-      marginHorizontal: M,
-      marginTop: 14,
-      borderRadius: radius.xl,
-      padding: 20,
-      overflow: 'hidden',
-      ...cardShadow,
-    },
-    boardTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 20,
-    },
-    scheduleBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-      gap: 5,
-    },
-    scheduleDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-    },
-    scheduleText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.72)',
-    },
-    boardLabel: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.65)',
-    },
-
-    // ── Flip Clock ──
-    clockRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-      marginBottom: 24,
-      gap: 6,
-    },
-    clockGroup: { alignItems: 'center' },
-    digitPair: { flexDirection: 'row', gap: 4 },
-    digit: {
-      width: 38,
-      height: 52,
-      borderRadius: 10,
-      backgroundColor: '#1a2535',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.06)',
-      overflow: 'hidden',
-    },
-    digitText: {
-      fontSize: 28,
-      fontFamily: font.bold,
-      color: '#e2e8f0',
-      includeFontPadding: false,
-    },
-    clockColon: {
-      fontSize: 28,
-      fontFamily: font.bold,
-      color: BOARD_ACCENT,
-      marginTop: 8,
-      marginHorizontal: 2,
-    },
-    // Short uppercase unit labels are allowed inside the board only.
-    clockUnit: {
-      fontSize: 9,
-      fontFamily: font.bold,
-      color: 'rgba(255,255,255,0.6)',
-      letterSpacing: 2,
-      marginTop: 6,
-    },
-
-    // ── Departure info ──
-    depInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      marginBottom: 8,
-    },
-    depCodeBadge: {
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 6,
-    },
-    depCodeText: {
-      fontSize: 12,
-      fontFamily: font.bold,
-      color: BOARD_ACCENT,
-    },
-    depLabel: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.94)',
-    },
-    depRoute: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 12,
-    },
-    depStation: {
-      fontSize: 13,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.72)',
-    },
-    depFooter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    depTime: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.65)',
-    },
-    scheduledBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      gap: 5,
-    },
-    scheduledText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.72)',
-    },
-    statusDot: { width: 6, height: 6, borderRadius: 3 },
-
-    // ── Remind-me button (board) ──
-    remindBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 16,
-      minHeight: 44,
-      paddingVertical: 12,
-      borderRadius: radius.md,
-      backgroundColor: 'rgba(14,165,233,0.12)',
-      borderWidth: 1,
-      borderColor: 'rgba(14,165,233,0.25)',
-    },
-    remindBtnOnFull: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 16,
-      minHeight: 44,
-      paddingVertical: 12,
-      borderRadius: radius.md,
-      backgroundColor: 'rgba(34,197,94,0.12)',
-      borderWidth: 1,
-      borderColor: 'rgba(34,197,94,0.3)',
-    },
-    remindText: {
-      fontSize: 13,
-      lineHeight: 18,
-      fontFamily: font.semibold,
-      color: BOARD_ACCENT,
-    },
-
-    // ── In-transit ──
-    transitSection: { marginBottom: 20 },
-    progressTrack: {
-      height: 4,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      borderRadius: 2,
-      marginBottom: 8,
-      position: 'relative',
-    },
-    progressFill: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      height: 4,
-      backgroundColor: BOARD_ACCENT,
-      borderRadius: 2,
-    },
-    progressDot: {
-      position: 'absolute',
-      top: -4,
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: BOARD_ACCENT,
-      borderWidth: 2,
-      borderColor: '#0c1220',
-      marginLeft: -6,
-    },
-    transitEndpoints: { flexDirection: 'row', justifyContent: 'space-between' },
-    transitEndpoint: {
-      fontSize: 12,
-      fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.6)',
-    },
-    transitDetails: { gap: 6, marginBottom: 12 },
-    transitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    transitText: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.72)',
-    },
-    transitHighlight: {
-      fontFamily: font.semibold,
-      color: 'rgba(255,255,255,0.94)',
-    },
-    transitBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(14,165,233,0.2)',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      gap: 5,
-    },
-    transitBadgeText: {
-      fontSize: 12,
-      fontFamily: font.semibold,
-      color: BOARD_ACCENT,
-    },
-
-    // ── No service ──
-    noService: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-    noServiceTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: 'rgba(255,255,255,0.6)',
-    },
-    noServiceSub: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: 'rgba(255,255,255,0.6)',
-    },
-
-    // ── Board info strip ──
-    boardStrip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 16,
-      paddingTop: 14,
-      borderTopWidth: 1,
-      borderTopColor: 'rgba(255,255,255,0.06)',
-      gap: 8,
-    },
-    stripText: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: 'rgba(255,255,255,0.6)',
-    },
-    stripDot: {
-      width: 3,
-      height: 3,
-      borderRadius: 1.5,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-    },
-    stripLineDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-
-    // ── How to Ride ──
-    rideCardTitle: {
-      fontSize: 14,
-      fontFamily: font.bold,
-      color: onSurface,
-      marginBottom: 4,
-    },
-    rideCardText: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      lineHeight: 19,
-    },
-
-    // ── Authority Bulletins ──
-    bulletinMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    bulletinDate: {
-      ...type.caption,
-      color: onSurfaceVariant,
-    },
-    bulletinText: {
-      fontSize: 14,
-      fontFamily: font.semibold,
-      color: onSurface,
-      lineHeight: 20,
-    },
+    rideCardTitle: { fontSize: 14, fontFamily: font.bold, color: INK, marginBottom: 4 },
+    rideCardText: { fontSize: 13, fontFamily: font.regular, color: '#57534E', lineHeight: 19 },
 
     // ── Daily Tip ──
     tipCard: {
       marginHorizontal: M,
       marginTop: space.section,
       borderRadius: radius.lg,
-      backgroundColor: surfaceLowest,
+      backgroundColor: ui.card,
       overflow: 'hidden',
       ...cardShadow,
     },
@@ -1757,22 +1139,11 @@ const getStyles = (isDark: boolean) => {
     emptyCard: {
       padding: 32,
       borderRadius: radius.lg,
-      backgroundColor: surfaceLowest,
+      backgroundColor: ui.card,
       alignItems: 'center',
       ...cardShadow,
     },
-    emptyTitle: {
-      fontSize: 16,
-      fontFamily: font.semibold,
-      color: onSurfaceVariant,
-      marginTop: 12,
-    },
-    emptySub: {
-      fontSize: 13,
-      fontFamily: font.regular,
-      color: onSurfaceVariant,
-      marginTop: 4,
-      textAlign: 'center',
-    },
+    emptyTitle: { fontSize: 16, fontFamily: font.semibold, color: '#57534E', marginTop: 12 },
+    emptySub: { fontSize: 13, fontFamily: font.regular, color: '#57534E', marginTop: 4, textAlign: 'center' },
   })
 }

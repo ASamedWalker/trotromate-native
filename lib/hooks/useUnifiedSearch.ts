@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoutes } from '@/lib/services/routes'
-import { searchTrainSchedules, TRANSPORT_COLORS } from '@/lib/utils/train-search'
+import { searchTrainSchedules, TRANSPORT_COLORS, type TrainTimeTag } from '@/lib/utils/train-search'
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -12,7 +12,7 @@ export interface UnifiedResult {
   to: string
   fare: number | null
   timeLabel: string
-  liveTag?: 'live' | 'scheduled' | 'done'
+  liveTag?: TrainTimeTag
   lineName?: string
   isVerified?: boolean
   routeId: string
@@ -95,10 +95,8 @@ export function useUnifiedSearch(query: string) {
       })
     }
 
-    // Sort: live trains first, then exact from-match, then verified
+    // Sort: exact from-match, then verified (train timing is scheduled, not live — no boost)
     unified.sort((a, b) => {
-      if (a.liveTag === 'live' && b.liveTag !== 'live') return -1
-      if (b.liveTag === 'live' && a.liveTag !== 'live') return 1
       const aExact = a.from.toLowerCase().startsWith(q) ? 0 : 1
       const bExact = b.from.toLowerCase().startsWith(q) ? 0 : 1
       if (aExact !== bExact) return aExact - bExact
