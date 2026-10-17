@@ -1,3 +1,4 @@
+import { ageLabel } from '@/lib/utils/freshness'
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { Navigation, Users, Clock, MapPin, Bus, Plus } from 'lucide-react-native'
 import { useRouter, type Href } from 'expo-router'
@@ -40,14 +41,8 @@ function stationLabel(name: string): string {
   return `${name} Station`
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  return `${hrs}h ago`
-}
+// One age wording app-wide (lib/utils/freshness ageLabel).
+const timeAgo = (iso: string): string => ageLabel(iso)
 
 interface StationCardProps {
   station: {

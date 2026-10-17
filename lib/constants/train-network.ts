@@ -20,7 +20,7 @@ export interface RideTip {
 export const HOW_TO_RIDE: RideTip[] = [
   {
     title: "Buy the train card at the station",
-    text: "Buy the train card at the station (GRDA lists the card at ₵10 adult, ₵5 child), then pay your fare with it. Troski does not sell train tickets.",
+    text: "Buy the train card at the station (GRDA lists the card at GH₵10 adult, GH₵5 child), then pay your fare with it. Troski does not sell train tickets.",
   },
   {
     title: "Change at Afienya",
@@ -36,7 +36,7 @@ export const HOW_TO_RIDE: RideTip[] = [
   },
   {
     title: "Where fares come from",
-    text: "Tema–Afienya–Adomi and Sekondi–Takoradi fares are from the GRDA website (checked 14 Oct 2026). The Tema–Accra fare is unconfirmed (GRCL's site lists ₵5–₵7). Where no fare is published we say so — confirm at the counter.",
+    text: "Tema–Afienya–Adomi and Sekondi–Takoradi fares are from the GRDA website (checked 14 Oct 2026). The Tema–Accra fare is unconfirmed (GRCL's site lists GH₵5–GH₵7). Where no fare is published we say so — confirm at the counter.",
   },
 ]
 
@@ -56,7 +56,7 @@ export interface LineStatus {
 export const LINE_STATUS: Record<string, LineStatus> = {
   TMA: {
     fareConfidence: "unverified",
-    fareNote: "Fare unconfirmed (GRCL site lists ₵5–₵7) · confirm at station.",
+    fareNote: "Fare unconfirmed (GRCL site lists GH₵5–GH₵7) · confirm at station.",
     status: "running",
     statusNote: "Suburban commuter service run by GRCL — last published schedule.",
     facts: [
@@ -83,8 +83,8 @@ export const LINE_STATUS: Record<string, LineStatus> = {
     status: "resumed",
     statusNote: "Relaunched 24 April 2026 — two daily shuttles from Kojokrom.",
     facts: [
-      "Kojokrom–Sekondi via Gyandu Halt: ₵5 adult, ₵3 child.",
-      "Kojokrom–Takoradi via Ketan, Adiembra, Essaman and Butuah: ₵7 adult, ₵4 child.",
+      "Kojokrom–Sekondi via Gyandu Halt: GH₵5 adult, GH₵3 child.",
+      "Kojokrom–Takoradi via Ketan, Adiembra, Essaman and Butuah: GH₵7 adult, GH₵4 child.",
       "Shuttle buses run from Takoradi station to the business district.",
     ],
   },

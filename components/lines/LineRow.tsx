@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import { font, ui, brand } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
 import { LineBadge } from '@/components/LineBadge'
-import { formatGHS } from '@/lib/utils/currency'
+import { formatGHS, formatGHSRange } from '@/lib/utils/currency'
 import { titleCase } from '@/lib/utils/title-case'
 import { fareSource, FARE_WARN_COLOR } from '@/lib/utils/fare-source'
 import type { RouteWithStats } from '@/lib/types'
@@ -25,11 +25,6 @@ export function okadaRange(item: RouteWithStats): { min: number; max: number } |
   return { min, max }
 }
 
-/** "GH₵ 15–25" — whole cedis drop the pesewas (L7). */
-function rangeLabel(min: number, max: number): string {
-  const n = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2))
-  return `GH₵ ${n(min)}–${n(max)}`
-}
 
 function monthYear(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -70,7 +65,7 @@ export function LineRow({
   let aged = src.aged
   if (isOkada) {
     const r = okadaRange(item)
-    fareText = r ? rangeLabel(r.min, r.max) : null
+    fareText = r ? formatGHSRange(r.min, r.max) : null
     provenance = r ? 'Agree before you ride' : 'Agree the fare before you ride'
     aged = false
   } else {

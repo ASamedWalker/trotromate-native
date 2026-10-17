@@ -34,7 +34,7 @@ const localDigits = (v: string) => v.replace(/\D/g, '').replace(/^233/, '').repl
 const validPhone = (v: string) => /^[25]\d{8}$/.test(localDigits(v))
 
 /** "GH₵10" chip label, "GH₵10.00" money lines (no space, as on the mockup). */
-const ghs = (n: number) => formatGHS(n).replace('GH₵ ', 'GH₵')
+const ghs = (n: number) => formatGHS(n)
 
 /**
  * Top up — one screen (UX v2 TU2–TU4): amount chips + Other amount with a live
@@ -131,7 +131,7 @@ export default function MomoTopUpScreen() {
     if (loading) return
     setFormError(null)
     if (!amountOk) {
-      setAmountError(effectiveAmount > 500 ? 'You can top up at most GH₵ 500 at a time.' : 'Choose or enter an amount of at least GH₵ 1.')
+      setAmountError(effectiveAmount > 500 ? 'You can top up at most GH₵500 at a time.' : 'Choose or enter an amount of at least GH₵1.')
       return
     }
     setAmountError(null)

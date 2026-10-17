@@ -58,13 +58,21 @@ export interface Corridor {
   isLaunch: boolean
 }
 
+function badgePart(code: string, name: string): string {
+  if (code !== '???') return code
+  const digits = name.replace(/[^0-9]/g, '').slice(0, 3)
+  return digits || '—'
+}
+
 export function corridorFor(from: string, to: string): Corridor {
   const a = terminalCode(from)
   const b = terminalCode(to)
   const pair = [a, b].sort().join('|')
   const launch = LAUNCH[pair]
   return {
-    code: `${a}·${b}`,
+    // Display only (keys/colours keep terminalCode so web + DB stay in sync):
+    // a name with no letters ("37") shows its digits instead of "???".
+    code: `${badgePart(a, from)}·${badgePart(b, to)}`,
     color: launch ?? OTHER_PALETTE[hash(pair) % OTHER_PALETTE.length],
     isLaunch: !!launch,
   }

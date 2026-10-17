@@ -11,7 +11,7 @@ import {
   Pressable,
   Linking,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { Search, MapPin, X, Plus, ChevronDown, Check, Navigation } from 'lucide-react-native'
 import { Image } from 'expo-image'
@@ -38,6 +38,7 @@ import { SkeletonRouteCard } from '@/components/Skeleton'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
+import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 /**
  * Lines (UX v2 canvas "Lines → Proposed", L1–L8). One layout for store and full builds:
@@ -74,6 +75,7 @@ function walkLabel(km: number): string {
 
 export default function RoutesScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string; t?: string }>()
   const s = useMemo(() => getStyles(), [])
 
@@ -402,7 +404,12 @@ export default function RoutesScreen() {
           renderSectionFooter={() => <View style={{ height: 6 }} />}
           stickySectionHeadersEnabled={false}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: 6, paddingBottom: 90 }}
+          // Clear the floating tab bar so the last line never sits under it.
+          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: 6, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 12 }}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={listHeader}

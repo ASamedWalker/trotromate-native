@@ -122,7 +122,7 @@ function BankTransferInner() {
         <View style={[s.note, { backgroundColor: isDark ? '#1c1917' : '#F5F5F4' }]}>
           <Text style={[s.noteText, { color: t.textSecondary }]}>
             <Text style={[s.noteLead, { color: t.text }]}>Note:  </Text>
-            Bank transfers take about 2 minutes for your top up to reflect, with a service charge of GH₵ 0.25.
+            Bank transfers take about 2 minutes for your top up to reflect, with a service charge of GH₵0.25.
           </Text>
         </View>
       </View>

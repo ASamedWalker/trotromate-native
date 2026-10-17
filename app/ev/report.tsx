@@ -151,7 +151,7 @@ export default function EvReportScreen() {
         </View>
 
         <Field label="Pricing (optional)">
-          <TextInput value={pricing} onChangeText={setPricing} placeholder="e.g. GH₵ 2.50 / kWh, or per swap" placeholderTextColor="#6B7280" style={styles.input} />
+          <TextInput value={pricing} onChangeText={setPricing} placeholder="e.g. GH₵2.50 / kWh, or per swap" placeholderTextColor="#6B7280" style={styles.input} />
         </Field>
         <Field label="Notes (optional)">
           <TextInput value={notes} onChangeText={setNotes} placeholder="Landmark, opening hours, anything useful" placeholderTextColor="#6B7280" style={[styles.input, { minHeight: 64 }]} multiline maxLength={280} />

@@ -87,7 +87,7 @@ export async function fetchNotifications(
             id: `fare-drop-${fare.id}`,
             type: 'fare_drop',
             title: 'Fare Drop Alert',
-            body: `${route?.from_location} → ${route?.to_location}: ₵${fare.reported_fare.toFixed(2)} (was ₵${stat.avg_reported_fare.toFixed(2)} avg)`,
+            body: `${route?.from_location} → ${route?.to_location}: GH₵${fare.reported_fare.toFixed(2)} (was GH₵${stat.avg_reported_fare.toFixed(2)} avg)`,
             timestamp: fare.reported_at as string,
             color: '#22c55e',
           })

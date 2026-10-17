@@ -6,14 +6,13 @@ import {
   StyleSheet,
   useColorScheme,
   ActivityIndicator,
-  Dimensions,
   Share,
   PanResponder,
 } from 'react-native'
 import Svg, { Path, Line, Circle, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { TrendingUp, BarChart3, Share2 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
-import { formatGHS } from '@/lib/utils/currency'
+import { formatGHS, formatGHSRange } from '@/lib/utils/currency'
 
 export interface FareTrendPoint {
   day: string
@@ -38,7 +37,10 @@ const PERIODS = [
 ]
 
 const CHART_HEIGHT = 160
-const CHART_PADDING = { top: 20, right: 16, bottom: 28, left: 42 }
+// Labels are drawn INSIDE these paddings (system font in SVG on both platforms; 12pt
+// floor). Width comes from onLayout, never the screen, so the chart can't spill out of
+// whatever card hosts it (Android 360dp overflow bug, 2026-10-16).
+const CHART_PADDING = { top: 16, right: 14, bottom: 26, left: 40 }
 
 // Error boundary to prevent chart crashes from taking down the whole screen
 class ChartErrorBoundary extends Component<
@@ -114,8 +116,14 @@ export function FareTrendChart({
     setChartError(false)
   }, [data])
 
-  const screenWidth = Dimensions.get('window').width
-  const chartWidth = Math.max(100, screenWidth - 40 - 32)
+  const [measuredW, setMeasuredW] = useState(0)
+  const chartWidth = Math.max(100, measuredW)
+  const onLayout = useCallback((e: { nativeEvent: { layout: { width: number } } }) => {
+    const w = Math.round(e.nativeEvent.layout.width)
+    setMeasuredW((prev) => (Math.abs(prev - w) > 1 ? w : prev))
+  }, [])
+  // Only a published GPRTU fare gets a reference line — never an unverified number.
+  const hasOfficial = typeof officialFare === 'number' && isFinite(officialFare) && officialFare > 0
 
   const drawWidth = Math.max(10, chartWidth - CHART_PADDING.left - CHART_PADDING.right)
   const drawHeight = Math.max(10, CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom)
@@ -163,10 +171,10 @@ export function FareTrendChart({
       // Need at least 2 points for a meaningful chart
       if (validData.length < 2) return null
 
-      const safeFare = safeNum(officialFare, 1)
+      const safeFare = hasOfficial ? officialFare : 0
 
       // Y-axis range
-      const allValues = validData.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(safeFare)
+      const allValues = validData.flatMap((d) => [d.avg_fare, d.min_fare, d.max_fare]).concat(hasOfficial ? [safeFare] : [])
       const rawMin = Math.min(...allValues)
       const rawMax = Math.max(...allValues)
       const minVal = Math.floor(safeNum(rawMin, 0) * 0.9 * 2) / 2
@@ -199,11 +207,14 @@ export function FareTrendChart({
         ? validData.map((_, i) => i)
         : [0, Math.floor(validData.length / 2), validData.length - 1]
 
+      // Edge labels anchor inward so they never cross the SVG edge.
       const xLabels = labelIndices.map(idx => {
         const d = new Date(validData[idx].day)
+        const anchor: 'start' | 'middle' | 'end' = idx === 0 ? 'start' : idx === validData.length - 1 ? 'end' : 'middle'
         return {
           label: `${d.getDate()}/${d.getMonth() + 1}`,
           x: safeNum(toX(idx)),
+          anchor,
         }
       })
 
@@ -231,7 +242,7 @@ export function FareTrendChart({
       console.warn('FareTrendChart compute error:', e)
       return null
     }
-  }, [data, officialFare, drawWidth, drawHeight])
+  }, [data, officialFare, hasOfficial, drawWidth, drawHeight])
 
   // Keep ref in sync
   pointsRef.current = chartData?.points || []
@@ -241,12 +252,12 @@ export function FareTrendChart({
     const latestAvg = data?.[data.length - 1]?.avg_fare
     const name = routeName || 'this route'
     const message = latestAvg != null
-      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg (Official: ${formatGHS(officialFare)}) based on ${totalReports} community reports. Track real fares on Troski! https://www.troski.me`
+      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg${hasOfficial ? ` (GPRTU: ${formatGHS(officialFare)})` : ''} based on ${totalReports} community reports. Track real fares on Troski! https://www.troski.me`
       : `Track real trotro fares on Troski! https://www.troski.me`
     try {
       await Share.share({ message, title: 'Troski Fare Trend' })
     } catch (e) { console.warn("[troski] silent error:", e) }
-  }, [data, officialFare, routeName])
+  }, [data, officialFare, hasOfficial, routeName])
 
   const handlePeriodChange = useCallback((days: number) => {
     setSelectedIdx(null)
@@ -262,7 +273,7 @@ export function FareTrendChart({
         <Text style={s.title}>Fare Trend</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TouchableOpacity onPress={handleShare} hitSlop={8} style={s.shareBtn}>
+        <TouchableOpacity onPress={handleShare} hitSlop={8} style={s.shareBtn} accessibilityRole="button" accessibilityLabel="Share fare trend">
           <Share2 size={14} color={c.amber500} />
         </TouchableOpacity>
         <View style={s.periodRow}>
@@ -270,6 +281,10 @@ export function FareTrendChart({
             <TouchableOpacity
               key={p.days}
               onPress={() => handlePeriodChange(p.days)}
+              hitSlop={{ top: 6, bottom: 6 }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedPeriod === p.days }}
+              accessibilityLabel={p.days === 7 ? 'Last 7 days' : 'Last 30 days'}
               style={[s.periodBtn, selectedPeriod === p.days && s.periodBtnActive]}
             >
               <Text style={[s.periodText, selectedPeriod === p.days && s.periodTextActive]}>
@@ -320,7 +335,8 @@ export function FareTrendChart({
 
       <ChartErrorBoundary isDark={isDark} onRetry={() => setChartError(false)}>
         {/* Interactive chart */}
-        <View style={{ position: 'relative' }}>
+        <View style={{ position: 'relative', height: CHART_HEIGHT }} onLayout={onLayout}>
+          {measuredW > 0 ? (
           <Svg width={chartWidth} height={CHART_HEIGHT}>
             <Defs>
               <LinearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
@@ -334,16 +350,20 @@ export function FareTrendChart({
               <Line key={i} x1={CHART_PADDING.left} y1={tick.y} x2={chartWidth - CHART_PADDING.right} y2={tick.y} stroke={gridColor} strokeWidth={1} strokeDasharray="4,4" />
             ))}
             {yTicks.map((tick, i) => (
-              <SvgText key={`yl-${i}`} x={CHART_PADDING.left - 6} y={tick.y + 4} textAnchor="end" fill={textColor} fontSize={10}>
+              <SvgText key={`yl-${i}`} x={CHART_PADDING.left - 6} y={tick.y + 4} textAnchor="end" fill={textColor} fontSize={12}>
                 {safeNum(tick.val).toFixed(1)}
               </SvgText>
             ))}
 
-            {/* Official fare reference line */}
-            <Line x1={CHART_PADDING.left} y1={officialY} x2={chartWidth - CHART_PADDING.right} y2={officialY} stroke={isDark ? '#34d399' : '#059669'} strokeWidth={1} strokeDasharray="6,4" />
-            <SvgText x={chartWidth - CHART_PADDING.right} y={officialY - 6} textAnchor="end" fill={isDark ? '#34d399' : '#059669'} fontSize={9}>
-              Official
-            </SvgText>
+            {/* GPRTU fare reference line (only when a verified fare exists) */}
+            {hasOfficial ? (
+              <Line x1={CHART_PADDING.left} y1={officialY} x2={chartWidth - CHART_PADDING.right} y2={officialY} stroke={isDark ? '#34d399' : '#059669'} strokeWidth={1} strokeDasharray="6,4" />
+            ) : null}
+            {hasOfficial ? (
+              <SvgText x={chartWidth - CHART_PADDING.right} y={Math.max(12, officialY - 5)} textAnchor="end" fill={isDark ? '#34d399' : '#047857'} fontSize={12}>
+                GPRTU
+              </SvgText>
+            ) : null}
 
             {/* Min-max range area */}
             {rangePath ? <Path d={rangePath} fill="url(#rangeGrad)" /> : null}
@@ -363,11 +383,12 @@ export function FareTrendChart({
 
             {/* X-axis labels */}
             {xLabels.map((xl, i) => (
-              <SvgText key={`xl-${i}`} x={xl.x} y={CHART_HEIGHT - 4} textAnchor="middle" fill={textColor} fontSize={10}>
+              <SvgText key={`xl-${i}`} x={xl.x} y={CHART_HEIGHT - 6} textAnchor={xl.anchor} fill={textColor} fontSize={12}>
                 {xl.label}
               </SvgText>
             ))}
           </Svg>
+          ) : null}
 
           {/* Touch overlay */}
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent' }} collapsable={false} {...panResponder.panHandlers} />
@@ -376,7 +397,7 @@ export function FareTrendChart({
           {selectedPoint && (
             <View
               style={[s.tooltip, {
-                left: Math.max(8, Math.min(selectedPoint.x - 65, chartWidth - 138)),
+                left: Math.max(0, Math.min(selectedPoint.x - 70, chartWidth - 140)),
                 top: Math.max(0, selectedPoint.y - 72),
               }]}
               pointerEvents="none"
@@ -386,7 +407,7 @@ export function FareTrendChart({
               </Text>
               <Text style={s.tooltipFare}>{formatGHS(safeNum(selectedPoint.avg_fare))}</Text>
               <Text style={s.tooltipRange}>
-                Range: {formatGHS(safeNum(selectedPoint.min_fare))} – {formatGHS(safeNum(selectedPoint.max_fare))}
+                Range {formatGHSRange(safeNum(selectedPoint.min_fare), safeNum(selectedPoint.max_fare))}
               </Text>
               <Text style={s.tooltipReports}>{selectedPoint.report_count ?? 0} reports</Text>
             </View>
@@ -400,10 +421,12 @@ export function FareTrendChart({
           <View style={[s.summaryDot, { backgroundColor: c.amber500 }]} />
           <Text style={s.summaryLabel}>Avg reported</Text>
         </View>
-        <View style={s.summaryItem}>
-          <View style={[s.summaryDot, { backgroundColor: isDark ? '#34d399' : '#059669' }]} />
-          <Text style={s.summaryLabel}>Official fare</Text>
-        </View>
+        {hasOfficial ? (
+          <View style={s.summaryItem}>
+            <View style={[s.summaryDot, { backgroundColor: isDark ? '#34d399' : '#059669' }]} />
+            <Text style={s.summaryLabel}>GPRTU fare</Text>
+          </View>
+        ) : null}
         <Text style={s.summaryCount}>{totalReports} reports</Text>
       </View>
     </View>
@@ -423,14 +446,8 @@ function formatDay(day: string): string {
 const getStyles = (isDark: boolean) => {
   const t = themed(isDark)
   return StyleSheet.create({
-    card: {
-      marginHorizontal: 20,
-      marginTop: 16,
-      padding: 16,
-      paddingBottom: 12,
-      borderRadius: 20,
-      backgroundColor: t.card,
-    },
+    // The host screen owns the card chrome (routes/[id] wraps this in its own card).
+    card: {},
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -450,7 +467,8 @@ const getStyles = (isDark: boolean) => {
     },
     periodBtn: {
       paddingHorizontal: 12,
-      paddingVertical: 6,
+      minHeight: 36,
+      justifyContent: 'center',
       borderRadius: 8,
     },
     periodBtnActive: {
@@ -471,14 +489,17 @@ const getStyles = (isDark: boolean) => {
     },
     emptySubtext: {
       fontSize: 12,
+      fontFamily: font.regular,
       color: t.textTertiary,
       marginTop: 4,
     },
     summaryRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       marginTop: 8,
-      gap: 12,
+      columnGap: 12,
+      rowGap: 4,
     },
     summaryItem: {
       flexDirection: 'row',
@@ -491,17 +512,19 @@ const getStyles = (isDark: boolean) => {
       borderRadius: 4,
     },
     summaryLabel: {
-      fontSize: 11,
+      fontSize: 12,
+      fontFamily: font.regular,
       color: t.textSecondary,
     },
     summaryCount: {
-      fontSize: 11,
+      fontSize: 12,
+      fontFamily: font.regular,
       color: t.textTertiary,
       marginLeft: 'auto',
     },
     shareBtn: {
-      width: 30,
-      height: 30,
+      width: 36,
+      height: 36,
       borderRadius: 8,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
@@ -509,7 +532,7 @@ const getStyles = (isDark: boolean) => {
     },
     tooltip: {
       position: 'absolute' as const,
-      width: 130,
+      width: 140,
       backgroundColor: isDark ? c.stone800 : c.white,
       borderRadius: 12,
       paddingHorizontal: 10,
@@ -523,7 +546,7 @@ const getStyles = (isDark: boolean) => {
       elevation: 6,
     },
     tooltipDate: {
-      fontSize: 10,
+      fontSize: 12,
       fontFamily: font.medium,
       color: t.textTertiary,
       marginBottom: 2,
@@ -534,12 +557,14 @@ const getStyles = (isDark: boolean) => {
       color: c.amber500,
     },
     tooltipRange: {
-      fontSize: 10,
+      fontSize: 12,
+      fontFamily: font.regular,
       color: t.textSecondary,
       marginTop: 2,
     },
     tooltipReports: {
-      fontSize: 10,
+      fontSize: 12,
+      fontFamily: font.regular,
       color: t.textTertiary,
       marginTop: 1,
     },

@@ -39,7 +39,7 @@ export default function WalletLine({ authUserId }: { authUserId: string }) {
     return () => { live = false }
   }, [authUserId]))
 
-  const amount = balance != null ? formatGHS(balance) : 'GH₵ —'
+  const amount = balance != null ? formatGHS(balance) : 'GH₵—'
 
   return (
     <View style={{

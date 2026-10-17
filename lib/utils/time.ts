@@ -1,3 +1,4 @@
+import { ageLabel } from '@/lib/utils/freshness'
 /**
  * Ghana is UTC+0 (Africa/Accra) year-round with no daylight saving.
  * Using UTC methods is safe and avoids device-timezone mismatches.
@@ -19,9 +20,6 @@ export function formatGhanaTime(): string {
 
 export function timeAgo(dateString: string | null): string {
   if (!dateString) return 'No reports yet'
-  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86400)}d ago`
+  // One wording app-wide: delegate to the canonical age label (freshness.ts).
+  return ageLabel(dateString) || 'No reports yet'
 }

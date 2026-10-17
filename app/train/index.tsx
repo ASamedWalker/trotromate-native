@@ -28,7 +28,7 @@ import {
 import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
 import { Tap } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
-import { AdinkraBand, AdinkraAccent, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
+import { AdinkraBand, AdinkraCardPattern, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { useTrainLines } from '@/lib/hooks/useTrain'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
@@ -490,7 +490,7 @@ export default function TrainLinesScreen() {
     return (
       <View style={s.tripCard}>
         {/* Same navy-board Adinkra mark as the next-train card. */}
-        <AdinkraAccent symbol="adinkrahene" size={120} color="#FFFFFF" opacity={0.08} position="topRight" inset={-34} />
+        <AdinkraCardPattern height={340} ink="rgba(255,255,255,0.075)" size={28} />
         <View style={s.tripTopRow}>
           <Text style={s.tripLabel}>MY TRIP</Text>
           <TouchableOpacity

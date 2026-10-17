@@ -139,7 +139,7 @@ export interface FareResult {
   /** Adult fare in GH₵, null when not published */
   amount: number | null
   child: number | null
-  /** "₵15" or the honest fallback text */
+  /** "GH₵15" or the honest fallback text */
   label: string
 }
 
@@ -155,7 +155,7 @@ export function getFare(lineCode: string, from: string, to: string): FareResult 
   const hit = PUBLISHED_FARES.find(
     (f) => f.lineCode === lineCode && f.basis === "grda" && [f.from, f.to].sort().join("|") === pair
   )
-  if (hit) return { amount: hit.adult, child: hit.child, label: `₵${hit.adult}` }
+  if (hit) return { amount: hit.adult, child: hit.child, label: `GH₵${hit.adult}` }
   return { amount: null, child: null, label: ZONE_FARE_UNKNOWN }
 }
 
@@ -164,13 +164,13 @@ export function noConnectionText(r: DirectRun, to: string): string {
   return `No same-${toMinutes(r.arriveTo) >= 12 * 60 ? "evening" : "day"} connection to ${to}`
 }
 
-/** "₵15 · child ₵7" — fare plus child fare when published. */
+/** "GH₵15 · child GH₵7" — fare plus child fare when published. */
 export function fareWithChild(f: FareResult): string {
   if (f.amount === null) return f.label
-  return f.child !== null ? `₵${f.amount} · child ₵${f.child}` : `₵${f.amount}`
+  return f.child !== null ? `GH₵${f.amount} · child GH₵${f.child}` : `GH₵${f.amount}`
 }
 
-/** Short per-run fare for tight rows: "₵15" or "Fare: confirm at station". */
+/** Short per-run fare for tight rows: "GH₵15" or "Fare: confirm at station". */
 export const runFareShort = runFareLabelShort
 
 // ─── Station-to-station search ──────────────────────────
@@ -361,10 +361,10 @@ export function getStationFareSummary(station: Station) {
 
 /** One natural sentence about fares, for meta descriptions. */
 export function stationFareSentence(station: Station): string {
-  if (station.lineCode === "TMA") return `Tema–Accra fare unconfirmed (GRCL site lists ₵5–₵7), confirm at the station.`
+  if (station.lineCode === "TMA") return `Tema–Accra fare unconfirmed (GRCL site lists GH₵5–GH₵7), confirm at the station.`
   const { exact, unknown } = getStationFareSummary(station)
   if (!exact.length) return `Fares from ${station.name} are not published by GRDA, confirm at the station.`
-  const parts = exact.map((f) => `₵${f.fare.amount} to ${f.to}`)
+  const parts = exact.map((f) => `GH₵${f.fare.amount} to ${f.to}`)
   return `Fares from ${station.name}: ${joinNames(parts)}${unknown.length ? ", other stations: confirm at the station" : ""}.`
 }
 
@@ -394,15 +394,15 @@ export function getStationFaqs(station: Station): { question: string; answer: st
   const { exact, unknown } = getStationFareSummary(station)
   let fareAnswer: string
   if (station.lineCode === "TMA") {
-    fareAnswer = `The Tema–Accra fare is unconfirmed: GRCL's site lists ₵5–₵7. Confirm the fare at the station.`
+    fareAnswer = `The Tema–Accra fare is unconfirmed: GRCL's site lists GH₵5–GH₵7. Confirm the fare at the station.`
   } else if (exact.length) {
-    const parts = exact.map((f) => `₵${f.fare.amount}${f.fare.child !== null ? ` (child ₵${f.fare.child})` : ""} to ${f.to}`)
+    const parts = exact.map((f) => `GH₵${f.fare.amount}${f.fare.child !== null ? ` (child GH₵${f.fare.child})` : ""} to ${f.to}`)
     fareAnswer = `The GRDA fares from ${name} are ${joinNames(parts)}.`
     if (unknown.length) fareAnswer += " Fares to other stations are not published, so confirm at the station."
   } else {
     fareAnswer = `GRDA does not publish fares from ${name}. Confirm the fare at the station.`
   }
-  fareAnswer += " Buy the train card at the station (GRDA lists the card at ₵10 adult, ₵5 child)."
+  fareAnswer += " Buy the train card at the station (GRDA lists the card at GH₵10 adult, GH₵5 child)."
 
   const missing = missingDaysText(days)
   const sundayAnswer = missing
@@ -520,5 +520,7 @@ export function nextLineDepartures(lineCode: string, now: Date): NextDeparture[]
 export function formatRemaining(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
+  // Same wording as the Train tab's formatIn: "2 h 25 min", "2 h", "40 min".
+  if (h === 0) return `${m} min`
+  return m ? `${h} h ${m} min` : `${h} h`
 }

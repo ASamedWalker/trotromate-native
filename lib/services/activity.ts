@@ -96,7 +96,7 @@ export async function fetchRecentActivity(
         id: `fare-${r.id}`,
         type: 'fare',
         title: `${route?.from_location ?? '?'} → ${route?.to_location ?? '?'}`,
-        subtitle: `Fare reported: ₵${(r.reported_fare as number).toFixed(2)}`,
+        subtitle: `Fare reported: GH₵${(r.reported_fare as number).toFixed(2)}`,
         timestamp: r.reported_at as string,
       })
     }

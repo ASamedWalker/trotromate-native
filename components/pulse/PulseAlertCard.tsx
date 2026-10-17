@@ -7,7 +7,7 @@ import { TrustPill } from '@/components/pulse/PulseTrust'
 import { ageLabel } from '@/lib/utils/freshness'
 import type { ServiceAlert } from '@/lib/hooks/useAlerts'
 import { cardBase, META, PAD } from '@/components/pulse/PulseBits'
-import { AdinkraAccent } from '@/components/AdinkraAccent'
+import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 
 const SEEN_KEY = '@troski_pulse_alerts_seen_v1'
 const BLUE = '#1D4ED8'
@@ -89,7 +89,7 @@ function AlertCardBody({ alert, expanded, onToggle }: { alert: ServiceAlert; exp
       style={{ ...cardBase, overflow: 'hidden', borderLeftWidth: 4, borderLeftColor: BLUE, paddingVertical: expanded ? 12 : 10, paddingHorizontal: 14, minHeight: 48, justifyContent: 'center' }}
     >
       {/* Adinkrahene (leadership) in the corner: the official voice. Faint, behind the text. */}
-      {expanded ? <AdinkraAccent symbol="adinkrahene" size={64} color={BLUE} opacity={0.07} position="bottomRight" inset={-14} /> : null}
+      {expanded ? <AdinkraCardPattern height={320} ink="rgba(29,78,216,0.06)" size={24} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <TriangleAlert size={18} color={BLUE} />
         <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 16, color: ui.text }} numberOfLines={expanded ? 2 : 1}>

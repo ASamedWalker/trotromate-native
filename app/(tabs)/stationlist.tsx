@@ -155,6 +155,10 @@ export default function StationsTab() {
         ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} colors={[ORANGE]} />}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 70 }}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         ListEmptyComponent={
           <Text style={{ margin: 20, fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>
             {isLoading ? 'Loading stations…' : 'No station matches that name.'}
@@ -195,6 +199,8 @@ export default function StationsTab() {
           )
         }}
       />
+      {/* Status-bar strip: rows scroll under the clock otherwise (header scrolls away). */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: '#FFF3EA' }} />
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/report/queue' as any) }}

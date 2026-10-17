@@ -13,15 +13,19 @@ export function freshness(reportedAt: string | null | undefined, now: number = D
   return age < FRESH_MS ? 'fresh' : 'aging'
 }
 
-/** "just now", "12 min ago", "1h ago" — the age text every status carries. */
+/** THE age text every status carries (UX v2 canvas wording): "just now",
+ *  "12 min ago", "3 h ago", "4 d ago", "5 mo ago". Always a number, never a vague
+ *  "months ago" (honest-data rule). */
 export function ageLabel(reportedAt: string | null | undefined, now: number = Date.now()): string {
   if (!reportedAt) return ''
-  const mins = Math.max(0, Math.round((now - new Date(reportedAt).getTime()) / 60000))
+  const t = new Date(reportedAt).getTime()
+  if (Number.isNaN(t)) return ''
+  const mins = Math.max(0, Math.round((now - t) / 60000))
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins} min ago`
   const hours = Math.floor(mins / 60)
-  if (hours < 48) return `${hours}h ago`
+  if (hours < 48) return `${hours} h ago`
   const days = Math.floor(hours / 24)
-  if (days < 60) return `${days} days ago`
-  return 'months ago'
+  if (days < 60) return `${days} d ago`
+  return `${Math.floor(days / 30)} mo ago`
 }

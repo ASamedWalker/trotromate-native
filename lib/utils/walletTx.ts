@@ -42,7 +42,7 @@ export interface TxView {
 }
 
 /** "GH₵10.00" (no space — row style on the mockups). */
-export const ghs = (n: number) => formatGHS(n).replace('GH₵ ', 'GH₵')
+export const ghs = (n: number) => formatGHS(n)
 
 export function txView(tx: any): TxView {
   const amount = Math.abs(Number(tx?.amount) || 0)

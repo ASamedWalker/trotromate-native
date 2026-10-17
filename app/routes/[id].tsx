@@ -30,7 +30,8 @@ import { useLiveTripPositions } from '@/lib/hooks/useLiveTripPositions'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { timeAgo } from '@/lib/utils/time'
-import { formatGHS } from '@/lib/utils/currency'
+import { formatGHS, formatGHSRange } from '@/lib/utils/currency'
+import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 import { titleCase } from '@/lib/utils/title-case'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
@@ -148,7 +149,7 @@ export default function RouteDetailScreen() {
   let basis = ''
   let basisWarn = false
   if (isOkada) {
-    heroFare = range ? `GH₵ ${Number.isInteger(range.min) ? range.min : range.min.toFixed(2)}–${Number.isInteger(range.max) ? range.max : range.max.toFixed(2)}` : null
+    heroFare = range ? formatGHSRange(range.min, range.max) : null
     heroLabel = range ? 'RIDERS' : null
     basis = range
       ? `From ${reportCount} reports${lastAt ? ` · ${ageLabel(lastAt)}` : ''} · Agree before you ride`
@@ -187,7 +188,13 @@ export default function RouteDetailScreen() {
     const f = resolveDropoffFareSync(segments, firstOrder, st.stop_order, stops, corridorFare)
     if (f.source === 'corridor' || !(f.fare > 0)) return null
     // Distance-interpolated fares are guesses: round to Ghana's 50-pesewa steps.
-    return f.source === 'interpolated' ? { ...f, fare: Math.max(0.5, Math.round(f.fare * 2) / 2) } : f
+    // Below GH₵2 the guess is noise ("GH₵0.50 est." one stop out), so show "—" with
+    // no chip. Stored stage fares (official / reported) always show.
+    if (f.source === 'interpolated') {
+      const rounded = Math.round(f.fare * 2) / 2
+      return rounded < MIN_EST_STAGE_FARE ? { fare: null, source: f.source } : { ...f, fare: rounded }
+    }
+    return f
   })
   const isEst = (source: string) => source !== 'official' && source !== 'reported'
 
@@ -256,6 +263,8 @@ export default function RouteDetailScreen() {
       >
         {/* ── R1 hero in the corridor colour ── */}
         <View style={[s.hero, { backgroundColor: corridor.color, paddingTop: insets.top + 4 }]}>
+          {/* Adinkra (owner rule: every hero carries it) — faint white, decoration only. */}
+          <AdinkraCardPattern height={insets.top + 420} ink="rgba(255,255,255,0.09)" size={28} />
           <View style={s.heroTop}>
             <BackButton variant="floating" tone="dark" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
             <TouchableOpacity
@@ -343,7 +352,7 @@ export default function RouteDetailScreen() {
                       key={st.id ?? `${st.stop_order}`}
                       style={s.stopRow}
                       accessible
-                      accessibilityLabel={`${titleCase(st.stop_name)}${first ? ', board here' : last ? ', end of line' : ''}${f ? `, ${formatGHS(f.fare)}${isEst(f.source) ? ' estimated' : ''}` : ''}`}
+                      accessibilityLabel={`${titleCase(st.stop_name)}${first ? ', board here' : last ? ', end of line' : ''}${f && f.fare != null ? `, ${formatGHS(f.fare)}${isEst(f.source) ? ' estimated' : ''}` : ''}`}
                     >
                       <View style={s.stopRail}>
                         <View style={[s.railLine, { backgroundColor: corridor.color, top: first ? '50%' : 0, bottom: last ? '50%' : 0 }]} />
@@ -356,7 +365,9 @@ export default function RouteDetailScreen() {
                       <Text style={[s.stopName, terminal && { fontFamily: font.extrabold }]}>{titleCase(st.stop_name)}</Text>
                       {first ? (
                         <View style={[s.chip, { backgroundColor: '#ECFDF5' }]}><Text style={[s.chipText, { color: '#047857' }]}>Board here</Text></View>
-                      ) : f ? (
+                      ) : f && f.fare == null ? (
+                        <Text style={[s.stopFare, { color: ui.textTertiary }]}>—</Text>
+                      ) : f && f.fare != null ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={s.stopFare}>{formatGHS(f.fare)}</Text>
                           {isEst(f.source) ? <View style={[s.chip, { backgroundColor: '#F5F5F4' }]}><Text style={[s.chipText, { color: '#57534E' }]}>est.</Text></View> : null}
@@ -401,7 +412,7 @@ export default function RouteDetailScreen() {
               <View style={[s.card, { padding: space.md, marginTop: 6 }]}>
                 <FareTrendChart
                   data={trend}
-                  officialFare={officialFare}
+                  officialFare={src.chip === 'GPRTU' ? officialFare : 0}
                   isLoading={trendLoading}
                   selectedPeriod={trendDays}
                   onPeriodChange={setTrendDays}
@@ -473,12 +484,15 @@ export default function RouteDetailScreen() {
   )
 }
 
+/** Interpolated stage fares under this read as noise; show "—" instead. */
+const MIN_EST_STAGE_FARE = 2
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: ui.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 15 },
 
-  hero: { paddingBottom: 18 },
+  hero: { paddingBottom: 18, overflow: 'hidden' },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xl, minHeight: 48 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, paddingLeft: 12 },
   saveText: { fontFamily: font.bold, fontSize: 16, color: '#FFFFFF' },

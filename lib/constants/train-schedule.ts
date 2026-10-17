@@ -64,7 +64,7 @@ export const GRDA_SOURCE_LABEL = 'per GRDA website · checked 14 Oct 2026'
 /** Train card: GRDA lists the reusable card price separately from fares. */
 export const TRAIN_CARD = { adult: 10, child: 5 } as const
 export const TRAIN_CARD_TEXT =
-  'Buy the train card at the station (GRDA lists the card at ₵10 adult, ₵5 child). Troski does not sell train tickets.'
+  'Buy the train card at the station (GRDA lists the card at GH₵10 adult, GH₵5 child). Troski does not sell train tickets.'
 
 /** Contacts — shown as plain text. */
 export const RAIL_CONTACTS = [
@@ -118,7 +118,7 @@ export const TMP_LAUNCH_FARES = [
 ] as const
 export const LAUNCH_FARE_LABEL = 'launch fares, Oct 2025, may have changed'
 
-export const TMA_FARE_NOTE = 'Fare unconfirmed (GRCL site lists ₵5–₵7) · confirm at station'
+export const TMA_FARE_NOTE = 'Fare unconfirmed (GRCL site lists GH₵5–GH₵7) · confirm at station'
 
 // Back-compat alias: TMP fares GRDA publishes today.
 export const TMP_ZONE_FARES = PUBLISHED_FARES.filter((f) => f.lineCode === 'TMP')
@@ -238,7 +238,7 @@ function shuttle(
 }
 
 const ARRIVAL_UNCLEAR = 'Arrival time unclear on GRDA site'
-const ADOMI_FARE_NOTE = '₵10 to Doryumu JC (child ₵5) · other stops: confirm at station'
+const ADOMI_FARE_NOTE = 'GH₵10 to Doryumu JC (child GH₵5) · other stops: confirm at station'
 
 export const TRAIN_SCHEDULES: Record<string, TrainSchedule[]> = {
   // ─── Tema–Accra Commuter (TMA, GRCL) ───────────────────
@@ -330,18 +330,18 @@ export function arrivalLabel(s: TrainSchedule): string {
   return s.arrivalApprox && t ? `about ${t}` : t
 }
 
-/** Honest fare text for one run: "₵15 (child ₵7)" or its fare note. */
+/** Honest fare text for one run: "GH₵15 (child GH₵7)" or its fare note. */
 export function scheduleFareLabel(s: TrainSchedule): string {
   if (s.fare === null) return s.fareNote ?? 'Fare not published · confirm at station'
-  return s.childFare !== null ? `₵${s.fare} (child ₵${s.childFare})` : `₵${s.fare}`
+  return s.childFare !== null ? `GH₵${s.fare} (child GH₵${s.childFare})` : `GH₵${s.fare}`
 }
 
-/** Short per-run fare for tight rows: "₵15" or "Fare: confirm at station". */
+/** Short per-run fare for tight rows: "GH₵15" or "Fare: confirm at station". */
 export function runFareLabelShort(s: TrainSchedule): string {
-  return s.fare === null ? 'Fare: confirm at station' : `₵${s.fare}`
+  return s.fare === null ? 'Fare: confirm at station' : `GH₵${s.fare}`
 }
 
-/** Line-level headline fare: "₵5–7", "From ₵10", or "Fare unconfirmed". */
+/** Line-level headline fare: "GH₵5–7", "From GH₵10", or "Fare unconfirmed". */
 export function lineFareLabel(lineCode: string): string {
   const runs = TRAIN_SCHEDULES[lineCode] ?? []
   const fares = runs.map((r) => r.fare).filter((f): f is number => f !== null)
@@ -350,8 +350,8 @@ export function lineFareLabel(lineCode: string): string {
   if (!all.length) return 'Fare unconfirmed'
   const min = Math.min(...all)
   const max = Math.max(...all)
-  if (runs.some((r) => r.fare === null)) return `From ₵${min}`
-  return min === max ? `₵${min}` : `₵${min}–${max}`
+  if (runs.some((r) => r.fare === null)) return `From GH₵${min}`
+  return min === max ? `GH₵${min}` : `GH₵${min}–${max}`
 }
 
 // Flat per-run summary derived from TRAIN_SCHEDULES — single source of truth

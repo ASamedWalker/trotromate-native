@@ -65,7 +65,7 @@ type Row =
   | { t: 'today'; key: string; title: string }
   | { t: 'incident'; key: string; incident: PulseIncident }
   | { t: 'post'; key: string; post: TalePost }
-  | { t: 'note'; key: string; text: string }
+  | { t: 'note'; key: string; text: string; action?: string }
   | { t: 'earlierDivider'; key: string }
   | { t: 'earlier'; key: string; post: TalePost }
   | { t: 'earlierMore'; key: string; count: number }
@@ -234,7 +234,8 @@ export function TalesScreen() {
       incidents.forEach((i) => out.push({ t: 'incident', key: `i-${i.id}`, incident: i }))
       ordered.forEach((p) => out.push({ t: 'post', key: p.id, post: p }))
       if (ordered.length === 0 && incidents.length === 0) {
-        out.push({ t: 'note', key: 'n-today', text: filter === 'all' ? 'Nothing new in the last 2 hours. Tap a tile above to report what you see.' : FILTER_EMPTY[filter] })
+        // Empty states: one line + one action (UX consistency pass 2026-10-16).
+        out.push({ t: 'note', key: 'n-today', text: filter === 'all' ? 'Quiet for the last 2 hours.' : FILTER_EMPTY[filter], action: 'Post an update' })
       }
       if (earlier.length > 0) {
         out.push({ t: 'earlierDivider', key: 'h-earlier' })
@@ -245,7 +246,7 @@ export function TalesScreen() {
       }
     } else {
       out.push({ t: 'today', key: 'h-today', title: 'Photos and videos' })
-      if (road.length === 0) out.push({ t: 'note', key: 'n-road', text: FILTER_EMPTY.moment })
+      if (road.length === 0) out.push({ t: 'note', key: 'n-road', text: FILTER_EMPTY.moment, action: 'Share a photo' })
     }
     if (road.length > 0) {
       if (filter !== 'moment') out.push({ t: 'roadLabel', key: 'h-road' })
@@ -277,7 +278,20 @@ export function TalesScreen() {
       case 'post':
         return <PulsePostCard post={item.post} actions={actions} />
       case 'note':
-        return <Text style={{ marginHorizontal: PAD, marginTop: 10, fontFamily: font.regular, fontSize: 14, color: META }}>{item.text}</Text>
+        return (
+          <View style={{ marginHorizontal: PAD, marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <Text style={{ flexShrink: 1, fontFamily: font.regular, fontSize: 14, color: META }}>{item.text}</Text>
+            {item.action ? (
+              <TouchableOpacity
+                onPress={() => router.push((item.key === 'n-road' ? '/report/photo' : '/report/photo?mode=text') as Href)}
+                accessibilityRole="button"
+                style={{ minHeight: 48, justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: brand.orangeText }}>{item.action}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )
       case 'earlierDivider':
         return (
           <View style={{ paddingHorizontal: PAD, marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -318,7 +332,7 @@ export function TalesScreen() {
       case 'road':
         return <PulseRoadRow post={item.post} actions={actions} />
     }
-  }, [actions, openPost, filter])
+  }, [actions, openPost, filter, router])
 
   const placeLabel = place ? `Near ${place.name}` : 'Near me'
 

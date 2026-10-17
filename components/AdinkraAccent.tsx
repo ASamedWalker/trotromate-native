@@ -93,3 +93,18 @@ export function AdinkraBand({ children, night = false, bg, ink, patternHeight = 
     </View>
   )
 }
+
+/**
+ * The repeating Adinkra wallpaper behind a HERO card (owner 2026-10-16: pattern,
+ * not a single corner symbol). Render as the card's FIRST child; the card needs
+ * `overflow: 'hidden'`. The canvas is screen-wide and `height` tall and the card
+ * clips it, so it never needs a layout pass; the XML is cached per size+ink inside
+ * AdinkraWallpaper, so every card of one kind shares one string.
+ * Ink: white 0.08–0.12 on colour cards; brand/tint ~0.06–0.08 on light cards.
+ */
+export const AdinkraCardPattern = memo(function AdinkraCardPattern({
+  height = 240, ink, size = 26,
+}: { height?: number; ink: string; size?: number }) {
+  const { width } = useWindowDimensions()
+  return <AdinkraWallpaper width={width} height={height} size={size} color={ink} />
+})

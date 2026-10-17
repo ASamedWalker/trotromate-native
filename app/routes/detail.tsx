@@ -1,3 +1,4 @@
+import { ageLabel } from '@/lib/utils/freshness'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { fareSource, FARE_WARN_COLOR } from '@/lib/utils/fare-source'
 import {
@@ -77,16 +78,8 @@ function getCoord(name: string) {
 
 // Compact "x ago" for fare-report freshness — builds trust by showing how recent
 // the crowdsourced fare is, the way Transit/Citymapper timestamp their data.
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  return d < 7 ? `${d}d ago` : `${Math.floor(d / 7)}w ago`
-}
+// One age wording app-wide (lib/utils/freshness ageLabel).
+const timeAgo = (iso: string): string => ageLabel(iso)
 
 /* ── Transport options ── */
 

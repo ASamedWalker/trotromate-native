@@ -17,14 +17,12 @@ import { corridorFor } from '@/lib/constants/corridors'
 import { PressableScale } from '@/components/motion/PressableScale'
 import { EnterIn } from '@/components/motion/EnterIn'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
-import { AdinkraAccent } from '@/components/AdinkraAccent'
-import type { AdinkraName } from '@/lib/brand/adinkra'
+import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 import type { QueueStatus } from '@/lib/services/stations'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 const MAX_ROUTES = 3
 // One faint symbol per line block (by position), so three saved lines don't look stamped.
-const BLOCK_SYMBOLS: AdinkraName[] = ['gye_nyame', 'adinkrahene', 'dwennimmen']
 
 export type CommuteVariant = 'morning' | 'afternoon'
 
@@ -296,8 +294,8 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                 accessibilityLabel={`${from} to ${to}${fare ? `, ${formatGHS(fare.amount)}${fare.source === 'reported' ? ' reported by riders' : ' GPRTU fare'}` : ''}${q.data ? `, ${queueA11y(queue?.status, queue?.reportedAt)}` : ''}`}
                 style={{ backgroundColor: color, borderRadius: 18, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12, gap: 6, overflow: 'hidden' }}
               >
-                {/* Very faint white Adinkra symbol bleeding off the right edge (decoration only). */}
-                <AdinkraAccent symbol={BLOCK_SYMBOLS[i % BLOCK_SYMBOLS.length]} size={104} color="#FFFFFF" opacity={0.1} position="right" inset={-30} rotate={-10} />
+                {/* Faint white Adinkra wallpaper across the block (decoration only). */}
+                <AdinkraCardPattern height={220} ink="rgba(255,255,255,0.10)" />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <HeroText size={32} numberOfLines={1} style={{ color: '#FFFFFF', letterSpacing: 0.3 }}>{code}</HeroText>
@@ -308,7 +306,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                   </View>
                   <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
                     {loading && !fare ? (
-                      <HeroText size={32} style={{ color: '#FFFFFF', opacity: 0.55 }}>GH₵ …</HeroText>
+                      <HeroText size={32} style={{ color: '#FFFFFF', opacity: 0.55 }}>GH₵…</HeroText>
                     ) : fare ? (
                       <>
                         <HeroText size={32} numberOfLines={1} style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>

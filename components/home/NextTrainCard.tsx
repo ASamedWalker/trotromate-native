@@ -7,7 +7,7 @@ import { nextDepartures, formatRemaining, LINE_COLORS } from '@/lib/utils/train-
 import { font, ui } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
 import { PressableScale } from '@/components/motion/PressableScale'
-import { AdinkraAccent } from '@/components/AdinkraAccent'
+import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 
 const NAVY = '#0B1B3F'
 const GREEN = '#15803D'
@@ -44,8 +44,8 @@ export default function NextTrainCard() {
         paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden',
       }}
     >
-      {/* Owo foro adobe (perseverance) bleeding off the right edge, navy, very faint. */}
-      <AdinkraAccent symbol="owo_foro_adobe" size={76} color={NAVY} opacity={0.06} position="right" inset={-18} />
+      {/* Navy Adinkra wallpaper, very faint on the white card. */}
+      <AdinkraCardPattern height={120} ink="rgba(15,23,42,0.06)" size={24} />
       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center' }}>
         <TrainFront size={22} color="#FFFFFF" />
       </View>

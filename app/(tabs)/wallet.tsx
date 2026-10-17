@@ -9,7 +9,7 @@ import { hasWalletPin } from '@/lib/services/walletPin'
 import { font, themed, brand, ui, space, radius, type } from '@/lib/theme'
 import { Button } from '@/components/ui'
 import { WalletCard } from '@/components/WalletCard'
-import { AdinkraAccent, AdinkraBand, ADINKRA_BAND_DAY, ADINKRA_INK_NIGHT } from '@/components/AdinkraAccent'
+import { AdinkraCardPattern, AdinkraBand, ADINKRA_BAND_DAY, ADINKRA_INK_NIGHT } from '@/components/AdinkraAccent'
 import { useWalletCardTheme } from '@/lib/hooks/useWalletCardTheme'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 import { formatGHS } from '@/lib/utils/currency'
@@ -176,8 +176,8 @@ export default function WalletScreen() {
   const pending = isAuthenticated ? pendingTopups(transactions) : []
   // Never flash GH₵ 0.00 before the real balance arrives (or for a guest).
   const balanceText = !balanceVisible
-    ? 'GH₵ ••••••'
-    : isAuthenticated && hydrated ? formatGHS(balance) : 'GH₵ —'
+    ? 'GH₵••••••'
+    : isAuthenticated && hydrated ? formatGHS(balance) : 'GH₵—'
   const balanceNote = !isAuthenticated ? undefined
     : checking && !updatedAt ? 'Checking…'
     : updatedAt ? `Updated ${hhmm(updatedAt)}` : undefined
@@ -251,7 +251,7 @@ export default function WalletScreen() {
                   accessibilityLabel={`${shortGHS(p.amount)} top-up waiting for you to approve. Sent ${sent}. Open`}
                 >
                   {/* Sankofa (go back and get it): come back and approve. Faint corner mark. */}
-                  <AdinkraAccent symbol="sankofa" size={60} color={WAIT} opacity={0.08} position="bottomRight" inset={-14} rotate={-8} />
+                  <AdinkraCardPattern height={120} ink="rgba(180,83,9,0.07)" size={22} />
                   <Clock size={20} color={WAIT} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={s.pendingTitle}>{shortGHS(p.amount)} top-up waiting for you to approve</Text>
@@ -317,7 +317,7 @@ export default function WalletScreen() {
               accessibilityLabel={`Ticket ${activePass.route_label}${activePass.expires_at ? `, valid till ${hhmm(activePass.expires_at)}` : ''}. Show`}
             >
               {/* Gye Nyame peeking from the left edge, behind the ticket icon (Show stays clean). */}
-              <AdinkraAccent symbol="gye_nyame" size={64} color={brand.orange} opacity={0.07} position="topLeft" inset={-18} rotate={-12} />
+              <AdinkraCardPattern height={120} ink="rgba(255,77,28,0.06)" size={22} />
               <Ticket size={22} color={brand.orange} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[s.passRoute, { color: textColor }]} numberOfLines={1}>{activePass.route_label}</Text>
