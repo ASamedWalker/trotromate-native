@@ -566,9 +566,13 @@ export const INTERCITY_FARES: IntercityFare[] = [
     "operator": "stc",
     "classKey": "not-stated",
     "classLabel": "Class not stated",
-    "fareMin": 140,
+    "fareMin": 130,
     "fareMax": 140,
     "prices": [
+      {
+        "terminal": "Cape Coast (on the Takoradi–Accra route)",
+        "fare": 130
+      },
       {
         "terminal": "Cape Coast",
         "fare": 140
