@@ -27,6 +27,8 @@ import { useQueryClient, useQuery as useRQ } from '@tanstack/react-query'
 import { fetchRouteById } from '@/lib/services/routes'
 import { useFavorites } from '@/lib/hooks/useFavorites'
 import { LineRow } from '@/components/lines/LineRow'
+import { IntercityRow } from '@/components/lines/IntercityRow'
+import { INTERCITY_CHECKED_SHORT, INTERCITY_PAIRS, intercityByOrigin, searchIntercity, type IntercityPair } from '@/lib/utils/intercity'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
 import { QUEUE_COLOR, QUEUE_WORD } from '@/lib/constants/queueStatus'
@@ -43,12 +45,14 @@ import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 /**
  * Lines (UX v2 canvas "Lines → Proposed", L1–L8). One layout for store and full builds:
  * header "Lines" + region chip + stamp, search, Saved · Near me · All segments with a
- * separate Trotro | Okada toggle, and 72 pt rows in grouped cards. Near me groups the
+ * separate Trotro | Okada | Intercity toggle, and 72 pt rows in grouped cards. Near me groups the
  * lines by boarding station (walk chip + that station's queue in the group header).
+ * Intercity = STC/VIP town pairs from lib/constants/intercity-fares (static, operator
+ * sources), grouped by origin town; Saved/Near me/region don't apply to it.
  */
 
 type Segment = 'saved' | 'near' | 'all'
-type Mode = 'trotro' | 'okada'
+type Mode = 'trotro' | 'okada' | 'intercity'
 
 // Stations further than this are not "near" (about a 1 h walk).
 const NEAR_KM = 5
@@ -64,6 +68,11 @@ interface LineSection {
   key: string
   group: StationGroup | null
   data: RouteWithStats[]
+}
+interface IntercitySection {
+  key: string
+  origin: string
+  data: IntercityPair[]
 }
 
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -85,7 +94,7 @@ export default function RoutesScreen() {
   // Tabs stay mounted, so a later push with ?transport= (Home Okada tile) must update too.
   useEffect(() => {
     const t = params.transport
-    if (t === 'okada' || t === 'trotro') setMode(t)
+    if (t === 'okada' || t === 'trotro' || t === 'intercity') setMode(t)
     else if (t === 'saved' || t === 'near' || t === 'all') setSegment(t)
     else if (t) setSegment('all')
   }, [params.transport, params.t]) // t = per-tap nonce so a repeat tap re-applies the filter
@@ -188,10 +197,25 @@ export default function RoutesScreen() {
     return data.length > 0 ? [{ key: 'all', group: null, data }] : []
   }, [segment, nearSections, modeRoutes, favoriteIds])
 
+  // Intercity: static operator fares, filtered by the same search box ("kumasi",
+  // "accra to tamale"), grouped by origin town.
+  const intercitySections = useMemo<IntercitySection[]>(() => {
+    if (mode !== 'intercity') return []
+    const q = searchQuery.trim().toLowerCase()
+    let pairs = INTERCITY_PAIRS
+    if (q) {
+      const hits = new Set(searchIntercity(q, 50).map((p) => p.slug))
+      pairs = pairs.filter((p) => hits.has(p.slug) || p.from.toLowerCase().includes(q) || p.to.toLowerCase().includes(q))
+    }
+    return intercityByOrigin(pairs).map((g) => ({ key: g.origin, origin: g.origin, data: g.pairs }))
+  }, [mode, searchQuery])
+
   // Reset scroll when the query/filter changes so the first match isn't half-hidden
   const listRef = useRef<SectionList<RouteWithStats, LineSection>>(null)
+  const intercityListRef = useRef<SectionList<IntercityPair, IntercitySection>>(null)
   useEffect(() => {
     listRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: false })
+    intercityListRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: false })
   }, [searchQuery, segment, mode, activeRegion])
 
   // Anticipatory prefetch: warm the detail queries for the rows on screen.
@@ -230,6 +254,21 @@ export default function RoutesScreen() {
     />
   ), [favoriteIds, openLine])
 
+  const openIntercity = useCallback((pair: IntercityPair) => {
+    haptics.light()
+    router.push({ pathname: '/intercity/[pair]', params: { pair: pair.slug } } as Href)
+  }, [haptics, router])
+
+  const renderIntercityItem = useCallback(({ item, index, section }: { item: IntercityPair; index: number; section: IntercitySection }) => (
+    <IntercityRow pair={item} first={index === 0} last={index === section.data.length - 1} onPress={() => openIntercity(item)} />
+  ), [openIntercity])
+
+  const renderIntercityHeader = useCallback(({ section }: { section: IntercitySection }) => (
+    <View style={s.groupHead}>
+      <Text style={s.groupName} numberOfLines={1} accessibilityRole="header">From {section.origin}</Text>
+    </View>
+  ), [s])
+
   const renderSectionHeader = useCallback(({ section }: { section: LineSection }) => {
     if (!section.group) return null
     const { station, km } = section.group
@@ -262,7 +301,7 @@ export default function RoutesScreen() {
       {/* L3: title and region chip share one row */}
       <View style={s.headerRow}>
         <HeroText size={28} style={{ color: ui.text }} accessibilityRole="header">Lines</HeroText>
-        <TouchableOpacity
+        {mode !== 'intercity' && <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
           style={s.regionChip}
@@ -272,16 +311,16 @@ export default function RoutesScreen() {
         >
           <Text style={s.regionChipText}>{activeRegionLabel}</Text>
           <ChevronDown size={16} color={brand.orangeText} />
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </View>
-      <Text style={s.stamp}>{stamp}</Text>
+      <Text style={s.stamp}>{mode === 'intercity' ? `STC and VIP fares from their booking sites · checked ${INTERCITY_CHECKED_SHORT}` : stamp}</Text>
 
       <View style={s.searchBar}>
         <Search size={20} color={ui.textSecondary} />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search a station or line"
+          placeholder={mode === 'intercity' ? 'Search a town, e.g. Kumasi' : 'Search a station or line'}
           placeholderTextColor={ui.textSecondary}
           style={s.searchInput}
           returnKeyType="search"
@@ -293,8 +332,26 @@ export default function RoutesScreen() {
         )}
       </View>
 
-      {/* L4: segments and mode no longer share one clipped chip row */}
-      <View style={s.controls}>
+      {/* L4: mode on its own row (three options no longer fit beside the segments),
+          segments under it. Intercity has no Saved/Near me, so they hide there. */}
+      <View style={[s.segWrap, { marginTop: 10 }]} accessibilityRole="tablist">
+        {([['trotro', 'Trotro'], ['okada', 'Okada'], ['intercity', 'Intercity']] as [Mode, string][]).map(([k, label]) => {
+          const on = mode === k
+          return (
+            <TouchableOpacity
+              key={k}
+              onPress={() => { haptics.light(); setMode(k) }}
+              style={[s.seg, { flex: 1 }, on && s.modeOn]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              hitSlop={{ top: 4, bottom: 4 }}
+            >
+              <Text style={[s.segText, on && { color: '#FFFFFF' }]} numberOfLines={1}>{label}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+      {mode !== 'intercity' && <View style={s.controls}>
         <View style={[s.segWrap, { flex: 1 }]} accessibilityRole="tablist">
           {([['saved', 'Saved'], ['near', 'Near me'], ['all', 'All']] as [Segment, string][]).map(([k, label]) => {
             const on = segment === k
@@ -312,26 +369,9 @@ export default function RoutesScreen() {
             )
           })}
         </View>
-        <View style={s.segWrap} accessibilityRole="tablist">
-          {([['trotro', 'Trotro'], ['okada', 'Okada']] as [Mode, string][]).map(([k, label]) => {
-            const on = mode === k
-            return (
-              <TouchableOpacity
-                key={k}
-                onPress={() => { haptics.light(); setMode(k) }}
-                style={[s.seg, { paddingHorizontal: 10 }, on && s.modeOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                hitSlop={{ top: 4, bottom: 4 }}
-              >
-                <Text style={[s.segText, on && { color: '#FFFFFF' }]}>{label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-      </View>
+      </View>}
 
-      {(params.from || params.to) && (
+      {mode !== 'intercity' && (params.from || params.to) && (
         <View style={s.filterRow}>
           <MapPin size={14} color={brand.orangeText} />
           <Text style={s.filterText}>
@@ -389,7 +429,32 @@ export default function RoutesScreen() {
     <SafeAreaView style={s.container} edges={['bottom']}>
       {header}
 
-      {isLoading && routes.length === 0 ? (
+      {mode === 'intercity' ? (
+        <SectionList
+          ref={intercityListRef}
+          sections={intercitySections}
+          renderItem={renderIntercityItem}
+          renderSectionHeader={renderIntercityHeader}
+          renderSectionFooter={() => <View style={{ height: 6 }} />}
+          stickySectionHeadersEnabled={false}
+          keyExtractor={(item) => item.slug}
+          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: 6, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom + 12 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={s.emptyContainer}>
+              <MapPin size={48} color={ui.textTertiary} />
+              <Text style={s.emptyTitle}>No intercity fares for that town yet</Text>
+              <Text style={s.emptySubtitle}>We list STC and VIP fares from their own booking sites</Text>
+            </View>
+          }
+          ListFooterComponent={
+            intercitySections.length > 0 ? (
+              <Text style={s.intercityNote}>Confirm at the terminal; fares can change.</Text>
+            ) : null
+          }
+        />
+      ) : isLoading && routes.length === 0 ? (
         <View style={{ paddingHorizontal: space.xl, paddingTop: 12 }}>
           <SkeletonRouteCard isDark={false} />
           <SkeletonRouteCard isDark={false} />
@@ -567,6 +632,7 @@ const getStyles = () => {
       marginBottom: 80,
     },
     footerCtaText: { ...type.labelStrong, color: brand.orangeText },
+    intercityNote: { ...type.caption, color: ui.textTertiary, textAlign: 'center', paddingVertical: 16, marginBottom: 80 },
 
     // Region Hero Banner
     heroBanner: {

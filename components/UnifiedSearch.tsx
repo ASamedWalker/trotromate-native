@@ -86,7 +86,14 @@ export function UnifiedSearch({ visible, onClose, onRoutePreview }: UnifiedSearc
     router.push(`/train/${lineId}` as Href)
   }, [handleClose, router])
 
+  const navigateToIntercity = useCallback((slug: string) => {
+    handleClose()
+    router.push({ pathname: '/intercity/[pair]', params: { pair: slug } } as Href)
+  }, [handleClose, router])
+
   const handleGo = useCallback((result: UnifiedResult) => {
+    // Intercity is information only: "GO" opens the fare page, never a trip or booking.
+    if (result.intercitySlug) { navigateToIntercity(result.intercitySlug); return }
     if (result.type !== 'train') {
       addSearch({ id: result.routeId, from: result.from, to: result.to, transportType: result.type as 'trotro' | 'okada' })
     }
@@ -102,7 +109,7 @@ export function UnifiedSearch({ visible, onClose, onRoutePreview }: UnifiedSearc
         params: { id: result.routeId },
       } as Href)
     }
-  }, [addSearch, handleClose, router])
+  }, [addSearch, handleClose, router, navigateToIntercity])
 
   const recentSearches = getRecentSearches(5)
   const topFavorites = favorites.slice(0, 3)
@@ -248,7 +255,8 @@ export function UnifiedSearch({ visible, onClose, onRoutePreview }: UnifiedSearc
                 index={index}
                 isDark={isDark}
                 onPress={() => {
-                  if (item.trainLineId) navigateToTrain(item.trainLineId)
+                  if (item.intercitySlug) navigateToIntercity(item.intercitySlug)
+                  else if (item.trainLineId) navigateToTrain(item.trainLineId)
                   else navigateToRoute(item.routeId, item.from, item.to, item.type)
                 }}
                 onGo={() => handleGo(item)}
@@ -338,7 +346,7 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
           <View style={s.metaRow}>
             {/* Fare */}
             <Text style={[s.fare, { color: result.color }]}>
-              {'\u20B5'}{result.fare?.toFixed(2) ?? '--'}
+              {result.fareLabel ?? `${'\u20B5'}${result.fare?.toFixed(2) ?? '--'}`}
             </Text>
 
             {/* GPRTU badge */}
@@ -359,15 +367,17 @@ function ResultCard({ result, index, isDark, onPress, onGo }: {
           </View>
         </View>
 
-        {/* GO button */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onGo}
-          style={s.goBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={s.goText}>GO</Text>
-        </TouchableOpacity>
+        {/* GO button (not on intercity: info only, no trip/booking) */}
+        {!result.intercitySlug && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onGo}
+            style={s.goBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={s.goText}>GO</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   )

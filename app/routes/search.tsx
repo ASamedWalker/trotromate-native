@@ -30,6 +30,8 @@ import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { IntercityRow } from '@/components/lines/IntercityRow'
+import { intercityForTrip, searchIntercity, type IntercityPair } from '@/lib/utils/intercity'
 
 const BRAND = '#FF4D1C'
 const TEXT_SECONDARY = '#5F6368' // AA on #FAFAF9 (~6:1)
@@ -339,6 +341,30 @@ export default function PlanTripScreen() {
     // without it this memo never recomputed when the debounce landed — the final
     // search term's results simply never appeared. from/to are not read here.
   }, [debouncedQuery, location])
+
+  // Intercity bus fares (static STC/VIP operator data): a town pair across both
+  // fields ("Circle" + "Kumasi"), or the typed town / "accra to kumasi" in one field.
+  const intercityMatches = useMemo<IntercityPair[]>(() => {
+    if (transportMode === 'okada' || transportMode === 'train' || transportMode === 'walk') return []
+    const trip = from.trim() && to.trim() ? intercityForTrip(from, to) : null
+    if (trip) return [trip]
+    return searchIntercity(debouncedQuery, 3)
+  }, [from, to, debouncedQuery, transportMode])
+
+  const openIntercity = useCallback((pair: IntercityPair) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    Keyboard.dismiss()
+    router.push({ pathname: '/intercity/[pair]', params: { pair: pair.slug } } as any)
+  }, [router])
+
+  const intercityBlock = intercityMatches.length > 0 ? (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 8 }}>Intercity bus fares</Text>
+      {intercityMatches.map((p, i) => (
+        <IntercityRow key={p.slug} pair={p} first={i === 0} last={i === intercityMatches.length - 1} onPress={() => openIntercity(p)} />
+      ))}
+    </View>
+  ) : null
 
   const selectStation = useCallback((station: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -652,14 +678,15 @@ export default function PlanTripScreen() {
                   })()}
                 </View>
               )}
-              <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 6 }}>
+              {(activeInput === 'from' ? from : to).length > 0 ? intercityBlock : null}
+              {(suggestions.length > 0 || intercityMatches.length === 0) && <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 6 }}>
                 {(activeInput === 'from' ? from : to).length > 0
                   ? 'Results'
                   /* Without a location fix these are just stations, in no
                      particular order — calling them "nearby" while showing
                      Kojokrom to someone in Accra is a claim we can't back. */
                   : location ? 'Stations near you' : 'Stations'}
-              </Text>
+              </Text>}
               {suggestions.map((station, i) => (
                 <TouchableOpacity
                   key={`${station.name}-${i}`}
@@ -690,7 +717,7 @@ export default function PlanTripScreen() {
                 </TouchableOpacity>
               ))}
 
-              {suggestions.length === 0 && (activeInput === 'from' ? from : to).length > 0 && (
+              {suggestions.length === 0 && intercityMatches.length === 0 && (activeInput === 'from' ? from : to).length > 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                   <Text style={{ fontFamily: font.medium, fontSize: 16, color: TEXT_SECONDARY }}>
                     No stations found
@@ -701,6 +728,9 @@ export default function PlanTripScreen() {
           )}
 
           {/* ── Route Results ── */}
+          {showingResults && intercityBlock ? (
+            <View style={{ paddingHorizontal: 24 }}>{intercityBlock}</View>
+          ) : null}
           {showingResults && (
             <RoutePlannerResults
               plans={transportMode === 'walk' ? [] : plans}

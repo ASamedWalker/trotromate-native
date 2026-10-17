@@ -193,6 +193,7 @@ function AppInner() {
         <Stack.Screen name="report/train" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="train/index" options={{ headerShown: false }} />
         <Stack.Screen name="train/[lineId]" options={{ headerShown: false }} />
+        <Stack.Screen name="intercity/[pair]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="stations/index" options={{ headerShown: false }} />
         <Stack.Screen name="stations/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="queue/status" options={{ headerShown: false, animation: 'slide_from_right' }} />

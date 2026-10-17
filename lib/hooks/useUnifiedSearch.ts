@@ -2,12 +2,17 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoutes } from '@/lib/services/routes'
 import { searchTrainSchedules, TRANSPORT_COLORS, type TrainTimeTag } from '@/lib/utils/train-search'
+import { searchIntercity, intercityRange, intercityOperators, INTERCITY_OPERATORS, INTERCITY_CHECKED_SHORT } from '@/lib/utils/intercity'
+import { formatGHSRange } from '@/lib/utils/currency'
+
+/** Intercity rows (STC/VIP, static operator data) use the brand orange. */
+const INTERCITY_COLOR = '#C2360F'
 
 /* ── Types ─────────────────────────────────────────── */
 
 export interface UnifiedResult {
   id: string
-  type: 'trotro' | 'train' | 'okada'
+  type: 'trotro' | 'train' | 'okada' | 'intercity'
   from: string
   to: string
   fare: number | null
@@ -17,6 +22,9 @@ export interface UnifiedResult {
   isVerified?: boolean
   routeId: string
   trainLineId?: string
+  /** Intercity only: /intercity/[pair] slug, and the preformatted fare ("GH₵125–150") */
+  intercitySlug?: string
+  fareLabel?: string
   color: string
 }
 
@@ -92,6 +100,23 @@ export function useUnifiedSearch(query: string) {
         routeId: train.lineId,
         trainLineId: train.lineId,
         color: TRANSPORT_COLORS.train,
+      })
+    }
+
+    // Intercity bus pairs — client-side, static operator fares ("kumasi", "accra to tamale")
+    for (const pair of searchIntercity(debouncedQuery, 4)) {
+      const { min, max } = intercityRange(pair)
+      unified.push({
+        id: `intercity-${pair.slug}`,
+        type: 'intercity',
+        from: pair.from,
+        to: pair.to,
+        fare: min,
+        fareLabel: min === max ? `GH₵${min}` : formatGHSRange(min, max),
+        timeLabel: `${intercityOperators(pair).map((id) => INTERCITY_OPERATORS[id].name).join(' · ')} · checked ${INTERCITY_CHECKED_SHORT}`,
+        routeId: pair.slug,
+        intercitySlug: pair.slug,
+        color: INTERCITY_COLOR,
       })
     }
 
