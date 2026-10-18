@@ -31,7 +31,7 @@ export interface IntercityOperator {
 }
 
 export const INTERCITY_OPERATORS: Record<IntercityOperatorId, IntercityOperator> = {
-  stc: { id: 'stc', name: 'STC', fullName: 'Intercity STC', sourceLabel: 'STC booking site' },
+  stc: { id: 'stc', name: 'STC', fullName: 'STC', sourceLabel: 'STC booking site' },
   'vip-jeoun': { id: 'vip-jeoun', name: 'VIP', fullName: 'VIP Jeoun', sourceLabel: 'VIP booking site' },
 }
 

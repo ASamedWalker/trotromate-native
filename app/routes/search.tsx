@@ -359,7 +359,7 @@ export default function PlanTripScreen() {
 
   const intercityBlock = intercityMatches.length > 0 ? (
     <View style={{ marginBottom: 20 }}>
-      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 8 }}>Intercity bus fares</Text>
+      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 8 }}>Travel fares</Text>
       {intercityMatches.map((p, i) => (
         <IntercityRow key={p.slug} pair={p} first={i === 0} last={i === intercityMatches.length - 1} onPress={() => openIntercity(p)} />
       ))}

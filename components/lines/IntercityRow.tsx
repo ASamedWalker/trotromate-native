@@ -49,7 +49,7 @@ export function IntercityRow({
       activeOpacity={0.7}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Intercity bus, ${pair.from} to ${pair.to}, ${fare.replace('–', ' to ')}, ${ops.join(' and ')}, checked ${INTERCITY_CHECKED_SHORT}`}
+      accessibilityLabel={`Travel bus fare, ${pair.from} to ${pair.to}, ${fare.replace('–', ' to ')}, ${ops.join(' and ')}, checked ${INTERCITY_CHECKED_SHORT}`}
       style={{
         minHeight: LINE_ROW_MIN_H,
         paddingVertical: 8,

@@ -45,7 +45,7 @@ import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 /**
  * Lines (UX v2 canvas "Lines → Proposed", L1–L8). One layout for store and full builds:
  * header "Lines" + region chip + stamp, search, Saved · Near me · All segments with a
- * separate Trotro | Okada | Intercity toggle, and 72 pt rows in grouped cards. Near me groups the
+ * separate Trotro | Okada | Travel toggle, and 72 pt rows in grouped cards. Near me groups the
  * lines by boarding station (walk chip + that station's queue in the group header).
  * Intercity = STC/VIP town pairs from lib/constants/intercity-fares (static, operator
  * sources), grouped by origin town; Saved/Near me/region don't apply to it.
@@ -95,6 +95,7 @@ export default function RoutesScreen() {
   useEffect(() => {
     const t = params.transport
     if (t === 'okada' || t === 'trotro' || t === 'intercity') setMode(t)
+    else if (t === 'travel') setMode('intercity')
     else if (t === 'saved' || t === 'near' || t === 'all') setSegment(t)
     else if (t) setSegment('all')
   }, [params.transport, params.t]) // t = per-tap nonce so a repeat tap re-applies the filter
@@ -335,7 +336,7 @@ export default function RoutesScreen() {
       {/* L4: mode on its own row (three options no longer fit beside the segments),
           segments under it. Intercity has no Saved/Near me, so they hide there. */}
       <View style={[s.segWrap, { marginTop: 10 }]} accessibilityRole="tablist">
-        {([['trotro', 'Trotro'], ['okada', 'Okada'], ['intercity', 'Intercity']] as [Mode, string][]).map(([k, label]) => {
+        {([['trotro', 'Trotro'], ['okada', 'Okada'], ['intercity', 'Travel']] as [Mode, string][]).map(([k, label]) => {
           const on = mode === k
           return (
             <TouchableOpacity
@@ -444,7 +445,7 @@ export default function RoutesScreen() {
           ListEmptyComponent={
             <View style={s.emptyContainer}>
               <MapPin size={48} color={ui.textTertiary} />
-              <Text style={s.emptyTitle}>No intercity fares for that town yet</Text>
+              <Text style={s.emptyTitle}>No travel fares for that town yet</Text>
               <Text style={s.emptySubtitle}>We list STC and VIP fares from their own booking sites</Text>
             </View>
           }

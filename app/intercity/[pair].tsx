@@ -105,11 +105,11 @@ export default function IntercityPairScreen() {
       <View style={{ flex: 1, backgroundColor: ui.bg }}>
         <AdinkraBand patternHeight={200} style={{ paddingTop: insets.top + 12, paddingHorizontal: space.xl, paddingBottom: 20, gap: 12 }}>
           <BackButton />
-          <HeroText size={24} style={{ color: ui.text }} accessibilityRole="header">Intercity fare not found</HeroText>
+          <HeroText size={24} style={{ color: ui.text }} accessibilityRole="header">Travel fare not found</HeroText>
         </AdinkraBand>
         <View style={{ padding: space.xl, gap: 16 }}>
           <Text style={{ ...type.body, color: ui.textSecondary }}>We only list STC and VIP town pairs from their own booking sites.</Text>
-          <Button label="See all intercity fares" variant="secondary" onPress={() => router.replace({ pathname: '/(tabs)/lines', params: { transport: 'intercity' } } as Href)} />
+          <Button label="See all travel fares" variant="secondary" onPress={() => router.replace({ pathname: '/(tabs)/lines', params: { transport: 'intercity' } } as Href)} />
         </View>
       </View>
     )
@@ -129,7 +129,7 @@ export default function IntercityPairScreen() {
       {/* Adinkra wallpaper band (owner rule: repeating pattern, not one symbol) */}
       <AdinkraBand patternHeight={340} style={{ paddingTop: insets.top + 12, paddingHorizontal: space.xl, paddingBottom: 22 }}>
         <BackButton />
-        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: brand.orangeText, marginTop: 14 }}>INTERCITY BUS</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: brand.orangeText, marginTop: 14 }}>TRAVEL · BUS FARE</Text>
         <HeroText size={30} style={{ color: ui.text, letterSpacing: -0.5 }} accessibilityRole="header">
           {pair.from} to {pair.to}
         </HeroText>
