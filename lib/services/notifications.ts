@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { announcementTitle, isShowableAnnouncement } from '@/lib/utils/announcements'
 
 interface FareReportWithRoute {
   id: string
@@ -152,7 +153,7 @@ export async function fetchNotifications(
   // 5. Official announcements (GPRTU, GRDA, etc.) — Transport Pulse
   const { data: announcements } = await supabase
     .from('official_announcements')
-    .select('id, source, title, body, priority, published_at, expires_at, is_published')
+    .select('id, source, title, body, priority, published_at, expires_at, is_published, attachment_url')
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .limit(20)
@@ -160,12 +161,12 @@ export async function fetchNotifications(
   if (announcements) {
     const nowMs = now.getTime()
     for (const a of announcements) {
-      if (a.expires_at && new Date(a.expires_at as string).getTime() < nowMs) continue
+      if (!isShowableAnnouncement(a as Parameters<typeof isShowableAnnouncement>[0], nowMs)) continue
       const source = (a.source as string) || 'TROSKI'
       notifications.push({
         id: `official-${a.id}`,
         type: 'official_announcement',
-        title: `${source}: ${a.title}`,
+        title: announcementTitle(source, a.title as string),
         body: a.body as string,
         timestamp: a.published_at as string,
         color: SOURCE_COLORS[source] ?? '#f59e0b',

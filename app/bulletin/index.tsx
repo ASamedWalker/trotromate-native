@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native'
 import { BackButton } from '@/components/BackButton'
 import { c, themed, font } from '@/lib/theme'
+import { isShowableAnnouncement } from '@/lib/utils/announcements'
 import { supabase } from '@/lib/supabase/client'
 import { timeAgo } from '@/lib/utils/time'
 
@@ -47,6 +48,7 @@ type Announcement = {
   priority: Priority
   attachment_url: string | null
   published_at: string
+  expires_at?: string | null
 }
 
 type FilterKey = 'all' | Category
@@ -96,7 +98,7 @@ export default function BulletinScreen() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('official_announcements')
-      .select('id, source, title, body, category, priority, attachment_url, published_at')
+      .select('id, source, title, body, category, priority, attachment_url, published_at, expires_at')
       .eq('is_published', true)
       .order('published_at', { ascending: false })
       .limit(100)
@@ -105,7 +107,8 @@ export default function BulletinScreen() {
       console.warn('[bulletin] load failed', error.message)
       setAnnouncements([])
     } else {
-      setAnnouncements((data ?? []) as Announcement[])
+      const now = Date.now()
+      setAnnouncements(((data ?? []) as Announcement[]).filter((a) => isShowableAnnouncement(a, now)))
     }
     setIsLoading(false)
   }, [])
