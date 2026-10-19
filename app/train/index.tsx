@@ -28,6 +28,7 @@ import {
 import { font, brand, ui, space, radius, cardShadow } from '@/lib/theme'
 import { Tap } from '@/components/ui'
 import { HeroText } from '@/components/HeroText'
+import { TicketCard } from '@/components/TicketCard'
 import { AdinkraBand, AdinkraCardPattern, ADINKRA_BAND_DAY } from '@/components/AdinkraAccent'
 import { DailyTipCard } from '@/components/DailyTipCard'
 import { useTrainLines } from '@/lib/hooks/useTrain'
@@ -745,8 +746,7 @@ export default function TrainLinesScreen() {
         {/* ─── Departures (T5) ─────────────────────────────── */}
         {board.rows.length > 0 && (
           <View style={s.depSection}>
-            <Text style={s.sectionLabel}>DEPARTURES · {board.label.toUpperCase()}</Text>
-            <View style={s.depCard}>
+            <TicketCard tone="train" label={`Departures · ${board.label}`} value="Timetable" bodyStyle={s.depTicketBody}>
               {depRows.visible.map((r, i) => (
                 <DepartureListRow
                   key={r.key}
@@ -770,7 +770,7 @@ export default function TrainLinesScreen() {
                   <ChevronDown size={18} color={MUTED} style={showAllDeps ? { transform: [{ rotate: '180deg' }] } : undefined} />
                 </Tap>
               )}
-            </View>
+            </TicketCard>
           </View>
         )}
 
@@ -1046,15 +1046,8 @@ const getStyles = () => {
 
     // ── Departures (T5) ──
     depSection: { marginHorizontal: M, marginTop: 14 },
-    sectionLabel: { fontSize: 12, lineHeight: 18, fontFamily: font.extrabold, letterSpacing: 0.7, color: MUTED },
-    depCard: {
-      marginTop: 6,
-      backgroundColor: '#FFFFFF',
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: outline,
-      overflow: 'hidden',
-    },
+    // Rows carry their own padding; the ticket body only adds a little air under the last row.
+    depTicketBody: { paddingHorizontal: 2, paddingTop: 2, paddingBottom: 4 },
     depRow: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
     depRowPast: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
     depRowBorder: { borderTopWidth: 1, borderTopColor: HAIRLINE },

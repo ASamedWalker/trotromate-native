@@ -8,6 +8,7 @@ import { BackButton } from '@/components/BackButton'
 import { HeroText } from '@/components/HeroText'
 import { AdinkraBand } from '@/components/AdinkraAccent'
 import { Button } from '@/components/ui'
+import { TicketCard, TICKET_INK } from '@/components/TicketCard'
 import { OperatorChip, intercityFareText } from '@/components/lines/IntercityRow'
 import { formatGHSRange } from '@/lib/utils/currency'
 import { useHaptics } from '@/lib/hooks/useHaptics'
@@ -44,15 +45,18 @@ function OperatorCard({ fare }: { fare: IntercityFare }) {
     Linking.openURL(fare.sourceUrl).catch(() => {})
   }
   return (
-    <View style={{ backgroundColor: ui.card, borderRadius: radius.lg, borderWidth: 1, borderColor: ui.hairline, padding: space.lg, gap: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 18, color: ui.text }}>{op.fullName}</Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 14, color: ui.textSecondary }}>{fare.classLabel}</Text>
-        </View>
+    <TicketCard
+      tone="fare"
+      label={op.fullName}
+      value={fare.sourceUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}
+      accessibilityLabel={`${op.fullName}, ${fare.classLabel}`}
+      bodyStyle={{ gap: 10, paddingBottom: 4 }}
+    >
+      <View style={{ gap: 2 }}>
+        <Text style={{ fontFamily: font.medium, fontSize: 15, color: ui.textSecondary }}>{fare.classLabel}</Text>
         <HeroText
-          size={26}
-          style={{ color: ui.text, fontVariant: ['tabular-nums'] }}
+          size={34}
+          style={{ color: TICKET_INK, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
           accessibilityLabel={fare.fareMin === fare.fareMax ? `${fare.fareMin} cedis` : `${fare.fareMin} to ${fare.fareMax} cedis`}
         >
           {fareText(fare)}
@@ -90,7 +94,7 @@ function OperatorCard({ fare }: { fare: IntercityFare }) {
         </Text>
         <ExternalLink size={16} color={brand.orangeText} />
       </TouchableOpacity>
-    </View>
+    </TicketCard>
   )
 }
 
@@ -144,7 +148,7 @@ export default function IntercityPairScreen() {
         </View>
       </AdinkraBand>
 
-      <View style={{ paddingHorizontal: space.xl, paddingTop: 20, gap: 12 }}>
+      <View style={{ paddingHorizontal: space.xl, paddingTop: 20, gap: 16 }}>
         {pair.fares.map((f) => (
           <OperatorCard key={`${f.operator}-${f.classKey}`} fare={f} />
         ))}

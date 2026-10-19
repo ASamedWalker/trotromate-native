@@ -9,6 +9,7 @@ import { font, brand, ui, space, radius } from '@/lib/theme'
 import { BackButton } from '@/components/BackButton'
 import { SkeletonRouteDetail } from '@/components/Skeleton'
 import { HeroText } from '@/components/HeroText'
+import { TicketCard } from '@/components/TicketCard'
 import { LoadErrorState } from '@/components/StateViews'
 import { FareTrendChart } from '@/components/FareTrendChart'
 import { QueueGlyph } from '@/components/QueueGlyph'
@@ -340,8 +341,7 @@ export default function RouteDetailScreen() {
           {/* ── R3 stops and fares, in the corridor colour ── */}
           {!isOkada && stops.length >= 3 ? (
             <View>
-              <Text style={s.label}>Stops and fares</Text>
-              <View style={[s.card, { paddingVertical: 8, paddingHorizontal: 14, marginTop: 6 }]}>
+              <TicketCard tone="fare" label="Stops and fares" value={`${stops.length} stops`} bodyStyle={{ paddingTop: 4, paddingBottom: 8, paddingHorizontal: 14 }}>
                 {stops.map((st, i) => {
                   const first = i === 0
                   const last = i === stops.length - 1
@@ -376,7 +376,7 @@ export default function RouteDetailScreen() {
                     </View>
                   )
                 })}
-              </View>
+              </TicketCard>
             </View>
           ) : null}
 
@@ -423,15 +423,14 @@ export default function RouteDetailScreen() {
           ) : null}
           {recentReports.length > 0 ? (
             <View>
-              <Text style={s.label}>Latest fare reports</Text>
-              <View style={[s.card, { paddingHorizontal: 14, marginTop: 6 }]}>
+              <TicketCard tone="fare" label="Latest fare reports" value="Riders paid" bodyStyle={{ paddingTop: 2, paddingBottom: 4, paddingHorizontal: 14 }}>
                 {recentReports.slice(0, 4).map((r, i) => (
                   <View key={r.id} style={[s.reportRow, i > 0 && s.divider]}>
                     <Text style={[s.stopFare, { flex: 1 }]}>{formatGHS(r.reported_fare)}</Text>
                     <Text style={s.meta}>{timeAgo(r.reported_at)}</Text>
                   </View>
                 ))}
-              </View>
+              </TicketCard>
             </View>
           ) : null}
           {activity.length > 0 ? (
