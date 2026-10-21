@@ -1,0 +1,53 @@
+import type { ScreenDict } from './index'
+
+const NB = ' '
+
+/** First-launch onboarding: language step, benefit slides, sign-up block. */
+export const onboarding: ScreenDict = {
+  en: {
+    'onb.lang.continue': 'Continue',
+    'onb.skip': 'Skip',
+    'onb.queue.title': 'Know Your Fare\nBefore You Leave',
+    'onb.queue.sub': 'Real trotro fares, routes and stations across Accra.',
+    'onb.wallet.title': 'Know the fare\nbefore you ride',
+    'onb.wallet.sub': 'Official GPRTU fares and what riders actually paid, on every line.',
+    'onb.traffic.title': 'Beat Traffic\nArrive Calm',
+    'onb.traffic.sub': 'Smart departure windows and alternative routes when things get heavy.',
+    'onb.agree': 'I agree to the',
+    'onb.terms': 'Terms',
+    'onb.and': 'and',
+    'onb.privacy': 'Privacy Policy',
+    'onb.tickFirst': 'Tick the box to agree first',
+    'onb.tickHint': 'Tick the box to agree to the Terms first',
+    'onb.create': 'Create an Account',
+    'onb.haveAccount': 'Already have an account?',
+    'onb.login': 'Login',
+    'onb.guestA11y': 'Explore without an account',
+    'onb.guest': 'Explore fares without an account',
+    'onb.getStarted': 'Get Started',
+    'onb.next': 'Continue',
+  },
+  fr: {
+    'onb.lang.continue': 'Continuer',
+    'onb.skip': 'Passer',
+    'onb.queue.title': 'Connaissez le tarif\navant de partir',
+    'onb.queue.sub': 'Les vrais tarifs des trotros, les lignes et les gares d\'Accra.',
+    'onb.wallet.title': 'Connaissez le tarif\navant de monter',
+    'onb.wallet.sub': 'Les tarifs officiels GPRTU et ce que les usagers ont vraiment payé, sur chaque ligne.',
+    'onb.traffic.title': 'Évitez les bouchons\narrivez serein',
+    'onb.traffic.sub': 'Les meilleurs moments pour partir et d\'autres itinéraires quand ça bouchonne.',
+    'onb.agree': 'J\'accepte les',
+    'onb.terms': 'Conditions',
+    'onb.and': 'et la',
+    'onb.privacy': 'Politique de confidentialité',
+    'onb.tickFirst': 'Cochez la case pour accepter d\'abord',
+    'onb.tickHint': 'Cochez la case pour accepter d\'abord les Conditions',
+    'onb.create': 'Créer un compte',
+    'onb.haveAccount': `Vous avez déjà un compte${NB}?`,
+    'onb.login': 'Se connecter',
+    'onb.guestA11y': 'Explorer sans compte',
+    'onb.guest': 'Voir les tarifs sans compte',
+    'onb.getStarted': 'Commencer',
+    'onb.next': 'Continuer',
+  },
+}

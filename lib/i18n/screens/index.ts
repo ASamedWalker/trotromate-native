@@ -2,6 +2,7 @@ import { train } from './train'
 import { account } from './account'
 import { home } from './home'
 import { shared } from './shared'
+import { onboarding } from './onboarding'
 /**
  * Per-screen dictionaries, merged into STRINGS (lib/i18n/strings.ts). Each
  * module exports `{ en, fr }` with identical keys, namespaced by screen
@@ -9,4 +10,4 @@ import { shared } from './shared'
  */
 export type ScreenDict = { en: Record<string, string>; fr: Record<string, string> }
 
-export const SCREENS: ScreenDict[] = [train, account, home, shared]
+export const SCREENS: ScreenDict[] = [train, account, home, shared, onboarding]

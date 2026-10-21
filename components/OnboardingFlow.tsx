@@ -4,6 +4,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   Dimensions,
   FlatList,
   StyleSheet,
@@ -16,12 +17,13 @@ import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { font } from '@/lib/theme'
+import { HeroText } from '@/components/HeroText'
+import { useLanguage, deviceLanguage, LANGUAGES, type LangCode } from '@/lib/i18n'
 
 const { width, height: SCREEN_H } = Dimensions.get('window')
 const BRAND = '#FF4D1C'
 const BRAND_DEEP = '#E94817'
-const TERMS_URL = 'https://www.troski.me/terms'
-const PRIVACY_URL = 'https://www.troski.me/privacy'
+const legalUrl = (page: 'terms' | 'privacy', lang: LangCode) => `https://www.troski.me${lang === 'fr' ? '/fr' : ''}/${page}`
 
 // ─── Slides (3 benefit slides — Material "Top User Benefits", one per card.
 //     Brand intro lives on the splash; carousel leads straight with value.) ──
@@ -29,6 +31,7 @@ const PRIVACY_URL = 'https://www.troski.me/privacy'
 interface Slide {
   id: string
   image: any
+  /** i18n keys (onb.<id>.title / onb.<id>.sub) */
   title: string
   subtitle: string
 }
@@ -37,20 +40,20 @@ const ALL_SLIDES: Slide[] = [
   {
     id: 'queue',
     image: require('@/assets/images/onboarding/ob_illustrator_image.png'),
-    title: 'Know Your Fare\nBefore You Leave',
-    subtitle: 'Real trotro fares, routes and stations across Accra.',
+    title: 'onb.queue.title',
+    subtitle: 'onb.queue.sub',
   },
   {
     id: 'wallet',
     image: require('@/assets/images/onboarding/ob_wallet_image.png'),
-    title: 'Know the fare\nbefore you ride',
-    subtitle: 'Official GPRTU fares and what riders actually paid, on every line.',
+    title: 'onb.wallet.title',
+    subtitle: 'onb.wallet.sub',
   },
   {
     id: 'traffic',
     image: require('@/assets/images/onboarding/ob_busstop_blueskies_image.png'),
-    title: 'Beat Traffic\nArrive Calm',
-    subtitle: 'Smart departure windows and alternative routes when things get heavy.',
+    title: 'onb.traffic.title',
+    subtitle: 'onb.traffic.sub',
   },
 ]
 // Release mode hides the wallet, so don't promise it during onboarding.
@@ -62,6 +65,7 @@ const SLIDES = FEATURES.wallet ? ALL_SLIDES : ALL_SLIDES.filter((sl) => sl.id !=
 
 const SlideContent = React.memo(function SlideContent({ item }: { item: Slide }) {
   const insets = useSafeAreaInsets()
+  const { t } = useLanguage()
   // Illustration sized so a two-line title + full body still clears the
   // fixed bottom button block (slides overflow visibly otherwise — the body
   // text was rendering under the pagination dots / auth buttons).
@@ -76,12 +80,64 @@ const SlideContent = React.memo(function SlideContent({ item }: { item: Slide })
 
       {/* Copy */}
       <View style={s.copyWrap}>
-        <Text style={s.headline}>{item.title}</Text>
-        <Text style={s.body}>{item.subtitle}</Text>
+        <Text style={s.headline}>{t(item.title)}</Text>
+        <Text style={s.body}>{t(item.subtitle)}</Text>
       </View>
     </View>
   )
 })
+
+// ─── Language step (first screen; the same choice lives in Settings → Language) ──
+
+function LanguageStep({ onDone }: { onDone: () => void }) {
+  const insets = useSafeAreaInsets()
+  const { t, lang, setLanguage } = useLanguage()
+  // Pre-select the phone's language unless one was already saved
+  const [choice, setChoice] = useState<LangCode>(() => (lang !== 'en' ? lang : deviceLanguage()))
+
+  const pick = (code: LangCode) => {
+    Haptics.selectionAsync()
+    setChoice(code)
+    setLanguage(code) // preview the rest of onboarding in it right away
+  }
+
+  return (
+    <View style={[s.root, s.langRoot, { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 20 }]}>
+      <Animated.View entering={FadeIn.duration(300)} style={{ flex: 1 }}>
+        <HeroText size={28} style={s.langTitle}>Choose your language</HeroText>
+        <Text style={s.langTitleAlt}>Choisissez votre langue</Text>
+        <View style={s.langList}>
+          {LANGUAGES.map((l) => {
+            const on = l.code === choice
+            return (
+              <TouchableOpacity
+                key={l.code}
+                activeOpacity={0.7}
+                onPress={() => pick(l.code)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                accessibilityLabel={l.native}
+                style={StyleSheet.flatten([s.langRow, on && s.langRowOn])}
+              >
+                <Text style={[s.langName, on && s.langNameOn]}>{l.native}</Text>
+                <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioDot} />}</View>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      </Animated.View>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLanguage(choice); onDone() }}
+        accessibilityRole="button"
+      >
+        <LinearGradient colors={[BRAND, BRAND_DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
+          <Text style={s.btnPrimaryLabel}>{t('onb.lang.continue')}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+  )
+}
 
 // ─── Main Component ─────────────────────────────────────────
 
@@ -92,6 +148,8 @@ interface OnboardingFlowProps {
 
 export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const insets = useSafeAreaInsets()
+  const { t, lang } = useLanguage()
+  const [langChosen, setLangChosen] = useState(false)
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [agreed, setAgreed] = useState(false)
@@ -153,13 +211,15 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   // who just want to sign up immediately.
   const showAuth = isLastSlide
 
+  if (!langChosen) return <LanguageStep onDone={() => setLangChosen(true)} />
+
   return (
     <View style={s.root}>
       {/* Skip button — top right (hidden on last slide) */}
       {!isLastSlide && (
         <Animated.View entering={FadeIn.delay(500).duration(300)} style={[s.skipWrap, { top: insets.top + 14 }]}>
-          <Pressable onPress={skip} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip">
-            <Text style={s.skipText}>Skip</Text>
+          <Pressable onPress={skip} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('onb.skip')}>
+            <Text style={s.skipText}>{t('onb.skip')}</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -210,39 +270,39 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 {agreed && <Text style={s.checkboxTick}>✓</Text>}
               </View>
               <Text style={s.consentText}>
-                I agree to the{' '}
-                <Text style={s.consentLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms</Text>
-                {' '}and{' '}
-                <Text style={s.consentLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy Policy</Text>
+                {t('onb.agree')}{' '}
+                <Text style={s.consentLink} onPress={() => Linking.openURL(legalUrl('terms', lang))}>{t('onb.terms')}</Text>
+                {' '}{t('onb.and')}{' '}
+                <Text style={s.consentLink} onPress={() => Linking.openURL(legalUrl('privacy', lang))}>{t('onb.privacy')}</Text>
               </Text>
             </Pressable>
-            {showConsentHint && !agreed && <Text style={s.consentHint}>Tick the box to agree first</Text>}
+            {showConsentHint && !agreed && <Text style={s.consentHint}>{t('onb.tickFirst')}</Text>}
 
             {/* Primary CTA — phone-first sign-up, gated on consent.
                 Greyed out until the consent box is checked; tapping while
                 unchecked shows a hint instead of navigating. */}
-            <Pressable onPress={createAccount} accessibilityRole="button" accessibilityState={{ disabled: !agreed }} accessibilityHint={agreed ? undefined : "Tick the box to agree to the Terms first"} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
+            <Pressable onPress={createAccount} accessibilityRole="button" accessibilityState={{ disabled: !agreed }} accessibilityHint={agreed ? undefined : t('onb.tickHint')} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
               <LinearGradient colors={agreed ? [BRAND, BRAND_DEEP] : ['#D9D9D9', '#CFCFCF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
-                <Text style={[s.btnPrimaryLabel, !agreed && { color: '#8A8A8A' }]}>Create an Account</Text>
+                <Text style={[s.btnPrimaryLabel, !agreed && { color: '#8A8A8A' }]}>{t('onb.create')}</Text>
               </LinearGradient>
             </Pressable>
 
             {/* Login link */}
             <Text style={s.loginText}>
-              Already have an account?{' '}
-              <Text style={s.loginLink} onPress={login}>Login</Text>
+              {t('onb.haveAccount')}{' '}
+              <Text style={s.loginLink} onPress={login}>{t('onb.login')}</Text>
             </Text>
 
             {/* Guest path — no account needed for fares/routes/queues */}
-            <Pressable onPress={exploreAsGuest} hitSlop={8} accessibilityRole="button" accessibilityLabel="Explore without an account">
-              <Text style={s.guestLink}>Explore fares without an account</Text>
+            <Pressable onPress={exploreAsGuest} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('onb.guestA11y')}>
+              <Text style={s.guestLink}>{t('onb.guest')}</Text>
             </Pressable>
           </View>
         ) : (
           <View style={s.welcomeActions}>
             <Pressable onPress={goNext} style={({ pressed }) => [pressed && { transform: [{ scale: 0.97 }] }]}>
               <LinearGradient colors={[BRAND, BRAND_DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnPrimary}>
-                <Text style={s.btnPrimaryLabel}>{isFirstSlide ? 'Get Started' : 'Continue'}</Text>
+                <Text style={s.btnPrimaryLabel}>{isFirstSlide ? t('onb.getStarted') : t('onb.next')}</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -259,6 +319,22 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+
+  /* ── Language step ── */
+  langRoot: { paddingHorizontal: 24 },
+  langTitle: { color: '#000000', letterSpacing: -0.5 },
+  langTitleAlt: { fontFamily: font.medium, fontSize: 18, color: '#6B7280', marginTop: 4 },
+  langList: { marginTop: 32, gap: 12 },
+  langRow: {
+    minHeight: 64, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1.5, borderColor: '#E7E5E4',
+    backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  langRowOn: { borderColor: BRAND, backgroundColor: '#FFF3EE' },
+  langName: { fontFamily: font.bold, fontSize: 18, color: '#1C1917' },
+  langNameOn: { color: '#000000' },
+  radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#D6D3D1', alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: BRAND },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: BRAND },
 
   /* ── Skip ── */
   skipWrap: {

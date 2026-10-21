@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { I18nManager, Platform, Settings } from 'react-native'
 import { STRINGS, LANGUAGES, type LangCode } from './strings'
+
+export { LANGUAGES, type LangCode }
 
 /**
  * Minimal i18n — no external deps. A module-level store holds the current
@@ -25,12 +28,33 @@ export async function loadLanguage(): Promise<void> {
   } catch { /* default en */ }
 }
 
-function deviceIsFrench(): boolean {
+/** The phone's language as an app language (French phones → 'fr', else 'en'). */
+export function deviceLanguage(): LangCode {
+  return deviceIsFrench() ? 'fr' : 'en'
+}
+
+/** The phone's preferred language tag, e.g. "fr-TG" (core RN only — no native dependency). */
+function deviceLocale(): string {
   try {
-    return /^fr\b/i.test(Intl.DateTimeFormat().resolvedOptions().locale)
+    if (Platform.OS === 'ios') {
+      const langs = Settings.get('AppleLanguages') as string[] | undefined
+      if (langs?.[0]) return langs[0]
+      const loc = Settings.get('AppleLocale') as string | undefined
+      if (loc) return loc
+    } else if (Platform.OS === 'android') {
+      const id = (I18nManager.getConstants?.() as { localeIdentifier?: string } | undefined)?.localeIdentifier
+      if (id) return id
+    }
+  } catch { /* fall through */ }
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale
   } catch {
-    return false
+    return ''
   }
+}
+
+function deviceIsFrench(): boolean {
+  return /^fr\b/i.test(deviceLocale())
 }
 
 export async function setLanguage(code: LangCode): Promise<void> {
