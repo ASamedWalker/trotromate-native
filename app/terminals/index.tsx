@@ -14,6 +14,8 @@ import { timeAgo } from '@/lib/utils/time'
 import { fetchTerminals, type Terminal } from '@/lib/services/terminals'
 import { QUEUE_META } from '@/lib/services/queueStatus'
 import { LoadErrorState } from '@/components/StateViews'
+import { useLanguage } from '@/lib/i18n'
+import { agoFr } from '@/lib/i18n/screens/train'
 
 const BRAND = '#FF4D1C'
 
@@ -21,6 +23,9 @@ export default function TerminalsScreen() {
   const router = useRouter()
   const { location, isPermissionGranted, requestPermission } = useLocation()
   const [query, setQuery] = useState('')
+  const { t, lang } = useLanguage()
+  const tr = t // `t` is shadowed by the terminal inside the list map
+  const ageText = (iso: string) => (lang === 'fr' ? agoFr(iso) : timeAgo(iso))
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['terminals', location?.latitude ?? null, location?.longitude ?? null],
@@ -45,12 +50,12 @@ export default function TerminalsScreen() {
     <SafeAreaView edges={['top']} style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); router.back() }} hitSlop={12} style={s.backBtn} accessibilityRole="button" accessibilityLabel={t('terminals.back')}>
           <ChevronLeft size={22} color="#111" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>Terminals</Text>
-          <Text style={s.subtitle}>{isPermissionGranted ? 'Nearest first' : 'Bus stations & lorry parks'}</Text>
+          <Text style={s.title}>{t('terminals.title')}</Text>
+          <Text style={s.subtitle}>{isPermissionGranted ? t('terminals.nearestFirst') : t('terminals.subtitle')}</Text>
         </View>
       </View>
 
@@ -60,7 +65,7 @@ export default function TerminalsScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Where would you like to go?"
+          placeholder={t('terminals.searchPlaceholder')}
           placeholderTextColor="#6B7280"
           style={s.searchInput}
         />
@@ -75,26 +80,26 @@ export default function TerminalsScreen() {
         {!isPermissionGranted && (
           <TouchableOpacity activeOpacity={0.85} onPress={() => requestPermission()} style={s.locPrompt}>
             <Navigation size={16} color={BRAND} />
-            <Text style={s.locPromptText}>Turn on location to sort terminals by distance</Text>
+            <Text style={s.locPromptText}>{t('terminals.locPrompt')}</Text>
           </TouchableOpacity>
         )}
 
         {isLoading ? (
           <View style={s.center}>
             <ActivityIndicator color={BRAND} />
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 10 }}>Loading terminals…</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 10 }}>{t('terminals.loading')}</Text>
           </View>
         ) : isError && filtered.length === 0 && !query ? (
-          <LoadErrorState message="Couldn't load terminals. Check your connection." onRetry={() => refetch()} />
+          <LoadErrorState message={t('terminals.loadError')} onRetry={() => refetch()} />
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
             <Bus size={36} color="#6B7280" />
-            <Text style={s.emptyTitle}>{query ? 'No terminals match' : 'No terminals yet'}</Text>
-            <Text style={s.emptySub}>{query ? 'Try a different name.' : 'Terminals appear here as routes are mapped.'}</Text>
+            <Text style={s.emptyTitle}>{query ? t('terminals.noMatch') : t('terminals.noneYet')}</Text>
+            <Text style={s.emptySub}>{query ? t('terminals.tryOther') : t('terminals.appearHere')}</Text>
           </View>
         ) : (
           <View style={{ paddingHorizontal: 20, gap: 12 }}>
-            <Text style={s.sectionLabel}>{isPermissionGranted ? 'Nearby Terminals' : 'All Terminals'}</Text>
+            <Text style={s.sectionLabel}>{isPermissionGranted ? t('terminals.nearby') : t('terminals.all')}</Text>
             {filtered.map((t) => {
               const meta = t.queueStatus ? QUEUE_META[t.queueStatus] : null
               const fresh = t.queueAgeMins != null && t.queueAgeMins <= 120
@@ -104,18 +109,18 @@ export default function TerminalsScreen() {
                     <Text style={s.terminalName} numberOfLines={1}>{t.name}</Text>
                     <View style={s.metaRow}>
                       <Text style={s.metaText}>
-                        {t.routeCount > 0 ? `${t.routeCount} route${t.routeCount === 1 ? '' : 's'}` : 'Major station'}
+                        {t.routeCount > 0 ? (t.routeCount === 1 ? tr('terminals.route1') : tr('terminals.routesN', { n: t.routeCount })) : tr('terminals.major')}
                       </Text>
                       {t.city && (<><View style={s.dot} /><Text style={s.metaText}>{t.city}</Text></>)}
                       {meta && fresh && (
                         <>
                           <View style={s.dot} />
-                          <Text style={[s.metaText, { color: meta.color, fontFamily: font.semibold }]}>{meta.label} queue</Text>
+                          <Text style={[s.metaText, { color: meta.color, fontFamily: font.semibold }]}>{tr(`terminals.queue.${t.queueStatus}`)}</Text>
                         </>
                       )}
                     </View>
                     {meta && fresh && (
-                      <Text style={s.queueAge}>Queue reported {timeAgo(new Date(Date.now() - t.queueAgeMins! * 60000).toISOString())}</Text>
+                      <Text style={s.queueAge}>{tr('terminals.queueReported', { ago: ageText(new Date(Date.now() - t.queueAgeMins! * 60000).toISOString()) })}</Text>
                     )}
                   </View>
 

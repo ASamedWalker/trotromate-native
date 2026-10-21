@@ -5,6 +5,7 @@ import { c, themed, font } from '@/lib/theme'
 import { useDeviceId } from '@/lib/hooks/useDeviceId'
 import { supabase } from '@/lib/supabase'
 import { formatGHS } from '@/lib/utils/currency'
+import { useLanguage } from '@/lib/i18n'
 
 interface SummaryData {
   total_trips: number
@@ -18,6 +19,7 @@ export function SpendingSummary() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
+  const { t: tr, lang } = useLanguage()
   const { deviceId } = useDeviceId()
   const [data, setData] = useState<SummaryData | null>(null)
 
@@ -121,7 +123,7 @@ export function SpendingSummary() {
 
   if (!data) return null
 
-  const monthLabel = new Date().toLocaleDateString('en-GH', { month: 'long' })
+  const monthLabel = new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GH', { month: 'long' })
 
   return (
     <View style={{
@@ -137,7 +139,7 @@ export function SpendingSummary() {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <BarChart3 size={20} color={c.amber500} />
         <Text style={{ fontFamily: font.semibold, fontSize: 15, color: t.text }}>
-          {monthLabel} Summary
+          {tr('profile.spend.summary', { month: monthLabel })}
         </Text>
       </View>
 
@@ -145,15 +147,15 @@ export function SpendingSummary() {
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
         <View style={{ flex: 1, backgroundColor: isDark ? c.stone800 : c.stone100, borderRadius: 12, padding: 12, alignItems: 'center' }}>
           <Text style={{ fontFamily: font.bold, fontSize: 22, color: t.text }}>{data.total_trips}</Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Trips</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>{tr('profile.spend.trips')}</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: isDark ? c.stone800 : c.stone100, borderRadius: 12, padding: 12, alignItems: 'center' }}>
           <Text style={{ fontFamily: font.bold, fontSize: 22, color: c.amber500 }}>{formatGHS(data.total_spent)}</Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Spent</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>{tr('profile.spend.spent')}</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: isDark ? c.stone800 : c.stone100, borderRadius: 12, padding: 12, alignItems: 'center' }}>
           <Text style={{ fontFamily: font.bold, fontSize: 22, color: t.text }}>{formatGHS(data.avg_per_trip)}</Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>Avg/trip</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 11, color: t.textSecondary, marginTop: 2 }}>{tr('profile.spend.avg')}</Text>
         </View>
       </View>
 
@@ -185,7 +187,7 @@ export function SpendingSummary() {
             fontSize: 13,
             color: data.comparison.diff > 0 ? '#10b981' : data.comparison.diff < 0 ? '#ef4444' : t.textSecondary,
           }}>
-            {data.comparison.diff > 0 ? '+' : ''}{data.comparison.percent_change}% vs last month
+            {data.comparison.diff > 0 ? '+' : ''}{tr('profile.spend.vsLast', { pct: data.comparison.percent_change })}
           </Text>
         </View>
       )}
@@ -194,7 +196,7 @@ export function SpendingSummary() {
       {data.top_routes.length > 0 && (
         <View>
           <Text style={{ fontFamily: font.semibold, fontSize: 11, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-            Top Routes
+            {tr('profile.spend.topRoutes')}
           </Text>
           {data.top_routes.map((route, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -206,7 +208,7 @@ export function SpendingSummary() {
               </Text>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={{ fontFamily: font.semibold, fontSize: 13, color: t.text }}>{route.count}x</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 10, color: t.textSecondary }}>{formatGHS(route.avg_fare)}/trip</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 10, color: t.textSecondary }}>{tr('profile.spend.perTrip', { amount: formatGHS(route.avg_fare) })}</Text>
               </View>
             </View>
           ))}

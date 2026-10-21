@@ -35,23 +35,24 @@ import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { fetchTrainLineDetail } from '@/lib/services/train'
 import { formatGHS } from '@/lib/utils/currency'
 import type { TrainStation, TrainLine } from '@/lib/types'
+import { useLanguage } from '@/lib/i18n'
 
 const SKY = '#0ea5e9'
 
 const CROWD_LEVELS = [
-  { id: 'empty', label: 'Empty', description: 'Plenty of seats', color: '#22c55e', Icon: CircleDot },
-  { id: 'few_seats', label: 'Few Seats', description: 'Some seats left', color: '#eab308', Icon: Gauge },
-  { id: 'standing', label: 'Standing', description: 'Standing room only', color: '#f97316', Icon: Users },
-  { id: 'packed', label: 'Packed', description: 'Very crowded', color: '#ef4444', Icon: Users },
+  { id: 'empty', label: 'report.train.crowdEmpty', description: 'report.train.crowdEmptyDesc', color: '#22c55e', Icon: CircleDot },
+  { id: 'few_seats', label: 'report.train.crowdFew', description: 'report.train.crowdFewDesc', color: '#eab308', Icon: Gauge },
+  { id: 'standing', label: 'report.train.crowdStanding', description: 'report.train.crowdStandingDesc', color: '#f97316', Icon: Users },
+  { id: 'packed', label: 'report.train.crowdPacked', description: 'report.train.crowdPackedDesc', color: '#ef4444', Icon: Users },
 ]
 
 const REPORT_TYPES = [
-  { id: 'schedule', label: 'Train Spotted', description: 'Train just arrived or left', Icon: Clock, color: SKY },
-  { id: 'crowd', label: 'How Full?', description: 'Report crowding level', Icon: Users, color: '#8b5cf6' },
-  { id: 'delay', label: 'Running Late', description: 'Report a delay', Icon: Timer, color: '#ef4444' },
+  { id: 'schedule', label: 'report.train.typeSchedule', description: 'report.train.typeScheduleDesc', Icon: Clock, color: SKY },
+  { id: 'crowd', label: 'report.train.typeCrowd', description: 'report.train.typeCrowdDesc', Icon: Users, color: '#8b5cf6' },
+  { id: 'delay', label: 'report.train.typeDelay', description: 'report.train.typeDelayDesc', Icon: Timer, color: '#ef4444' },
 ]
 
-const STEP_LABELS = ['Line', 'Station', 'Report']
+const STEP_LABELS = ['report.train.stepLine', 'report.train.stepStation', 'report.train.stepReport']
 
 export default function TrainReportScreen() {
   const router = useRouter()
@@ -66,6 +67,7 @@ export default function TrainReportScreen() {
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitTrainReport(deviceId)
   const { lines, isLoading: linesLoading } = useTrainLines()
+  const { t: tr } = useLanguage()
 
   const [step, setStep] = useState(params.lineId ? (params.stationId ? 3 : 2) : 1)
   const [selectedLine, setSelectedLine] = useState<TrainLine | null>(null)
@@ -100,14 +102,14 @@ export default function TrainReportScreen() {
 
   const handleSubmit = async () => {
     if (!selectedLine || !selectedStation || !reportType) {
-      Alert.alert('Missing Info', 'Please complete all steps')
+      Alert.alert(tr('report.missingInfo'), tr('report.train.missingBody'))
       return
     }
 
     if (reportType === 'delay') {
       const delayVal = parseInt(delayMins, 10)
       if (isNaN(delayVal) || delayVal <= 0 || delayVal > 1440) {
-        Alert.alert('Invalid Delay', 'Enter the delay in minutes (1–1440)')
+        Alert.alert(tr('report.train.invalidDelay'), tr('report.train.invalidDelayBody'))
         return
       }
     }
@@ -128,7 +130,7 @@ export default function TrainReportScreen() {
       await maybePromptReview()
       router.back()
     } else {
-      Alert.alert('Error', 'Failed to submit report. Please try again.')
+      Alert.alert(tr('report.error'), `${tr('report.submitFailed')} ${tr('report.tryAgain')}`)
     }
   }
 
@@ -150,12 +152,12 @@ export default function TrainReportScreen() {
                 <TrainFront size={26} color={c.white} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.heroTitle}>Train Report</Text>
-                <Text style={s.heroSub}>Help fellow commuters</Text>
+                <Text style={s.heroTitle}>{tr('report.train.title')}</Text>
+                <Text style={s.heroSub}>{tr('report.train.sub')}</Text>
               </View>
               <View style={s.pointsBadge}>
                 <Sparkles size={12} color={c.white} />
-                <Text style={s.pointsText}>+10 coins</Text>
+                <Text style={s.pointsText}>{tr('report.coinsPlus', { n: 10 })}</Text>
               </View>
             </View>
 
@@ -186,7 +188,7 @@ export default function TrainReportScreen() {
                       )}
                     </View>
                     <Text style={[s.progressLabel, isActive && s.progressLabelActive]}>
-                      {label}
+                      {tr(label)}
                     </Text>
                   </View>
                 )
@@ -200,18 +202,18 @@ export default function TrainReportScreen() {
           <View style={s.body}>
             <View style={s.sectionHeader}>
               <TrainFront size={16} color={SKY} />
-              <Text style={s.sectionTitle}>Select Train Line</Text>
+              <Text style={s.sectionTitle}>{tr('report.train.selectLine')}</Text>
             </View>
 
             {linesLoading ? (
               <View style={s.loadingBox}>
                 <ActivityIndicator size="small" color={SKY} />
-                <Text style={s.loadingText}>Loading lines...</Text>
+                <Text style={s.loadingText}>{tr('report.train.loadingLines')}</Text>
               </View>
             ) : lines.length === 0 ? (
               <View style={s.emptyBox}>
                 <TrainFront size={32} color={t.textTertiary} />
-                <Text style={s.emptyText}>No train lines available yet</Text>
+                <Text style={s.emptyText}>{tr('report.train.noLines')}</Text>
               </View>
             ) : (
               <View style={{ gap: 10 }}>
@@ -232,13 +234,13 @@ export default function TrainReportScreen() {
                         <Text style={s.lineName}>{line.name}</Text>
                         <View style={s.lineMetaRow}>
                           <Text style={s.lineMeta}>
-                            {line.station_count} stations
+                            {tr('report.train.nStations', { n: line.station_count ?? '' })}
                           </Text>
                           {line.stats && line.stats.total_reports > 0 && (
                             <>
                               <View style={s.lineDotSep} />
                               <Text style={s.lineMeta}>
-                                {line.stats.total_reports} reports
+                                {tr('report.train.nReports', { n: line.stats.total_reports })}
                               </Text>
                             </>
                           )}
@@ -272,12 +274,12 @@ export default function TrainReportScreen() {
             >
               <View style={[s.breadcrumbDot, { backgroundColor: lineColor }]} />
               <Text style={s.breadcrumbText}>{selectedLine?.name}</Text>
-              <Text style={s.breadcrumbChange}>Change</Text>
+              <Text style={s.breadcrumbChange}>{tr('report.train.change')}</Text>
             </TouchableOpacity>
 
             <View style={[s.sectionHeader, { marginTop: 16 }]}>
               <MapPin size={16} color={lineColor} />
-              <Text style={s.sectionTitle}>Select Station</Text>
+              <Text style={s.sectionTitle}>{tr('report.selectStationTitle')}</Text>
             </View>
 
             <View style={s.stationCard}>
@@ -315,8 +317,8 @@ export default function TrainReportScreen() {
                         <Text style={[s.stationName, isTerminal && s.stationNameBold]}>
                           {station.name}
                         </Text>
-                        {isFirst && <Text style={s.stationHint}>Origin</Text>}
-                        {isLast && <Text style={s.stationHint}>Terminus</Text>}
+                        {isFirst && <Text style={s.stationHint}>{tr('report.train.origin')}</Text>}
+                        {isLast && <Text style={s.stationHint}>{tr('report.train.terminus')}</Text>}
                       </View>
                       <ChevronRight size={16} color={t.textTertiary} />
                     </View>
@@ -343,13 +345,13 @@ export default function TrainReportScreen() {
               <View style={s.breadcrumbSep} />
               <View style={[s.breadcrumbDot, { backgroundColor: lineColor }]} />
               <Text style={[s.breadcrumbText, { fontSize: 12 }]}>{selectedLine?.name}</Text>
-              <Text style={s.breadcrumbChange}>Change</Text>
+              <Text style={s.breadcrumbChange}>{tr('report.train.change')}</Text>
             </TouchableOpacity>
 
             {/* Report type selection */}
             <View style={[s.sectionHeader, { marginTop: 16 }]}>
               <Sparkles size={16} color={lineColor} />
-              <Text style={s.sectionTitle}>What are you reporting?</Text>
+              <Text style={s.sectionTitle}>{tr('report.train.whatReporting')}</Text>
             </View>
 
             <View style={s.typeGrid}>
@@ -374,8 +376,8 @@ export default function TrainReportScreen() {
                       <Icon size={20} color={type.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.typeLabel}>{type.label}</Text>
-                      <Text style={s.typeDesc}>{type.description}</Text>
+                      <Text style={s.typeLabel}>{tr(type.label)}</Text>
+                      <Text style={s.typeDesc}>{tr(type.description)}</Text>
                     </View>
                     {isSelected && (
                       <View style={[s.checkCircle, { backgroundColor: type.color }]}>
@@ -391,11 +393,11 @@ export default function TrainReportScreen() {
 
             {reportType === 'schedule' && (
               <View style={s.detailSection}>
-                <Text style={s.detailLabel}>Direction of travel</Text>
+                <Text style={s.detailLabel}>{tr('report.train.direction')}</Text>
                 <View style={s.dirRow}>
                   {[
-                    { id: 'inbound', label: 'Inbound', sub: 'To Accra', Icon: ArrowDown, color: '#0ea5e9' },
-                    { id: 'outbound', label: 'Outbound', sub: 'To Tema', Icon: ArrowUp, color: '#8b5cf6' },
+                    { id: 'inbound', label: 'report.train.inbound', sub: 'report.train.toAccra', Icon: ArrowDown, color: '#0ea5e9' },
+                    { id: 'outbound', label: 'report.train.outbound', sub: 'report.train.toTema', Icon: ArrowUp, color: '#8b5cf6' },
                   ].map((dir) => {
                     const isActive = direction === dir.id
                     return (
@@ -415,9 +417,9 @@ export default function TrainReportScreen() {
                           />
                         </View>
                         <Text style={[s.dirLabel, isActive && { color: dir.color }]}>
-                          {dir.label}
+                          {tr(dir.label)}
                         </Text>
-                        <Text style={s.dirSub}>{dir.sub}</Text>
+                        <Text style={s.dirSub}>{tr(dir.sub)}</Text>
                       </TouchableOpacity>
                     )
                   })}
@@ -427,7 +429,7 @@ export default function TrainReportScreen() {
 
             {reportType === 'crowd' && (
               <View style={s.detailSection}>
-                <Text style={s.detailLabel}>How full is the train?</Text>
+                <Text style={s.detailLabel}>{tr('report.train.howFull')}</Text>
                 <View style={s.crowdGrid}>
                   {CROWD_LEVELS.map((level) => {
                     const isSelected = crowdLevel === level.id
@@ -458,9 +460,9 @@ export default function TrainReportScreen() {
                           />
                         </View>
                         <Text style={[s.crowdLabel, isSelected && { color: level.color, fontFamily: font.bold }]}>
-                          {level.label}
+                          {tr(level.label)}
                         </Text>
-                        <Text style={s.crowdDesc}>{level.description}</Text>
+                        <Text style={s.crowdDesc}>{tr(level.description)}</Text>
                         {isSelected && (
                           <View style={[s.crowdCheck, { backgroundColor: level.color }]}>
                             <Check size={10} color={c.white} strokeWidth={3} />
@@ -475,7 +477,7 @@ export default function TrainReportScreen() {
 
             {reportType === 'delay' && (
               <View style={s.detailSection}>
-                <Text style={s.detailLabel}>Delay Duration</Text>
+                <Text style={s.detailLabel}>{tr('report.train.delayDuration')}</Text>
                 <View style={s.delayCard}>
                   <View style={s.delayInputRow}>
                     <View style={s.delayIconBox}>
@@ -484,7 +486,7 @@ export default function TrainReportScreen() {
                     <TextInput
                       value={delayMins}
                       onChangeText={setDelayMins}
-                      placeholder="Minutes"
+                      placeholder={tr('report.train.minutesPh')}
                       keyboardType="number-pad"
                       placeholderTextColor={t.textTertiary}
                       style={s.delayInput}
@@ -541,7 +543,7 @@ export default function TrainReportScreen() {
               ) : (
                 <>
                   <TrainFront size={20} color={c.white} />
-                  <Text style={s.submitText}>Submit Report</Text>
+                  <Text style={s.submitText}>{tr('report.train.submit')}</Text>
                 </>
               )}
             </TouchableOpacity>

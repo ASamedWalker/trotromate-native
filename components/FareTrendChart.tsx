@@ -13,6 +13,7 @@ import Svg, { Path, Line, Circle, Text as SvgText, Defs, LinearGradient, Stop } 
 import { TrendingUp, BarChart3, Share2 } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { formatGHS, formatGHSRange } from '@/lib/utils/currency'
+import { useLanguage, t as tr } from '@/lib/i18n'
 
 export interface FareTrendPoint {
   day: string
@@ -31,9 +32,10 @@ interface FareTrendChartProps {
   routeName?: string
 }
 
+// label = i18n key
 const PERIODS = [
-  { label: '7D', days: 7 },
-  { label: '30D', days: 30 },
+  { label: 'routes.p7', days: 7 },
+  { label: 'routes.p30', days: 30 },
 ]
 
 const CHART_HEIGHT = 160
@@ -67,7 +69,7 @@ class ChartErrorBoundary extends Component<
         <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
           <TrendingUp size={28} color={t.textTertiary} />
           <Text style={{ fontSize: 14, fontFamily: font.medium, color: t.textSecondary, marginTop: 8 }}>
-            Chart unavailable
+            {tr('routes.chartUnavailable')}
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -76,7 +78,7 @@ class ChartErrorBoundary extends Component<
             }}
             style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, backgroundColor: c.amber500 }}
           >
-            <Text style={{ fontSize: 12, fontFamily: font.medium, color: c.white }}>Retry</Text>
+            <Text style={{ fontSize: 12, fontFamily: font.medium, color: c.white }}>{tr('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       )
@@ -101,6 +103,7 @@ export function FareTrendChart({
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const t = themed(isDark)
+  useLanguage() // re-render on language change
   const s = useMemo(() => getStyles(isDark), [isDark])
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [chartError, setChartError] = useState(false)
@@ -250,12 +253,12 @@ export function FareTrendChart({
   const handleShare = useCallback(async () => {
     const totalReports = (data || []).reduce((sum, d) => sum + (d?.report_count || 0), 0)
     const latestAvg = data?.[data.length - 1]?.avg_fare
-    const name = routeName || 'this route'
+    const name = routeName || tr('routes.thisRoute')
     const message = latestAvg != null
-      ? `Trotro fares on ${name}: ${formatGHS(latestAvg)} avg${hasOfficial ? ` (GPRTU: ${formatGHS(officialFare)})` : ''} based on ${totalReports} community reports. Track real fares on Troski! https://www.troski.me`
-      : `Track real trotro fares on Troski! https://www.troski.me`
+      ? tr('routes.shareTrendMsg', { name, avg: formatGHS(latestAvg), official: hasOfficial ? tr('routes.shareTrendOfficial', { fare: formatGHS(officialFare) }) : '', n: totalReports })
+      : tr('routes.shareTrendNone')
     try {
-      await Share.share({ message, title: 'Troski Fare Trend' })
+      await Share.share({ message, title: tr('routes.shareTrendTitle') })
     } catch (e) { console.warn("[troski] silent error:", e) }
   }, [data, officialFare, hasOfficial, routeName])
 
@@ -270,10 +273,10 @@ export function FareTrendChart({
     <View style={s.header}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <BarChart3 size={18} color={c.amber500} />
-        <Text style={s.title}>Fare Trend</Text>
+        <Text style={s.title}>{tr('routes.fareTrend')}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TouchableOpacity onPress={handleShare} hitSlop={8} style={s.shareBtn} accessibilityRole="button" accessibilityLabel="Share fare trend">
+        <TouchableOpacity onPress={handleShare} hitSlop={8} style={s.shareBtn} accessibilityRole="button" accessibilityLabel={tr('routes.shareTrendA11y')}>
           <Share2 size={14} color={c.amber500} />
         </TouchableOpacity>
         <View style={s.periodRow}>
@@ -284,11 +287,11 @@ export function FareTrendChart({
               hitSlop={{ top: 6, bottom: 6 }}
               accessibilityRole="button"
               accessibilityState={{ selected: selectedPeriod === p.days }}
-              accessibilityLabel={p.days === 7 ? 'Last 7 days' : 'Last 30 days'}
+              accessibilityLabel={p.days === 7 ? tr('routes.last7') : tr('routes.last30')}
               style={[s.periodBtn, selectedPeriod === p.days && s.periodBtnActive]}
             >
               <Text style={[s.periodText, selectedPeriod === p.days && s.periodTextActive]}>
-                {p.label}
+                {tr(p.label)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -314,8 +317,8 @@ export function FareTrendChart({
         {renderHeader()}
         <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
           <TrendingUp size={28} color={t.textTertiary} />
-          <Text style={[s.emptyText, { marginTop: 8 }]}>Not enough data yet</Text>
-          <Text style={s.emptySubtext}>Chart appears after 2+ days of reports</Text>
+          <Text style={[s.emptyText, { marginTop: 8 }]}>{tr('routes.notEnoughData')}</Text>
+          <Text style={s.emptySubtext}>{tr('routes.chartAfter')}</Text>
         </View>
       </View>
     )
@@ -407,9 +410,9 @@ export function FareTrendChart({
               </Text>
               <Text style={s.tooltipFare}>{formatGHS(safeNum(selectedPoint.avg_fare))}</Text>
               <Text style={s.tooltipRange}>
-                Range {formatGHSRange(safeNum(selectedPoint.min_fare), safeNum(selectedPoint.max_fare))}
+                {tr('routes.range', { range: formatGHSRange(safeNum(selectedPoint.min_fare), safeNum(selectedPoint.max_fare)) })}
               </Text>
-              <Text style={s.tooltipReports}>{selectedPoint.report_count ?? 0} reports</Text>
+              <Text style={s.tooltipReports}>{tr('stations.reportMany', { n: selectedPoint.report_count ?? 0 })}</Text>
             </View>
           )}
         </View>
@@ -419,15 +422,15 @@ export function FareTrendChart({
       <View style={s.summaryRow}>
         <View style={s.summaryItem}>
           <View style={[s.summaryDot, { backgroundColor: c.amber500 }]} />
-          <Text style={s.summaryLabel}>Avg reported</Text>
+          <Text style={s.summaryLabel}>{tr('routes.avgReported')}</Text>
         </View>
         {hasOfficial ? (
           <View style={s.summaryItem}>
             <View style={[s.summaryDot, { backgroundColor: isDark ? '#34d399' : '#059669' }]} />
-            <Text style={s.summaryLabel}>GPRTU fare</Text>
+            <Text style={s.summaryLabel}>{tr('routes.gprtuFare')}</Text>
           </View>
         ) : null}
-        <Text style={s.summaryCount}>{totalReports} reports</Text>
+        <Text style={s.summaryCount}>{tr('stations.reportMany', { n: totalReports })}</Text>
       </View>
     </View>
   )
@@ -437,7 +440,7 @@ function formatDay(day: string): string {
   try {
     const d = new Date(day)
     if (isNaN(d.getTime())) return day || ''
-    return `${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`
+    return `${d.getDate()} ${tr('routes.monthsShort').split(',')[d.getMonth()]}`
   } catch {
     return day || ''
   }

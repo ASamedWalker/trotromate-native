@@ -29,6 +29,7 @@ import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
+import { useLanguage } from '@/lib/i18n'
 import { authedFetch } from '@/lib/services/authedFetch'
 import { IntercityRow } from '@/components/lines/IntercityRow'
 import { intercityForTrip, searchIntercity, type IntercityPair } from '@/lib/utils/intercity'
@@ -139,6 +140,7 @@ type TransportMode = 'all' | 'trotro' | 'okada' | 'pragya' | 'train' | 'walk'
 
 export default function PlanTripScreen() {
   const router = useRouter()
+  const { t: tr } = useLanguage()
   const params = useLocalSearchParams<{
     from?: string; to?: string
     /** 'to' when opened from Home's "Where to?": cursor starts in the destination field */
@@ -359,7 +361,7 @@ export default function PlanTripScreen() {
 
   const intercityBlock = intercityMatches.length > 0 ? (
     <View style={{ marginBottom: 20 }}>
-      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 8 }}>Travel fares</Text>
+      <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 8 }}>{tr('routes.travelFares')}</Text>
       {intercityMatches.map((p, i) => (
         <IntercityRow key={p.slug} pair={p} first={i === 0} last={i === intercityMatches.length - 1} onPress={() => openIntercity(p)} />
       ))}
@@ -382,7 +384,7 @@ export default function PlanTripScreen() {
     // Pragya and Courier have no routes or rides yet: be honest, don't switch
     // to an empty "check your spelling" result.
     if (id === 'pragya' || id === 'courier') {
-      Alert.alert(id === 'pragya' ? 'Pragya' : 'Courier', `${id === 'pragya' ? 'Pragya' : 'Courier'} is coming soon!`)
+      Alert.alert(id === 'pragya' ? 'Pragya' : tr('routes.courier'), tr('routes.comingSoon', { name: id === 'pragya' ? 'Pragya' : tr('routes.courier') }))
       return
     }
     setSelectedService(id)
@@ -408,8 +410,8 @@ export default function PlanTripScreen() {
   }
 
   const SHORTCUTS = [
-    { key: 'home', Icon: Home, label: 'Home', value: homeAddress, placeholder: 'Add home address', color: '#374151' },
-    { key: 'work', Icon: Briefcase, label: 'Work', value: workAddress, placeholder: 'Add work address', color: '#374151' },
+    { key: 'home', Icon: Home, label: tr('routes.home'), value: homeAddress, placeholder: tr('routes.addHomeAddr'), color: '#374151' },
+    { key: 'work', Icon: Briefcase, label: tr('routes.work'), value: workAddress, placeholder: tr('routes.addWorkAddr'), color: '#374151' },
   ]
 
   const showingResults = hasSearched && canSearch
@@ -444,13 +446,13 @@ export default function PlanTripScreen() {
         <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 28, color: '#000', letterSpacing: -0.8 }}>
-              Plan a Trip
+              {tr('routes.planTrip')}
             </Text>
             <TouchableOpacity
               onPress={() => router.back()}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={tr('routes.back')}
               style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}
             >
               <X size={20} color="#374151" />
@@ -467,13 +469,14 @@ export default function PlanTripScreen() {
           >
             {SERVICES.map((svc) => {
               const isActive = selectedService === svc.id
+              const svcLabel = svc.id === 'bus' ? tr('routes.svcBus') : svc.id === 'train' ? tr('nav.train') : svc.label
               return (
                 <TouchableOpacity
                   key={svc.id}
                   onPress={() => selectService(svc.id, svc.mode)}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={svc.label}
+                  accessibilityLabel={svcLabel}
                   accessibilityState={{ selected: isActive }}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -485,7 +488,7 @@ export default function PlanTripScreen() {
                   }}
                 >
                   <Image source={svc.image} style={{ width: 28, height: 28 }} resizeMode="contain" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: isActive ? BRAND : TEXT_SECONDARY }}>{svc.label}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: isActive ? BRAND : TEXT_SECONDARY }}>{svcLabel}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -503,7 +506,7 @@ export default function PlanTripScreen() {
               <MapPin size={18} color="#10B981" style={{ marginRight: 10 }} />
               <TextInput
                 ref={fromRef}
-                placeholder="From where?"
+                placeholder={tr('routes.fromWhere')}
                 placeholderTextColor={TEXT_SECONDARY}
                 value={from}
                 onChangeText={setFrom}
@@ -513,7 +516,7 @@ export default function PlanTripScreen() {
                 onSubmitEditing={() => toRef.current?.focus()}
               />
               {from.length > 0 && (
-                <TouchableOpacity onPress={() => setFrom('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear origin">
+                <TouchableOpacity onPress={() => setFrom('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('routes.clearOrigin')}>
                   <X size={18} color={TEXT_SECONDARY} />
                 </TouchableOpacity>
               )}
@@ -521,7 +524,7 @@ export default function PlanTripScreen() {
                 onPress={useMyLocation}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={locationName ? 'Use my current location as origin' : 'Finding your location'}
+                accessibilityLabel={locationName ? tr('routes.useMyLoc') : tr('routes.findingLoc')}
                 accessibilityState={{ disabled: !locationName }}
                 disabled={!locationName}
                 style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginLeft: 8, opacity: locationName ? 1 : 0.5 }}
@@ -538,7 +541,7 @@ export default function PlanTripScreen() {
                 style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginHorizontal: 10 }}
                 hitSlop={14}
                 accessibilityRole="button"
-                accessibilityLabel="Swap origin and destination"
+                accessibilityLabel={tr('routes.swap')}
               >
                 <ArrowUpDown size={15} color="#374151" strokeWidth={2.5} />
               </TouchableOpacity>
@@ -553,7 +556,7 @@ export default function PlanTripScreen() {
               <CircleDot size={18} color="#EF4444" style={{ marginRight: 10 }} />
               <TextInput
                 ref={toRef}
-                placeholder="To where?"
+                placeholder={tr('routes.toWhere')}
                 placeholderTextColor={TEXT_SECONDARY}
                 value={to}
                 onChangeText={setTo}
@@ -562,7 +565,7 @@ export default function PlanTripScreen() {
                 returnKeyType="done"
               />
               {to.length > 0 && (
-                <TouchableOpacity onPress={() => setTo('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear destination">
+                <TouchableOpacity onPress={() => setTo('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('routes.clearDest')}>
                   <X size={18} color={TEXT_SECONDARY} />
                 </TouchableOpacity>
               )}
@@ -585,7 +588,7 @@ export default function PlanTripScreen() {
                   key={sc.key}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={sc.value ? `${sc.label}: ${sc.value}` : `Add ${sc.label.toLowerCase()} address`}
+                  accessibilityLabel={sc.value ? tr('routes.shortcutA11y', { label: sc.label, value: sc.value }) : sc.placeholder}
                   onPress={() => {
                     if (!sc.value && (sc.key === 'home' || sc.key === 'work')) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -603,12 +606,12 @@ export default function PlanTripScreen() {
               <TouchableOpacity
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Add a new place"
+                accessibilityLabel={tr('routes.addPlace')}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAddressInput(''); setAddressSuggestions([]); setAddressModal('home') }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, minHeight: 40, borderRadius: 20, backgroundColor: '#FFF0EB' }}
               >
                 <Plus size={17} color={BRAND} />
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>Place</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>{tr('routes.place')}</Text>
               </TouchableOpacity>
             </ScrollView>
           )}
@@ -622,15 +625,15 @@ export default function PlanTripScreen() {
               {(activeInput === 'from' ? from : to).length === 0 && !popular.isError && (popular.isLoading || (popular.data?.length ?? 0) > 0) && (
                 <View style={{ marginBottom: 20 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000' }}>Popular trips</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000' }}>{tr('routes.popularTrips')}</Text>
                     {!popular.isLoading && (
                       <TouchableOpacity
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPopularExpanded((v) => !v) }}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={popularExpanded ? 'Show fewer popular trips' : 'See all popular trips'}
+                        accessibilityLabel={popularExpanded ? tr('routes.showFewerA11y') : tr('routes.seeAllPopularA11y')}
                       >
-                        <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>{popularExpanded ? 'Show less' : 'See all →'}</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 15, color: BRAND }}>{popularExpanded ? tr('routes.showLess') : tr('routes.seeAllArrow')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -653,13 +656,13 @@ export default function PlanTripScreen() {
                             onPress={() => selectPopular(trip)}
                             activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel={`${trip.from} to ${trip.to}, official fare ${formatGHS(trip.fare)}`}
+                            accessibilityLabel={tr('routes.popularA11y', { from: trip.from, to: trip.to, fare: formatGHS(trip.fare) })}
                             style={{ ...cardBase, width: cardW }}
                           >
                             <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }} numberOfLines={1}>{trip.from} →</Text>
                             <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }} numberOfLines={1}>{trip.to}</Text>
                             <Text style={{ fontFamily: font.bold, fontSize: 18, color: BRAND, marginTop: 6 }}>{formatGHS(trip.fare)}</Text>
-                            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#166534', marginTop: 2 }}>✓ Official</Text>
+                            <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#166534', marginTop: 2 }}>{tr('routes.official')}</Text>
                           </TouchableOpacity>
                         ))
                     return popularExpanded && !popular.isLoading ? (
@@ -681,11 +684,11 @@ export default function PlanTripScreen() {
               {(activeInput === 'from' ? from : to).length > 0 ? intercityBlock : null}
               {(suggestions.length > 0 || intercityMatches.length === 0) && <Text style={{ fontFamily: font.bold, fontSize: 18, color: '#000', marginBottom: 6 }}>
                 {(activeInput === 'from' ? from : to).length > 0
-                  ? 'Results'
+                  ? tr('routes.results')
                   /* Without a location fix these are just stations, in no
                      particular order — calling them "nearby" while showing
                      Kojokrom to someone in Accra is a claim we can't back. */
-                  : location ? 'Stations near you' : 'Stations'}
+                  : location ? tr('routes.stationsNearYou') : tr('nav.stations')}
               </Text>}
               {suggestions.map((station, i) => (
                 <TouchableOpacity
@@ -720,7 +723,7 @@ export default function PlanTripScreen() {
               {suggestions.length === 0 && intercityMatches.length === 0 && (activeInput === 'from' ? from : to).length > 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                   <Text style={{ fontFamily: font.medium, fontSize: 16, color: TEXT_SECONDARY }}>
-                    No stations found
+                    {tr('routes.noStations')}
                   </Text>
                 </View>
               )}
@@ -776,13 +779,13 @@ export default function PlanTripScreen() {
               <TouchableOpacity
                 onPress={() => setAddressModal(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Back"
+                accessibilityLabel={tr('routes.back')}
                 style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
               >
                 <ArrowLeft size={22} color="#111" />
               </TouchableOpacity>
               <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 18, color: '#111', textAlign: 'center' }}>
-                {addressModal === 'home' ? 'Add home' : 'Add work'}
+                {addressModal === 'home' ? tr('routes.addHome') : tr('routes.addWork')}
               </Text>
               <View style={{ width: 40 }} />
             </View>
@@ -792,7 +795,7 @@ export default function PlanTripScreen() {
                 <MapPin size={18} color="#10B981" style={{ marginRight: 10 }} />
                 <TextInput
                   style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#111', padding: 0 }}
-                  placeholder="Search address"
+                  placeholder={tr('routes.searchAddress')}
                   placeholderTextColor="#6B7280"
                   value={addressInput}
                   onChangeText={searchAddress}
@@ -818,7 +821,7 @@ export default function PlanTripScreen() {
 
               {addressSearchFailed && addressInput.trim().length >= 3 && (
                 <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#B45309', marginTop: 10 }}>
-                  Couldn&apos;t search places — check your connection. You can still save what you typed.
+                  {tr('routes.addrSearchFailed')}
                 </Text>
               )}
 
@@ -827,7 +830,7 @@ export default function PlanTripScreen() {
                   onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); saveAddress(addressModal === 'home' ? 'Home' : 'Work', addressInput.trim()) }}
                   style={{ backgroundColor: BRAND, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 20 }}
                 >
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Save place</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{tr('routes.savePlace')}</Text>
                 </TouchableOpacity>
               )}
             </View>

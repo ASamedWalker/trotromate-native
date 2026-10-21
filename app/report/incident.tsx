@@ -44,14 +44,15 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { useStations } from '@/lib/hooks/useStations'
 import { getStationCoords } from '@/lib/utils/station-coords'
+import { useLanguage } from '@/lib/i18n'
 
 const INCIDENT_TYPES = [
-  { id: 'traffic', label: 'Traffic', icon: Car, color: '#FF4D1C' },
-  { id: 'accident', label: 'Accident', icon: AlertTriangle, color: '#b02500' },
-  { id: 'police_checkpoint', label: 'Police', icon: ShieldCheck, color: '#FF4D1C' },
-  { id: 'road_closure', label: 'Road\nClosure', icon: Ban, color: '#FF4D1C' },
-  { id: 'flooding', label: 'Hazard', icon: TriangleAlert, color: '#FF4D1C' },
-  { id: 'breakdown', label: 'Work', icon: Construction, color: '#FF4D1C' },
+  { id: 'traffic', label: 'report.inc.traffic', icon: Car, color: '#FF4D1C' },
+  { id: 'accident', label: 'report.inc.accident', icon: AlertTriangle, color: '#b02500' },
+  { id: 'police_checkpoint', label: 'report.inc.police', icon: ShieldCheck, color: '#FF4D1C' },
+  { id: 'road_closure', label: 'report.inc.roadClosure', icon: Ban, color: '#FF4D1C' },
+  { id: 'flooding', label: 'report.inc.hazard', icon: TriangleAlert, color: '#FF4D1C' },
+  { id: 'breakdown', label: 'report.inc.work', icon: Construction, color: '#FF4D1C' },
 ]
 
 export default function IncidentReportScreen() {
@@ -67,6 +68,7 @@ export default function IncidentReportScreen() {
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitIncidentReport(deviceId)
   const { stations } = useStations()
+  const { t } = useLanguage()
 
   const [location, setLocation] = useState('')
   const [pickedStation, setPickedStation] = useState<{ latitude?: number; longitude?: number } | null>(null)
@@ -144,7 +146,7 @@ export default function IncidentReportScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'Camera access is required to take photos.')
+      Alert.alert(t('report.permNeeded'), t('report.cameraPerm'))
       return
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -160,7 +162,7 @@ export default function IncidentReportScreen() {
 
   const handleSubmit = async () => {
     if (!location.trim() || !selectedType) {
-      Alert.alert('Missing Info', 'Please select a location and incident type')
+      Alert.alert(t('report.missingInfo'), t('report.inc.missingBody'))
       return
     }
 
@@ -182,7 +184,7 @@ export default function IncidentReportScreen() {
       await maybePromptReview()
       router.back()
     } else {
-      Alert.alert('Error', 'Failed to submit report. Please try again.')
+      Alert.alert(t('report.error'), `${t('report.submitFailed')} ${t('report.tryAgain')}`)
     }
   }
 
@@ -204,25 +206,25 @@ export default function IncidentReportScreen() {
           {gpsStatus === 'loading' && (
             <View style={s.gpsBadge}>
               <ActivityIndicator size={12} color="#FF4D1C" />
-              <Text style={s.gpsBadgeText}>Getting your location...</Text>
+              <Text style={s.gpsBadgeText}>{t('report.inc.gpsLoading')}</Text>
             </View>
           )}
           {gpsStatus === 'acquired' && isGpsInGhana && (
             <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)' }]}>
               <Navigation size={12} color="#22c55e" />
-              <Text style={[s.gpsBadgeText, { color: '#16a34a' }]}>Using your live location</Text>
+              <Text style={[s.gpsBadgeText, { color: '#16a34a' }]}>{t('report.inc.gpsUsing')}</Text>
             </View>
           )}
           {gpsStatus === 'acquired' && !isGpsInGhana && (
             <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)' }]}>
               <MapPin size={12} color="#3b82f6" />
-              <Text style={[s.gpsBadgeText, { color: '#2563eb' }]}>Using station coordinates</Text>
+              <Text style={[s.gpsBadgeText, { color: '#2563eb' }]}>{t('report.inc.gpsStation')}</Text>
             </View>
           )}
           {(gpsStatus === 'denied' || gpsStatus === 'error') && (
             <View style={[s.gpsBadge, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)' }]}>
               <MapPinOff size={12} color="#ef4444" />
-              <Text style={[s.gpsBadgeText, { color: '#dc2626' }]}>Location unavailable — select below</Text>
+              <Text style={[s.gpsBadgeText, { color: '#dc2626' }]}>{t('report.inc.gpsUnavailable')}</Text>
             </View>
           )}
           <TouchableOpacity
@@ -232,7 +234,7 @@ export default function IncidentReportScreen() {
           >
             <MapPin size={16} color="#FF4D1C" />
             <Text style={s.locationPillText} numberOfLines={1}>
-              {location || 'Select location'}
+              {location || t('report.inc.selectLocation')}
             </Text>
             <ChevronDown size={16} color="#FF4D1C" />
           </TouchableOpacity>
@@ -243,9 +245,9 @@ export default function IncidentReportScreen() {
           <View style={s.heroIconBox}>
             <AlertTriangle size={40} color="#b02500" />
           </View>
-          <Text style={s.heroTitle}>What's happening?</Text>
+          <Text style={s.heroTitle}>{t('report.inc.heroTitle')}</Text>
           <Text style={s.heroSubtitle}>
-            Help others navigate safely through the city.
+            {t('report.inc.heroSub')}
           </Text>
         </View>
 
@@ -269,7 +271,7 @@ export default function IncidentReportScreen() {
                   size={28}
                   color={type.id === 'accident' ? '#b02500' : '#FF4D1C'}
                 />
-                <Text style={s.gridLabel}>{type.label}</Text>
+                <Text style={s.gridLabel}>{t(type.label)}</Text>
                 {isSelected && (
                   <View style={s.gridCheck}>
                     <Check size={12} color="#fff" />
@@ -301,7 +303,7 @@ export default function IncidentReportScreen() {
               activeOpacity={0.7}
             >
               <Camera size={14} color="#fff" />
-              <Text style={s.photoRetakeText}>Retake</Text>
+              <Text style={s.photoRetakeText}>{t('report.retake')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -312,7 +314,7 @@ export default function IncidentReportScreen() {
                   <Camera size={32} color="#fff" />
                 </View>
               </View>
-              <Text style={s.cameraTitle}>TAP TO PHOTO</Text>
+              <Text style={s.cameraTitle}>{t('report.inc.tapPhoto')}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -333,7 +335,7 @@ export default function IncidentReportScreen() {
             style={s.submitBtn}
           >
             <Text style={s.submitText}>
-              {isSubmitting ? 'SUBMITTING...' : 'SUBMIT INCIDENT'}
+              {isSubmitting ? t('report.submittingCaps') : t('report.inc.submit')}
             </Text>
             <Send size={20} color="#fff" />
           </LinearGradient>
@@ -348,7 +350,7 @@ export default function IncidentReportScreen() {
         >
           <Pressable style={s.modalSheet}>
             <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>Select Location</Text>
+            <Text style={s.modalTitle}>{t('report.inc.selectLocationTitle')}</Text>
 
             {/* Search */}
             <View style={s.searchBox}>
@@ -356,7 +358,7 @@ export default function IncidentReportScreen() {
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search locations..."
+                placeholder={t('report.inc.searchPh')}
                 placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
                 style={s.searchInput}
               />
@@ -403,7 +405,7 @@ export default function IncidentReportScreen() {
                 style={s.customLocBtn}
               >
                 <MapPin size={16} color="#FF4D1C" />
-                <Text style={s.customLocText}>Use "{search.trim()}"</Text>
+                <Text style={s.customLocText}>{t('report.useCustom', { q: search.trim() })}</Text>
               </TouchableOpacity>
             )}
           </Pressable>

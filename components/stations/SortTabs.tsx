@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { c, font } from '@/lib/theme'
+import { useLanguage } from '@/lib/i18n'
 
 export type SortTab = 'nearest' | 'shortest'
 
@@ -11,6 +12,7 @@ interface SortTabsProps {
 
 export function SortTabs({ activeTab, onChangeTab, isDark }: SortTabsProps) {
   const bgColor = isDark ? c.stone800 : c.stone100
+  const { t } = useLanguage()
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
@@ -18,12 +20,12 @@ export function SortTabs({ activeTab, onChangeTab, isDark }: SortTabsProps) {
           "Nearest" label without location use was a dishonest control (UX-26).
           Rename back when real distance sorting ships. */}
       <Tab
-        label="Major"
+        label={t('stations.sortMajor')}
         active={activeTab === 'nearest'}
         onPress={() => onChangeTab('nearest')}
       />
       <Tab
-        label="Shortest Wait"
+        label={t('stations.sortShortest')}
         active={activeTab === 'shortest'}
         onPress={() => onChangeTab('shortest')}
       />

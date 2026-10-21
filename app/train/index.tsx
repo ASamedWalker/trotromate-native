@@ -52,6 +52,8 @@ import {
   toMinutes,
 } from '@/lib/utils/train-stations'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
+import { getLanguage, t, useLanguage } from '@/lib/i18n'
+import { daysText, deName, shortDate, trData, weekdayName } from '@/lib/i18n/screens/train'
 import { ReleaseTrainTop } from '@/components/train/ReleaseTrainTop'
 import {
   BOARD_NAVY,
@@ -205,22 +207,14 @@ const LINE_NAMES: Record<string, string> = {
   TMP: 'Tema – Afienya – Adomi',
   STK: 'Sekondi – Takoradi',
 }
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 /** Upcoming rows shown before "Show all" (plus the last departed one). */
 const DEPARTURES_PREVIEW = 5
 
 type MyTrip = { from: string; to: string }
 
-/** "2026-09-15" -> "15 Sep 2026" */
-function formatVerified(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  return `${d} ${MONTHS[m - 1]} ${y}`
-}
-
-/** "Mon – Sat" -> "Mon–Sat" (compact, en dash with no spaces) */
+/** "Mon – Sat" -> "Mon–Sat" (compact, en dash with no spaces); French "lun.–sam.", "Tous les jours". */
 function compactDays(days: string): string {
-  return days.replace(/ – /g, '–')
+  return daysText(days, getLanguage())
 }
 
 function hhmm(totalMinutes: number): string {
@@ -229,9 +223,9 @@ function hhmm(totalMinutes: number): string {
 }
 
 function whenLabel(offset: number, now: Date): string {
-  if (offset === 0) return 'today'
-  if (offset === 1) return 'tomorrow'
-  return WEEKDAYS[(now.getUTCDay() + offset) % 7]
+  if (offset === 0) return t('train.todayLower')
+  if (offset === 1) return t('train.tomorrowLower')
+  return weekdayName(now.getUTCDay() + offset, getLanguage())
 }
 
 /** Next time (Ghana = UTC) a run is at a stop departing at `depart` on `days`. */
@@ -303,11 +297,13 @@ function DepartureListRow({
   onPress?: () => void
   s: ReturnType<typeof getStyles>
 }) {
+  const { t, lang } = useLanguage()
   const color = LINE_COLORS[r.lineCode] ?? { main: INK, tint: '#F3F4F6' }
-  const times = `${r.depart}${r.arrive ? ` – ${r.arrivalApprox ? 'about ' : ''}${r.arrive}` : ''}`
+  const arriveText = r.arrive ? (r.arrivalApprox ? t('train.about', { time: r.arrive }) : r.arrive) : ''
+  const times = `${r.depart}${r.arrive ? ` – ${arriveText}` : ''}`
   const dur = r.durationMin !== null && r.durationMin > 0 ? durationText(r.durationMin) : ''
   const soon = !r.departed && r.remainingMin <= 15
-  const when = dayLabel ?? formatIn(r.remainingMin)
+  const when = dayLabel ?? formatIn(r.remainingMin, lang)
   const fare = runFareGh(r.schedule)
   const unconfirmed = r.schedule.fare === null
   return (
@@ -315,9 +311,9 @@ function DepartureListRow({
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityLabel={`${r.departed ? 'Departed, scheduled ' : ''}${r.depart} from ${r.origin} to ${r.destination}${
-        r.arrive ? `, arrives ${r.arrivalApprox ? 'about ' : ''}${r.arrive}` : ''
-      }, ${LINE_NAMES[r.lineCode] ?? r.lineCode} line${r.departed ? '' : `, ${when}`}, ${fare}`}
+      accessibilityLabel={`${t(r.departed ? 'train.a11yDepRowPast' : 'train.a11yDepRow', { time: r.depart, origin: deName(r.origin, lang), dest: r.destination })}${
+        r.arrive ? t('train.a11yArrives', { time: arriveText }) : ''
+      }${t('train.a11yLine', { line: LINE_NAMES[r.lineCode] ?? r.lineCode })}${r.departed ? '' : `, ${when}`}, ${fare}`}
       style={[r.departed ? s.depRowPast : s.depRow, !first && s.depRowBorder]}
     >
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -326,7 +322,7 @@ function DepartureListRow({
           {dur ? <Text style={r.departed ? s.depDurPast : s.depDur}> {dur}</Text> : null}
         </Text>
         {r.departed ? (
-          <Text style={s.depPastNote}>Departed (scheduled)</Text>
+          <Text style={s.depPastNote}>{t('train.departedScheduled')}</Text>
         ) : (
           <View style={s.depMetaRow}>
             <View style={[s.lineChip, { backgroundColor: color.tint }]}>
@@ -352,6 +348,7 @@ export default function TrainLinesScreen() {
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(), [])
   const insets = useSafeAreaInsets()
+  const { t, lang } = useLanguage()
 
   const { lines, isLoading, refetch } = useTrainLines()
   const { isSet, toggle, refresh } = useDepartureReminders()
@@ -469,6 +466,8 @@ export default function TrainLinesScreen() {
 
   // ── Departures (T5) ──
   const board = useMemo(() => departuresBoard(now), [now])
+  // Display day for the board (departuresBoard's own label stays English data).
+  const boardDay = board.offset === 0 ? t('train.todayMid') : board.offset === 1 ? t('train.tomorrowMid') : weekdayName(now.getUTCDay() + board.offset, lang)
   const [showAllDeps, setShowAllDeps] = useState(false)
   const depRows = useMemo(() => {
     const upcoming = board.rows.filter((r) => !r.departed)
@@ -486,17 +485,17 @@ export default function TrainLinesScreen() {
     const key = best ? tripReminderKey(best.run.schedule, trip.from) : ''
     const armed = best ? isSet(key) : false
     const lineName = best ? (LINE_NAMES[best.run.lineCode] ?? best.run.lineCode).replace(/ – /g, '–') : ''
-    const arriveMin = best ? best.run.arriveLabel : ''
+    const arriveMin = best ? trData(best.run.arriveLabel, lang) : ''
     const canRemind = best ? armed || best.seconds > REMINDER_LEAD_MINUTES * 60 : false
     return (
       <View style={s.tripCard}>
         {/* Same navy-board Adinkra mark as the next-train card. */}
         <AdinkraCardPattern height={340} ink="rgba(255,255,255,0.075)" size={28} />
         <View style={s.tripTopRow}>
-          <Text style={s.tripLabel}>MY TRIP</Text>
+          <Text style={s.tripLabel}>{t('train.myTrip')}</Text>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Change saved trip"
+            accessibilityLabel={t('train.a11yChangeTrip')}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={s.tripChange}
@@ -509,14 +508,14 @@ export default function TrainLinesScreen() {
               AsyncStorage.removeItem(MY_TRIP_KEY).catch(() => {})
             }}
           >
-            <Text style={s.tripChangeText}>Change</Text>
+            <Text style={s.tripChangeText}>{t('train.change')}</Text>
           </TouchableOpacity>
         </View>
         <View>
           <HeroText size={20} style={{ color: '#FFFFFF' }}>{trip.from} → {trip.to}</HeroText>
           {best ? (
             <Text style={s.tripSub}>
-              {lineName} line · {ghCedi(getFare(best.run.lineCode, trip.from, trip.to).label)} · {compactDays(best.run.schedule.days)}
+              {t('train.lineName', { line: lineName })} · {ghCedi(trData(getFare(best.run.lineCode, trip.from, trip.to).label, lang))} · {compactDays(best.run.schedule.days)}
             </Text>
           ) : null}
         </View>
@@ -524,25 +523,25 @@ export default function TrainLinesScreen() {
           <>
             <View style={s.tripTimeRow}>
               <HeroText size={44} style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{best.run.departFrom}</HeroText>
-              <Text style={s.tripWhen}>{whenLabel(best.offset, now)} · arrives {arriveMin}</Text>
+              <Text style={s.tripWhen}>{t('train.whenArrives', { when: whenLabel(best.offset, now), time: arriveMin })}</Text>
             </View>
-            <Text style={s.tripLeaves}>Leaves {formatIn(Math.ceil(best.seconds / 60))}</Text>
+            <Text style={s.tripLeaves}>{t('train.leaves', { when: formatIn(Math.ceil(best.seconds / 60), lang) })}</Text>
             <View style={s.tripChipRow}>
               <View style={s.tripChip}>
-                <Text style={s.tripChipText}>TIMETABLE</Text>
+                <Text style={s.tripChipText}>{t('train.timetableChip')}</Text>
               </View>
-              <Text style={s.tripChipNote}>Not live tracking</Text>
+              <Text style={s.tripChipNote}>{t('train.scheduledOnly')}</Text>
             </View>
             {!best.run.timesExact ? (
               <Text style={s.tripNote}>
-                {`${trip.from} time not published — ${best.run.departFrom} is when it leaves ${best.run.schedule.stops[0].station}.`}
+                {t('train.stopTimeNotPublished', { station: trip.from, time: best.run.departFrom, origin: deName(best.run.schedule.stops[0].station, lang) })}
               </Text>
             ) : null}
             <View style={s.tripBtnRow}>
               {canRemind ? (
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={armed ? 'Reminder on. Tap to cancel' : `Remind me ${REMINDER_LEAD_MINUTES} minutes before`}
+                  accessibilityLabel={armed ? t('train.a11yReminderOnCancel') : t('train.a11yRemindMinutes', { n: REMINDER_LEAD_MINUTES })}
                   accessibilityState={{ selected: armed }}
                   activeOpacity={0.85}
                   style={s.tripBtn}
@@ -558,29 +557,29 @@ export default function TrainLinesScreen() {
                   }
                 >
                   {armed ? <BellRing size={18} color={BOARD_NAVY} /> : <Bell size={18} color={BOARD_NAVY} />}
-                  <Text style={s.tripBtnText}>{armed ? 'Reminder on' : 'Remind me'}</Text>
+                  <Text style={s.tripBtnText}>{armed ? t('train.reminderOn') : t('train.remindMe')}</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity
                 accessibilityRole="button"
-                accessibilityLabel="Return times"
+                accessibilityLabel={t('train.returnTimes')}
                 accessibilityState={{ expanded: showReturn }}
                 activeOpacity={0.85}
                 style={s.tripBtnGhost}
                 onPress={() => setShowReturn((v) => !v)}
               >
-                <Text style={s.tripBtnGhostText}>Return times</Text>
+                <Text style={s.tripBtnGhostText}>{t('train.returnTimes')}</Text>
               </TouchableOpacity>
             </View>
             {showReturn && (
               <View style={s.returnBox}>
                 <Text style={s.returnTitle}>{trip.to} → {trip.from}</Text>
                 {tripInfo.returnRuns.length === 0 ? (
-                  <Text style={s.returnRow}>No direct return train.</Text>
+                  <Text style={s.returnRow}>{t('train.noDirectReturn')}</Text>
                 ) : (
                   tripInfo.returnRuns.map((r) => (
                     <Text key={r.schedule.id} style={s.returnRow}>
-                      {r.departLabel} → {r.arriveLabel} · {compactDays(r.schedule.days)}
+                      {trData(r.departLabel, lang)} → {trData(r.arriveLabel, lang)} · {compactDays(r.schedule.days)}
                     </Text>
                   ))
                 )}
@@ -588,15 +587,15 @@ export default function TrainLinesScreen() {
             )}
             {armed ? (
               <Text style={s.tripNote}>
-                {`We'll notify you at ${hhmm(toMinutes(best.run.departFrom) - REMINDER_LEAD_MINUTES)}. Works offline.`}
+                {t('train.notifyAt', { time: hhmm(toMinutes(best.run.departFrom) - REMINDER_LEAD_MINUTES) })}
               </Text>
             ) : null}
           </>
         ) : (
           <Text style={s.tripNote}>
             {tripInfo.hasRuns
-              ? 'No upcoming departure found.'
-              : 'There is no direct train for this trip any more. Tap Change to pick another.'}
+              ? t('train.noUpcoming')
+              : t('train.noDirectAnyMore')}
           </Text>
         )}
       </View>
@@ -628,9 +627,9 @@ export default function TrainLinesScreen() {
       >
         {/* ─── Header (T2: one clock — the phone's own status bar) ─── */}
         <AdinkraBand patternHeight={insets.top + 160} style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 14 }]}>
-          <HeroText size={28} style={{ color: ui.text, letterSpacing: -0.3 }} accessibilityRole="header">Trains</HeroText>
-          <Text style={s.headerSub}>Timetables from GRDA and GRCL · checked {formatVerified(SCHEDULE_VERIFIED)}</Text>
-          {deviceOffAccraTime() ? <Text style={s.headerSub}>Times shown in Accra time</Text> : null}
+          <HeroText size={28} style={{ color: ui.text, letterSpacing: -0.3 }} accessibilityRole="header">{t('train.title')}</HeroText>
+          <Text style={s.headerSub}>{t('train.headerSub', { date: shortDate(SCHEDULE_VERIFIED, lang) })}</Text>
+          {deviceOffAccraTime() ? <Text style={s.headerSub}>{t('train.accraTime')}</Text> : null}
         </AdinkraBand>
 
         {/* ─── Next train (saved trip takes this slot when one exists) ─── */}
@@ -641,15 +640,15 @@ export default function TrainLinesScreen() {
           <Tap
             onPress={() => setPicker('from')}
             accessibilityRole="button"
-            accessibilityLabel={`Find a train. From station: ${fromName || 'not chosen'}`}
+            accessibilityLabel={t('train.a11yFindFrom', { name: fromName || t('train.notChosen') })}
             style={s.findField}
           >
-            <Text style={s.fieldLabel}>From</Text>
-            <Text style={fromName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{fromName || 'Choose station'}</Text>
+            <Text style={s.fieldLabel}>{t('train.from')}</Text>
+            <Text style={fromName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{fromName || t('train.chooseStation')}</Text>
           </Tap>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Swap From and To"
+            accessibilityLabel={t('train.a11ySwap')}
             activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             style={s.swapCircle}
@@ -660,27 +659,27 @@ export default function TrainLinesScreen() {
           <Tap
             onPress={() => setPicker('to')}
             accessibilityRole="button"
-            accessibilityLabel={`To station: ${toName || 'not chosen'}`}
+            accessibilityLabel={t('train.a11yToStation', { name: toName || t('train.notChosen') })}
             style={[s.findField, { alignItems: 'flex-end' }]}
           >
-            <Text style={s.fieldLabel}>To</Text>
-            <Text style={toName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{toName || 'Choose station'}</Text>
+            <Text style={s.fieldLabel}>{t('train.to')}</Text>
+            <Text style={toName ? s.fieldValue : s.fieldPlaceholder} numberOfLines={1}>{toName || t('train.chooseStation')}</Text>
           </Tap>
         </View>
 
         {result && (
           <View style={s.resultCard} onLayout={(e) => { resultY.current = e.nativeEvent.layout.y }}>
-            {result.kind === 'unknown' && <Text style={s.resultNote}>{result.message}</Text>}
+            {result.kind === 'unknown' && <Text style={s.resultNote}>{trData(result.message, lang)}</Text>}
             {result.kind === 'none' && (
               <Text style={s.resultNote}>
-                No direct train between {result.from.name} and {result.to.name}.
+                {t('train.noDirectBetween', { from: result.from.name, to: result.to.name })}
               </Text>
             )}
             {result.kind === 'transfer' && (
               <View style={s.resultBox}>
                 <View style={s.changeChip}>
                   <Repeat size={16} color="#92400E" />
-                  <Text style={s.changeChipText}>Change at {result.via} · two separate shuttles</Text>
+                  <Text style={s.changeChipText}>{t('train.changeAtShuttles', { via: result.via })}</Text>
                 </View>
                 {([
                   { label: `1. ${result.from.name} → ${result.via}`, runs: result.first, fare: result.firstFare },
@@ -689,53 +688,53 @@ export default function TrainLinesScreen() {
                   <View key={leg.label} style={{ gap: 4 }}>
                     <Text style={s.resultMeta}>
                       <Text style={{ color: INK, fontFamily: font.extrabold }}>{leg.label}</Text>
-                      {' · '}{ghCedi(fareWithChild(leg.fare))}
+                      {' · '}{ghCedi(trData(fareWithChild(leg.fare), lang))}
                     </Text>
                     {leg.runs.map((r) => (
                       <View key={r.schedule.id} style={s.resultRow}>
-                        <Text style={s.resultTimes}>{r.departLabel} → {r.arriveLabel}</Text>
-                        {r.schedule.note ? <Text style={s.resultMeta}>{r.schedule.note}</Text> : null}
+                        <Text style={s.resultTimes}>{trData(r.departLabel, lang)} → {trData(r.arriveLabel, lang)}</Text>
+                        {r.schedule.note ? <Text style={s.resultMeta}>{trData(r.schedule.note, lang)}</Text> : null}
                         {leg.runs === result.first && result.noConnection.includes(r) ? (
-                          <Text style={[s.resultMeta, { color: '#B91C1C', fontFamily: font.bold }]}>{noConnectionText(r, result.to.name)}</Text>
+                          <Text style={[s.resultMeta, { color: '#B91C1C', fontFamily: font.bold }]}>{trData(noConnectionText(r, result.to.name), lang)}</Text>
                         ) : null}
                       </View>
                     ))}
                   </View>
                 ))}
-                <Text style={s.resultMeta}>{compactDays(result.days)} · check the connection time at {result.via}. Timetable times, not live tracking.</Text>
+                <Text style={s.resultMeta}>{t('train.transferNote', { days: compactDays(result.days), via: result.via })}</Text>
               </View>
             )}
             {result.kind === 'direct' && (
               <View style={s.resultBox}>
                 {result.runs.map((r) => (
                   <View key={r.schedule.id} style={s.resultRow}>
-                    <Text style={s.resultTimes}>{r.departLabel} → {r.arriveLabel}</Text>
+                    <Text style={s.resultTimes}>{trData(r.departLabel, lang)} → {trData(r.arriveLabel, lang)}</Text>
                     <Text style={s.resultMeta}>
                       <Text style={{ color: LINE_COLORS[r.lineCode]?.main ?? INK, fontFamily: font.extrabold }}>
                         {(LINE_NAMES[r.lineCode] ?? r.lineCode).replace(/ – /g, '–')}
                       </Text>
-                      {' · '}{compactDays(r.schedule.days)} · {ghCedi(fareWithChild(getFare(r.lineCode, result.from.name, result.to.name)))}
+                      {' · '}{compactDays(r.schedule.days)} · {ghCedi(trData(fareWithChild(getFare(r.lineCode, result.from.name, result.to.name)), lang))}
                     </Text>
-                    {r.schedule.note ? <Text style={s.resultMeta}>{r.schedule.note}</Text> : null}
+                    {r.schedule.note ? <Text style={s.resultMeta}>{trData(r.schedule.note, lang)}</Text> : null}
                   </View>
                 ))}
                 {result.runs.some((r) => !r.timesExact) ? (
-                  <Text style={s.resultMeta}>“after” / “by” = the train’s first or last stop time. GRDA does not publish times for every stop.</Text>
+                  <Text style={s.resultMeta}>{t('train.afterByNote')}</Text>
                 ) : null}
                 {trip && trip.from === result.from.name && trip.to === result.to.name ? (
-                  <View style={s.savedRow} accessibilityLabel="Saved as My trip">
+                  <View style={s.savedRow} accessibilityLabel={t('train.savedAsMyTrip')}>
                     <Check size={18} color="#15803D" />
-                    <Text style={s.savedText}>Saved as My trip</Text>
+                    <Text style={s.savedText}>{t('train.savedAsMyTrip')}</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
                     accessibilityRole="button"
-                    accessibilityLabel="Save as My trip"
+                    accessibilityLabel={t('train.saveAsMyTrip')}
                     activeOpacity={0.85}
                     style={s.saveBtn}
                     onPress={() => saveTrip({ from: result.from.name, to: result.to.name })}
                   >
-                    <Text style={s.saveBtnText}>Save as My trip</Text>
+                    <Text style={s.saveBtnText}>{t('train.saveAsMyTrip')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -746,13 +745,13 @@ export default function TrainLinesScreen() {
         {/* ─── Departures (T5) ─────────────────────────────── */}
         {board.rows.length > 0 && (
           <View style={s.depSection}>
-            <TicketCard tone="train" label={`Departures · ${board.label}`} value="Timetable" bodyStyle={s.depTicketBody}>
+            <TicketCard tone="train" label={t('train.departures', { day: boardDay })} value={t('train.timetable')} bodyStyle={s.depTicketBody}>
               {depRows.visible.map((r, i) => (
                 <DepartureListRow
                   key={r.key}
                   r={r}
                   first={i === 0}
-                  dayLabel={board.offset === 0 ? null : board.label}
+                  dayLabel={board.offset === 0 ? null : boardDay}
                   onPress={lineIdByCode[r.lineCode] ? () => openLine(r.lineCode) : undefined}
                   s={s}
                 />
@@ -765,7 +764,13 @@ export default function TrainLinesScreen() {
                   style={[s.depMore, s.depRowBorder]}
                 >
                   <Text style={s.depMoreText}>
-                    {showAllDeps ? 'Show fewer' : `Show all ${board.label.toLowerCase() === 'today' ? "today's" : board.label === 'Tomorrow' ? "tomorrow's" : `${board.label}'s`} trains`}
+                    {showAllDeps
+                      ? t('train.showFewer')
+                      : board.offset === 0
+                        ? t('train.showAllToday')
+                        : board.offset === 1
+                          ? t('train.showAllTomorrow')
+                          : t('train.showAllDay', { day: boardDay })}
                   </Text>
                   <ChevronDown size={18} color={MUTED} style={showAllDeps ? { transform: [{ rotate: '180deg' }] } : undefined} />
                 </Tap>
@@ -778,14 +783,14 @@ export default function TrainLinesScreen() {
         <View style={s.akosombo}>
           <MapPin size={22} color="#FF4D1C" fill="#FF4D1C" style={{ marginTop: 3 }} />
           <Text style={s.akosomboText}>
-            <Text style={{ fontFamily: font.extrabold, color: INK }}>Going to Akosombo? </Text>
-            {'Take the Tema–Afienya train, change at Afienya, then ride to Adomi, the last passenger stop. There is no passenger train to Mpakadan.'}
+            <Text style={{ fontFamily: font.extrabold, color: INK }}>{t('train.akosomboQ')}</Text>
+            {t('train.akosomboA')}
           </Text>
         </View>
 
         {/* ─── Lines ──────────────────────────────────────── */}
         <View style={s.linesSection}>
-          <HeroText size={22} style={s.linesTitle} accessibilityRole="header">Lines</HeroText>
+          <HeroText size={22} style={s.linesTitle} accessibilityRole="header">{t('nav.lines')}</HeroText>
           {isLoading ? (
             <View style={{ gap: space.lg }}>
               <SkeletonTrainCard isDark={isDark} />
@@ -794,8 +799,8 @@ export default function TrainLinesScreen() {
           ) : lines.length === 0 ? (
             <View style={s.emptyCard}>
               <TrainFront size={40} color={ui.textTertiary} />
-              <Text style={s.emptyTitle}>No train lines yet</Text>
-              <Text style={s.emptySub}>Train lines will appear here once available</Text>
+              <Text style={s.emptyTitle}>{t('train.noLinesTitle')}</Text>
+              <Text style={s.emptySub}>{t('train.noLinesSub')}</Text>
             </View>
           ) : (
             lines.map((item) => {
@@ -809,7 +814,7 @@ export default function TrainLinesScreen() {
                   key={item.id}
                   onPress={() => router.push({ pathname: '/train/[lineId]', params: { lineId: item.id } })}
                   accessibilityRole="button"
-                  accessibilityLabel={`${LINE_NAMES[item.code] ?? item.name} line details`}
+                  accessibilityLabel={t('train.a11yLineDetails', { line: LINE_NAMES[item.code] ?? item.name })}
                   style={s.lineRow}
                 >
                   <View style={[s.lineBar, { backgroundColor: LINE_COLORS[item.code]?.main ?? ui.info }]} />
@@ -817,10 +822,10 @@ export default function TrainLinesScreen() {
                     <Text style={s.lineName} numberOfLines={1}>{LINE_NAMES[item.code] ?? item.name.replace(/ - /g, ' – ')}</Text>
                     <Text style={s.lineMeta} numberOfLines={1}>
                       {departs.length ? `${departs[0]} · ${departs[departs.length - 1]} · ` : ''}
-                      {sch[0] ? `${compactDays(sch[0].days)} · ` : ''}{stationCount} stations
+                      {sch[0] ? `${compactDays(sch[0].days)} · ` : ''}{t('train.nStations', { n: stationCount })}
                     </Text>
                   </View>
-                  <Text style={s.lineFare}>{ghCedi(lineFareLabel(item.code))}</Text>
+                  <Text style={s.lineFare}>{ghCedi(trData(lineFareLabel(item.code), lang))}</Text>
                 </Tap>
               )
             })
@@ -829,15 +834,15 @@ export default function TrainLinesScreen() {
 
         {/* ─── How to ride (collapsed) ─── */}
         <View style={s.collSection}>
-          <Collapsible title="How to ride" s={s}>
+          <Collapsible title={t('train.howToRide')} s={s}>
             {HOW_TO_RIDE.map((tip) => (
               <View key={tip.title} style={s.rideItem}>
-                <Text style={s.rideCardTitle}>{tip.title}</Text>
-                <Text style={s.rideCardText}>{ghCedi(tip.text)}</Text>
+                <Text style={s.rideCardTitle}>{trData(tip.title, lang)}</Text>
+                <Text style={s.rideCardText}>{ghCedi(trData(tip.text, lang))}</Text>
               </View>
             ))}
           </Collapsible>
-          <Text style={s.cardNote}>{ghCedi(TRAIN_CARD_TEXT)}</Text>
+          <Text style={s.cardNote}>{ghCedi(trData(TRAIN_CARD_TEXT, lang))}</Text>
         </View>
 
         {/* ─── Rail news, line status, safety ─── */}
@@ -862,10 +867,10 @@ export default function TrainLinesScreen() {
         <View style={s.modalBackdrop}>
           <View style={s.modalSheet}>
             <View style={s.modalHead}>
-              <Text style={s.cardTitle}>{picker === 'from' ? 'From station' : 'To station'}</Text>
+              <Text style={s.cardTitle}>{picker === 'from' ? t('train.fromStation') : t('train.toStation')}</Text>
               <TouchableOpacity
                 accessibilityRole="button"
-                accessibilityLabel="Close station picker"
+                accessibilityLabel={t('train.a11yClosePicker')}
                 activeOpacity={0.7}
                 style={s.modalClose}
                 onPress={() => setPicker(null)}
@@ -885,7 +890,7 @@ export default function TrainLinesScreen() {
                       key={`${code}-${name}`}
                       onPress={() => pickStation(name)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Choose ${name}`}
+                      accessibilityLabel={t('train.a11yChoose', { name })}
                       style={s.suggestRow}
                     >
                       <Text style={s.suggestText}>{name}</Text>

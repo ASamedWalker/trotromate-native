@@ -3,6 +3,7 @@ import { Pressable, View, StyleSheet, type StyleProp, type ViewStyle } from 'rea
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useLanguage } from '@/lib/i18n'
 
 interface BackButtonProps {
   /** plain = header row (no background). floating = white circle over maps/photos/heroes. */
@@ -16,6 +17,7 @@ interface BackButtonProps {
 
 export function BackButton({ variant = 'plain', tone = 'light', color, onPress, style }: BackButtonProps) {
   const router = useRouter()
+  const { t } = useLanguage()
   const haptics = useHaptics()
   // NativeWind drops Pressable function/array styles in this app: track pressed
   // state manually and pass flattened plain objects.
@@ -31,7 +33,7 @@ export function BackButton({ variant = 'plain', tone = 'light', color, onPress, 
     else router.replace('/')
   }
 
-  const a11y = { accessibilityRole: 'button' as const, accessibilityLabel: 'Go back' }
+  const a11y = { accessibilityRole: 'button' as const, accessibilityLabel: t('shared.goBack') }
 
   if (variant === 'floating' && tone === 'dark') {
     return (

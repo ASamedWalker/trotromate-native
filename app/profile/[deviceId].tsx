@@ -11,6 +11,7 @@ import { LEVELS } from '@/lib/constants/rewards'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
 import type { LevelSlug } from '@/lib/types'
+import { useLanguage } from '@/lib/i18n'
 
 const BADGE_ICONS: Record<string, any> = {
   star: Star, flame: Flame, map: Map, sunrise: Sunrise, moon: Moon,
@@ -28,6 +29,7 @@ export default function PublicProfileScreen() {
   const t = themed(isDark)
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId: myDeviceId } = useApp()
+  const { t: tr, lang } = useLanguage()
 
   const { data, isLoading } = usePublicProfile(profileDeviceId ?? null, myDeviceId)
 
@@ -42,9 +44,9 @@ export default function PublicProfileScreen() {
   if (!data?.profile) {
     return (
       <SafeAreaView style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: t.textSecondary }}>Profile not found</Text>
+        <Text style={{ color: t.textSecondary }}>{tr('profile.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-          <Text style={{ color: c.amber500, fontFamily: font.semibold }}>Go back</Text>
+          <Text style={{ color: c.amber500, fontFamily: font.semibold }}>{tr('profile.goBack')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     )
@@ -54,7 +56,7 @@ export default function PublicProfileScreen() {
   const displayName = profile.display_name || `User-${profile.device_id.slice(-4).toUpperCase()}`
   const levelInfo = LEVELS[(profile.current_level as LevelSlug) ?? 'passenger']
   const isOwnProfile = myDeviceId === profileDeviceId
-  const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null
+  const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', { month: 'short', year: 'numeric' }) : null
 
   // XP progress within the current tier — use the REAL tier bounds from LEVELS
   // (was a hardcoded threshold array that didn't match the tier definitions).
@@ -83,7 +85,7 @@ export default function PublicProfileScreen() {
           <Text style={s.profileName}>{displayName}</Text>
           <View style={s.levelPill}>
             <Text style={s.levelEmoji}>{levelInfo?.emoji}</Text>
-            <Text style={s.levelText}>{levelInfo?.name ?? 'Commuter'}</Text>
+            <Text style={s.levelText}>{levelInfo ? tr(`rewards.level.${levelInfo.slug}`) : tr('settings.commuter')}</Text>
           </View>
           {!isOwnProfile && (
             <View style={{ marginTop: 10 }}>
@@ -106,7 +108,7 @@ export default function PublicProfileScreen() {
             {joinDate && (
               <View style={s.metaItem}>
                 <Calendar size={12} color={t.textSecondary} />
-                <Text style={s.metaText}>Joined {joinDate}</Text>
+                <Text style={s.metaText}>{tr('profile.joined', { date: joinDate })}</Text>
               </View>
             )}
           </View>
@@ -116,10 +118,10 @@ export default function PublicProfileScreen() {
         <View style={s.xpCard}>
           <View style={s.xpHeader}>
             <View>
-              <Text style={s.xpLabel}>CURRENT COINS</Text>
-              <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {isTopTier ? 'MAX' : nextThreshold}</Text></Text>
+              <Text style={s.xpLabel}>{tr('profile.currentCoins')}</Text>
+              <Text style={s.xpValue}>{currentXP} <Text style={s.xpTotal}>/ {isTopTier ? tr('profile.max') : nextThreshold}</Text></Text>
             </View>
-            <Text style={s.xpRemaining}>{isTopTier ? 'Top tier reached' : `${Math.max(0, nextThreshold - currentXP)} to next level`}</Text>
+            <Text style={s.xpRemaining}>{isTopTier ? tr('profile.topTier') : tr('profile.toNext', { n: Math.max(0, nextThreshold - currentXP) })}</Text>
           </View>
           <View style={s.xpBarBg}>
             <View style={[s.xpBarFill, { width: `${xpPercent}%` }]} />
@@ -131,22 +133,22 @@ export default function PublicProfileScreen() {
           <View style={s.statCard}>
             <Bus size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.total_reports}</Text>
-            <Text style={s.statCardLabel}>Reports</Text>
+            <Text style={s.statCardLabel}>{tr('profile.reports')}</Text>
           </View>
           <View style={s.statCard}>
             <Zap size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.current_streak}</Text>
-            <Text style={s.statCardLabel}>Streak</Text>
+            <Text style={s.statCardLabel}>{tr('profile.streak')}</Text>
           </View>
           <View style={s.statCard}>
             <Star size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.total_points}</Text>
-            <Text style={s.statCardLabel}>Coins earned</Text>
+            <Text style={s.statCardLabel}>{tr('profile.coinsEarned')}</Text>
           </View>
           <View style={s.statCard}>
             <Radio size={20} color={c.amber600} />
             <Text style={s.statCardValue}>{profile.tale_count ?? 0}</Text>
-            <Text style={s.statCardLabel}>Pulse</Text>
+            <Text style={s.statCardLabel}>{tr('nav.pulse')}</Text>
           </View>
         </View>
 
@@ -157,7 +159,7 @@ export default function PublicProfileScreen() {
             onPress={() => router.push(`/profile/followers?id=${profileDeviceId}&tab=followers` as Href)}
           >
             <Text style={s.socialValue}>{profile.follower_count}</Text>
-            <Text style={s.socialLabel}>Followers</Text>
+            <Text style={s.socialLabel}>{tr('profile.followers')}</Text>
           </TouchableOpacity>
           <View style={s.socialDivider} />
           <TouchableOpacity
@@ -165,7 +167,7 @@ export default function PublicProfileScreen() {
             onPress={() => router.push(`/profile/followers?id=${profileDeviceId}&tab=following` as Href)}
           >
             <Text style={s.socialValue}>{profile.following_count}</Text>
-            <Text style={s.socialLabel}>Following</Text>
+            <Text style={s.socialLabel}>{tr('profile.following')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -175,7 +177,7 @@ export default function PublicProfileScreen() {
             <View style={s.badgeSectionHeader}>
               <View style={s.badgeSectionLeft}>
                 <Trophy size={16} color={c.amber500} />
-                <Text style={s.badgeSectionTitle}>Trophy Case</Text>
+                <Text style={s.badgeSectionTitle}>{tr('profile.trophyCase')}</Text>
               </View>
             </View>
             <View style={s.badgeGrid}>

@@ -7,28 +7,38 @@ import { adinkraXml } from '@/lib/brand/adinkra'
 import { ageLabel } from '@/lib/utils/freshness'
 import { TrustPill } from '@/components/pulse/PulseTrust'
 import { CATEGORY_LABEL, SEVERITY_STYLE, type ServiceAlert } from '@/lib/hooks/useAlerts'
+import { useLanguage, t } from '@/lib/i18n'
+import { ageT } from '@/lib/i18n/home-format'
+
+/** Severity word in the current language (falls back to the shared English label). */
+function sevLabel(severity: ServiceAlert['severity'], fallback: string): string {
+  const k = `routes.sev.${severity}`
+  const v = t(k)
+  return v === k ? fallback : v
+}
 
 function scope(a: ServiceAlert): string {
-  return a.citywide ? 'Accra-wide' : `Affects ${a.corridors.map((k) => k.replace('|', '·')).join(', ')}`
+  return a.citywide ? t('routes.accraWide') : t('routes.affects', { list: a.corridors.map((k) => k.replace('|', '·')).join(', ') })
 }
 
 /** One-line alert (Home strip, route page): title, scope, source, age. Always names its source. */
 export function AlertRow({ alert, onPress }: { alert: ServiceAlert; onPress?: () => void }) {
   const sev = SEVERITY_STYLE[alert.severity]
+  useLanguage() // re-render on language change
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${sev.label}: ${alert.title}. ${scope(alert)}. Source: ${alert.source}. ${ageLabel(alert.created_at)}`}
+      accessibilityLabel={t('routes.alertRowA11y', { sev: sevLabel(alert.severity, sev.label), title: alert.title, scope: scope(alert), source: alert.source, age: ageT(ageLabel(alert.created_at)) })}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: sev.bg, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 }}
     >
       <TriangleAlert size={18} color={sev.fg} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: sev.fg }} numberOfLines={2}>{alert.title}</Text>
         <Text style={{ fontFamily: font.regular, fontSize: 12, color: sev.fg }} numberOfLines={1}>
-          {scope(alert)} · Source: {alert.source} · {ageLabel(alert.created_at)}
+          {scope(alert)} · {t('routes.alertSource', { source: alert.source })} · {ageT(ageLabel(alert.created_at))}
         </Text>
       </View>
       {onPress ? <ChevronRight size={18} color={sev.fg} /> : null}
@@ -41,11 +51,12 @@ let nyansapo: string | null = null
 /** Pulse rail card: severity + category, title, body, source. Faint Nyansapo (wisdom knot) watermark. */
 export function AlertCard({ alert, width = 280 }: { alert: ServiceAlert; width?: number }) {
   const sev = SEVERITY_STYLE[alert.severity]
+  useLanguage() // re-render on language change
   if (!nyansapo) nyansapo = adinkraXml('nyansapo', 64, '#000000')
   return (
     <View
       accessible
-      accessibilityLabel={`${sev.label}, ${CATEGORY_LABEL[alert.category]}: ${alert.title}. ${alert.body ?? ''} ${scope(alert)}. Source: ${alert.source}`}
+      accessibilityLabel={t('routes.alertCardA11y', { sev: sevLabel(alert.severity, sev.label), category: CATEGORY_LABEL[alert.category], title: alert.title, body: alert.body ?? '', scope: scope(alert), source: alert.source })}
       style={{ width, backgroundColor: sev.bg, borderRadius: 16, padding: 14, gap: 6, overflow: 'hidden' }}
     >
       <View style={{ position: 'absolute', right: -8, bottom: -10, opacity: 0.08 }} pointerEvents="none">
@@ -54,7 +65,7 @@ export function AlertCard({ alert, width = 280 }: { alert: ServiceAlert; width?:
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <TriangleAlert size={15} color={sev.fg} />
         <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.8, color: sev.fg }}>{CATEGORY_LABEL[alert.category]}</Text>
-        <Text style={{ fontFamily: font.regular, fontSize: 12, color: sev.fg }}>· {ageLabel(alert.created_at)}</Text>
+        <Text style={{ fontFamily: font.regular, fontSize: 12, color: sev.fg }}>· {ageT(ageLabel(alert.created_at))}</Text>
         {/* One trust pill top right (UX v2 P1): service alerts are official and name their source. */}
         <View style={{ flex: 1, alignItems: 'flex-end', minWidth: 0 }}>
           <TrustPill tier="official" source={alert.source} />
@@ -62,7 +73,7 @@ export function AlertCard({ alert, width = 280 }: { alert: ServiceAlert; width?:
       </View>
       <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#111111' }} numberOfLines={2}>{alert.title}</Text>
       {alert.body ? <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#1F2937' }} numberOfLines={3}>{alert.body}</Text> : null}
-      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: sev.fg }} numberOfLines={1}>{scope(alert)} · Source: {alert.source}</Text>
+      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: sev.fg }} numberOfLines={1}>{scope(alert)} · {t('routes.alertSource', { source: alert.source })}</Text>
     </View>
   )
 }

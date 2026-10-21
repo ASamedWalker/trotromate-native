@@ -80,7 +80,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             onPress={onPress}
             style={styles.tab}
             accessibilityRole="tab"
-            accessibilityLabel={showDot ? `${label}, new activity` : label}
+            accessibilityLabel={showDot ? t('homeX.tabNewActivity', { label }) : label}
             accessibilityState={{ selected: isFocused }}
           >
             <View style={[styles.pill, isFocused && styles.pillActive]}>

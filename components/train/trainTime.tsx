@@ -5,12 +5,14 @@ import { HeroText } from '@/components/HeroText'
 import { RollText } from '@/components/motion/RollText'
 import { TRAIN_SCHEDULES, runsOnDay, runFareLabelShort, type TrainSchedule } from '@/lib/constants/train-schedule'
 import { toMinutes } from '@/lib/utils/train-stations'
+import { getLanguage, t, useLanguage } from '@/lib/i18n'
+import { inMinutes } from '@/lib/i18n/screens/train'
 
 /**
  * Shared Train-screen time + label rules (UX v2 "Train" decisions T1–T3, T5, T7).
  * - T1: never show seconds; digits change on the minute only.
  * - T2: one clock — note "Times shown in Accra time" only off UTC+0.
- * - T3: one "Timetable" chip + "Not live tracking".
+ * - T3: one "Timetable" chip + "Scheduled times only".
  * - T7: always "GH₵", never a bare "₵".
  * Ghana time = UTC (no DST), so getUTC* is Accra time.
  */
@@ -42,12 +44,9 @@ export function useMinuteNow(): Date {
   return now
 }
 
-/** "in 12 min", "in 1 h 22 min", "in 2 h". */
-export function formatIn(minutes: number): string {
-  const m = Math.max(0, Math.round(minutes))
-  if (m < 60) return `in ${m} min`
-  const h = Math.floor(m / 60)
-  return m % 60 ? `in ${h} h ${m % 60} min` : `in ${h} h`
+/** "in 12 min", "in 1 h 22 min", "in 2 h" (French: "dans 12 min"). */
+export function formatIn(minutes: number, lang: string = getLanguage()): string {
+  return inMinutes(minutes, lang)
 }
 
 /** "₵15" -> "GH₵15" (leaves existing "GH₵" alone). */
@@ -57,7 +56,7 @@ export function ghCedi(text: string): string {
 
 /** Row fare: "GH₵15", or the unconfirmed label when the fare is not published. */
 export function runFareGh(s: TrainSchedule): string {
-  return s.fare === null ? 'Fare unconfirmed' : ghCedi(runFareLabelShort(s))
+  return s.fare === null ? t('train.fareUnconfirmed') : ghCedi(runFareLabelShort(s))
 }
 
 /** True when the phone is not on UTC+0 (Accra), so we must say whose clock the times are on. */
@@ -68,31 +67,33 @@ export function deviceOffAccraTime(): boolean {
 /** T1 countdown: under 60 min -> minutes big + "min · departs HH:MM";
  *  60 min or more -> clock time big + "in 1 h 22 min". White on the navy board. */
 export function BigCountdown({ minutes, departTime, color = '#FFFFFF' }: { minutes: number; departTime: string; color?: string }) {
+  const { t } = useLanguage()
   const under = minutes < 60
   return (
     <View
       style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', columnGap: 8, marginTop: 2 }}
       accessible
-      accessibilityLabel={`Departs at ${departTime}, ${formatIn(minutes)}`}
+      accessibilityLabel={t('train.a11yDepartsAt', { time: departTime, when: formatIn(minutes) })}
     >
       <RollText value={under ? minutes : departTime}>
         <HeroText size={56} style={{ color, fontVariant: ['tabular-nums'] }}>{under ? minutes : departTime}</HeroText>
       </RollText>
       <Text style={{ fontFamily: font.bold, fontSize: 17, color, marginBottom: 13 }}>
-        {under ? `min · departs ${departTime}` : formatIn(minutes)}
+        {under ? t('train.minDeparts', { time: departTime }) : formatIn(minutes)}
       </Text>
     </View>
   )
 }
 
-/** T3: one "Timetable" chip + "Not live tracking" (on the navy board). */
+/** T3: one "Timetable" chip + "Scheduled times only" (on the navy board). */
 export function TimetableChips() {
+  const { t } = useLanguage()
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
       <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.6, color: '#FFFFFF' }}>TIMETABLE</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.6, color: '#FFFFFF' }}>{t('train.timetableChip')}</Text>
       </View>
-      <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Not live tracking</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{t('train.scheduledOnly')}</Text>
     </View>
   )
 }

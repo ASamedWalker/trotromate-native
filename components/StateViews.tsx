@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity } from 'react-native'
 import { WifiOff, RefreshCw } from 'lucide-react-native'
 import { font } from '@/lib/theme'
+import { useLanguage } from '@/lib/i18n'
 
 const BRAND = '#FF4D1C'
 
@@ -11,7 +12,7 @@ const BRAND = '#FF4D1C'
  */
 
 export function LoadErrorState({
-  message = "Couldn't load this. Check your connection and try again.",
+  message,
   onRetry,
   compact = false,
 }: {
@@ -19,26 +20,27 @@ export function LoadErrorState({
   onRetry?: () => void
   compact?: boolean
 }) {
+  const { t } = useLanguage()
   return (
     <View style={{ alignItems: 'center', paddingVertical: compact ? 20 : 40, paddingHorizontal: 24 }}>
       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
         <WifiOff size={22} color="#6B7280" />
       </View>
       <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#374151', textAlign: 'center' }}>
-        {message}
+        {message ?? t('shared.loadError')}
       </Text>
       {onRetry && (
         <TouchableOpacity
           onPress={onRetry}
           accessibilityRole="button"
-          accessibilityLabel="Retry"
+          accessibilityLabel={t('shared.retry')}
           style={{
             marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6,
             paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: '#FFF3EE',
           }}
         >
           <RefreshCw size={14} color={BRAND} />
-          <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>Retry</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>{t('shared.retry')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -46,7 +48,8 @@ export function LoadErrorState({
 }
 
 /** Small inline banner variant for screens that still show cached content. */
-export function StaleDataBanner({ message = "Couldn't update — showing saved data.", onRetry }: { message?: string; onRetry?: () => void }) {
+export function StaleDataBanner({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+  const { t } = useLanguage()
   return (
     <TouchableOpacity
       disabled={!onRetry}
@@ -59,7 +62,7 @@ export function StaleDataBanner({ message = "Couldn't update — showing saved d
       }}
     >
       <WifiOff size={14} color="#B45309" />
-      <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 12, color: '#B45309' }}>{message}</Text>
+      <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 12, color: '#B45309' }}>{message ?? t('shared.stale')}</Text>
       {onRetry && <RefreshCw size={13} color="#B45309" />}
     </TouchableOpacity>
   )

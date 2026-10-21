@@ -10,6 +10,8 @@ import { formatDistance } from '@/lib/utils/distance'
 import { openDirections } from '@/lib/utils/navigation'
 import { type QueueStatus, type QueueStat, getWaitEstimate } from '@/lib/services/stations'
 import { QueueGlyph } from '@/components/QueueGlyph'
+import { useLanguage } from '@/lib/i18n'
+import { ageT, stationNameT } from '@/lib/i18n/home-format'
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
   empty: '#22c55e',
@@ -19,12 +21,13 @@ const QUEUE_COLORS: Record<QueueStatus, string> = {
   very_long: '#ef4444',
 }
 
+// i18n keys: stations.ql.* (one word) / stations.qq.* ("… queue")
 const QUEUE_LABELS: Record<QueueStatus, string> = {
-  empty: 'Empty',
-  short: 'Short',
-  moderate: 'Moderate',
-  long: 'Long',
-  very_long: 'Very Long',
+  empty: 'stations.ql.empty',
+  short: 'stations.ql.short',
+  moderate: 'stations.ql.moderate',
+  long: 'stations.ql.long',
+  very_long: 'stations.ql.very_long',
 }
 
 const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
@@ -38,11 +41,11 @@ const STOP_TYPE_COLORS: Record<TransportStopType, string> = {
 function stationLabel(name: string): string {
   if (name === '37 Military Hospital') return '37 Station'
   if (name.endsWith('Station')) return name
-  return `${name} Station`
+  return stationNameT(name)
 }
 
 // One age wording app-wide (lib/utils/freshness ageLabel).
-const timeAgo = (iso: string): string => ageLabel(iso)
+const timeAgo = (iso: string): string => ageT(ageLabel(iso))
 
 interface StationCardProps {
   station: {
@@ -64,10 +67,11 @@ interface StationCardProps {
 export function StationCard({ station, distanceKm, isSelected, onPress, isDark, nearbyStops }: StationCardProps) {
   const router = useRouter()
   const t = themed(isDark)
+  const { t: tr } = useLanguage()
   const stat = station.queue_stats?.[0]
   const queueStatus = stat?.current_status as QueueStatus | undefined
   const queueColor = queueStatus ? QUEUE_COLORS[queueStatus] : undefined
-  const queueLabel = queueStatus ? QUEUE_LABELS[queueStatus] : null
+  const queueLabel = queueStatus ? tr(QUEUE_LABELS[queueStatus]) : null
   const waitEstimate = stat ? getWaitEstimate(stat) : null
   const reportCount = stat?.report_count_last_hour ?? 0
   const lastReport = stat?.last_report_at
@@ -140,7 +144,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
       ) : (
         <View style={styles.noReportsRow}>
           <Text style={[styles.noReports, { color: t.textTertiary }]}>
-            No reports yet
+            {tr('homeX.noReportsYet')}
           </Text>
           <TouchableOpacity
             style={styles.reportCta}
@@ -148,7 +152,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
             activeOpacity={0.7}
           >
             <Plus size={11} color={c.amber500} />
-            <Text style={styles.reportCtaText}>Report queue</Text>
+            <Text style={styles.reportCtaText}>{tr('homeX.reportQueue')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -160,13 +164,13 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
             <View style={styles.reportsRow}>
               <Users size={11} color={t.textTertiary} />
               <Text style={[styles.reportsText, { color: t.textTertiary }]}>
-                {reportCount} report{reportCount !== 1 ? 's' : ''} · {timeAgo(lastReport)}
+                {tr(reportCount !== 1 ? 'stations.reportMany' : 'stations.reportOne', { n: reportCount })} · {timeAgo(lastReport)}
               </Text>
             </View>
           )}
           {station.is_major && (
             <Text style={[styles.majorBadge, { color: t.textTertiary }]}>
-              MAJOR TERMINAL
+              {tr('stations.majorTerminal')}
             </Text>
           )}
         </View>
@@ -176,7 +180,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
           activeOpacity={0.7}
         >
           <Navigation size={14} color={c.stone900} />
-          <Text style={styles.navText}>Navigate</Text>
+          <Text style={styles.navText}>{tr('stations.navigate')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -186,7 +190,7 @@ export function StationCard({ station, distanceKm, isSelected, onPress, isDark, 
           <View style={styles.nearbyHeader}>
             <MapPin size={12} color={t.textTertiary} />
             <Text style={[styles.nearbyTitle, { color: t.textTertiary }]}>
-              Nearby stops ({nearbyStops.length})
+              {tr('stations.nearbyStops', { n: nearbyStops.length })}
             </Text>
           </View>
           {nearbyStops.slice(0, 4).map((stop, i) => (

@@ -27,6 +27,8 @@ import { adinkraPatternXml } from '@/lib/brand/adinkra'
 import { BOARD_NAVY, BigCountdown, TimetableChips, ghCedi, useMinuteNow } from '@/components/train/trainTime'
 import { HeroText } from '@/components/HeroText'
 import type { TrainReportWithNames, CrowdLevel } from '@/lib/types'
+import { t, useLanguage } from '@/lib/i18n'
+import { agoFr, daysText, deName, trData, weekdayName } from '@/lib/i18n/screens/train'
 
 /**
  * Train line page. Redesign approved 2026-10-04 (design canvas, "Train line
@@ -40,8 +42,8 @@ const LINE_TITLES: Record<string, string> = {
   TMP: 'Tema – Afienya – Adomi',
   STK: 'Sekondi – Takoradi',
 }
-const CROWD_LABELS: Record<CrowdLevel, string> = { empty: 'empty', few_seats: 'few seats', standing: 'standing room only', packed: 'packed' }
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+// Crowd levels → i18n keys (train.crowd.*), translated at render.
+const CROWD_KEYS: Record<CrowdLevel, string> = { empty: 'train.crowd.empty', few_seats: 'train.crowd.few_seats', standing: 'train.crowd.standing', packed: 'train.crowd.packed' }
 
 const HERO_PATTERN_H = 460
 const heroPatternCache = new Map<number, string>()
@@ -59,14 +61,17 @@ const destinationOf = (sc: TrainSchedule) => lastStop(sc).station
 
 
 function reportText(r: TrainReportWithNames, schedules: TrainSchedule[]): string {
-  const at = r.station_name || 'this station'
-  if (r.report_type === 'crowd' && r.crowd_level) return `Train is ${CROWD_LABELS[r.crowd_level as CrowdLevel] ?? r.crowd_level} at ${at}.`
-  if (r.report_type === 'delay' && r.delay_mins) return `Train running about ${r.delay_mins} minutes late at ${at}.`
+  const at = r.station_name || t('train.thisStation')
+  if (r.report_type === 'crowd' && r.crowd_level) {
+    const key = CROWD_KEYS[r.crowd_level as CrowdLevel]
+    return t('train.reportCrowd', { level: key ? t(key) : r.crowd_level, at })
+  }
+  if (r.report_type === 'delay' && r.delay_mins) return t('train.reportDelay', { n: r.delay_mins, at })
   if (r.report_type === 'schedule') {
     const sc = schedules.find((s) => s.direction === r.direction)
-    return `Train spotted at ${at}${sc ? `, heading to ${destinationOf(sc)}` : ''}.`
+    return sc ? t('train.reportSpottedTo', { at, dest: destinationOf(sc) }) : t('train.reportSpotted', { at })
   }
-  return `Update from ${at}.`
+  return t('train.reportUpdate', { at })
 }
 
 export default function LineDetailScreen() {
@@ -79,6 +84,7 @@ export default function LineDetailScreen() {
   const [pickedDir, setPickedDir] = useState<string | null>(null) // direction key "origin>destination"
   const [pending, setPending] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const { lang } = useLanguage()
 
   // T1: re-render on the minute boundary only — countdowns never show seconds.
   useMinuteNow()
@@ -100,7 +106,7 @@ export default function LineDetailScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <LoadErrorState message="Couldn't load this train line. Check your connection." onRetry={() => refetch()} />
+          <LoadErrorState message={t('train.loadLineError')} onRetry={() => refetch()} />
         </View>
       </SafeAreaView>
     )
@@ -108,7 +114,7 @@ export default function LineDetailScreen() {
   if (!line) {
     return (
       <SafeAreaView style={s.container}>
-        <View style={s.centered}><Text style={s.h2}>Line not found</Text></View>
+        <View style={s.centered}><Text style={s.h2}>{t('train.lineNotFound')}</Text></View>
       </SafeAreaView>
     )
   }
@@ -129,7 +135,7 @@ export default function LineDetailScreen() {
   }
   const departDay = (secondsAhead: number) => {
     const daysAhead = Math.floor((nowMins * 60 + ghana.seconds + secondsAhead) / 86400)
-    return daysAhead <= 0 ? null : daysAhead === 1 ? 'Tomorrow' : DAY_NAMES[(ghana.day + daysAhead) % 7]
+    return daysAhead <= 0 ? null : daysAhead === 1 ? t('train.tomorrow') : weekdayName(ghana.day + daysAhead, lang)
   }
   const first = schedules[0]
 
@@ -141,8 +147,8 @@ export default function LineDetailScreen() {
   const selected = selectedDir?.runs[0] ?? first
   const stationCount = info?.stations.length ?? Math.max(0, ...schedules.map((sc) => sc.stops.length))
   const hasTimetable = schedules.length > 0
-  const days = (info?.days ?? first?.days ?? '').replace(/ – /g, '–')
-  const fareText = code === 'TMA' ? 'Fare unconfirmed' : lineFareLabel(code)
+  const days = daysText(info?.days ?? first?.days ?? '', lang)
+  const fareText = code === 'TMA' ? t('train.fareUnconfirmed') : trData(lineFareLabel(code), lang)
   const fares = PUBLISHED_FARES.filter((f) => f.lineCode === code && f.basis === 'grda')
   const status = LINE_STATUS[code]
   // First run on the next day this line runs (no-service board).
@@ -150,7 +156,7 @@ export default function LineDetailScreen() {
     for (let add = 1; add <= 7; add++) {
       const d = (ghana.day + add) % 7
       const run = schedules.find((sc) => runsOnDay(sc.days, d))
-      if (run) return { run, day: add === 1 ? 'Tomorrow' : DAY_NAMES[d] }
+      if (run) return { run, day: add === 1 ? t('train.tomorrowMid') : weekdayName(d, lang) }
     }
     return null
   })()
@@ -198,20 +204,20 @@ export default function LineDetailScreen() {
           )}
           <View style={{ gap: 10 }}>
             <BackButton variant="floating" tone="dark" />
-            <View style={s.kindPill}><Text style={s.kindText}>GRDA TRAIN</Text></View>
+            <View style={s.kindPill}><Text style={s.kindText}>{t('train.grdaTrain')}</Text></View>
             <Text style={s.heroTitle}>{title}</Text>
-            <Text style={s.heroMeta}>{ghCedi([stationCount > 0 ? `${stationCount} stations` : null, days, fareText].filter(Boolean).join(' · '))}</Text>
+            <Text style={s.heroMeta}>{ghCedi([stationCount > 0 ? t('train.nStations', { n: stationCount }) : null, days, fareText].filter(Boolean).join(' · '))}</Text>
 
             <View style={s.board}>
               {!hasTimetable ? (
                 <>
-                  <Text style={s.boardKicker}>TIMETABLE</Text>
-                  <Text style={s.boardTitle}>Timetable not available yet</Text>
-                  <Text style={s.boardSub}>Check times at the station. Seen the train? Share an update below.</Text>
+                  <Text style={s.boardKicker}>{t('train.timetableChip')}</Text>
+                  <Text style={s.boardTitle}>{t('train.timetableNotYet')}</Text>
+                  <Text style={s.boardSub}>{t('train.checkTimesShare')}</Text>
                 </>
               ) : dep?.type === 'waiting' ? (
                 <>
-                  <Text style={s.boardKicker}>NEXT TRAIN · TO {dep.destination.toUpperCase()}</Text>
+                  <Text style={s.boardKicker}>{t('train.nextTrainTo', { dest: dep.destination.toUpperCase() })}</Text>
                   {departDay(dep.remaining) ? (
                     <View style={s.boardRow}>
                       <HeroText size={56} style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{dep.departTime}</HeroText>
@@ -221,7 +227,12 @@ export default function LineDetailScreen() {
                     <BigCountdown minutes={Math.ceil(dep.remaining / 60)} departTime={dep.departTime} />
                   )}
                   <Text style={s.boardSub}>
-                    From {dep.origin} · arrives {dep.destination} {arrivalLabel(dep.schedule)} · {dep.schedule.fare !== null ? `GH₵${dep.schedule.fare}` : 'Fare unconfirmed'}
+                    {t('train.boardFromArrives', {
+                      origin: deName(dep.origin, lang),
+                      dest: dep.destination,
+                      time: trData(arrivalLabel(dep.schedule), lang),
+                      fare: dep.schedule.fare !== null ? `GH₵${dep.schedule.fare}` : t('train.fareUnconfirmed'),
+                    })}
                   </Text>
                   <TimetableChips />
                   {/* Same rule as the Train tab: no reminder offer inside the lead window. */}
@@ -232,34 +243,39 @@ export default function LineDetailScreen() {
                       style={[s.remindBtn, reminderSet(dep.schedule.id) && s.remindOn]}
                       accessibilityRole="switch"
                       accessibilityState={{ checked: reminderSet(dep.schedule.id), disabled: pending }}
-                      accessibilityLabel={`Remind me ${REMINDER_LEAD_MINUTES} minutes before the ${dep.departTime} train`}
+                      accessibilityLabel={t('train.a11yRemindTrain', { n: REMINDER_LEAD_MINUTES, time: dep.departTime })}
                     >
                       {reminderSet(dep.schedule.id) ? <BellRing size={18} color={BOARD_NAVY} /> : <Bell size={18} color={BOARD_NAVY} />}
                       <Text style={s.remindText}>
-                        {reminderSet(dep.schedule.id) ? `Reminder set · ${REMINDER_LEAD_MINUTES} min before` : `Remind me before the ${dep.departTime}`}
+                        {reminderSet(dep.schedule.id) ? t('train.reminderSetMin', { n: REMINDER_LEAD_MINUTES }) : t('train.remindBefore', { time: dep.departTime })}
                       </Text>
                     </TouchableOpacity>
                   )}
                 </>
               ) : dep?.type === 'in-transit' ? (
                 <>
-                  <Text style={s.boardKicker}>ON ITS WAY · TO {dep.destination.toUpperCase()}</Text>
-                  <Text style={s.boardTitle}>Near {dep.currentStation}</Text>
+                  <Text style={s.boardKicker}>{t('train.onItsWayTo', { dest: dep.destination.toUpperCase() })}</Text>
+                  <Text style={s.boardTitle}>{t('train.near', { station: deName(dep.currentStation, lang) })}</Text>
                   <Text style={s.boardSub}>
-                    {dep.nextStation ? `Next stop ${dep.nextStation}${dep.nextArrival ? ` at ${dep.nextArrival}` : ''} · ` : ''}arrives {dep.destination} {dep.arrivalTime}
+                    {dep.nextStation
+                      ? dep.nextArrival
+                        ? t('train.nextStopAt', { station: dep.nextStation, time: dep.nextArrival })
+                        : t('train.nextStop', { station: dep.nextStation })
+                      : ''}
+                    {t('train.arrivesDest', { dest: dep.destination, time: trData(dep.arrivalTime, lang) })}
                   </Text>
                   <TimetableChips />
                 </>
               ) : (
                 <>
-                  <HeroText size={22} style={{ color: '#FFFFFF' }}>No trains on {DAY_NAMES[ghana.day]}</HeroText>
+                  <HeroText size={22} style={{ color: '#FFFFFF' }}>{t('train.noTrainsOn', { day: weekdayName(ghana.day, lang) })}</HeroText>
                   {nextServiceRun && (
                     <Text style={s.boardSub}>
-                      Next: <Text style={{ fontFamily: font.bold, color: '#FFFFFF' }}>{nextServiceRun.day} {nextServiceRun.run.stops[0].depart}</Text> from {nextServiceRun.run.stops[0].station}
+                      {t('train.nextLabel')}<Text style={{ fontFamily: font.bold, color: '#FFFFFF' }}>{nextServiceRun.day} {nextServiceRun.run.stops[0].depart}</Text>{t('train.fromSuffix', { station: deName(nextServiceRun.run.stops[0].station, lang) })}
                     </Text>
                   )}
                   <TimetableChips />
-                  <Text style={s.boardNote}>Confirm at the station.</Text>
+                  <Text style={s.boardNote}>{t('train.confirmAtStation')}</Text>
                 </>
               )}
             </View>
@@ -272,16 +288,16 @@ export default function LineDetailScreen() {
             <View style={s.changeCard}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Repeat size={18} color="#92400E" />
-                <Text style={s.changeTitle}>Change at {info.changeAt}</Text>
+                <Text style={s.changeTitle}>{t('train.changeAt', { station: info.changeAt })}</Text>
               </View>
-              {info.notes.map((n) => <Text key={n} style={s.changeText}>• {ghCedi(n)}</Text>)}
+              {info.notes.map((n) => <Text key={n} style={s.changeText}>• {ghCedi(trData(n, lang))}</Text>)}
             </View>
           )}
 
           {/* ── Stops & times ── */}
           {selected && selectedDir && (
             <View style={s.section}>
-              <Text style={s.h2}>Stops &amp; times</Text>
+              <Text style={s.h2}>{t('train.stopsTimes')}</Text>
               {directions.length > 1 && (
                 <View style={s.seg} accessibilityRole="tablist">
                   {directions.map((g) => {
@@ -293,7 +309,7 @@ export default function LineDetailScreen() {
                         style={[s.segBtn, directions.length > 2 && s.segBtnHalf, on && s.segOn]}
                         accessibilityRole="tab"
                         accessibilityState={{ selected: on }}
-                        accessibilityLabel={`${g.origin} to ${g.destination}`}
+                        accessibilityLabel={t('train.aToB', { from: g.origin, to: g.destination })}
                       >
                         <Text style={[s.segText, on && s.segTextOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                           {g.origin} → {g.destination}
@@ -304,11 +320,11 @@ export default function LineDetailScreen() {
                 </View>
               )}
               <View style={s.card}>
-                <Text style={s.cardTitle}>Timetable</Text>
+                <Text style={s.cardTitle}>{t('train.timetable')}</Text>
                 {selectedDir.runs.map((r, i) => (
                   <View key={r.id} style={[s.runRow, i > 0 && s.divider]}>
-                    <Text style={s.stopTime}>{r.stops[0].depart} → {arrivalLabel(r)}</Text>
-                    {r.note ? <Text style={s.stopSub}>{r.note}</Text> : null}
+                    <Text style={s.stopTime}>{r.stops[0].depart} → {trData(arrivalLabel(r), lang)}</Text>
+                    {r.note ? <Text style={s.stopSub}>{trData(r.note, lang)}</Text> : null}
                   </View>
                 ))}
               </View>
@@ -319,47 +335,50 @@ export default function LineDetailScreen() {
                   // timetable publishes them (TMA); else GRDA lists end times only.
                   const ownTime = selectedDir.runs.length === 1 || code === 'TMA' ? (i === 0 ? st.depart : st.arrive) ?? st.depart : null
                   return (
-                    <View key={`${selected.id}-${st.station}`} style={s.stopRow} accessible accessibilityLabel={`${st.station}${ownTime ? `, ${ownTime}` : terminal ? '' : ', time not published'}`}>
+                    <View key={`${selected.id}-${st.station}`} style={s.stopRow} accessible accessibilityLabel={`${st.station}${ownTime ? `, ${ownTime}` : terminal ? '' : t('train.a11yTimeNotPublished')}`}>
                       <View style={s.stopRail}>
                         <View style={[s.stopDot, terminal && s.stopDotEnd]} />
                         {i < selected.stops.length - 1 && <View style={s.stopLine} />}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.stopName}>{st.station}</Text>
-                        {i === 0 && <Text style={s.stopSub}>Departs</Text>}
-                        {i === selected.stops.length - 1 && <Text style={s.stopSub}>Arrives</Text>}
-                        {!terminal && !ownTime && code !== 'TMA' && <Text style={s.stopSub}>Time not published</Text>}
+                        {i === 0 && <Text style={s.stopSub}>{t('train.departs')}</Text>}
+                        {i === selected.stops.length - 1 && <Text style={s.stopSub}>{t('train.arrives')}</Text>}
+                        {!terminal && !ownTime && code !== 'TMA' && <Text style={s.stopSub}>{t('train.timeNotPublished')}</Text>}
                       </View>
                       {ownTime ? <Text style={s.stopTime}>{ownTime}</Text> : null}
                     </View>
                   )
                 })}
-                <Text style={s.verified}>Timetable · not live tracking · {info?.source ?? 'confirm at the station'}</Text>
+                <Text style={s.verified}>{t('train.scheduledSource', { source: info?.source ? trData(info.source, lang) : t('train.confirmAtStationLower') })}</Text>
                 {status?.fareConfidence === 'unverified' && status.fareNote && (
                   <View style={s.fareNote}>
                     <Info size={16} color="#7A4B00" />
-                    <Text style={s.fareNoteText}>{ghCedi(status.fareNote)}</Text>
+                    <Text style={s.fareNoteText}>{ghCedi(trData(status.fareNote, lang))}</Text>
                   </View>
                 )}
               </View>
               <View style={[s.card, { gap: 6 }]}>
-                <Text style={s.cardTitle}>Fares</Text>
+                <Text style={s.cardTitle}>{t('nav.fares')}</Text>
                 {fares.map((f) => (
                   <View key={`${f.from}-${f.to}`} style={s.zoneRow}>
                     <Text style={s.cardText}>{f.from} – {f.to}</Text>
-                    <Text style={s.zoneFare}>GH₵{f.adult}{f.child !== null ? ` · child GH₵${f.child}` : ''}</Text>
+                    <Text style={s.zoneFare}>GH₵{f.adult}{f.child !== null ? t('train.childFare', { n: f.child }) : ''}</Text>
                   </View>
                 ))}
-                {code === 'TMA' && <Text style={s.cardText}>{ghCedi(TMA_FARE_NOTE)}</Text>}
+                {code === 'TMA' && <Text style={s.cardText}>{ghCedi(trData(TMA_FARE_NOTE, lang))}</Text>}
                 {code === 'TMP' && (
                   <>
-                    <Text style={s.cardText}>Other Afienya–Adomi stops: not published · confirm at station.</Text>
+                    <Text style={s.cardText}>{t('train.otherTmpStops')}</Text>
                     <Text style={s.stopSub}>
-                      Reported at launch: {TMP_LAUNCH_FARES.map((f) => `${f.from}–${f.to} GH₵${f.adult}`).join(', ')} ({LAUNCH_FARE_LABEL}).
+                      {t('train.launchFares', {
+                        list: TMP_LAUNCH_FARES.map((f) => `${f.from}–${trData(f.to, lang)} GH₵${f.adult}`).join(', '),
+                        label: trData(LAUNCH_FARE_LABEL, lang),
+                      })}
                     </Text>
                   </>
                 )}
-                <Text style={s.stopSub}>{ghCedi(TRAIN_CARD_TEXT)}</Text>
+                <Text style={s.stopSub}>{ghCedi(trData(TRAIN_CARD_TEXT, lang))}</Text>
               </View>
             </View>
           )}
@@ -367,29 +386,29 @@ export default function LineDetailScreen() {
           {/* ── About this line ── */}
           {status && (
             <View style={s.section}>
-              <Text style={s.h2}>About this line</Text>
+              <Text style={s.h2}>{t('train.aboutLine')}</Text>
               <View style={[s.card, { gap: 8 }]}>
-                <Text style={s.cardTitle}>{status.statusNote}</Text>
+                <Text style={s.cardTitle}>{trData(status.statusNote, lang)}</Text>
                 {status.facts.map((f) => (
-                  <Text key={f} style={s.fact}>• {ghCedi(f)}</Text>
+                  <Text key={f} style={s.fact}>• {ghCedi(trData(f, lang))}</Text>
                 ))}
               </View>
             </View>
           )}
 
           {/* ── Line news + safety (static, curated) ── */}
-          <RailNewsList lineCode={code} limit={4} title="Line news" />
+          <RailNewsList lineCode={code} limit={4} title={t('train.lineNews')} />
           <RailSafetyCard />
 
           {/* ── Rider updates ── */}
           <View style={s.section}>
-            <Text style={s.h2}>Rider updates</Text>
+            <Text style={s.h2}>{t('train.riderUpdates')}</Text>
             <View style={s.card}>
               {recentReports.length === 0 ? (
-                <Text style={s.cardText}>No rider updates yet. Seen the train? Tell other riders.</Text>
+                <Text style={s.cardText}>{t('train.noRiderUpdates')}</Text>
               ) : recentReports.slice(0, 3).map((r, i) => (
                 <View key={r.id} style={[s.update, i > 0 && s.divider]}>
-                  <Text style={s.updateAge}>{timeAgo(r.reported_at)}</Text>
+                  <Text style={s.updateAge}>{lang === 'fr' ? agoFr(r.reported_at) : timeAgo(r.reported_at)}</Text>
                   <Text style={s.updateText}>{reportText(r, schedules)}</Text>
                 </View>
               ))}
@@ -399,7 +418,7 @@ export default function LineDetailScreen() {
                 accessibilityRole="button"
               >
                 <Plus size={18} color={ui.text} />
-                <Text style={s.shareText}>Share an update</Text>
+                <Text style={s.shareText}>{t('train.shareUpdate')}</Text>
               </TouchableOpacity>
             </View>
           </View>

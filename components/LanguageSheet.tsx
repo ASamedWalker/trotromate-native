@@ -9,7 +9,7 @@ interface LanguageSheetProps {
 }
 
 export function LanguageSheet({ visible, onClose }: LanguageSheetProps) {
-  const { lang, setLanguage, languages } = useLanguage()
+  const { lang, setLanguage, languages, t } = useLanguage()
   const insets = useSafeAreaInsets()
 
   return (
@@ -19,14 +19,14 @@ export function LanguageSheet({ visible, onClose }: LanguageSheetProps) {
           style={StyleSheet.absoluteFill}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close language picker"
+          accessibilityLabel={t('langSheet.close')}
         >
           <View style={styles.backdrop} />
         </Pressable>
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
           <View style={styles.grabber} />
-          <Text style={styles.title}>App language</Text>
-          <Text style={styles.sub}>Menus and buttons change. Stop names stay the same.</Text>
+          <Text style={styles.title}>{t('langSheet.title')}</Text>
+          <Text style={styles.sub}>{t('langSheet.sub')}</Text>
           <View style={styles.list}>
             {languages.map((l) => {
               const selected = l.code === lang

@@ -19,6 +19,7 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import { c, themed, font, brand } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { updateDisplayName } from '@/lib/services/profileName'
+import { useLanguage } from '@/lib/i18n'
 
 const MAX_LEN = 30
 
@@ -26,6 +27,7 @@ export default function EditNameScreen() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const s = useMemo(() => getStyles(), [])
+  const { t } = useLanguage()
 
   const { profile, deviceId } = useApp()
   const original = (profile?.display_name ?? '').trim()
@@ -45,7 +47,7 @@ export default function EditNameScreen() {
     setIsSaving(false)
 
     if (error) {
-      Alert.alert('Error', 'Could not update name. Try again.')
+      Alert.alert(t('settings.error'), t('settings.name.updateFailed'))
       return
     }
 
@@ -54,24 +56,24 @@ export default function EditNameScreen() {
   }
 
   const showError = touched && tooShort
-  const errorText = trimmed.length === 0 ? 'Name cannot be empty.' : 'Name must be at least 2 characters.'
+  const errorText = trimmed.length === 0 ? t('settings.name.empty') : t('settings.name.tooShort')
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
           <BackButton />
-          <Text style={s.headerTitle}>Your name</Text>
+          <Text style={s.headerTitle}>{t('settings.name.title')}</Text>
         </View>
 
         <View style={s.flex}>
           <View style={s.preview}>
             <InitialsAvatar name={trimmed || profile?.display_name} deviceId={deviceId ?? undefined} size={80} />
-            <Text style={s.previewCaption}>Preview updates as you type</Text>
+            <Text style={s.previewCaption}>{t('settings.name.preview')}</Text>
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>Display name</Text>
+            <Text style={s.label}>{t('settings.name.label')}</Text>
             <View style={[s.inputWrap, focused && s.inputWrapFocused]}>
               <TextInput
                 value={name}
@@ -82,7 +84,7 @@ export default function EditNameScreen() {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onSubmitEditing={handleSave}
-                placeholder="Enter your name"
+                placeholder={t('settings.name.placeholder')}
                 placeholderTextColor={c.stone400}
                 style={s.input}
                 maxLength={MAX_LEN}
@@ -99,7 +101,7 @@ export default function EditNameScreen() {
                     setTouched(true)
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Clear name"
+                  accessibilityLabel={t('settings.name.clear')}
                   style={s.clearBtn}
                 >
                   <XCircle size={20} color={c.stone400} />
@@ -108,7 +110,7 @@ export default function EditNameScreen() {
             </View>
             <View style={s.metaRow}>
               <Text style={[s.hint, showError && s.error]}>
-                {showError ? errorText : 'Shown on the leaderboard and your Pulse posts.'}
+                {showError ? errorText : t('settings.name.hint')}
               </Text>
               <Text style={s.counter}>{name.length}/{MAX_LEN}</Text>
             </View>
@@ -127,7 +129,7 @@ export default function EditNameScreen() {
             {isSaving ? (
               <ActivityIndicator size="small" color={c.white} />
             ) : (
-              <Text style={s.saveBtnText}>Save name</Text>
+              <Text style={s.saveBtnText}>{t('settings.name.save')}</Text>
             )}
           </TouchableOpacity>
         </View>

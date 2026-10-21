@@ -17,13 +17,16 @@ import { StationCard } from './StationCard'
 import { QueueStatusBar } from './QueueStatusBar'
 import { type QueueStatus, type StationWithQueue, getWaitEstimate } from '@/lib/services/stations'
 import type { NearbyStop } from '@/lib/utils/nearby-stops'
+import { useLanguage } from '@/lib/i18n'
+import { stationNameT } from '@/lib/i18n/home-format'
 
+// i18n keys: stations.ql.* (one word) / stations.qq.* ("… queue")
 const QUEUE_LABELS: Record<QueueStatus, string> = {
-  empty: 'Empty',
-  short: 'Short',
-  moderate: 'Moderate',
-  long: 'Long',
-  very_long: 'Very Long',
+  empty: 'stations.ql.empty',
+  short: 'stations.ql.short',
+  moderate: 'stations.ql.moderate',
+  long: 'stations.ql.long',
+  very_long: 'stations.ql.very_long',
 }
 
 const QUEUE_COLORS: Record<QueueStatus, string> = {
@@ -37,7 +40,7 @@ const QUEUE_COLORS: Record<QueueStatus, string> = {
 function stationLabel(name: string): string {
   if (name === '37 Military Hospital') return '37 Station'
   if (name.endsWith('Station')) return name
-  return `${name} Station`
+  return stationNameT(name)
 }
 
 interface StationWithCoords extends StationWithQueue {
@@ -86,6 +89,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
     const colorScheme = useColorScheme()
     const isDark = colorScheme === 'dark'
     const t = themed(isDark)
+    const { t: tr, lang } = useLanguage()
     const sheetRef = useRef<BottomSheet>(null)
     const flatListRef = useRef<any>(null)
 
@@ -131,7 +135,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
               style={[styles.searchInput, { color: t.text }]}
               value={search}
               onChangeText={onSearchChange}
-              placeholder="Search stations..."
+              placeholder={tr('stations.searchStationsPh')}
               placeholderTextColor={c.stone400}
             />
             {search.length > 0 && (
@@ -158,12 +162,12 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
                 <View style={styles.bestPickBadge}>
                   <Zap size={12} color={c.amber500} />
                   <Text style={styles.bestPickBadgeText}>
-                    {bestPickLabel ? 'BEST RIGHT NOW' : 'TOP STATION'}
+                    {bestPickLabel ? tr('stations.bestPick') : tr('stations.topStation')}
                   </Text>
                 </View>
                 {bestPick.is_major && (
                   <Text style={[styles.bestPickMajorTag, { color: t.textTertiary }]}>
-                    MAJOR
+                    {tr('stations.major')}
                   </Text>
                 )}
               </View>
@@ -181,7 +185,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
                   <View style={styles.bestPickStatus}>
                     <View style={[styles.bestPickDot, { backgroundColor: bestPickColor }]} />
                     <Text style={[styles.bestPickLabel, { color: bestPickColor }]}>
-                      {bestPickLabel} queue
+                      {bestPickStatus ? tr(`stations.qq.${bestPickStatus}`) : null}
                     </Text>
                     <Text style={[styles.bestPickEstimate, { color: t.textSecondary }]}>
                       · {bestPickWait}
@@ -190,7 +194,7 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
                 </>
               ) : (
                 <Text style={[styles.bestPickNoData, { color: t.textTertiary }]}>
-                  Tap to view on map
+                  {tr('stations.tapView')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -203,11 +207,11 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
 
           {/* Count */}
           <Text style={[styles.countText, { color: t.textTertiary }]}>
-            {stations.length} station{stations.length !== 1 ? 's' : ''}
+            {tr(stations.length !== 1 ? 'stations.countMany' : 'stations.countOne', { n: stations.length })}
           </Text>
         </View>
       ),
-      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length, bestPick, bestPickLabel, bestPickWait, bestPickColor, bestPickStatus, onSelectStation],
+      [search, onSearchChange, activeTab, onChangeTab, isDark, t, stations.length, bestPick, bestPickLabel, bestPickWait, bestPickColor, bestPickStatus, onSelectStation, tr, lang], // lang: rebuild on language change
     )
 
     const ListEmpty = useMemo(
@@ -219,11 +223,11 @@ export const StationBottomSheet = forwardRef<StationBottomSheetRef, StationBotto
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: t.textSecondary }]}>
-              {search ? 'No stations match your search' : 'No stations available'}
+              {search ? tr('stations.noMatchSearch') : tr('stations.noneAvailable')}
             </Text>
           </View>
         ),
-      [isLoading, search, t],
+      [isLoading, search, t, tr, lang], // lang: rebuild on language change
     )
 
     return (

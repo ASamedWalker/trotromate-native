@@ -4,6 +4,8 @@ import InitialsAvatar from '@/components/InitialsAvatar'
 import FollowButton from '@/components/FollowButton'
 import { c, font, themed } from '@/lib/theme'
 import type { PublicProfile } from '@/lib/types'
+import { useLanguage } from '@/lib/i18n'
+import { LEVELS } from '@/lib/constants/rewards'
 
 interface UserRowProps {
   user: PublicProfile
@@ -15,13 +17,16 @@ export default function UserRow({ user, myDeviceId, showFollow = true }: UserRow
   const router = useRouter()
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
+  const { t: tr } = useLanguage()
 
   const userNumber = user.device_id.slice(-4).toUpperCase()
   const displayName = user.display_name || `User-${userNumber}`
   const subtitle =
     user.bio ||
-    user.current_level?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) ||
-    'Commuter'
+    (user.current_level && user.current_level in LEVELS
+      ? tr(`rewards.level.${user.current_level}`)
+      : user.current_level?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())) ||
+    tr('settings.commuter')
 
   return (
     <TouchableOpacity

@@ -18,8 +18,19 @@ function emit() { listeners.forEach((l) => l()) }
 export async function loadLanguage(): Promise<void> {
   try {
     const saved = await AsyncStorage.getItem(STORE_KEY)
-    if (saved && saved in STRINGS) { current = saved as LangCode; emit() }
+    if (saved && saved in STRINGS) { current = saved as LangCode; emit(); return }
+    // Nothing chosen yet: a phone set to French starts in French (not saved,
+    // so changing the phone language still follows until the user picks one).
+    if (deviceIsFrench()) { current = 'fr'; emit() }
   } catch { /* default en */ }
+}
+
+function deviceIsFrench(): boolean {
+  try {
+    return /^fr\b/i.test(Intl.DateTimeFormat().resolvedOptions().locale)
+  } catch {
+    return false
+  }
 }
 
 export async function setLanguage(code: LangCode): Promise<void> {
@@ -33,7 +44,7 @@ export function getLanguage(): LangCode { return current }
 /** Translate a key. Falls back to English, then the key itself. */
 export function t(key: string, vars?: Record<string, string | number>): string {
   let s = STRINGS[current]?.[key] ?? STRINGS.en[key] ?? key
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v))
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v))
   return s
 }
 

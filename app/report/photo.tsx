@@ -27,6 +27,7 @@ import { useSubmitFareReport } from '@/lib/hooks/useReports'
 import { validateFare } from '@/lib/security/validate'
 import { REPORT_POINTS } from '@/lib/constants/rewards'
 import type { TaleMediaType, TalePostType } from '@/lib/types'
+import { useLanguage } from '@/lib/i18n'
 
 // Must match MAX_IMAGES in lib/services/tales.ts — the service rejects submissions above this.
 const MAX_IMAGES = 5
@@ -35,10 +36,10 @@ const MAX_VIDEO_DURATION = 60 // seconds
 type ComposerKind = 'fare' | 'question' | 'queue' | 'media'
 
 const KIND_TILES: { key: ComposerKind; label: string; Icon: typeof Camera; bg: string; fg: string }[] = [
-  { key: 'fare', label: 'A fare I paid', Icon: Banknote, bg: '#FFEDE5', fg: '#B4320B' },
-  { key: 'question', label: 'A question', Icon: HelpCircle, bg: '#E6EEFF', fg: '#1D4ED8' },
-  { key: 'queue', label: 'Queue or station', Icon: Users, bg: '#FDE8E8', fg: '#B91C1C' },
-  { key: 'media', label: 'Photo or video', Icon: Camera, bg: '#EFEAFE', fg: '#6D28D9' },
+  { key: 'fare', label: 'report.photo.kindFare', Icon: Banknote, bg: '#FFEDE5', fg: '#B4320B' },
+  { key: 'question', label: 'report.photo.kindQuestion', Icon: HelpCircle, bg: '#E6EEFF', fg: '#1D4ED8' },
+  { key: 'queue', label: 'report.photo.kindQueue', Icon: Users, bg: '#FDE8E8', fg: '#B91C1C' },
+  { key: 'media', label: 'report.photo.kindMedia', Icon: Camera, bg: '#EFEAFE', fg: '#6D28D9' },
 ]
 
 const LOCATIONS = [
@@ -60,6 +61,7 @@ export default function TrotroTalesPostScreen() {
   const { maybePromptReview } = useStoreReview()
   const { submit: submitTale, isSubmitting } = useSubmitTale(deviceId)
   const { submit: submitFare } = useSubmitFareReport(deviceId)
+  const { t: tr } = useLanguage()
 
   const captionRef = useRef<TextInput>(null)
   // isSubmitting clears before the fare report / review prompt / Alert finish, so guard the whole flow.
@@ -103,12 +105,12 @@ export default function TrotroTalesPostScreen() {
 
   const pickFromCamera = async () => {
     if (!canAddMore) {
-      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images`)
+      Alert.alert(tr('report.photo.limit'), tr('report.photo.limitBody', { n: MAX_IMAGES }))
       return
     }
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'Camera access is required to take photos.')
+      Alert.alert(tr('report.permNeeded'), tr('report.cameraPerm'))
       return
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -124,7 +126,7 @@ export default function TrotroTalesPostScreen() {
 
   const pickFromGallery = async () => {
     if (!canAddMore) {
-      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images`)
+      Alert.alert(tr('report.photo.limit'), tr('report.photo.limitBody', { n: MAX_IMAGES }))
       return
     }
     const remaining = MAX_IMAGES - imageUris.length
@@ -205,15 +207,15 @@ export default function TrotroTalesPostScreen() {
     const fareAmt = parseFloat(fareText.replace(',', '.'))
     if (isFare) {
       if (!fareFrom.trim() || !fareTo.trim()) {
-        Alert.alert('Missing Route', 'Please enter where you boarded and where you got off')
+        Alert.alert(tr('report.photo.missingRoute'), tr('report.photo.missingRouteBody'))
         return
       }
       if (!fareText) {
-        Alert.alert('Missing Fare', 'Please enter the amount you paid')
+        Alert.alert(tr('report.photo.missingFare'), tr('report.photo.missingFareBody'))
         return
       }
       if (!/^\d{1,3}([.,]\d{1,2})?$/.test(fareText) || validateFare(fareAmt) === null) {
-        Alert.alert('Check the Fare', 'Enter the amount you paid as a number, like 5 or 7.50')
+        Alert.alert(tr('report.photo.checkFare'), tr('report.photo.checkFareBody'))
         return
       }
     }
@@ -221,24 +223,24 @@ export default function TrotroTalesPostScreen() {
       // fare form has no media or free-text caption
     } else if (mediaType === 'text') {
       if (!caption.trim() || caption.trim().length < 3) {
-        Alert.alert('Missing Text', 'Please write at least a few words')
+        Alert.alert(tr('report.photo.missingText'), tr('report.photo.missingTextBody'))
         return
       }
     } else if (mediaType === 'video') {
       if (!videoUri) {
-        Alert.alert('Missing Video', 'Please select a video')
+        Alert.alert(tr('report.photo.missingVideo'), tr('report.photo.missingVideoBody'))
         return
       }
     } else if (imageUris.length === 0) {
-      Alert.alert('Missing Photo', 'Please take or choose a photo')
+      Alert.alert(tr('report.photo.missingPhoto'), tr('report.photo.missingPhotoBody'))
       return
     }
     if (!location.trim() && !(isFare && fareFrom.trim())) {
-      Alert.alert('Missing Location', 'Please enter a location')
+      Alert.alert(tr('report.photo.missingLocation'), tr('report.photo.missingLocationBody'))
       return
     }
     if (!deviceId) {
-      Alert.alert('Error', 'Device not ready. Please try again.')
+      Alert.alert(tr('report.error'), tr('report.deviceNotReady'))
       return
     }
 
@@ -283,14 +285,14 @@ export default function TrotroTalesPostScreen() {
       refreshProfile()
       await maybePromptReview()
       Alert.alert(
-        'Posted to Pulse! +' + reward.points_awarded + ' coins',
+        tr('report.photo.posted', { n: reward.points_awarded }),
         fareFailed
-          ? "Your post went up, but the fare couldn't be added to Troski's fare data."
-          : 'Your post has been shared with the community.',
-        [{ text: 'OK', onPress: () => router.back() }]
+          ? tr('report.photo.postedFareFailed')
+          : tr('report.photo.postedBody'),
+        [{ text: tr('report.ok'), onPress: () => router.back() }]
       )
     } else {
-      Alert.alert('Error', 'Failed to post your tale. Please try again.')
+      Alert.alert(tr('report.error'), tr('report.photo.postFailed'))
     }
   }
 
@@ -304,10 +306,10 @@ export default function TrotroTalesPostScreen() {
           {/* Header Card */}
           <View style={s.newPostHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={s.newPostTitle}>New post</Text>
-              <Text style={s.newPostSub}>Share what&apos;s happening on your route</Text>
+              <Text style={s.newPostTitle}>{tr('report.photo.newPost')}</Text>
+              <Text style={s.newPostSub}>{tr('report.photo.newPostSub')}</Text>
             </View>
-            <TouchableOpacity onPress={() => { haptics.light(); router.back() }} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
+            <TouchableOpacity onPress={() => { haptics.light(); router.back() }} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.closeBtn} accessibilityRole="button" accessibilityLabel={tr('report.close')}>
               <X size={20} color={isDark ? '#fafaf9' : '#44403c'} />
             </TouchableOpacity>
           </View>
@@ -323,7 +325,7 @@ export default function TrotroTalesPostScreen() {
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  accessibilityLabel={label}
+                  accessibilityLabel={tr(label)}
                   style={{
                     width: '48%',
                     height: 64,
@@ -338,7 +340,7 @@ export default function TrotroTalesPostScreen() {
                   }}
                 >
                   <Icon size={22} color={fg} />
-                  <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, lineHeight: 21, color: fg }}>{label}</Text>
+                  <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, lineHeight: 21, color: fg }}>{tr(label)}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -348,15 +350,15 @@ export default function TrotroTalesPostScreen() {
           <View style={s.formCard}>
             {kind === 'fare' ? (
               <>
-                <Text style={s.label}>From</Text>
+                <Text style={s.label}>{tr('report.photo.from')}</Text>
                 <View style={s.inputBox}>
-                  <TextInput value={fareFrom} onChangeText={setFareFrom} placeholder="e.g. Circle" placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
+                  <TextInput value={fareFrom} onChangeText={setFareFrom} placeholder={tr('report.photo.egCircle')} placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
                 </View>
-                <Text style={s.label}>To</Text>
+                <Text style={s.label}>{tr('report.photo.to')}</Text>
                 <View style={s.inputBox}>
-                  <TextInput value={fareTo} onChangeText={setFareTo} placeholder="e.g. Madina" placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
+                  <TextInput value={fareTo} onChangeText={setFareTo} placeholder={tr('report.photo.egMadina')} placeholderTextColor={t.textSecondary} style={[s.input, { marginLeft: 0 }]} />
                 </View>
-                <Text style={s.label}>You paid (GH₵)</Text>
+                <Text style={s.label}>{tr('report.photo.youPaid')}</Text>
                 <View style={s.inputBox}>
                   <TextInput
                     value={fareAmount}
@@ -367,18 +369,18 @@ export default function TrotroTalesPostScreen() {
                     style={[s.input, { marginLeft: 0, fontSize: 26, lineHeight: 36, fontFamily: font.bold }]}
                   />
                 </View>
-                <Text style={s.label}>Note (optional)</Text>
+                <Text style={s.label}>{tr('report.photo.noteOptional')}</Text>
                 <View style={s.captionBox}>
                   <TextInput
                     value={fareNote}
                     onChangeText={(text) => setFareNote(text.slice(0, 140))}
-                    placeholder="Anything other riders should know?"
+                    placeholder={tr('report.photo.notePh')}
                     placeholderTextColor={t.textSecondary}
                     style={[s.captionInput, { minHeight: 56 }]}
                     multiline
                   />
                 </View>
-                <Text style={s.fareHelper}>Your fare also goes into Troski&apos;s fare data, marked Reported. You earn {REPORT_POINTS.fare} coins.</Text>
+                <Text style={s.fareHelper}>{tr('report.photo.fareHelper', { n: REPORT_POINTS.fare })}</Text>
               </>
             ) : (
             <>
@@ -391,7 +393,7 @@ export default function TrotroTalesPostScreen() {
                 style={[s.modeTab, mediaType !== 'text' && s.modeTabActive]}
               >
                 <Camera size={16} color={mediaType !== 'text' ? c.amber500 : (isDark ? c.stone400 : c.stone500)} />
-                <Text style={[s.modeTabText, mediaType !== 'text' && s.modeTabTextActive]}>Photo / Video</Text>
+                <Text style={[s.modeTabText, mediaType !== 'text' && s.modeTabTextActive]}>{tr('report.photo.modeMedia')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={switchToText}
@@ -399,7 +401,7 @@ export default function TrotroTalesPostScreen() {
                 style={[s.modeTab, mediaType === 'text' && s.modeTabActive]}
               >
                 <Type size={16} color={mediaType === 'text' ? c.amber500 : (isDark ? c.stone400 : c.stone500)} />
-                <Text style={[s.modeTabText, mediaType === 'text' && s.modeTabTextActive]}>Text</Text>
+                <Text style={[s.modeTabText, mediaType === 'text' && s.modeTabTextActive]}>{tr('report.photo.modeText')}</Text>
               </TouchableOpacity>
             </View>
             )}
@@ -407,12 +409,12 @@ export default function TrotroTalesPostScreen() {
             {/* Text-only mode */}
             {mediaType === 'text' ? (
               <View style={s.textModeHint}>
-                <Text style={s.textModeHintText}>Share a fare, a tip, or a trotro moment — no photo needed.</Text>
+                <Text style={s.textModeHintText}>{tr('report.photo.textHint')}</Text>
               </View>
             ) : (
             <>
             <View style={s.labelRow}>
-              <Text style={s.label}>{mediaType === 'video' ? 'Video' : 'Photos'}</Text>
+              <Text style={s.label}>{mediaType === 'video' ? tr('report.photo.video') : tr('report.photo.photos')}</Text>
               {mediaType === 'image' && imageUris.length > 0 && (
                 <Text style={s.counter}>{imageUris.length}/{MAX_IMAGES}</Text>
               )}
@@ -463,7 +465,7 @@ export default function TrotroTalesPostScreen() {
                           style={s.addThumb}
                         >
                           <Plus size={24} color={isDark ? c.stone400 : c.stone500} />
-                          <Text style={s.addThumbText}>Add</Text>
+                          <Text style={s.addThumbText}>{tr('report.photo.add')}</Text>
                         </TouchableOpacity>
                       )
                     }
@@ -478,7 +480,7 @@ export default function TrotroTalesPostScreen() {
                         </TouchableOpacity>
                         {index === 0 && (
                           <View style={s.coverBadge}>
-                            <Text style={s.coverBadgeText}>Cover</Text>
+                            <Text style={s.coverBadgeText}>{tr('report.photo.cover')}</Text>
                           </View>
                         )}
                       </View>
@@ -491,11 +493,11 @@ export default function TrotroTalesPostScreen() {
                   <View style={s.quickAddRow}>
                     <TouchableOpacity onPress={pickFromCamera} activeOpacity={0.7} style={s.quickAddBtn}>
                       <Camera size={14} color={c.amber500} />
-                      <Text style={[s.quickAddText, { color: c.amber500 }]}>Camera</Text>
+                      <Text style={[s.quickAddText, { color: c.amber500 }]}>{tr('report.photo.camera')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={pickFromGallery} activeOpacity={0.7} style={s.quickAddBtn}>
                       <ImageIcon size={14} color={isDark ? c.stone400 : c.stone500} />
-                      <Text style={s.quickAddText}>Gallery</Text>
+                      <Text style={s.quickAddText}>{tr('report.photo.gallery')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -508,7 +510,7 @@ export default function TrotroTalesPostScreen() {
                   style={[s.photoBtn, { backgroundColor: c.amber500 }]}
                 >
                   <Camera size={28} color={c.white} />
-                  <Text style={s.photoBtnText}>Camera</Text>
+                  <Text style={s.photoBtnText}>{tr('report.photo.camera')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={pickFromGallery}
@@ -517,7 +519,7 @@ export default function TrotroTalesPostScreen() {
                 >
                   <ImageIcon size={28} color={isDark ? c.stone200 : c.stone700} />
                   <Text style={[s.photoBtnText, { color: isDark ? c.stone200 : c.stone700 }]}>
-                    Gallery
+                    {tr('report.photo.gallery')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -526,7 +528,7 @@ export default function TrotroTalesPostScreen() {
                   style={[s.photoBtn, { backgroundColor: isDark ? c.stone700 : c.stone300 }]}
                 >
                   <Video size={28} color={c.pink500} />
-                  <Text style={[s.photoBtnText, { color: c.pink500 }]}>Video</Text>
+                  <Text style={[s.photoBtnText, { color: c.pink500 }]}>{tr('report.photo.video')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -535,15 +537,15 @@ export default function TrotroTalesPostScreen() {
 
             {/* Caption */}
             <Text style={[s.label, { marginTop: 20 }]}>
-              {mediaType === 'text' ? 'What\u2019s on your mind?' : 'Caption'}
-              {mediaType === 'text' && <Text style={s.required}> Required</Text>}
+              {mediaType === 'text' ? tr('report.photo.mind') : tr('report.photo.caption')}
+              {mediaType === 'text' && <Text style={s.required}> {tr('report.photo.required')}</Text>}
             </Text>
             <View style={s.captionBox}>
               <TextInput
                 ref={captionRef}
                 value={caption}
                 onChangeText={(text) => setCaption(text.slice(0, 280))}
-                placeholder={mediaType === 'text' ? "Just paid GH₵9 from Circle to Madina..." : "Write a caption..."}
+                placeholder={mediaType === 'text' ? tr('report.photo.textPh') : tr('report.photo.captionPh')}
                 placeholderTextColor={t.textSecondary}
                 style={[s.captionInput, mediaType === 'text' && { minHeight: 100 }]}
                 multiline
@@ -557,14 +559,14 @@ export default function TrotroTalesPostScreen() {
 
             {/* Location */}
             <Text style={[s.label, { marginTop: 20 }]}>
-              Location {kind === 'fare' ? <Text style={s.required}>Defaults to From</Text> : <Text style={s.required}>Required</Text>}
+              {tr('report.photo.location')} {kind === 'fare' ? <Text style={s.required}>{tr('report.photo.defaultsFrom')}</Text> : <Text style={s.required}>{tr('report.photo.required')}</Text>}
             </Text>
             <View style={s.inputBox}>
               <MapPin size={20} color={c.pink500} />
               <TextInput
                 value={location}
                 onChangeText={setLocation}
-                placeholder="e.g. Circle Station"
+                placeholder={tr('report.photo.locPh')}
                 placeholderTextColor={t.textSecondary}
                 style={s.input}
               />
@@ -604,11 +606,11 @@ export default function TrotroTalesPostScreen() {
               <Text style={s.submitText}>
                 {isSubmitting
                   ? mediaType === 'video'
-                    ? `Uploading video${uploadProgress ? ` ${Math.round(uploadProgress * 100)}%` : ''}...`
+                    ? `${tr('report.photo.uploadingVideo')}${uploadProgress ? ` ${Math.round(uploadProgress * 100)}${tr('report.photo.pct')}` : ''}…`
                     : imageUris.length > 0
-                      ? `Uploading${imageUris.length > 1 ? ` ${imageUris.length} photos` : ''}...`
-                      : 'Posting\u2026'
-                  : 'Post to Pulse'}
+                      ? (imageUris.length > 1 ? tr('report.photo.uploadingN', { n: imageUris.length }) : tr('report.photo.uploading'))
+                      : tr('report.photo.posting')
+                  : tr('report.photo.postToPulse')}
               </Text>
             </TouchableOpacity>
           </View>

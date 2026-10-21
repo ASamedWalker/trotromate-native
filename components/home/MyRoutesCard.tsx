@@ -11,7 +11,6 @@ import { useFavorites } from '@/lib/hooks/useFavorites'
 import { HeroText } from '@/components/HeroText'
 import { QueueGlyph } from '@/components/QueueGlyph'
 import { queueA11y } from '@/components/QueueStatusLine'
-import { QUEUE_WORD } from '@/lib/constants/queueStatus'
 import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { corridorFor } from '@/lib/constants/corridors'
 import { PressableScale } from '@/components/motion/PressableScale'
@@ -19,6 +18,8 @@ import { EnterIn } from '@/components/motion/EnterIn'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 import type { QueueStatus } from '@/lib/services/stations'
+import { useLanguage } from '@/lib/i18n'
+import { ageT, queueWordT } from '@/lib/i18n/home-format'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 const MAX_ROUTES = 3
@@ -86,6 +87,7 @@ interface SheetLine { id: string; code: string; from: string; to: string; color:
 
 /** Small white "Report" pill at the end of a queue strip (stale / none states). */
 function ReportPill({ onPress, label }: { onPress: () => void; label: string }) {
+  const { t } = useLanguage()
   return (
     <Pressable
       onPress={onPress}
@@ -94,7 +96,7 @@ function ReportPill({ onPress, label }: { onPress: () => void; label: string }) 
       accessibilityLabel={label}
       style={{ marginLeft: 'auto', backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 3 }}
     >
-      <Text style={{ fontFamily: font.extrabold, fontSize: 13, color: ui.text }}>Report</Text>
+      <Text style={{ fontFamily: font.extrabold, fontSize: 13, color: ui.text }}>{t('homeX.report')}</Text>
     </Pressable>
   )
 }
@@ -103,15 +105,16 @@ function ReportPill({ onPress, label }: { onPress: () => void; label: string }) 
 function LineActionsSheet({ line, onClose, onUnsave }: { line: SheetLine | null; onClose: () => void; onUnsave: (id: string) => void }) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { t } = useLanguage()
   const go = (fn: () => void) => { onClose(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fn() }
   const rows = line ? [
-    { key: 'queue', Icon: Users, label: 'Report queue', color: ui.text, onPress: () => go(() => router.push({ pathname: '/report/queue', params: { station_name: line.from } } as any)) },
-    { key: 'fare', Icon: Banknote, label: 'Report fare', color: ui.text, onPress: () => go(() => router.push({ pathname: '/report/fare', params: { from: line.from, to: line.to, route_id: line.id, transport_type: 'trotro' } } as any)) },
-    { key: 'unsave', Icon: HeartOff, label: 'Unsave line', color: '#B91C1C', onPress: () => go(() => onUnsave(line.id)) },
+    { key: 'queue', Icon: Users, label: t('homeX.reportQueue'), color: ui.text, onPress: () => go(() => router.push({ pathname: '/report/queue', params: { station_name: line.from } } as any)) },
+    { key: 'fare', Icon: Banknote, label: t('homeX.reportFare'), color: ui.text, onPress: () => go(() => router.push({ pathname: '/report/fare', params: { from: line.from, to: line.to, route_id: line.id, transport_type: 'trotro' } } as any)) },
+    { key: 'unsave', Icon: HeartOff, label: t('homeX.unsaveLine'), color: '#B91C1C', onPress: () => go(() => onUnsave(line.id)) },
   ] : []
   return (
     <Modal visible={!!line} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} onPress={onClose} accessibilityLabel="Close">
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} onPress={onClose} accessibilityLabel={t('homeX.close')}>
         <Pressable style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 8, paddingBottom: insets.bottom + 12 }} onPress={() => {}}>
           <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginBottom: 12 }} />
           {line ? (
@@ -137,10 +140,10 @@ function LineActionsSheet({ line, onClose, onUnsave }: { line: SheetLine | null;
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
+            accessibilityLabel={t('common.cancel')}
             style={{ height: 52, marginHorizontal: 20, marginTop: 8, borderRadius: 12, backgroundColor: ui.surface, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.text }}>Cancel</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.text }}>{t('common.cancel')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -158,6 +161,7 @@ function LineActionsSheet({ line, onClose, onUnsave }: { line: SheetLine | null;
  */
 export default function MyRoutesCard({ commute, style }: { commute: ReturnType<typeof useCommute>; style?: object }) {
   const router = useRouter()
+  const { t } = useLanguage()
   const { saved, isLoaded, variant, q, infoById, toggleFavorite } = commute
   const [sheet, setSheet] = useState<SheetLine | null>(null)
   // Lines present when Home first loads stay put; a line saved later slides in.
@@ -183,8 +187,8 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
   if (saved.length === 0) {
     return (
       <View style={[{ marginHorizontal: 20, marginTop: 14, borderWidth: 2, borderStyle: 'dashed', borderColor: '#D6D3D1', borderRadius: 18, padding: 16 }, style]}>
-        <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.text }}>Save your trotro line</Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary, marginTop: 2 }}>See its fare and queue every morning.</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.text }}>{t('homeX.saveYourLine')}</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary, marginTop: 2 }}>{t('homeX.saveYourLineSub')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
           {STARTER_LINES.map((l) => (
             <Pressable
@@ -192,7 +196,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/routes/search', params: { from: l.from, to: l.to } } as any) }}
               hitSlop={{ top: 6, bottom: 6 }}
               accessibilityRole="button"
-              accessibilityLabel={`Find the ${l.from} to ${l.to} line`}
+              accessibilityLabel={t('homeX.findLineA11y', { from: l.from, to: l.to })}
               style={{ height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: corridorFor(l.from, l.to).color, justifyContent: 'center' }}
             >
               <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#FFFFFF' }}>{l.from} → {l.to}</Text>
@@ -216,7 +220,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
       {(offline || failed) && q.data ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }} accessibilityRole="text">
           <WifiOff size={14} color={ui.textTertiary} />
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>{offline ? 'Offline' : "Couldn't refresh"} · saved {savedAt}</Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>{t(offline ? 'homeX.offlineSaved' : 'homeX.failedSaved', { time: savedAt })}</Text>
         </View>
       ) : null}
 
@@ -239,17 +243,17 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
           let strip: React.ReactNode
           let stripDark = false
           if (loading) {
-            strip = <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF' }} numberOfLines={1}>Checking {from}…</Text>
+            strip = <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF' }} numberOfLines={1}>{t('homeX.checking', { place: from })}</Text>
           } else if (noAnswer) {
-            strip = <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF' }} numberOfLines={1}>{offline ? `Offline · couldn't check ${from}` : `Couldn't check ${from}`}</Text>
+            strip = <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF' }} numberOfLines={1}>{t(offline ? 'homeX.offlineCheck' : 'homeX.failedCheck', { place: from })}</Text>
           } else if (queue && age !== 'stale') {
             const dim = age === 'aging'
             strip = (
               <FlashOnChange token={`${queue.status}:${queue.reportedAt}:${queue.confirmations ?? 0}`} color="rgba(255,255,255,0.18)">
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <QueueGlyph status={queue.status} color="#FFFFFF" size={15} opacity={dim ? 0.6 : 1} />
-                  <Text style={{ fontFamily: dim ? font.semibold : font.bold, fontSize: 15, color: '#FFFFFF' }}>{QUEUE_WORD[queue.status]}</Text>
-                  <Text style={{ fontFamily: font.medium, fontSize: 15, color: WHITE_SOFT, flexShrink: 1 }} numberOfLines={1}>· {ageLabel(queue.reportedAt)}</Text>
+                  <Text style={{ fontFamily: dim ? font.semibold : font.bold, fontSize: 15, color: '#FFFFFF' }}>{queueWordT(queue.status)}</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 15, color: WHITE_SOFT, flexShrink: 1 }} numberOfLines={1}>· {ageT(ageLabel(queue.reportedAt))}</Text>
                 </View>
               </FlashOnChange>
             )
@@ -259,15 +263,15 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
             stripDark = true
             strip = (
               <>
-                <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>No new report · last {ageLabel(queue.reportedAt)}</Text>
-                <ReportPill onPress={reportQueue} label={`Report the queue at ${from}`} />
+                <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>{t('homeX.staleLast', { age: ageT(ageLabel(queue.reportedAt)) })}</Text>
+                <ReportPill onPress={reportQueue} label={t('homeX.reportQueueAt', { place: from })} />
               </>
             )
           } else {
             strip = (
               <>
-                <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>No reports yet</Text>
-                <ReportPill onPress={reportQueue} label={`Report the queue at ${from}`} />
+                <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>{t('homeX.noReportsYet')}</Text>
+                <ReportPill onPress={reportQueue} label={t('homeX.reportQueueAt', { place: from })} />
               </>
             )
           }
@@ -279,11 +283,11 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                 onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSheet({ id: f.id, code, from, to, color }) }}
                 delayLongPress={350}
                 accessibilityRole="button"
-                accessibilityHint="Long press for report and unsave options"
+                accessibilityHint={t('homeX.longPressHint')}
                 accessibilityActions={[
-                  { name: 'reportQueue', label: 'Report queue' },
-                  { name: 'reportFare', label: 'Report fare' },
-                  { name: 'unsave', label: 'Unsave line' },
+                  { name: 'reportQueue', label: t('homeX.reportQueue') },
+                  { name: 'reportFare', label: t('homeX.reportFare') },
+                  { name: 'unsave', label: t('homeX.unsaveLine') },
                 ]}
                 onAccessibilityAction={(e) => {
                   const name = e.nativeEvent.actionName
@@ -291,7 +295,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                   else if (name === 'reportFare') router.push({ pathname: '/report/fare', params: { from, to, route_id: f.id, transport_type: 'trotro' } } as any)
                   else if (name === 'unsave') unsave(f.id)
                 }}
-                accessibilityLabel={`${from} to ${to}${fare ? `, ${formatGHS(fare.amount)}${fare.source === 'reported' ? ' reported by riders' : ' GPRTU fare'}` : ''}${q.data ? `, ${queueA11y(queue?.status, queue?.reportedAt)}` : ''}`}
+                accessibilityLabel={`${t('homeX.routeA11y', { from, to })}${fare ? `, ${t(fare.source === 'reported' ? 'homeX.fareRiders' : 'homeX.fareGprtu', { fare: formatGHS(fare.amount) })}` : ''}${q.data ? `, ${queueA11y(queue?.status, queue?.reportedAt)}` : ''}`}
                 style={{ backgroundColor: color, borderRadius: 18, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12, gap: 6, overflow: 'hidden' }}
               >
                 {/* Faint white Adinkra wallpaper across the block (decoration only). */}
@@ -301,7 +305,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                     <HeroText size={32} numberOfLines={1} style={{ color: '#FFFFFF', letterSpacing: 0.3 }}>{code}</HeroText>
                     <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#FFFFFF' }} numberOfLines={1}>
                       → {to}
-                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}> from {from}</Text>
+                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}> {t('homeX.fromPlace', { place: from })}</Text>
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
@@ -313,7 +317,7 @@ export default function MyRoutesCard({ commute, style }: { commute: ReturnType<t
                           {fare.source === 'reported' ? '~' : ''}{formatGHS(fare.amount)}
                         </HeroText>
                         <Text style={{ fontFamily: font.extrabold, fontSize: 12, color: WHITE_SOFT, letterSpacing: 0.7 }}>
-                          {fare.source === 'gprtu' ? 'GPRTU' : 'RIDERS SAY'}
+                          {fare.source === 'gprtu' ? 'GPRTU' : t('homeX.ridersSay')}
                         </Text>
                       </>
                     ) : null}

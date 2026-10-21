@@ -39,14 +39,15 @@ import { useStations } from '@/lib/hooks/useStations'
 import { useApp } from '@/lib/contexts/AppContext'
 import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
+import { useLanguage } from '@/lib/i18n'
 
 // Redesign (2026-10-09): Transit-style quick tiles, drawn icons, no emoji.
 // "moderate" is merged into "Small queue" (owner-approved); old moderate reports still display.
 const QUEUE_LEVELS = [
-  { id: 'empty', label: 'Cars waiting', sub: 'Hop in now', color: '#15803D', Icon: Bus },
-  { id: 'short', label: 'Small queue', sub: 'A few minutes', color: '#B45309', Icon: User },
-  { id: 'long', label: 'Long queue', sub: '20–45 min', color: '#C2410C', Icon: Users },
-  { id: 'very_long', label: 'Very long', sub: '45 min or more', color: '#B91C1C', Icon: Clock },
+  { id: 'empty', label: 'report.queue.empty', sub: 'report.queue.emptySub', color: '#15803D', Icon: Bus },
+  { id: 'short', label: 'report.queue.short', sub: 'report.queue.shortSub', color: '#B45309', Icon: User },
+  { id: 'long', label: 'report.queue.long', sub: 'report.queue.longSub', color: '#C2410C', Icon: Users },
+  { id: 'very_long', label: 'report.queue.veryLong', sub: 'report.queue.veryLongSub', color: '#B91C1C', Icon: Clock },
 ]
 
 let nteaseeXml: string | null = null
@@ -70,6 +71,7 @@ export default function QueueReportScreen() {
   const { maybePromptReview } = useStoreReview()
   const { submit, isSubmitting } = useSubmitQueueReport(deviceId)
   const { stations } = useStations()
+  const { t } = useLanguage()
 
   // Opened from a station page: that station is preselected (redesign wave 2).
   const params = useLocalSearchParams<{ station_id?: string; station_name?: string }>()
@@ -96,7 +98,7 @@ export default function QueueReportScreen() {
   const handleSubmit = async () => {
     const name = selectedStationName
     if (!name || !selectedLevel) {
-      Alert.alert('Missing Info', 'Please select a station and queue level')
+      Alert.alert(t('report.missingInfo'), t('report.queue.missingBody'))
       return
     }
 
@@ -114,7 +116,7 @@ export default function QueueReportScreen() {
       refreshProfile().catch(() => {})
       setTimeout(() => { maybePromptReview().finally(() => router.back()) }, 2600)
     } else {
-      Alert.alert('Error', 'Failed to submit report. Please try again.')
+      Alert.alert(t('report.error'), `${t('report.submitFailed')} ${t('report.tryAgain')}`)
     }
   }
 
@@ -144,7 +146,7 @@ export default function QueueReportScreen() {
           >
             <MapPin size={14} color="#FF4D1C" />
             <Text style={s.locationPillText} numberOfLines={1}>
-              {selectedStationName || 'Select station'}
+              {selectedStationName || t('report.selectStation')}
             </Text>
             <ChevronDown size={14} color="#FF4D1C" />
           </TouchableOpacity>
@@ -153,14 +155,14 @@ export default function QueueReportScreen() {
         {/* Question */}
         <View style={{ paddingHorizontal: 24, marginTop: 8, marginBottom: 14 }}>
           <Text style={{ fontFamily: font.extrabold, fontSize: 26, lineHeight: 35, color: '#111111' }}>
-            {selectedStationName ? `How's the queue at ${selectedStationName}?` : "How's the queue?"}
+            {selectedStationName ? t('report.queue.howAt', { station: selectedStationName }) : t('report.queue.how')}
           </Text>
-          <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#5F6670' }}>Tap what you see right now.</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#5F6670' }}>{t('report.queue.tapSub')}</Text>
         </View>
 
           <View style={{ paddingHorizontal: 24, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 999, paddingHorizontal: 12, height: 32 }}>
-              <CountText value={sent ? coinsAtOpen.current + sent.points : profile?.total_points ?? 0} format={(n) => `${n} coins`} style={{ fontFamily: font.extrabold, fontSize: 14, color: '#92400E' }} />
+              <CountText value={sent ? coinsAtOpen.current + sent.points : profile?.total_points ?? 0} format={(n) => t('report.coinsN', { n })} style={{ fontFamily: font.extrabold, fontSize: 14, color: '#92400E' }} />
             </View>
           </View>
         </View>
@@ -180,7 +182,7 @@ export default function QueueReportScreen() {
                 activeOpacity={0.75}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${level.label}, ${level.sub}`}
+                accessibilityLabel={`${t(level.label)}, ${t(level.sub)}`}
                 style={{
                   width: (width - 48 - 10) / 2, minHeight: 128, borderRadius: 18, padding: 16, gap: 8,
                   backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF',
@@ -190,8 +192,8 @@ export default function QueueReportScreen() {
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: level.color, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={24} color="#FFFFFF" />
                 </View>
-                <Text style={{ fontFamily: font.extrabold, fontSize: 17, color: '#111111' }}>{level.label}</Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#5F6670', marginTop: -6 }}>{level.sub}</Text>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 17, color: '#111111' }}>{t(level.label)}</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#5F6670', marginTop: -6 }}>{t(level.sub)}</Text>
               </TouchableOpacity>
             )
           })}
@@ -200,10 +202,10 @@ export default function QueueReportScreen() {
         <TouchableOpacity
           onPress={() => { haptics.light(); router.back() }}
           accessibilityRole="button"
-          accessibilityLabel="Skip, not at a station"
+          accessibilityLabel={t('report.queue.skipA11y')}
           style={{ alignSelf: 'flex-end', marginRight: 24, marginTop: 12, backgroundColor: '#EFEDEA', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }}
         >
-          <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: '#5F6670' }}>Skip</Text>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: '#5F6670' }}>{t('report.queue.skip')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -215,12 +217,12 @@ export default function QueueReportScreen() {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityState={{ disabled: !canSubmit }}
-          accessibilityLabel={`Send report, plus ${REPORT_POINTS.queue} coins`}
+          accessibilityLabel={t('report.queue.sendA11y', { n: REPORT_POINTS.queue })}
           style={{ borderRadius: 16, overflow: 'hidden', opacity: canSubmit ? 1 : 0.4 }}
         >
           <View style={[s.submitBtn, { backgroundColor: '#FF4D1C' }]}>
             <Text style={[s.submitText, { letterSpacing: 0 }]}>
-              {isSubmitting ? 'Sending…' : `Send report · +${REPORT_POINTS.queue} coins`}
+              {isSubmitting ? t('report.sending') : t('report.queue.send', { n: REPORT_POINTS.queue })}
             </Text>
             <Send size={20} color="#fff" />
           </View>
@@ -229,14 +231,14 @@ export default function QueueReportScreen() {
 
       {sent ? (
         <EnterIn animate style={{ position: 'absolute', left: 20, right: 20, bottom: 110 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#111111', borderRadius: 16, padding: 14 }} accessibilityLiveRegion="polite" accessible accessibilityLabel={`Medaase! At least ${sent.points} coins. Riders who board at ${selectedStationName} will see your report.`}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#111111', borderRadius: 16, padding: 14 }} accessibilityLiveRegion="polite" accessible accessibilityLabel={t('report.queue.thanksA11y', { n: sent.points, station: selectedStationName })}>
           <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFF3EA', alignItems: 'center', justifyContent: 'center' }}>
             <SvgXml xml={nteasee()} width={36} height={36} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>Medaase! +{sent.points} coins</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Riders who board at {selectedStationName} see it now.</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Nteasee · understanding, cooperation</Text>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>{t('report.queue.thanks', { n: sent.points })}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{t('report.queue.thanksSub', { station: selectedStationName })}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('report.queue.nteasee')}</Text>
           </View>
         </View>
         </EnterIn>
@@ -250,14 +252,14 @@ export default function QueueReportScreen() {
         >
           <Pressable style={s.modalSheet}>
             <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>Select Station</Text>
+            <Text style={s.modalTitle}>{t('report.selectStationTitle')}</Text>
 
             <View style={s.searchBox}>
               <Search size={18} color="#FF4D1C" />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search stations..."
+                placeholder={t('report.searchStationsPh')}
                 placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
                 style={s.searchInput}
               />
@@ -309,7 +311,7 @@ export default function QueueReportScreen() {
                 style={s.customLocBtn}
               >
                 <MapPin size={16} color="#FF4D1C" />
-                <Text style={s.customLocText}>Use &ldquo;{search.trim()}&rdquo;</Text>
+                <Text style={s.customLocText}>{t('report.useCustomQ', { q: search.trim() })}</Text>
               </TouchableOpacity>
             )}
           </Pressable>

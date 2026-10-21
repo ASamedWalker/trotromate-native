@@ -14,12 +14,13 @@ import { useApp } from '@/lib/contexts/AppContext'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
+import { useLanguage } from '@/lib/i18n'
 
 const REPORT_TYPES = [
   {
     id: 'fare',
-    title: 'Report Fare',
-    description: 'Share the fare you paid on a route',
+    title: 'report.tab.fareTitle',
+    description: 'report.tab.fareDesc',
     icon: TrendingUp,
     color: c.amber500,
     bgColor: c.amber500,
@@ -29,8 +30,8 @@ const REPORT_TYPES = [
   },
   {
     id: 'queue',
-    title: 'Queue Status',
-    description: 'Report wait times at trotro stations',
+    title: 'report.tab.queueTitle',
+    description: 'report.tab.queueDesc',
     icon: Users,
     color: c.violet500,
     bgColor: c.violet500,
@@ -40,8 +41,8 @@ const REPORT_TYPES = [
   },
   {
     id: 'incident',
-    title: 'Incident Report',
-    description: 'Report traffic, accidents, or police checks',
+    title: 'report.tab.incidentTitle',
+    description: 'report.tab.incidentDesc',
     icon: AlertTriangle,
     color: c.red500,
     bgColor: c.red500,
@@ -51,8 +52,8 @@ const REPORT_TYPES = [
   },
   {
     id: 'photo',
-    title: 'Pulse',
-    description: 'Share photos from your journey',
+    title: 'nav.pulse',
+    description: 'report.tab.photoDesc',
     icon: Camera,
     color: c.pink500,
     bgColor: c.pink500,
@@ -62,8 +63,8 @@ const REPORT_TYPES = [
   },
   {
     id: 'train',
-    title: 'Report Train',
-    description: 'Report schedules, crowding, or fares',
+    title: 'report.tab.trainTitle',
+    description: 'report.tab.trainDesc',
     icon: TrainFront,
     color: '#0ea5e9',
     bgColor: '#0ea5e9',
@@ -80,6 +81,7 @@ export default function ReportScreen() {
   const s = styles(isDark)
   const { profile } = useApp()
   const insets = useSafeAreaInsets()
+  const { t } = useLanguage()
 
   return (
     <SafeAreaView style={s.container}>
@@ -89,8 +91,8 @@ export default function ReportScreen() {
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
       >
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
-          <Text style={[s.headerTitle, { textAlign: 'center' }]}>Contribute</Text>
-          <Text style={[s.headerSub, { textAlign: 'center' }]}>Help fellow commuters and earn points</Text>
+          <Text style={[s.headerTitle, { textAlign: 'center' }]}>{t('report.tab.title')}</Text>
+          <Text style={[s.headerSub, { textAlign: 'center' }]}>{t('report.tab.sub')}</Text>
         </Animated.View>
 
         <View style={s.cardsContainer}>
@@ -121,12 +123,12 @@ export default function ReportScreen() {
 
                   <View style={s.cardContent}>
                     <View style={s.cardTitleRow}>
-                      <Text style={s.cardTitle}>{type.title}</Text>
+                      <Text style={s.cardTitle}>{t(type.title)}</Text>
                       <View style={[s.pointsBadge, { backgroundColor: isDark ? c.stone800 : type.lightBg }]}>
-                        <Text style={[s.pointsText, { color: type.color }]}>+{type.points} coins</Text>
+                        <Text style={[s.pointsText, { color: type.color }]}>{t('report.coinsPlus', { n: type.points })}</Text>
                       </View>
                     </View>
-                    <Text style={s.cardDescription}>{type.description}</Text>
+                    <Text style={s.cardDescription}>{t(type.description)}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -138,19 +140,19 @@ export default function ReportScreen() {
         {/* Stats Banner */}
         <Animated.View entering={FadeInDown.delay(500).duration(400)} style={s.statsContainer}>
           <View style={s.statsBanner}>
-            <Text style={s.statsTitle}>Your Contribution Stats</Text>
+            <Text style={s.statsTitle}>{t('report.tab.statsTitle')}</Text>
             <View style={s.statsRow}>
               <View style={s.statItem}>
                 <Text style={s.statValue}>{profile?.total_reports ?? 0}</Text>
-                <Text style={s.statLabel}>Reports</Text>
+                <Text style={s.statLabel}>{t('report.tab.statReports')}</Text>
               </View>
               <View style={s.statItem}>
                 <Text style={s.statValue}>{profile?.total_points ?? 0}</Text>
-                <Text style={s.statLabel}>Points</Text>
+                <Text style={s.statLabel}>{t('report.tab.statPoints')}</Text>
               </View>
               <View style={s.statItem}>
                 <Text style={s.statValue}>{profile?.current_streak ?? 0}</Text>
-                <Text style={s.statLabel}>Day Streak</Text>
+                <Text style={s.statLabel}>{t('report.tab.statStreak')}</Text>
               </View>
             </View>
           </View>

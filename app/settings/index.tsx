@@ -46,7 +46,7 @@ import { SUPPORT_WHATSAPP } from '@/lib/config/support'
 export default function SettingsScreen() {
   const router = useRouter()
   const s = useMemo(() => getStyles(), [])
-  const { lang, languages } = useLanguage()
+  const { lang, languages, t } = useLanguage()
   const [langOpen, setLangOpen] = useState(false)
   const [showBuild, setShowBuild] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -57,12 +57,12 @@ export default function SettingsScreen() {
 
   const handleClearData = () => {
     Alert.alert(
-      'Clear cached data',
-      'This clears cached data, preferences, and dismissed items on this phone. You stay signed in, and your reports and coins are safe.',
+      t('settings.clearTitle'),
+      t('settings.clearBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('settings.clear'),
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.multiRemove([
@@ -70,7 +70,7 @@ export default function SettingsScreen() {
               'activity_dismissed_ids',
               'troski-favorite-routes',
             ])
-            Alert.alert('Done', 'Cached data cleared.')
+            Alert.alert(t('common.done'), t('settings.cleared'))
           },
         },
       ]
@@ -101,15 +101,15 @@ export default function SettingsScreen() {
     try {
       await Linking.openURL(url)
     } catch {
-      Alert.alert('Email support', 'Email us at support@troski.me')
+      Alert.alert(t('settings.emailSupport'), t('settings.emailUs'))
     }
   }
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.signOutTitle'), t('settings.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: t('settings.signOutTitle'),
         style: 'destructive',
         onPress: async () => {
           await signOutAndWipe(deviceId, resetIdentity)
@@ -121,12 +121,12 @@ export default function SettingsScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete your account?',
-      'This removes your profile, phone number and coins. Your fare reports and Pulse posts stay, shown as "Former rider". Wallet money must be withdrawn first. This cannot be undone.',
+      t('settings.deleteTitle'),
+      t('settings.deleteBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete account',
+          text: t('settings.deleteAccount'),
           style: 'destructive',
           onPress: async () => {
             setDeleting(true)
@@ -135,16 +135,16 @@ export default function SettingsScreen() {
               if (code === 'session_ended') {
                 // The phone was already wiped; leave the signed-in screens.
                 router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
-                Alert.alert('Signed out', error ?? undefined)
+                Alert.alert(t('settings.signedOut'), error ?? undefined)
                 return
               }
               if (error) {
-                Alert.alert(code === 'wallet_not_empty' ? 'Withdraw your balance first' : 'Could not delete account', error)
+                Alert.alert(code === 'wallet_not_empty' ? t('settings.withdrawFirst') : t('settings.deleteFailed'), error)
                 return
               }
               router.replace({ pathname: '/auth/phone', params: { from: 'signout' } } as unknown as Href)
             } catch {
-              Alert.alert('Could not delete account', 'Please check your connection and try again.')
+              Alert.alert(t('settings.deleteFailed'), t('settings.checkConnection'))
             } finally {
               setDeleting(false)
             }
@@ -162,40 +162,40 @@ export default function SettingsScreen() {
         {/* Header */}
         <View style={s.header}>
           <BackButton />
-          <Text style={s.headerTitle}>Settings</Text>
+          <Text style={s.headerTitle}>{t('settings.title')}</Text>
         </View>
 
         {/* Profile card (guests get a sign-in card instead) */}
         <View style={s.section}>
           {!isAuthenticated ? (
             <View style={[s.card, { padding: 16 }]}>
-              <Text style={{ fontSize: 18, fontFamily: font.semibold, color: '#111111' }}>Sign in or create an account</Text>
+              <Text style={{ fontSize: 18, fontFamily: font.semibold, color: '#111111' }}>{t('settings.signInTitle')}</Text>
               <Text style={{ fontSize: 13, fontFamily: font.regular, color: '#6B7280', marginTop: 4 }}>
-                Save your coins, wallet and reports to your phone number. Takes a minute.
+                {t('settings.signInBody')}
               </Text>
               <TouchableOpacity
                 onPress={() => router.push('/auth/phone' as Href)}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Continue with phone"
+                accessibilityLabel={t('settings.continuePhone')}
                 style={{ height: 48, borderRadius: 12, backgroundColor: brand.orange, alignItems: 'center', justifyContent: 'center', marginTop: 14, alignSelf: 'stretch' }}
               >
-                <Text style={{ fontSize: 16, fontFamily: font.semibold, color: '#FFFFFF' }}>Continue with phone</Text>
+                <Text style={{ fontSize: 16, fontFamily: font.semibold, color: '#FFFFFF' }}>{t('settings.continuePhone')}</Text>
               </TouchableOpacity>
               {/* Guests still post to Pulse, so keep their display name editable */}
               <TouchableOpacity
                 onPress={() => router.push('/settings/edit-name' as Href)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Display name, ${profile?.display_name ?? 'Commuter'}. Edit`}
+                accessibilityLabel={t('settings.displayNameA11y', { name: profile?.display_name ?? t('settings.commuter') })}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F2F1EF' }}
               >
                 <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={36} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontFamily: font.regular, color: '#6B7280' }}>Name on Pulse</Text>
-                  <Text style={{ fontSize: 15, fontFamily: font.semibold, color: '#111111' }} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
+                  <Text style={{ fontSize: 13, fontFamily: font.regular, color: '#6B7280' }}>{t('settings.nameOnPulse')}</Text>
+                  <Text style={{ fontSize: 15, fontFamily: font.semibold, color: '#111111' }} numberOfLines={1}>{profile?.display_name ?? t('settings.commuter')}</Text>
                 </View>
-                <Text style={{ fontSize: 14, fontFamily: font.semibold, color: '#C2361A' }}>Edit</Text>
+                <Text style={{ fontSize: 14, fontFamily: font.semibold, color: '#C2361A' }}>{t('settings.edit')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -204,34 +204,34 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               style={[s.card, s.profileRow]}
               accessibilityRole="button"
-              accessibilityLabel="Edit your name"
+              accessibilityLabel={t('settings.editNameA11y')}
             >
               <InitialsAvatar name={profile?.display_name} deviceId={deviceId ?? undefined} size={56} />
               <View style={s.profileInfo}>
-                <Text style={s.profileName} numberOfLines={1}>{profile?.display_name ?? 'Commuter'}</Text>
+                <Text style={s.profileName} numberOfLines={1}>{profile?.display_name ?? t('settings.commuter')}</Text>
                 {isAuthenticated && phone ? <Text style={s.profileSub}>{phone}</Text> : null}
                 <View style={s.tierRow}>
                   <View style={s.tierPill}>
-                    <Text style={s.tierText}>{levelInfo.name}</Text>
+                    <Text style={s.tierText}>{t(`rewards.level.${levelInfo.slug}`)}</Text>
                   </View>
                   {typeof profile?.total_points === 'number' ? (
-                    <Text style={s.profileSub}> · {profile.total_points} coins</Text>
+                    <Text style={s.profileSub}> · {t('settings.nCoins', { n: profile.total_points })}</Text>
                   ) : null}
                 </View>
               </View>
-              <Text style={s.editText}>Edit</Text>
+              <Text style={s.editText}>{t('settings.edit')}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Preferences */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Preferences</Text>
+          <Text style={s.sectionLabel}>{t('settings.preferences')}</Text>
           <View style={s.card}>
             <Row
               s={s}
               icon={<Globe size={18} color="#111111" />}
-              label="Language"
+              label={t('settings.language')}
               value={langNative}
               onPress={() => setLangOpen(true)}
             />
@@ -239,11 +239,11 @@ export default function SettingsScreen() {
             <Row
               s={s}
               icon={<Bell size={18} color="#111111" />}
-              label="Push notifications"
-              sub="Fare changes, alerts, Pulse replies"
+              label={t('settings.push')}
+              sub={t('settings.pushSub')}
               right={
                 <Switch
-                  accessibilityLabel="Push notifications"
+                  accessibilityLabel={t('settings.push')}
                   value={prefs.pushNotifications && osPushGranted !== false}
                   onValueChange={async (v) => {
                     if (!v) {
@@ -262,11 +262,11 @@ export default function SettingsScreen() {
                     updatePref('pushNotifications', final === 'granted')
                     if (final !== 'granted') {
                       Alert.alert(
-                        'Notifications are off in Settings',
-                        'Your phone is blocking Troski notifications. Turn them on in system Settings to receive alerts.',
+                        t('settings.notifOffTitle'),
+                        t('settings.notifOffBody'),
                         [
-                          { text: 'Not now', style: 'cancel' },
-                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                          { text: t('settings.notNow'), style: 'cancel' },
+                          { text: t('settings.openSettings'), onPress: () => Linking.openSettings() },
                         ],
                       )
                     }
@@ -280,7 +280,7 @@ export default function SettingsScreen() {
             <Row
               s={s}
               icon={<SlidersHorizontal size={18} color="#111111" />}
-              label="Choose what you get"
+              label={t('settings.chooseWhat')}
               onPress={() => router.push('/settings/notifications' as Href)}
               chevron
             />
@@ -289,7 +289,7 @@ export default function SettingsScreen() {
 
         {/* Help */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Help</Text>
+          <Text style={s.sectionLabel}>{t('settings.help')}</Text>
           <View style={s.card}>
             {SUPPORT_WHATSAPP ? (
               <>
@@ -297,8 +297,8 @@ export default function SettingsScreen() {
                   s={s}
                   icon={<MessageCircle size={18} color="#15803D" />}
                   tileBg="#DCFCE7"
-                  label="Chat on WhatsApp"
-                  sub="Talk to the Troski team"
+                  label={t('settings.whatsapp')}
+                  sub={t('settings.whatsappSub')}
                   onPress={() => Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`).catch(() => {})}
                   chevron
                 />
@@ -308,7 +308,7 @@ export default function SettingsScreen() {
             <Row
               s={s}
               icon={<Mail size={18} color="#111111" />}
-              label="Email support"
+              label={t('settings.emailSupport')}
               sub="support@troski.me"
               onPress={handleEmailSupport}
               chevron
@@ -318,12 +318,12 @@ export default function SettingsScreen() {
 
         {/* Legal & data */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Legal & data</Text>
+          <Text style={s.sectionLabel}>{t('settings.legal')}</Text>
           <View style={s.card}>
             <Row
               s={s}
               icon={<FileText size={18} color="#111111" />}
-              label="Terms of Service"
+              label={t('settings.terms')}
               onPress={() => router.push('/terms' as Href)}
               chevron
             />
@@ -331,7 +331,7 @@ export default function SettingsScreen() {
             <Row
               s={s}
               icon={<Shield size={18} color="#111111" />}
-              label="Privacy Policy"
+              label={t('settings.privacy')}
               onPress={() => router.push('/privacy' as Href)}
               chevron
             />
@@ -339,8 +339,8 @@ export default function SettingsScreen() {
             <Row
               s={s}
               icon={<Trash2 size={18} color="#111111" />}
-              label="Clear cached data"
-              sub="Frees space. Account, reports and coins stay."
+              label={t('settings.clearTitle')}
+              sub={t('settings.clearSub')}
               onPress={handleClearData}
             />
           </View>
@@ -354,10 +354,10 @@ export default function SettingsScreen() {
               activeOpacity={0.8}
               style={s.signOutBtn}
               accessibilityRole="button"
-              accessibilityLabel="Sign out"
+              accessibilityLabel={t('settings.signOut')}
             >
               <LogOut size={18} color="#111111" />
-              <Text style={s.signOutLabel}>Sign out</Text>
+              <Text style={s.signOutLabel}>{t('settings.signOut')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleDeleteAccount}
@@ -365,9 +365,9 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               style={s.deleteBtn}
               accessibilityRole="button"
-              accessibilityLabel="Delete account"
+              accessibilityLabel={t('settings.deleteAccount')}
             >
-              {deleting ? <ActivityIndicator color="#B91C1C" /> : <Text style={s.deleteLabel}>Delete account</Text>}
+              {deleting ? <ActivityIndicator color="#B91C1C" /> : <Text style={s.deleteLabel}>{t('settings.deleteAccount')}</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -380,7 +380,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               style={s.socialBtn}
               accessibilityRole="button"
-              accessibilityLabel="Troski on Instagram"
+              accessibilityLabel={t('settings.instagram')}
             >
               <Instagram size={20} color="#111111" />
             </TouchableOpacity>
@@ -389,7 +389,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
               style={s.socialBtn}
               accessibilityRole="button"
-              accessibilityLabel="Troski on Facebook"
+              accessibilityLabel={t('settings.facebook')}
             >
               <Facebook size={20} color="#111111" />
             </TouchableOpacity>
@@ -399,7 +399,7 @@ export default function SettingsScreen() {
             onLongPress={() => setShowBuild((v) => !v)}
             suppressHighlighting
           >
-            Troski {Constants.expoConfig?.version ?? '?'} · Made in Accra
+            Troski {Constants.expoConfig?.version ?? '?'} · {t('settings.madeIn')}
           </Text>
           {showBuild && !__DEV__ && (
             <Text style={s.buildText}>

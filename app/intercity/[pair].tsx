@@ -12,8 +12,10 @@ import { TicketCard, TICKET_INK } from '@/components/TicketCard'
 import { OperatorChip, intercityFareText } from '@/components/lines/IntercityRow'
 import { formatGHSRange } from '@/lib/utils/currency'
 import { useHaptics } from '@/lib/hooks/useHaptics'
+import { useLanguage } from '@/lib/i18n'
+import { DeName, shortDate, trData } from '@/lib/i18n/screens/train'
+import { INTERCITY_CHECKED } from '@/lib/constants/intercity-fares'
 import {
-  INTERCITY_CHECKED_LONG,
   INTERCITY_OPERATORS,
   fareTerminals,
   getIntercityPair,
@@ -37,6 +39,9 @@ const classOf = (f: IntercityFare) => (f.classKey === 'not-stated' ? null : f.cl
 function OperatorCard({ fare }: { fare: IntercityFare }) {
   const op = INTERCITY_OPERATORS[fare.operator]
   const haptics = useHaptics()
+  const { t, lang } = useLanguage()
+  const checked = shortDate(INTERCITY_CHECKED, lang)
+  const sourceLabel = trData(op.sourceLabel, lang)
   const terminals = fareTerminals(fare)
   // Per-terminal prices only add information when the fare varies.
   const showTerminalFares = fare.fareMin !== fare.fareMax
@@ -49,36 +54,36 @@ function OperatorCard({ fare }: { fare: IntercityFare }) {
       tone="fare"
       label={op.fullName}
       value={fare.sourceUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}
-      accessibilityLabel={`${op.fullName}, ${fare.classLabel}`}
+      accessibilityLabel={`${op.fullName}, ${trData(fare.classLabel, lang)}`}
       bodyStyle={{ gap: 10, paddingBottom: 4 }}
     >
       <View style={{ gap: 2 }}>
-        <Text style={{ fontFamily: font.medium, fontSize: 15, color: ui.textSecondary }}>{fare.classLabel}</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 15, color: ui.textSecondary }}>{trData(fare.classLabel, lang)}</Text>
         <HeroText
           size={34}
           style={{ color: TICKET_INK, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
-          accessibilityLabel={fare.fareMin === fare.fareMax ? `${fare.fareMin} cedis` : `${fare.fareMin} to ${fare.fareMax} cedis`}
+          accessibilityLabel={fare.fareMin === fare.fareMax ? t('travel.cedis', { n: fare.fareMin }) : t('travel.cedisRange', { min: fare.fareMin, max: fare.fareMax })}
         >
           {fareText(fare)}
         </HeroText>
       </View>
       {showTerminalFares && (
         <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>
-          {op.name} lists more than one price on this route; it depends on the bus and terminal.
+          {t('travel.multiPrice', { op: op.name })}
         </Text>
       )}
 
-      {terminals.map((t) => (
-        <View key={t.terminal} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      {terminals.map((tm) => (
+        <View key={tm.terminal} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
           <MapPin size={16} color={ui.textSecondary} style={{ marginTop: 3 }} />
           <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: ui.text }}>
-            Departs {t.terminal}{showTerminalFares ? ` · ${range(t.min, t.max)}` : ''}
+            {t('travel.departs', { terminal: tm.terminal })}{showTerminalFares ? ` · ${range(tm.min, tm.max)}` : ''}
           </Text>
         </View>
       ))}
       {fare.effectiveNote ? (
         <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>
-          Fare {fare.effectiveNote}
+          {t('travel.fareNote', { note: trData(fare.effectiveNote, lang) })}
         </Text>
       ) : null}
 
@@ -86,11 +91,11 @@ function OperatorCard({ fare }: { fare: IntercityFare }) {
         onPress={open}
         activeOpacity={0.7}
         accessibilityRole="link"
-        accessibilityLabel={`Source: ${op.sourceLabel}, checked ${INTERCITY_CHECKED_LONG}. Opens ${fare.sourceUrl.replace(/^https:\/\/(www\.)?/, '')}`}
+        accessibilityLabel={t('travel.a11ySource', { site: sourceLabel, date: checked, url: fare.sourceUrl.replace(/^https:\/\/(www\.)?/, '') })}
         style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F0EFED', marginTop: 2, paddingTop: 6 }}
       >
         <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: brand.orangeText }}>
-          Source: {op.sourceLabel} · checked {INTERCITY_CHECKED_LONG}
+          {t('travel.sourceChecked', { site: sourceLabel, date: checked })}
         </Text>
         <ExternalLink size={16} color={brand.orangeText} />
       </TouchableOpacity>
@@ -103,17 +108,18 @@ export default function IntercityPairScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const pair = getIntercityPair(slug)
+  const { t, lang } = useLanguage()
 
   if (!pair) {
     return (
       <View style={{ flex: 1, backgroundColor: ui.bg }}>
         <AdinkraBand patternHeight={200} style={{ paddingTop: insets.top + 12, paddingHorizontal: space.xl, paddingBottom: 20, gap: 12 }}>
           <BackButton />
-          <HeroText size={24} style={{ color: ui.text }} accessibilityRole="header">Travel fare not found</HeroText>
+          <HeroText size={24} style={{ color: ui.text }} accessibilityRole="header">{t('travel.notFound')}</HeroText>
         </AdinkraBand>
         <View style={{ padding: space.xl, gap: 16 }}>
-          <Text style={{ ...type.body, color: ui.textSecondary }}>We only list STC and VIP town pairs from their own booking sites.</Text>
-          <Button label="See all travel fares" variant="secondary" onPress={() => router.replace({ pathname: '/(tabs)/lines', params: { transport: 'intercity' } } as Href)} />
+          <Text style={{ ...type.body, color: ui.textSecondary }}>{t('travel.notFoundSub')}</Text>
+          <Button label={t('travel.seeAll')} variant="secondary" onPress={() => router.replace({ pathname: '/(tabs)/lines', params: { transport: 'intercity' } } as Href)} />
         </View>
       </View>
     )
@@ -121,7 +127,7 @@ export default function IntercityPairScreen() {
 
   const reverse = getReversePair(pair)
   const answer = pair.fares
-    .map((f) => `${INTERCITY_OPERATORS[f.operator].name}${classOf(f) ? ` ${classOf(f)!.toLowerCase()}` : ''} ${fareText(f)}`)
+    .map((f) => `${INTERCITY_OPERATORS[f.operator].name}${classOf(f) ? ` ${trData(classOf(f), lang).toLowerCase()}` : ''} ${fareText(f)}`)
     .join(' · ')
 
   return (
@@ -133,9 +139,9 @@ export default function IntercityPairScreen() {
       {/* Adinkra wallpaper band (owner rule: repeating pattern, not one symbol) */}
       <AdinkraBand patternHeight={340} style={{ paddingTop: insets.top + 12, paddingHorizontal: space.xl, paddingBottom: 22 }}>
         <BackButton />
-        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: brand.orangeText, marginTop: 14 }}>TRAVEL · BUS FARE</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: brand.orangeText, marginTop: 14 }}>{t('travel.kicker')}</Text>
         <HeroText size={30} style={{ color: ui.text, letterSpacing: -0.5 }} accessibilityRole="header">
-          {pair.from} to {pair.to}
+          {t('travel.fromTo', { from: DeName(pair.from, lang), to: pair.to })}
         </HeroText>
         {/* Answer first: the fare, then who charges what */}
         <HeroText size={36} style={{ color: ui.text, fontVariant: ['tabular-nums'], marginTop: 6 }}>
@@ -144,7 +150,7 @@ export default function IntercityPairScreen() {
         <Text style={{ fontFamily: font.semibold, fontSize: 16, color: ui.text }}>{answer}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
           {[...new Set(pair.fares.map((f) => f.operator))].map((id) => <OperatorChip key={id} label={INTERCITY_OPERATORS[id].name} />)}
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>Operator fares · checked {INTERCITY_CHECKED_LONG}</Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>{t('travel.operatorFares', { date: shortDate(INTERCITY_CHECKED, lang) })}</Text>
         </View>
       </AdinkraBand>
 
@@ -156,13 +162,13 @@ export default function IntercityPairScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: ui.warningSoft, borderRadius: radius.md, padding: 14, marginTop: 4 }}>
           <Info size={18} color={ui.warning} style={{ marginTop: 2 }} />
           <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 15, color: '#78350F' }}>
-            Confirm at the terminal; fares can change.
+            {t('travel.confirm')}
           </Text>
         </View>
 
         {reverse ? (
           <Button
-            label={`${reverse.from} to ${reverse.to}`}
+            label={t('travel.fromTo', { from: DeName(reverse.from, lang), to: reverse.to })}
             icon={ArrowLeftRight}
             variant="outline"
             style={{ marginTop: 8 }}
@@ -170,7 +176,7 @@ export default function IntercityPairScreen() {
           />
         ) : (
           <Text style={{ ...type.caption, color: ui.textTertiary, textAlign: 'center', marginTop: 8 }}>
-            No operator fare listed for {pair.to} to {pair.from} yet.
+            {t('travel.noReverse', { from: pair.to, to: pair.from })}
           </Text>
         )}
       </View>

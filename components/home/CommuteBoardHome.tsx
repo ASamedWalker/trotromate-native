@@ -16,6 +16,8 @@ import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { corridorKey } from '@/lib/constants/corridors'
 import { ageLabel } from '@/lib/utils/freshness'
 import { RELEASE_MODE } from '@/lib/config/release'
+import { useLanguage, t as tr } from '@/lib/i18n'
+import { ageT } from '@/lib/i18n/home-format'
 import { HeroText } from '@/components/HeroText'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import TroskiCoin from '@/components/TroskiCoin'
@@ -50,9 +52,9 @@ function isNight(): boolean {
 
 function greeting(): string {
   const h = new Date().getUTCHours() // Ghana = UTC+0
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (h < 12) return tr('homeX.goodMorning')
+  if (h < 17) return tr('homeX.goodAfternoon')
+  return tr('homeX.goodEvening')
 }
 
 // Commute hours for the station prompt (UX v2 H6): 05–09 and 16–20 Ghana time.
@@ -70,17 +72,18 @@ const ALERT_ACCENT: Record<ServiceAlert['severity'], { bg: string; edge: string;
 /** Alert strip row: title + "SOURCE · age", tinted by severity with a 4 pt edge. */
 function AlertStrip({ alert, onPress }: { alert: ServiceAlert; onPress: () => void }) {
   const a = ALERT_ACCENT[alert.severity]
+  const { t } = useLanguage()
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${alert.title}. Source: ${alert.source}, ${ageLabel(alert.created_at)}`}
+      accessibilityLabel={t('homeX.alertA11y', { title: alert.title, source: alert.source, age: ageT(ageLabel(alert.created_at)) })}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: a.bg, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: a.edge, paddingVertical: 10, paddingHorizontal: 12, minHeight: 56 }}
     >
       <TriangleAlert size={18} color={a.icon} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontFamily: font.bold, fontSize: 15, color: ui.text }} numberOfLines={1}>{alert.title}</Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }} numberOfLines={1}>{alert.source} · {ageLabel(alert.created_at)}</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }} numberOfLines={1}>{alert.source} · {ageT(ageLabel(alert.created_at))}</Text>
       </View>
       <ChevronRight size={18} color={ui.textTertiary} />
     </Pressable>
@@ -109,6 +112,7 @@ function Chip({ label, onPress, night }: { label: string; onPress: () => void; n
  */
 function StationPrompt({ location, granted }: { location: UserLocation | null; granted: boolean }) {
   const router = useRouter()
+  const { t } = useLanguage()
   const stations = useStations()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -124,11 +128,11 @@ function StationPrompt({ location, granted }: { location: UserLocation | null; g
     <PressableScale
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: '/report/queue', params: { station_id: nearest.s.id, station_name: name } } as any) }}
       accessibilityRole="button"
-      accessibilityLabel={`At ${name}? Report the queue`}
+      accessibilityLabel={t('homeX.atStationPrompt', { name })}
       style={{ marginHorizontal: 20, marginTop: 12, height: 56, borderRadius: 14, backgroundColor: brand.orange, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}
     >
       <MapPin size={20} color={ui.onBrand} />
-      <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 16, color: ui.onBrand }} numberOfLines={1}>At {name}? Report the queue</Text>
+      <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 16, color: ui.onBrand }} numberOfLines={1}>{t('homeX.atStationPrompt', { name })}</Text>
       <ArrowRight size={18} color={ui.onBrand} />
     </PressableScale>
   )
@@ -136,6 +140,7 @@ function StationPrompt({ location, granted }: { location: UserLocation | null; g
 
 export default function CommuteBoardHome() {
   const router = useRouter()
+  const { t } = useLanguage()
   const insets = useSafeAreaInsets()
   const { profile, deviceId, refreshProfile } = useApp()
   const { user: authUser, isAuthenticated } = useAuthContext()
@@ -156,7 +161,7 @@ export default function CommuteBoardHome() {
   const sub = night ? 'rgba(255,255,255,0.75)' : ui.textTertiary
   const chipBg = night ? 'rgba(255,255,255,0.14)' : ui.card
 
-  const displayName = profile?.display_name || 'Commuter'
+  const displayName = profile?.display_name || t('homeX.commuter')
   // Auto-assigned names ("Troski Fan #CD13") aren't a person's name — greet plainly.
   const firstName = /^Troski Fan #/.test(displayName) ? null : displayName.split(' ')[0]
   const coins = profile?.total_points ?? 0
@@ -174,8 +179,8 @@ export default function CommuteBoardHome() {
   const first = commute.saved[0]
   const chips: { key: string; label: string; onPress: () => void }[] = []
   if (first) {
-    chips.push({ key: 'to', label: `To ${first.to}`, onPress: () => openRoute(first.id) })
-    chips.push({ key: 'from', label: `From ${first.from}`, onPress: () => openRoute(first.id) })
+    chips.push({ key: 'to', label: t('homeX.chipTo', { place: first.to }), onPress: () => openRoute(first.id) })
+    chips.push({ key: 'from', label: t('homeX.chipFrom', { place: first.from }), onPress: () => openRoute(first.id) })
   }
   const used = new Set(chips.length ? [first!.to.toLowerCase(), first!.from.toLowerCase()] : [])
   for (const r of getRecentSearches(10)) {
@@ -211,27 +216,27 @@ export default function CommuteBoardHome() {
             onPress={() => router.push('/auth/phone' as Href)}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel="Sign in"
+            accessibilityLabel={t('homeX.signIn')}
             style={{ height: 36, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: fg, justifyContent: 'center' }}
           >
-            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: fg }}>Sign in</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: fg }}>{t('homeX.signIn')}</Text>
           </Pressable>
         ) : null}
         <Pressable
           onPress={() => router.push('/(tabs)/rewards' as any)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Rewards, ${coins} ${coins === 1 ? 'coin' : 'coins'}`}
+          accessibilityLabel={t('homeX.coinsA11y', { coins: t(coins === 1 ? 'homeX.coin' : 'homeX.coins', { n: coins }) })}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: brand.orangeSoft }}
         >
           <TroskiCoin size={16} />
-          <CountText value={coins} format={(n) => `${n} ${n === 1 ? 'coin' : 'coins'}`} style={{ fontFamily: font.bold, fontSize: 14, color: brand.orangeText }} />
+          <CountText value={coins} format={(n) => t(n === 1 ? 'homeX.coin' : 'homeX.coins', { n })} style={{ fontFamily: font.bold, fontSize: 14, color: brand.orangeText }} />
         </Pressable>
         <Pressable
           onPress={() => router.push('/(tabs)/activity' as any)}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel="Notifications"
+          accessibilityLabel={t('homeX.notifications')}
           style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: chipBg, alignItems: 'center', justifyContent: 'center' }}
         >
           <Bell size={20} color={fg} />
@@ -242,7 +247,7 @@ export default function CommuteBoardHome() {
           onPress={() => router.push('/(tabs)/profile' as Href)}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel="Open your profile"
+          accessibilityLabel={t('homeX.openProfile')}
         >
           <InitialsAvatar name={displayName} deviceId={deviceId || ''} size={36} />
         </Pressable> : null}
@@ -253,7 +258,7 @@ export default function CommuteBoardHome() {
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/routes/search?focus=to' as any) }}
           accessibilityRole="button"
-          accessibilityLabel="Where to? Search a station or line"
+          accessibilityLabel={t('homeX.whereToA11y')}
           style={{
             height: 52, borderRadius: 16, backgroundColor: ui.card, borderWidth: 1, borderColor: '#E7E5E4',
             flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16,
@@ -261,7 +266,7 @@ export default function CommuteBoardHome() {
           }}
         >
           <Search size={20} color={ui.text} strokeWidth={2.2} />
-          <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.textSecondary }}>Where to?</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 16, color: ui.textSecondary }}>{t('home.whereTo')}</Text>
         </Pressable>
         {chips.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10, marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 6 }}>

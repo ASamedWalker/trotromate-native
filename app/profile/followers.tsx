@@ -8,12 +8,14 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import UserRow from '@/components/UserRow'
 import type { PublicProfile } from '@/lib/types'
+import { useLanguage } from '@/lib/i18n'
 
 export default function FollowersScreen() {
   const { id: profileDeviceId, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>()
   const isDark = useColorScheme() === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
   const { deviceId: myDeviceId } = useApp()
+  const { t: tr } = useLanguage()
 
   const [tab, setTab] = useState<'followers' | 'following'>(
     initialTab === 'following' ? 'following' : 'followers'
@@ -108,7 +110,7 @@ export default function FollowersScreen() {
       {/* Header */}
       <View style={s.header}>
         <BackButton />
-        <Text style={s.headerTitle}>{tab === 'followers' ? 'Followers' : 'Following'}</Text>
+        <Text style={s.headerTitle}>{tab === 'followers' ? tr('profile.followers') : tr('profile.following')}</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -121,7 +123,7 @@ export default function FollowersScreen() {
             style={[s.tab, tab === t && s.tabActive]}
           >
             <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-              {t === 'followers' ? 'Followers' : 'Following'}
+              {t === 'followers' ? tr('profile.followers') : tr('profile.following')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -138,7 +140,7 @@ export default function FollowersScreen() {
           !isLoading ? (
             <View style={s.empty}>
               <Text style={s.emptyText}>
-                {tab === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
+                {tab === 'followers' ? tr('profile.noFollowers') : tr('profile.noFollowing')}
               </Text>
             </View>
           ) : null
@@ -150,7 +152,7 @@ export default function FollowersScreen() {
             </View>
           ) : cursor ? (
             <TouchableOpacity onPress={() => fetchList()} style={s.loadMore}>
-              <Text style={s.loadMoreText}>Load more</Text>
+              <Text style={s.loadMoreText}>{tr('profile.loadMore')}</Text>
             </TouchableOpacity>
           ) : null
         }

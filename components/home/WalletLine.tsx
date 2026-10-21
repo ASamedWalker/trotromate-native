@@ -7,6 +7,7 @@ import { font, ui, brand } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import { getCachedWallet, cacheWalletBalance } from '@/lib/services/walletCache'
 import { authedFetch } from '@/lib/services/authedFetch'
+import { useLanguage } from '@/lib/i18n'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
@@ -17,6 +18,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
  */
 export default function WalletLine({ authUserId }: { authUserId: string }) {
   const router = useRouter()
+  const { t } = useLanguage()
   const [balance, setBalance] = useState<number | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -49,22 +51,22 @@ export default function WalletLine({ authUserId }: { authUserId: string }) {
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.navigate('/(tabs)/wallet' as Href) }}
         accessibilityRole="button"
-        accessibilityLabel={`Wallet, ${amount}${failed ? ', last known balance' : ''}`}
+        accessibilityLabel={`${t('homeX.walletA11y', { amount })}${failed ? t('homeX.lastKnown') : ''}`}
         style={{ flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14 }}
       >
         <Wallet size={18} color={ui.text} />
         <Text style={{ fontFamily: font.bold, fontSize: 15, color: ui.text }} numberOfLines={1}>
-          Wallet <Text style={{ fontVariant: ['tabular-nums'] }}>{amount}</Text>
+          {t('nav.wallet')} <Text style={{ fontVariant: ['tabular-nums'] }}>{amount}</Text>
         </Text>
-        {failed && balance != null ? <Text style={{ fontFamily: font.medium, fontSize: 12, color: ui.textTertiary }}>· offline</Text> : null}
+        {failed && balance != null ? <Text style={{ fontFamily: font.medium, fontSize: 12, color: ui.textTertiary }}>{t('homeX.offlineDot')}</Text> : null}
       </Pressable>
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/wallet/fund' as Href) }}
         accessibilityRole="button"
-        accessibilityLabel="Top up wallet"
+        accessibilityLabel={t('homeX.topUpA11y')}
         style={{ height: '100%', justifyContent: 'center', paddingHorizontal: 14 }}
       >
-        <Text style={{ fontFamily: font.bold, fontSize: 15, color: brand.orangeText }}>Top up</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 15, color: brand.orangeText }}>{t('homeX.topUp')}</Text>
       </Pressable>
     </View>
   )

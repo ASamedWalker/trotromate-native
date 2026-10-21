@@ -15,6 +15,8 @@ import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { PressableScale } from '@/components/motion/PressableScale'
 import { useStationLineCounts } from '@/lib/hooks/useStationLineCounts'
+import { useLanguage, t as tr } from '@/lib/i18n'
+import { ageT } from '@/lib/i18n/home-format'
 
 // Same Ghana guard as everywhere else: a simulator in California is not "near you".
 const GHANA = { minLat: 4.5, maxLat: 11.5, minLng: -3.5, maxLng: 1.5 }
@@ -45,16 +47,16 @@ export function stationsByDistance(list: StationWithQueue[], loc: { latitude: nu
 // ~4.8 km/h walking. Past half an hour a walk chip stops being useful, so show distance.
 function walkLabel(d: number): string {
   const mins = Math.max(1, Math.round((d / 4.8) * 60))
-  return mins <= 30 ? `${mins} min walk` : `${d.toFixed(1)} km`
+  return mins <= 30 ? tr('homeX.walkMin', { n: mins }) : `${d.toFixed(1)} km`
 }
 
 // One short word under the glyph (UX v2 H8/H11); the glyph is never shown alone.
 const SHORT_WORD: Record<QueueStatus, string> = {
-  empty: 'No queue',
-  short: 'Short',
-  moderate: 'Moderate',
-  long: 'Long',
-  very_long: 'Very long',
+  empty: 'homeX.near.empty',
+  short: 'homeX.near.short',
+  moderate: 'homeX.near.moderate',
+  long: 'homeX.near.long',
+  very_long: 'homeX.near.very_long',
 }
 
 export const STATIONS_KEY = ['stations'] as const
@@ -77,6 +79,7 @@ interface Props {
  */
 export default function NearbyStationsCard({ location, granted, requestPermission }: Props) {
   const router = useRouter()
+  const { t } = useLanguage()
   const lineCount = useStationLineCounts()
   const q = useStations()
   const geo = granted && inGhana(location)
@@ -104,15 +107,15 @@ export default function NearbyStationsCard({ location, granted, requestPermissio
   return (
     <View style={{ marginHorizontal: 20, marginTop: 18 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <HeroText size={20} style={{ color: ui.text }}>{geo ? 'Near you' : 'Busy stations'}</HeroText>
+        <HeroText size={20} style={{ color: ui.text }}>{geo ? t('homeX.nearYou') : t('homeX.busyStations')}</HeroText>
         <Pressable
           onPress={() => router.navigate('/(tabs)/stationlist' as any)}
           hitSlop={14}
           accessibilityRole="button"
-          accessibilityLabel="All stations"
+          accessibilityLabel={t('homeX.allStations')}
           style={{ flexDirection: 'row', alignItems: 'center' }}
         >
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>All stations</Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>{t('homeX.allStations')}</Text>
           <ChevronRight size={14} color={ui.textTertiary} />
         </Pressable>
       </View>
@@ -122,18 +125,18 @@ export default function NearbyStationsCard({ location, granted, requestPermissio
           onPress={turnOnLocation}
           hitSlop={{ top: 14, bottom: 14 }}
           accessibilityRole="button"
-          accessibilityLabel="Turn on location to see stations near you"
+          accessibilityLabel={t('homeX.turnOnLocationA11y')}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 2 }}
         >
           <MapPin size={14} color={brand.orangeText} />
-          <Text style={{ fontFamily: font.bold, fontSize: 13, color: brand.orangeText }}>Turn on location</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 13, color: brand.orangeText }}>{t('homeX.turnOnLocation')}</Text>
         </Pressable>
       ) : null}
 
       <View style={{ marginTop: 8, backgroundColor: ui.card, borderRadius: 16, borderWidth: 1, borderColor: ui.hairline, overflow: 'hidden' }}>
         {q.isLoading ? (
           <View style={{ minHeight: 64, justifyContent: 'center', paddingHorizontal: 14 }}>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>Checking stations…</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: ui.textTertiary }}>{t('homeX.checkingStations')}</Text>
           </View>
         ) : rows.map(({ s, d }, i) => {
           const stat = s.queue_stats?.[0]
@@ -141,7 +144,7 @@ export default function NearbyStationsCard({ location, granted, requestPermissio
           const live = !!stat && fresh !== 'stale'
           const color = live ? QUEUE_COLOR[stat!.current_status] : NO_REPORT
           const n = lineCount(s)
-          const meta = [n ? `${n} ${n === 1 ? 'line' : 'lines'}` : null, live ? ageLabel(stat!.last_report_at) : null].filter(Boolean).join(' · ')
+          const meta = [n ? t(n === 1 ? 'homeX.line' : 'homeX.lines', { n }) : null, live ? ageT(ageLabel(stat!.last_report_at)) : null].filter(Boolean).join(' · ')
           return (
             <PressableScale
               key={s.id}
@@ -162,7 +165,7 @@ export default function NearbyStationsCard({ location, granted, requestPermissio
               <FlashOnChange token={`${stat?.current_status}:${stat?.last_report_at}`}>
                 <View style={{ alignItems: 'flex-end', minWidth: 64 }}>
                   <QueueGlyph status={live ? stat!.current_status : null} color={color} size={15} opacity={fresh === 'aging' ? 0.6 : 1} />
-                  <Text style={{ fontFamily: font.bold, fontSize: 13, color }}>{live ? SHORT_WORD[stat!.current_status] : 'No report'}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color }}>{live ? t(SHORT_WORD[stat!.current_status]) : t('homeX.noReport')}</Text>
                 </View>
               </FlashOnChange>
             </PressableScale>

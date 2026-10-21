@@ -19,6 +19,7 @@ import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import InitialsAvatar from '@/components/InitialsAvatar'
 import { updateDisplayName } from '@/lib/services/profileName'
+import { useLanguage } from '@/lib/i18n'
 
 interface Route {
   id: string
@@ -32,6 +33,7 @@ export default function EditProfileScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const { t: tr } = useLanguage()
 
   const { profile, deviceId } = useApp()
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
@@ -103,14 +105,14 @@ export default function EditProfileScreen() {
         .eq('device_id', deviceId)
 
       if (error) {
-        Alert.alert('Error', 'Could not update profile. Try again.')
+        Alert.alert(tr('settings.error'), tr('settings.profile.updateFailed'))
         return
       }
 
       queryClient.invalidateQueries({ queryKey: ['profile', deviceId] })
       router.back()
     } catch {
-      Alert.alert('Error', 'Could not update profile. Try again.')
+      Alert.alert(tr('settings.error'), tr('settings.profile.updateFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -122,7 +124,7 @@ export default function EditProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
           <ChevronLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Edit Profile</Text>
+        <Text style={s.headerTitle}>{tr('settings.profile.title')}</Text>
         <TouchableOpacity onPress={handleSave} disabled={isSaving || nameInvalid} activeOpacity={0.7} style={[s.saveHeaderBtn, nameInvalid && { opacity: 0.4 }]}>
           {isSaving ? (
             <ActivityIndicator size="small" color={c.amber500} />
@@ -140,31 +142,31 @@ export default function EditProfileScreen() {
 
         {/* Display Name */}
         <View style={s.field}>
-          <Text style={s.label}>Display Name</Text>
+          <Text style={s.label}>{tr('settings.name.label')}</Text>
           <TextInput
             value={displayName}
             onChangeText={(text) => {
               setDisplayName(text.slice(0, 30))
               setNameError(null)
             }}
-            placeholder="Your name"
+            placeholder={tr('settings.name.title')}
             placeholderTextColor={t.textTertiary}
             style={s.input}
             maxLength={30}
           />
           {nameError || nameInvalid ? (
-            <Text style={s.errorText}>{nameError ?? 'Name must be 2 to 30 characters.'}</Text>
+            <Text style={s.errorText}>{nameError ?? tr('settings.profile.nameLength')}</Text>
           ) : null}
           <Text style={s.counter}>{displayName.length}/30</Text>
         </View>
 
         {/* Bio */}
         <View style={s.field}>
-          <Text style={s.label}>Bio</Text>
+          <Text style={s.label}>{tr('settings.profile.bio')}</Text>
           <TextInput
             value={bio}
             onChangeText={(text) => setBio(text.slice(0, 160))}
-            placeholder="Tell the community about yourself..."
+            placeholder={tr('settings.profile.bioPh')}
             placeholderTextColor={t.textTertiary}
             style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]}
             multiline
@@ -175,14 +177,14 @@ export default function EditProfileScreen() {
 
         {/* Home Route */}
         <View style={s.field}>
-          <Text style={s.label}>Home Route</Text>
+          <Text style={s.label}>{tr('settings.profile.homeRoute')}</Text>
           <TouchableOpacity
             onPress={() => setHomeRouteId(null)}
             activeOpacity={0.7}
             style={[s.routeChip, !homeRouteId && s.routeChipActive]}
           >
             <Text style={[s.routeChipText, !homeRouteId && s.routeChipTextActive]}>
-              No home route
+              {tr('settings.profile.noHomeRoute')}
             </Text>
           </TouchableOpacity>
           {routes.map((r) => (
@@ -198,14 +200,14 @@ export default function EditProfileScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-          <Text style={s.hint}>Set your regular commute to discover fellow commuters</Text>
+          <Text style={s.hint}>{tr('settings.profile.homeHint')}</Text>
         </View>
 
         {/* Public Profile Toggle */}
         <View style={s.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.toggleLabel}>Public Profile</Text>
-            <Text style={s.toggleHint}>Let others discover and follow you</Text>
+            <Text style={s.toggleLabel}>{tr('settings.profile.public')}</Text>
+            <Text style={s.toggleHint}>{tr('settings.profile.publicHint')}</Text>
           </View>
           <TouchableOpacity
             onPress={() => setIsPublic(!isPublic)}

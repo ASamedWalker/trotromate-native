@@ -31,7 +31,7 @@ import { IntercityRow } from '@/components/lines/IntercityRow'
 import { INTERCITY_CHECKED_SHORT, INTERCITY_PAIRS, intercityByOrigin, searchIntercity, type IntercityPair } from '@/lib/utils/intercity'
 import { useLocation } from '@/lib/hooks/useLocation'
 import { fetchStations, type StationWithQueue } from '@/lib/services/stations'
-import { QUEUE_COLOR, QUEUE_WORD } from '@/lib/constants/queueStatus'
+import { QUEUE_COLOR } from '@/lib/constants/queueStatus'
 import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { haversineKm } from '@/lib/utils/distance'
 import type { RouteWithStats } from '@/lib/types'
@@ -41,6 +41,8 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
+import { useLanguage, t as tr } from '@/lib/i18n'
+import { ageT, queueShortT } from '@/lib/i18n/home-format'
 
 /**
  * Lines (UX v2 canvas "Lines → Proposed", L1–L8). One layout for store and full builds:
@@ -79,11 +81,12 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 
 function walkLabel(km: number): string {
   const mins = Math.max(1, Math.round((km * 1000) / WALK_M_PER_MIN))
-  return mins <= 45 ? `${mins} min walk` : `${km.toFixed(1)} km`
+  return mins <= 45 ? tr('homeX.walkMin', { n: mins }) : `${km.toFixed(1)} km`
 }
 
 export default function RoutesScreen() {
   const router = useRouter()
+  const { t: tl, lang } = useLanguage()
   const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ from?: string; to?: string; transport?: string; region?: string; t?: string }>()
   const s = useMemo(() => getStyles(), [])
@@ -112,7 +115,14 @@ export default function RoutesScreen() {
   const haptics = useHaptics()
   const { addSearch } = useSearchHistory()
 
-  const activeRegionLabel = REGIONS.find((r) => r.key === activeRegion)?.label ?? 'All Regions'
+  // Region names from config, shown in the current language (key missing → config label).
+  const regionLabel = (key: string, label: string) => {
+    if (key === 'all') return tl('lines.allRegions')
+    const k = `lines.region.${key}`
+    const v = tl(k)
+    return v === k ? label : v
+  }
+  const activeRegionLabel = regionLabel(activeRegion, REGIONS.find((r) => r.key === activeRegion)?.label ?? 'All Regions')
 
   // ── Near me: stations by distance (GPS), with their live queue stats ──
   const { location, isPermissionGranted, isLoading: locLoading, requestPermission } = useLocation()
@@ -132,10 +142,10 @@ export default function RoutesScreen() {
       if (at > latest) latest = at
       if (now - at <= 7 * 86400000) week++
     }
-    if (!latest) return 'GPRTU fares and what riders paid'
-    const checked = sameDay(new Date(latest), new Date(now)) ? 'Fares checked today' : `Fares last checked ${ageLabel(new Date(latest).toISOString(), now)}`
-    return week > 0 ? `${checked} · ${week} ${week === 1 ? 'line' : 'lines'} reported this week` : checked
-  }, [routes])
+    if (!latest) return tl('lines.stampNone')
+    const checked = sameDay(new Date(latest), new Date(now)) ? tl('lines.checkedToday') : tl('lines.checkedAgo', { age: ageT(ageLabel(new Date(latest).toISOString(), now)) })
+    return week > 0 ? `${checked} · ${tl(week === 1 ? 'lines.weekOne' : 'lines.weekMany', { n: week })}` : checked
+  }, [routes, tl, lang]) // lang: recompute the text when the language changes
 
   // Mode + search + commuter-first sort, shared by every segment.
   const modeRoutes = useMemo(() => {
@@ -266,9 +276,9 @@ export default function RoutesScreen() {
 
   const renderIntercityHeader = useCallback(({ section }: { section: IntercitySection }) => (
     <View style={s.groupHead}>
-      <Text style={s.groupName} numberOfLines={1} accessibilityRole="header">From {section.origin}</Text>
+      <Text style={s.groupName} numberOfLines={1} accessibilityRole="header">{tl('lines.fromOrigin', { place: section.origin })}</Text>
     </View>
-  ), [s])
+  ), [s, tl, lang]) // lang: re-render on language change
 
   const renderSectionHeader = useCallback(({ section }: { section: LineSection }) => {
     if (!section.group) return null
@@ -285,49 +295,49 @@ export default function RoutesScreen() {
             <>
               <QueueGlyph status={q.current_status} color={qColor} size={14} opacity={fresh === 'aging' ? 0.8 : 1} />
               <Text style={[s.groupQueueText, { color: qColor }]} numberOfLines={1}>
-                {QUEUE_WORD[q.current_status].replace(/ queue$/, '')} · {ageLabel(q.last_report_at)}
+                {queueShortT(q.current_status)} · {ageT(ageLabel(q.last_report_at))}
               </Text>
             </>
           ) : (
-            <Text style={[s.groupQueueText, { color: ui.textTertiary, fontFamily: font.medium }]} numberOfLines={1}>No recent queue</Text>
+            <Text style={[s.groupQueueText, { color: ui.textTertiary, fontFamily: font.medium }]} numberOfLines={1}>{tl('lines.noRecentQueue')}</Text>
           )}
         </View>
       </View>
     )
-  }, [s])
+  }, [s, tl, lang]) // lang: re-render on language change
 
   const header = (
     // Adinkra header band (owner rule: every header carries Adinkra), behind title → segments.
     <AdinkraBand patternHeight={300} style={s.header}>
       {/* L3: title and region chip share one row */}
       <View style={s.headerRow}>
-        <HeroText size={28} style={{ color: ui.text }} accessibilityRole="header">Lines</HeroText>
+        <HeroText size={28} style={{ color: ui.text }} accessibilityRole="header">{tl('nav.lines')}</HeroText>
         {mode !== 'intercity' && <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => { haptics.light(); setRegionPickerOpen(true) }}
           style={s.regionChip}
           accessibilityRole="button"
-          accessibilityLabel={`Region: ${activeRegionLabel}. Change region`}
+          accessibilityLabel={tl('lines.regionA11y', { region: activeRegionLabel })}
           hitSlop={{ top: 6, bottom: 6 }}
         >
           <Text style={s.regionChipText}>{activeRegionLabel}</Text>
           <ChevronDown size={16} color={brand.orangeText} />
         </TouchableOpacity>}
       </View>
-      <Text style={s.stamp}>{mode === 'intercity' ? `STC and VIP fares from their booking sites · checked ${INTERCITY_CHECKED_SHORT}` : stamp}</Text>
+      <Text style={s.stamp}>{mode === 'intercity' ? tl('lines.intercityStamp', { date: INTERCITY_CHECKED_SHORT }) : stamp}</Text>
 
       <View style={s.searchBar}>
         <Search size={20} color={ui.textSecondary} />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder={mode === 'intercity' ? 'Search a town, e.g. Kumasi' : 'Search a station or line'}
+          placeholder={mode === 'intercity' ? tl('lines.searchTown') : tl('lines.searchStationLine')}
           placeholderTextColor={ui.textSecondary}
           style={s.searchInput}
           returnKeyType="search"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear search">
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel={tl('lines.clearSearch')}>
             <X size={18} color={ui.textTertiary} />
           </TouchableOpacity>
         )}
@@ -336,7 +346,7 @@ export default function RoutesScreen() {
       {/* L4: mode on its own row (three options no longer fit beside the segments),
           segments under it. Intercity has no Saved/Near me, so they hide there. */}
       <View style={[s.segWrap, { marginTop: 10 }]} accessibilityRole="tablist">
-        {([['trotro', 'Trotro'], ['okada', 'Okada'], ['intercity', 'Travel']] as [Mode, string][]).map(([k, label]) => {
+        {([['trotro', 'Trotro'], ['okada', 'Okada'], ['intercity', tl('lines.modeTravel')]] as [Mode, string][]).map(([k, label]) => {
           const on = mode === k
           return (
             <TouchableOpacity
@@ -354,7 +364,7 @@ export default function RoutesScreen() {
       </View>
       {mode !== 'intercity' && <View style={s.controls}>
         <View style={[s.segWrap, { flex: 1 }]} accessibilityRole="tablist">
-          {([['saved', 'Saved'], ['near', 'Near me'], ['all', 'All']] as [Segment, string][]).map(([k, label]) => {
+          {([['saved', tl('lines.segSaved')], ['near', tl('lines.segNear')], ['all', tl('lines.segAll')]] as [Segment, string][]).map(([k, label]) => {
             const on = segment === k
             return (
               <TouchableOpacity
@@ -376,7 +386,7 @@ export default function RoutesScreen() {
         <View style={s.filterRow}>
           <MapPin size={14} color={brand.orangeText} />
           <Text style={s.filterText}>
-            Showing: {params.from || 'Any'} {'→'} {params.to || 'Any'}
+            {tl('lines.showing', { from: params.from || tl('lines.any'), to: params.to || tl('lines.any') })}
           </Text>
         </View>
       )}
@@ -386,19 +396,19 @@ export default function RoutesScreen() {
   const listHeader = (
     <>
       {nearFallback === 'location' ? (
-        <TouchableOpacity onPress={turnOnLocation} activeOpacity={0.8} style={s.hint} accessibilityRole="button" accessibilityLabel="Turn on location to see lines from the stations near you. Showing all lines for now.">
+        <TouchableOpacity onPress={turnOnLocation} activeOpacity={0.8} style={s.hint} accessibilityRole="button" accessibilityLabel={tl('lines.locHintA11y')}>
           <Navigation size={20} color={brand.orangeText} />
           <View style={{ flex: 1 }}>
-            <Text style={s.hintTitle}>Turn on location</Text>
-            <Text style={s.hintText}>To group lines by the stations near you. Showing all lines for now.</Text>
+            <Text style={s.hintTitle}>{tl('homeX.turnOnLocation')}</Text>
+            <Text style={s.hintText}>{tl('lines.locHintText')}</Text>
           </View>
         </TouchableOpacity>
       ) : nearFallback === 'none' ? (
         <View style={s.hint}>
           <Navigation size={20} color={brand.orangeText} />
           <View style={{ flex: 1 }}>
-            <Text style={s.hintTitle}>No {mode === 'okada' ? 'okada' : 'trotro'} lines start near you yet</Text>
-            <Text style={s.hintText}>Showing all lines.</Text>
+            <Text style={s.hintTitle}>{tl(mode === 'okada' ? 'lines.noneNearOkada' : 'lines.noneNearTrotro')}</Text>
+            <Text style={s.hintText}>{tl('lines.showingAll')}</Text>
           </View>
         </View>
       ) : null}
@@ -417,7 +427,7 @@ export default function RoutesScreen() {
             <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFillObject} />
             <View style={s.heroBannerContent}>
               <Text style={s.heroBannerCity}>{hero.label}</Text>
-              <Text style={s.heroBannerTagline}>{hero.tagline}</Text>
+              <Text style={s.heroBannerTagline}>{tl(`lines.tagline.${hero.key}`) === `lines.tagline.${hero.key}` ? hero.tagline : tl(`lines.tagline.${hero.key}`)}</Text>
             </View>
           </View>
         )
@@ -445,13 +455,13 @@ export default function RoutesScreen() {
           ListEmptyComponent={
             <View style={s.emptyContainer}>
               <MapPin size={48} color={ui.textTertiary} />
-              <Text style={s.emptyTitle}>No travel fares for that town yet</Text>
-              <Text style={s.emptySubtitle}>We list STC and VIP fares from their own booking sites</Text>
+              <Text style={s.emptyTitle}>{tl('lines.noTravelFares')}</Text>
+              <Text style={s.emptySubtitle}>{tl('lines.noTravelSub')}</Text>
             </View>
           }
           ListFooterComponent={
             intercitySections.length > 0 ? (
-              <Text style={s.intercityNote}>Confirm at the terminal; fares can change.</Text>
+              <Text style={s.intercityNote}>{tl('lines.intercityNote')}</Text>
             ) : null
           }
         />
@@ -495,14 +505,14 @@ export default function RoutesScreen() {
             <View style={s.emptyContainer}>
               <MapPin size={48} color={ui.textTertiary} />
               <Text style={s.emptyTitle}>
-                {segment === 'saved' ? 'No saved lines' : mode === 'okada' ? 'No okada lines found' : 'No lines found'}
+                {segment === 'saved' ? tl('lines.noSaved') : mode === 'okada' ? tl('lines.noOkada') : tl('lines.noLines')}
               </Text>
               <Text style={s.emptySubtitle}>
-                {segment === 'saved' ? 'Tap the heart on a line to save it' : 'Try a different search or region'}
+                {segment === 'saved' ? tl('lines.tapHeart') : tl('lines.tryDifferent')}
               </Text>
               {segment !== 'saved' && (
                 <Button
-                  label="Add this route"
+                  label={tl('lines.addRoute')}
                   icon={Plus}
                   variant="secondary"
                   fullWidth={false}
@@ -516,7 +526,7 @@ export default function RoutesScreen() {
             sections.length > 0 ? (
               <TouchableOpacity onPress={() => router.push('/report/fare' as Href)} activeOpacity={0.7} style={s.footerCta} accessibilityRole="button">
                 <Plus size={16} color={brand.orangeText} />
-                <Text style={s.footerCtaText}>Can&apos;t find your line? Add it</Text>
+                <Text style={s.footerCtaText}>{tl('lines.cantFind')}</Text>
               </TouchableOpacity>
             ) : null
           }
@@ -527,7 +537,7 @@ export default function RoutesScreen() {
       <Modal visible={regionPickerOpen} transparent animationType="fade" onRequestClose={() => setRegionPickerOpen(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setRegionPickerOpen(false)}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Select region</Text>
+            <Text style={s.modalTitle}>{tl('lines.selectRegion')}</Text>
             {REGIONS.map((region) => {
               const isActive = activeRegion === region.key
               return (
@@ -537,7 +547,7 @@ export default function RoutesScreen() {
                   onPress={() => selectRegion(region.key)}
                   style={[s.modalOption, isActive && s.modalOptionActive]}
                 >
-                  <Text style={[s.modalOptionText, isActive && s.modalOptionTextActive]}>{region.label}</Text>
+                  <Text style={[s.modalOptionText, isActive && s.modalOptionTextActive]}>{regionLabel(region.key, region.label)}</Text>
                   {isActive && <Check size={18} color={brand.orange} />}
                 </TouchableOpacity>
               )

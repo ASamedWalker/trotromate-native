@@ -1,6 +1,8 @@
 import { formatGHS } from '@/lib/utils/currency'
 import { ageLabel, STALE_MS } from '@/lib/utils/freshness'
 import type { RouteWithStats } from '@/lib/types'
+import { t } from '@/lib/i18n'
+import { ageT } from '@/lib/i18n/home-format'
 
 // Exactly one fare-source label per line row (UX v2 L1 / L6).
 //   gprtu   GPRTU only                        → "GPRTU fare"
@@ -39,14 +41,14 @@ export function fareSource(item: Pick<RouteWithStats, 'is_gprtu_verified' | 'off
   const hasRiders = reports > 0 && avg != null && avg > 0
   const age = ageLabel(lastAt, now)
   const aged = !!lastAt && now - new Date(lastAt).getTime() > STALE_MS
-  const withAge = (s: string) => (age ? `${s} · ${age}` : s)
+  const withAge = (s: string) => (age ? `${s} · ${ageT(age)}` : s)
 
   if (gprtu && hasRiders) {
     const diff = (avg! - official!) / official!
     if (Math.abs(diff) <= FARE_AGREE_TOLERANCE) {
-      return { kind: 'agree', amount: official, approx: false, chip: 'GPRTU', provenance: withAge('Riders agree'), hasAge: !!age, warn: false, aged }
+      return { kind: 'agree', amount: official, approx: false, chip: 'GPRTU', provenance: withAge(t('fare.ridersAgree')), hasAge: !!age, warn: false, aged }
     }
-    return { kind: 'differ', amount: official, approx: false, chip: 'GPRTU', provenance: withAge(`Riders paid ${formatGHS(avg!)}`), hasAge: !!age, warn: diff > 0, aged }
+    return { kind: 'differ', amount: official, approx: false, chip: 'GPRTU', provenance: withAge(t('fare.ridersPaid', { amount: formatGHS(avg!) })), hasAge: !!age, warn: diff > 0, aged }
   }
   if (gprtu) {
     // The chip already says GPRTU; no second label.
@@ -55,10 +57,10 @@ export function fareSource(item: Pick<RouteWithStats, 'is_gprtu_verified' | 'off
   if (hasRiders) {
     return {
       kind: 'riders', amount: avg, approx: true, chip: 'RIDERS',
-      provenance: withAge(`${reports} ${reports === 1 ? 'report' : 'reports'}`), hasAge: !!age, warn: false, aged,
+      provenance: withAge(t(reports === 1 ? 'fare.report.one' : 'fare.report.many', { n: reports })), hasAge: !!age, warn: false, aged,
     }
   }
-  return { kind: 'none', amount: null, approx: true, chip: null, provenance: 'Be first to report', hasAge: false, warn: false, aged: false }
+  return { kind: 'none', amount: null, approx: true, chip: null, provenance: t('fare.beFirst'), hasAge: false, warn: false, aged: false }
 }
 
 /** Amber that passes 4.5:1 on white (matches QUEUE_COLOR.moderate). */

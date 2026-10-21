@@ -9,10 +9,11 @@
  * Hausa (north + markets/lorry-park lingua franca) · Dagbani (Northern/Tamale) ·
  * Fante (Akan, Central/Western).
  */
-export type LangCode = 'en' | 'tw' | 'ee' | 'ga' | 'ha' | 'dag' | 'fat'
+export type LangCode = 'en' | 'fr' | 'tw' | 'ee' | 'ga' | 'ha' | 'dag' | 'fat'
 
 export const LANGUAGES: { code: LangCode; label: string; native: string }[] = [
   { code: 'en', label: 'English', native: 'English' },
+  { code: 'fr', label: 'French', native: 'Français' },
   { code: 'tw', label: 'Twi', native: 'Twi' },
   { code: 'fat', label: 'Fante', native: 'Mfantse' },
   { code: 'ee', label: 'Ewe', native: 'Eʋegbe' },
@@ -21,9 +22,14 @@ export const LANGUAGES: { code: LangCode; label: string; native: string }[] = [
   { code: 'dag', label: 'Dagbani', native: 'Dagbanli' },
 ]
 
-type Dict = Record<string, string>
+import { SCREENS } from './screens'
 
-const en: Dict = {
+export type Dict = Record<string, string>
+
+// French typography: no-break space before : ; ? ! (and inside « »)
+const NB = '\u00a0'
+
+const enBase: Dict = {
   'common.cancel': 'Cancel',
   'common.done': 'Done',
   'common.seeAll': 'See All',
@@ -62,6 +68,48 @@ const en: Dict = {
   'tickets.active': 'ACTIVE',
   'tickets.past': 'PAST',
 }
+
+// French (West Africa: Togo, Bénin, Côte d'Ivoire) — full coverage; every
+// English key must exist here (tests/i18n-fr.test.ts).
+const frBase: Dict = {
+  'common.cancel': 'Annuler',
+  'common.done': 'Terminé',
+  'common.seeAll': 'Tout voir',
+  'common.retry': 'Réessayer',
+  'nav.home': 'Accueil',
+  'nav.lines': 'Lignes',
+  'nav.train': 'Train',
+  'nav.wallet': 'Portefeuille',
+  'nav.pulse': 'Pulse',
+  'nav.fares': 'Tarifs',
+  'nav.stations': 'Gares',
+  'nav.rewards': 'Bonus',
+  'home.hello': 'Bonjour',
+  'home.walletBalance': 'Solde du portefeuille',
+  'home.topupWallet': 'Recharger',
+  'home.scanToPay': 'Scanner pour payer',
+  'home.whereTo': `Où allez-vous${NB}?`,
+  'home.directions': 'Itinéraires',
+  'home.buses': 'Bus',
+  'home.nearby': 'À proximité',
+  'home.queue': "File d'attente",
+  'home.status': 'État',
+  'home.services': 'Services',
+  'wallet.title': 'Portefeuille',
+  'wallet.balance': 'Solde total du portefeuille',
+  'wallet.addMoney': 'Recharger',
+  'wallet.scanToPay': 'Scanner pour payer',
+  'wallet.myTickets': 'Mes billets',
+  'wallet.recentTransactions': 'Transactions récentes',
+  'wallet.activePass': 'Pass actif',
+  'wallet.topupWallet': 'Recharger le portefeuille',
+  'tickets.title': 'Mes billets',
+  'tickets.active': 'ACTIFS',
+  'tickets.past': 'PASSÉS',
+}
+
+const en: Dict = Object.assign({}, enBase, ...SCREENS.map((m) => m.en))
+const fr: Dict = Object.assign({}, frBase, ...SCREENS.map((m) => m.fr))
 
 // Twi (Akan) — starter; native review needed.
 const tw: Dict = {
@@ -213,4 +261,4 @@ const dag: Dict = {
   'tickets.title': 'N Tikiti',
 }
 
-export const STRINGS: Record<LangCode, Dict> = { en, tw, fat, ee, ga, ha, dag }
+export const STRINGS: Record<LangCode, Dict> = { en, fr, tw, fat, ee, ga, ha, dag }

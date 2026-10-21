@@ -37,6 +37,7 @@ import { useHaptics } from '@/lib/hooks/useHaptics'
 import { useStoreReview } from '@/lib/hooks/useStoreReview'
 import { detectRegionOrNull, REGIONS } from '@/lib/config/regions'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
+import { useLanguage } from '@/lib/i18n'
 
 // Station-name suggestions — free-text station names fragment the fare dataset
 // by spelling ("Kaneshie" vs "Kanishie"); nudging toward canonical names
@@ -62,6 +63,7 @@ export default function FareReportScreen() {
   const { deviceId, refreshProfile, setLastReward } = useApp()
   const haptics = useHaptics()
   const { maybePromptReview } = useStoreReview()
+  const { t } = useLanguage()
   const { submit, isSubmitting } = useSubmitFareReport(deviceId)
 
   const [from, setFrom] = useState(urlFrom ?? '')
@@ -107,17 +109,17 @@ export default function FareReportScreen() {
     const submitFrom = hasStops && board ? board.stop_name : from.trim()
     const submitTo = hasStops && alight ? alight.stop_name : to.trim()
     if (!submitFrom || !submitTo || !fare.trim()) {
-      Alert.alert('Missing Info', 'Please fill in all fields')
+      Alert.alert(t('report.missingInfo'), t('report.fillAll'))
       return
     }
     if (hasStops && board && alight && board.stop_order >= alight.stop_order) {
-      Alert.alert('Check your stops', 'Where you got off must be after where you boarded')
+      Alert.alert(t('report.fare.checkStops'), t('report.fare.checkStopsBody'))
       return
     }
 
     const fareValue = parseFloat(fare)
     if (isNaN(fareValue) || fareValue <= 0 || fareValue > 200) {
-      Alert.alert('Invalid Fare', 'Enter a valid fare between GH₵0.01 and GH₵200')
+      Alert.alert(t('report.fare.invalid'), t('report.fare.invalidBody'))
       return
     }
 
@@ -132,7 +134,7 @@ export default function FareReportScreen() {
       await maybePromptReview()
       router.back()
     } else {
-      Alert.alert('Error', `Failed to submit report. ${errorMsg || 'Please try again.'}`)
+      Alert.alert(t('report.error'), `${t('report.submitFailed')} ${errorMsg || t('report.tryAgain')}`)
     }
   }
 
@@ -166,16 +168,16 @@ export default function FareReportScreen() {
             <View style={s.rewardIcon}>
               <Banknote size={32} color="#FF4D1C" />
             </View>
-            <Text style={s.rewardText}>Earn +10 coins</Text>
+            <Text style={s.rewardText}>{t('report.earnCoins', { n: 10 })}</Text>
           </View>
 
           {/* Step 1: Location */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>{hasStops ? 'Your stage?' : 'Where are you?'}</Text>
+            <Text style={s.sectionTitle}>{hasStops ? t('report.fare.yourStage') : t('report.fare.whereAreYou')}</Text>
 
             {hasStops ? (
               <>
-                <Text style={s.stageLabel}>Boarded at</Text>
+                <Text style={s.stageLabel}>{t('report.fare.boardedAt')}</Text>
                 <TouchableOpacity onPress={() => { haptics.light(); setBoardPickerOpen(true) }} activeOpacity={0.8} style={s.stageField}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <MapPin size={18} color="#FF4D1C" />
@@ -184,7 +186,7 @@ export default function FareReportScreen() {
                   <ChevronDown size={18} color="#b2acaa" />
                 </TouchableOpacity>
 
-                <Text style={[s.stageLabel, { marginTop: 16 }]}>Got off at</Text>
+                <Text style={[s.stageLabel, { marginTop: 16 }]}>{t('report.fare.gotOffAt')}</Text>
                 <TouchableOpacity onPress={() => { haptics.light(); setAlightPickerOpen(true) }} activeOpacity={0.8} style={s.stageField}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <Navigation size={18} color="#22c55e" />
@@ -200,7 +202,7 @@ export default function FareReportScreen() {
                   <TextInput
                     value={from}
                     onChangeText={setFrom}
-                    placeholder="From — e.g. Circle"
+                    placeholder={t('report.fare.fromPh')}
                     placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
                     style={s.locationInput}
                   />
@@ -224,10 +226,10 @@ export default function FareReportScreen() {
                 >
                   <Globe size={12} color={activeRegion ? '#22c55e' : '#b2acaa'} />
                   <Text style={[s.regionChipText, activeRegion && s.regionChipTextActive]}>
-                    {activeRegionLabel ?? 'Select region'}
+                    {activeRegionLabel ?? t('report.fare.selectRegion')}
                   </Text>
                   {autoRegion && !selectedRegion && (
-                    <Text style={s.regionAutoTag}>auto</Text>
+                    <Text style={s.regionAutoTag}>{t('report.fare.auto')}</Text>
                   )}
                 </TouchableOpacity>
                 {showRegionPicker && (
@@ -252,7 +254,7 @@ export default function FareReportScreen() {
                   <TextInput
                     value={to}
                     onChangeText={setTo}
-                    placeholder="To — e.g. Madina"
+                    placeholder={t('report.fare.toPh')}
                     placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : '#b2acaa'}
                     style={s.locationInput}
                   />
@@ -273,7 +275,7 @@ export default function FareReportScreen() {
 
           {/* Step 2: Fare Amount */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>How much?</Text>
+            <Text style={s.sectionTitle}>{t('report.fare.howMuch')}</Text>
 
             {/* Fare display with +/- */}
             <View style={s.fareCard}>
@@ -325,7 +327,7 @@ export default function FareReportScreen() {
 
           {/* Step 3: Vehicle Type */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Vehicle Type?</Text>
+            <Text style={s.sectionTitle}>{t('report.fare.vehicleType')}</Text>
             <View style={s.vehicleRow}>
               <TouchableOpacity
                 onPress={() => setTransportType('trotro')}
@@ -378,7 +380,7 @@ export default function FareReportScreen() {
             style={s.submitBtn}
           >
             <Text style={s.submitText}>
-              {isSubmitting ? 'SUBMITTING...' : 'SUBMIT FARE'}
+              {isSubmitting ? t('report.submittingCaps') : t('report.fare.submit')}
             </Text>
             <Send size={20} color="#fff" />
           </LinearGradient>
@@ -389,7 +391,7 @@ export default function FareReportScreen() {
         <>
           <StopPickerModal
             visible={boardPickerOpen}
-            title="Where did you board?"
+            title={t('report.fare.boardQ')}
             stops={stops}
             selectedOrder={board?.stop_order ?? null}
             maxOrder={alight?.stop_order}
@@ -398,7 +400,7 @@ export default function FareReportScreen() {
           />
           <StopPickerModal
             visible={alightPickerOpen}
-            title="Where did you get off?"
+            title={t('report.fare.alightQ')}
             stops={stops}
             selectedOrder={alight?.stop_order ?? null}
             minOrder={board?.stop_order ?? 0}

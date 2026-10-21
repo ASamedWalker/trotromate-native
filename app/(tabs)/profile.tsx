@@ -22,6 +22,7 @@ import { useNotifications } from '@/lib/hooks/useNotifications'
 import { LEVELS } from '@/lib/constants/rewards'
 import { SpendingSummary } from '@/components/SpendingSummary'
 import InitialsAvatar from '@/components/InitialsAvatar'
+import { useLanguage } from '@/lib/i18n'
 
 export default function ProfileScreen() {
   const router = useRouter()
@@ -36,14 +37,15 @@ export default function ProfileScreen() {
   const { unreadCount } = useNotifications(deviceId)
   const insets = useSafeAreaInsets()
   const levelInfo = LEVELS[profile?.current_level ?? 'passenger']
+  const { t } = useLanguage()
 
   const menuItems: { icon: typeof Bell; label: string; onPress: () => void; badge?: number }[] = [
-    { icon: Trophy, label: 'Rewards', onPress: () => router.push('/(tabs)/rewards' as Href) },
-    { icon: Bell, label: 'Notifications', onPress: () => router.navigate('/activity' as Href), badge: unreadCount },
-    { icon: Megaphone, label: 'Contribute / Report', onPress: () => router.push('/report' as Href) },
-    { icon: Settings, label: 'Settings', onPress: () => router.push('/settings' as Href) },
-    { icon: Shield, label: 'Privacy', onPress: () => router.push('/privacy' as Href) },
-    { icon: HelpCircle, label: 'Help & Support', onPress: () => Linking.openURL('mailto:support@troski.me?subject=Troski%20Help%20%26%20Support').catch(() => {}) },
+    { icon: Trophy, label: t('nav.rewards'), onPress: () => router.push('/(tabs)/rewards' as Href) },
+    { icon: Bell, label: t('profile.menu.notifications'), onPress: () => router.navigate('/activity' as Href), badge: unreadCount },
+    { icon: Megaphone, label: t('profile.menu.contribute'), onPress: () => router.push('/report' as Href) },
+    { icon: Settings, label: t('settings.title'), onPress: () => router.push('/settings' as Href) },
+    { icon: Shield, label: t('profile.menu.privacy'), onPress: () => router.push('/privacy' as Href) },
+    { icon: HelpCircle, label: t('profile.menu.help'), onPress: () => Linking.openURL('mailto:support@troski.me?subject=Troski%20Help%20%26%20Support').catch(() => {}) },
   ]
 
   return (
@@ -55,7 +57,7 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
-          <Text style={s.headerTitle}>Profile</Text>
+          <Text style={s.headerTitle}>{t('profile.title')}</Text>
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings/edit-profile' as Href) }}
             style={s.editBtn}
@@ -80,15 +82,15 @@ export default function ProfileScreen() {
             )}
           </View>
           <View style={s.avatarInfo}>
-            <Text style={s.avatarName}>{profile?.display_name ?? 'Commuter'}</Text>
+            <Text style={s.avatarName}>{profile?.display_name ?? t('settings.commuter')}</Text>
             {!authLoading && (
-              <Text style={s.phoneLine} accessibilityLabel={phoneLabel ? `Signed in as ${phoneLabel}` : 'Not signed in'}>
-                {phoneLabel ?? 'Not signed in'}
+              <Text style={s.phoneLine} accessibilityLabel={phoneLabel ? t('profile.signedInAs', { phone: phoneLabel }) : t('profile.notSignedIn')}>
+                {phoneLabel ?? t('profile.notSignedIn')}
               </Text>
             )}
             <View style={[s.levelPill, { backgroundColor: `${levelInfo.color}18` }]}>
               <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
-              <Text style={[s.levelText, { color: levelInfo.color }]}>{levelInfo.name}</Text>
+              <Text style={[s.levelText, { color: levelInfo.color }]}>{t(`rewards.level.${levelInfo.slug}`)}</Text>
             </View>
           </View>
         </Animated.View>
@@ -120,22 +122,22 @@ export default function ProfileScreen() {
             onPress={() => deviceId && router.push(`/profile/followers?id=${deviceId}&tab=followers` as Href)}
           >
             <Text style={s.statValue}>{profile?.follower_count ?? 0}</Text>
-            <Text style={s.statLabel}>Followers</Text>
+            <Text style={s.statLabel}>{t('profile.followers')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.statBox, s.statBorder]}
             onPress={() => deviceId && router.push(`/profile/followers?id=${deviceId}&tab=following` as Href)}
           >
             <Text style={s.statValue}>{profile?.following_count ?? 0}</Text>
-            <Text style={s.statLabel}>Following</Text>
+            <Text style={s.statLabel}>{t('profile.following')}</Text>
           </TouchableOpacity>
           <View style={[s.statBox, s.statBorder]}>
             <Text style={s.statValue}>{profile?.total_points ?? 0}</Text>
-            <Text style={s.statLabel}>Points</Text>
+            <Text style={s.statLabel}>{t('report.tab.statPoints')}</Text>
           </View>
           <View style={s.statBox}>
             <Text style={s.statValue}>{profile?.current_streak ?? 0}</Text>
-            <Text style={s.statLabel}>Streak</Text>
+            <Text style={s.statLabel}>{t('profile.streak')}</Text>
           </View>
         </Animated.View>
 
@@ -174,15 +176,15 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(440).duration(400)} style={{ paddingHorizontal: space.gutter, marginTop: space.md }}>
           {isAuthenticated ? (
           <Button
-            label="Sign Out"
+            label={t('settings.signOutTitle')}
             variant="danger"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
               const { Alert } = require('react-native')
-              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-                { text: 'Cancel', style: 'cancel' },
+              Alert.alert(t('settings.signOutTitle'), t('settings.signOutConfirm'), [
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                  text: 'Sign Out',
+                  text: t('settings.signOutTitle'),
                   style: 'destructive',
                   onPress: async () => {
                     const { signOutAndWipe } = require('@/lib/services/signOut')
@@ -195,7 +197,7 @@ export default function ProfileScreen() {
           />
           ) : (
           <Button
-            label="Sign in"
+            label={t('profile.signIn')}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
               router.push('/auth/phone' as any)

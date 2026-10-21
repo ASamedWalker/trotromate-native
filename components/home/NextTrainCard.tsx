@@ -8,6 +8,8 @@ import { font, ui } from '@/lib/theme'
 import { HeroText } from '@/components/HeroText'
 import { PressableScale } from '@/components/motion/PressableScale'
 import { AdinkraCardPattern } from '@/components/AdinkraAccent'
+import { useLanguage } from '@/lib/i18n'
+import { dayT } from '@/lib/i18n/home-format'
 
 const NAVY = '#0B1B3F'
 const GREEN = '#15803D'
@@ -20,6 +22,7 @@ const SOON_MIN = 15
  */
 export default function NextTrainCard() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000)
@@ -31,14 +34,14 @@ export default function NextTrainCard() {
   const today = next.offset === 0
   const mins = next.remainingMinutes ?? null
   const soon = today && mins != null && mins <= SOON_MIN
-  const wait = today && mins != null ? `in ${mins < 60 ? `${mins} min` : formatRemaining(mins)}` : next.when
+  const wait = today && mins != null ? t('homeX.inTime', { time: mins < 60 ? `${mins} min` : formatRemaining(mins) }) : dayT(next.when)
   const chip = LINE_COLORS[next.lineCode] ?? { main: ui.text, tint: ui.surface }
 
   return (
     <PressableScale
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.navigate('/(tabs)/train' as any) }}
       accessibilityRole="button"
-      accessibilityLabel={`Next train, ${next.lineName}, ${next.origin} to ${next.destination}, ${next.departTime}, ${wait}. From the GRDA timetable`}
+      accessibilityLabel={t('homeX.nextTrainA11y', { line: next.lineName, from: next.origin, to: next.destination, time: next.departTime, wait })}
       style={{
         marginHorizontal: 20, marginTop: 18, backgroundColor: ui.card, borderRadius: 16, borderWidth: 1, borderColor: ui.hairline,
         paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden',
@@ -63,7 +66,7 @@ export default function NextTrainCard() {
           <Text style={{ fontFamily: font.bold, fontSize: 14, color: soon ? GREEN : ui.textTertiary }}>{wait}</Text>
         </View>
       </View>
-      <Text style={{ fontFamily: font.medium, fontSize: 12, color: ui.textTertiary, textAlign: 'right' }}>{'Timetable\nGRDA'}</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 12, color: ui.textTertiary, textAlign: 'right' }}>{t('homeX.timetableGrda')}</Text>
     </PressableScale>
   )
 }

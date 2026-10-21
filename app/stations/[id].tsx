@@ -19,6 +19,8 @@ import { CountText } from '@/components/motion/CountText'
 import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { FlashOnChange } from '@/components/motion/FlashOnChange'
 import { CARD, ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from '@/components/home/tokens'
+import { useLanguage } from '@/lib/i18n'
+import { ageT, queueWordT } from '@/lib/i18n/home-format'
 
 /**
  * Station page (redesign wave 2): "is there a queue / which lines leave here?"
@@ -28,6 +30,7 @@ import { CARD, ORANGE, ORANGE_SOFT, TEXT, TEXT2 } from '@/components/home/tokens
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
+  const { t } = useLanguage()
   const insets = useSafeAreaInsets()
   const { station, isLoading, isError, lines, reports, latestFresh, confirmations, confirm } = useStationDetail(id)
   const { isAuthenticated } = useAuthContext()
@@ -40,7 +43,7 @@ export default function StationDetailScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: '#FAFAF9', paddingTop: insets.top + 12, paddingHorizontal: 20, gap: 16 }}>
         <BackButton />
-        <Text style={{ fontFamily: font.bold, fontSize: 18, color: TEXT }}>{isError ? 'Could not load this station' : 'Station not found'}</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 18, color: TEXT }}>{isError ? t('stations.loadError') : t('stations.notFound')}</Text>
       </View>
     )
   }
@@ -69,29 +72,29 @@ export default function StationDetailScreen() {
 
       {/* Queue hero */}
       <View style={{ backgroundColor: CARD.bg, borderRadius: 18, borderWidth: 1, borderColor: CARD.border, padding: 16 }}>
-        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: TEXT2 }}>QUEUE RIGHT NOW</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: TEXT2 }}>{t('stations.queueHeader')}</Text>
         <View
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}
           accessible
-          accessibilityLabel={kind === 'stale' || !status ? 'No recent queue report' : `${QUEUE_WORD[status]}, reported ${ageLabel(stat?.last_report_at)}`}
+          accessibilityLabel={kind === 'stale' || !status ? t('homeX.queueA11yNone') : t('homeX.queueA11y', { status: queueWordT(status), age: ageT(ageLabel(stat?.last_report_at)) })}
         >
           {kind === 'stale' || !status
             ? <FreshnessDot kind={kind} color={heroColor} size={14} />
             : <QueueGlyph status={status} color={heroColor} size={24} opacity={kind === 'aging' ? 0.8 : 1} />}
           <FlashOnChange token={`${status}:${stat?.last_report_at}`} style={{ flexShrink: 1 }}>
-            <HeroText size={32} style={{ color: heroColor }}>{kind === 'stale' || !status ? 'No recent report' : QUEUE_WORD[status]}</HeroText>
+            <HeroText size={32} style={{ color: heroColor }}>{kind === 'stale' || !status ? t('homeX.noRecentReport') : queueWordT(status)}</HeroText>
           </FlashOnChange>
         </View>
         <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>
           {kind === 'stale' || !status
-            ? 'Be the first to say how the queue looks.'
-            : `Reported ${ageLabel(stat?.last_report_at)}${stat?.report_count_last_hour ? ` · ${stat.report_count_last_hour} ${stat.report_count_last_hour === 1 ? 'report' : 'reports'} in the last hour` : ''}`}
+            ? t('stations.beFirst')
+            : `${t('stations.reportedAgo', { age: ageT(ageLabel(stat?.last_report_at)) })}${stat?.report_count_last_hour ? ` · ${t(stat.report_count_last_hour === 1 ? 'stations.reportsHourOne' : 'stations.reportsHourMany', { n: stat.report_count_last_hour })}` : ''}`}
         </Text>
         {latestFresh && (confirmations.data ?? 0) > 0 ? (
           <FlashOnChange token={confirmations.data} color="rgba(21,128,61,0.12)" style={{ alignSelf: 'flex-start', marginTop: 6 }}>
             <CountText
               value={confirmations.data ?? 0}
-              format={(n) => `✓ Confirmed by ${n} ${n === 1 ? 'rider' : 'riders'}`}
+              format={(n) => t(n === 1 ? 'stations.confirmedOne' : 'stations.confirmedMany', { n })}
               style={{ fontFamily: font.bold, fontSize: 13, color: '#15803D' }}
             />
           </FlashOnChange>
@@ -100,11 +103,11 @@ export default function StationDetailScreen() {
           activeOpacity={0.85}
           onPress={report}
           accessibilityRole="button"
-          accessibilityLabel={`Report the queue at ${station.name}`}
+          accessibilityLabel={t('homeX.reportQueueAt', { place: station.name })}
           style={{ marginTop: 14, height: 56, borderRadius: 14, backgroundColor: ORANGE, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         >
           <Users size={18} color="#FFFFFF" />
-          <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>Report the queue here</Text>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>{t('stations.reportHere')}</Text>
         </TouchableOpacity>
         {latestFresh ? (
           <TouchableOpacity
@@ -116,12 +119,12 @@ export default function StationDetailScreen() {
               confirm.mutate()
             }}
             accessibilityRole="button"
-            accessibilityLabel={isAuthenticated ? 'Still like this? Confirm the latest report' : 'Sign in to confirm the latest report'}
+            accessibilityLabel={isAuthenticated ? t('stations.confirmA11y') : t('stations.signInConfirmA11y')}
             style={{ marginTop: 8, height: 46, borderRadius: 12, backgroundColor: ORANGE_SOFT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
             <Check size={18} color={ORANGE} />
             <Text style={{ fontFamily: font.bold, fontSize: 14, color: ORANGE }}>
-              {confirm.isSuccess ? 'Thanks — confirmed' : confirm.isError ? 'Could not confirm' : isAuthenticated ? 'Still like this? Confirm' : 'Sign in to confirm'}
+              {confirm.isSuccess ? t('stations.thanksConfirmed') : confirm.isError ? t('stations.couldNotConfirm') : isAuthenticated ? t('stations.stillConfirm') : t('stations.signInConfirm')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -129,11 +132,11 @@ export default function StationDetailScreen() {
 
       {/* Lines from here */}
       <View style={{ backgroundColor: CARD.bg, borderRadius: 18, borderWidth: 1, borderColor: CARD.border, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
-        <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT, marginBottom: 4 }}>Lines from here</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT, marginBottom: 4 }}>{t('stations.linesFromHere')}</Text>
         {lines.isLoading ? (
           <View style={{ height: 40, borderRadius: 10, backgroundColor: '#F3F1EF', marginVertical: 10 }} />
         ) : (lines.data ?? []).length === 0 ? (
-          <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2, paddingVertical: 10 }}>No lines linked to this station yet.</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2, paddingVertical: 10 }}>{t('stations.noLines')}</Text>
         ) : (lines.data ?? []).map((r, i) => {
           const startsHere = r.from_station_id === station.id ||
             (r.to_station_id !== station.id && r.from_location.trim().toLowerCase() === station.name.trim().toLowerCase())
@@ -144,11 +147,11 @@ export default function StationDetailScreen() {
               activeOpacity={0.7}
               onPress={() => router.push({ pathname: '/routes/[id]', params: { id: r.id } } as any)}
               accessibilityRole="button"
-              accessibilityLabel={`${r.from_location} to ${r.to_location}${r.official_fare && r.is_gprtu_verified ? `, ${formatGHS(Number(r.official_fare))} GPRTU fare` : ''}`}
+              accessibilityLabel={`${t('homeX.routeA11y', { from: r.from_location, to: r.to_location })}${r.official_fare && r.is_gprtu_verified ? `, ${t('homeX.fareGprtu', { fare: formatGHS(Number(r.official_fare)) })}` : ''}`}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: CARD.border }}
             >
               <LineBadge from={r.from_location} to={r.to_location} />
-              <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, color: TEXT }} numberOfLines={1}>to {dest}</Text>
+              <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, color: TEXT }} numberOfLines={1}>{t('stations.toDest', { place: dest })}</Text>
               {r.official_fare && r.is_gprtu_verified ? (
                 <>
                   <Text style={{ fontFamily: font.extrabold, fontSize: 16, color: TEXT }}>{formatGHS(Number(r.official_fare))}</Text>
@@ -164,32 +167,32 @@ export default function StationDetailScreen() {
       {/* Recent reports */}
       {(reports.data ?? []).length > 0 ? (
         <View style={{ backgroundColor: CARD.bg, borderRadius: 18, borderWidth: 1, borderColor: CARD.border, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
-          <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT, marginBottom: 4 }}>Recent reports</Text>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: TEXT, marginBottom: 4 }}>{t('stations.recentReports')}</Text>
           {(reports.data ?? []).map((r, i) => {
             const k = freshness(r.reported_at)
             const c = k === 'stale' ? '#6B7280' : QUEUE_COLOR[r.queue_status]
             return (
               <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: CARD.border }}>
                 {k === 'stale' ? <FreshnessDot kind={k} color={c} /> : <QueueGlyph status={r.queue_status} color={c} size={14} opacity={k === 'aging' ? 0.8 : 1} />}
-                <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: c }}>{QUEUE_WORD[r.queue_status] ?? r.queue_status}</Text>
+                <Text style={{ fontFamily: font.extrabold, fontSize: 14, color: c }}>{r.queue_status in QUEUE_WORD ? queueWordT(r.queue_status) : r.queue_status}</Text>
                 <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 13, color: TEXT2 }} numberOfLines={1}>
-                  {r.source === 'reporter' ? '· Station reporter' : r.source === 'whatsapp' ? '· via WhatsApp' : r.source === 'rider' ? '· Rider' : ''}
+                  {r.source === 'reporter' ? t('stations.srcReporter') : r.source === 'whatsapp' ? t('stations.srcWhatsapp') : r.source === 'rider' ? t('stations.srcRider') : ''}
                 </Text>
-                <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{ageLabel(r.reported_at)}</Text>
+                <Text style={{ fontFamily: font.regular, fontSize: 13, color: TEXT2 }}>{ageT(ageLabel(r.reported_at))}</Text>
               </View>
             )
           })}
-          <Text style={{ fontFamily: font.regular, fontSize: 12, color: TEXT2, paddingVertical: 8 }}>Reports older than 2 hours are greyed out.</Text>
+          <Text style={{ fontFamily: font.regular, fontSize: 12, color: TEXT2, paddingVertical: 8 }}>{t('stations.greyed')}</Text>
         </View>
       ) : null}
 
       <TouchableOpacity
         onPress={report}
         accessibilityRole="button"
-        accessibilityLabel="Report the queue"
+        accessibilityLabel={t('stations.reportTheQueue')}
         style={{ height: 46, borderRadius: 12, backgroundColor: ORANGE_SOFT, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Text style={{ fontFamily: font.bold, fontSize: 14, color: ORANGE }}>At {station.name}? Tell riders how it looks</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 14, color: ORANGE }}>{t('stations.atTell', { name: station.name })}</Text>
       </TouchableOpacity>
     </ScrollView>
   )

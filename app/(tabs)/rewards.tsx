@@ -56,6 +56,7 @@ import { supabase } from '@/lib/supabase'
 import { REPORT_POINTS, REFERRAL_POINTS, LEVELS, LEVEL_ORDER, calculateLevel, getNextLevel } from '@/lib/constants/rewards'
 import type { PointsHistoryEntry, LevelSlug, ContributorProfile } from '@/lib/types'
 import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
+import { useLanguage, t as tr, getLanguage } from '@/lib/i18n'
 
 // Rewards, one scroll (Troski UX v2 "Proposed", RW1–RW7; replaces the
 // 2026-10-07 gauge + 4 segments). Recognition only: coins are a counter for
@@ -65,14 +66,14 @@ import { TAB_BAR_CLEARANCE } from '@/app/(tabs)/_layout'
 
 const SCREEN_W = Dimensions.get('window').width
 const CELEBRATED_KEY = '@troski_rewards_celebrated_v1'
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F']
+const WEEKDAYS = ['rewards.day.mon', 'rewards.day.tue', 'rewards.day.wed', 'rewards.day.thu', 'rewards.day.fri']
 
 /* What each tier unlocks, in plain words (RW6). Shown, not enforced here. */
 const TIER_PRIVILEGES: Record<LevelSlug, string> = {
-  passenger: 'Report fares and queues to earn your first tier.',
-  regular: 'Your name shows on reports.',
-  local_expert: 'Your answers show first. You can mark incidents cleared.',
-  troski_legend: 'Legend badge on every post. You see new features first.',
+  passenger: 'rewards.priv.passenger',
+  regular: 'rewards.priv.regular',
+  local_expert: 'rewards.priv.local_expert',
+  troski_legend: 'rewards.priv.troski_legend',
 }
 
 /* Badges named as roles (RW5), measured from profile counters only.
@@ -87,24 +88,24 @@ type RoleBadge = {
   Icon: typeof FareIcon
 }
 const ROLE_BADGES: RoleBadge[] = [
-  { key: 'queue', name: 'Queue Watcher', target: 25, goal: '25 queue reports', value: (p) => p.queue_reports, Icon: QueueIcon },
-  { key: 'fare', name: 'Fare Checker', target: 25, goal: '25 fares', value: (p) => p.fare_reports, Icon: FareIcon },
-  { key: 'incident', name: 'Problem Spotter', target: 10, goal: '10 problem reports', value: (p) => p.incident_reports, Icon: IncidentIcon },
+  { key: 'queue', name: 'rewards.badge.queue', target: 25, goal: 'rewards.badge.queueGoal', value: (p) => p.queue_reports, Icon: QueueIcon },
+  { key: 'fare', name: 'rewards.badge.fare', target: 25, goal: 'rewards.badge.fareGoal', value: (p) => p.fare_reports, Icon: FareIcon },
+  { key: 'incident', name: 'rewards.badge.incident', target: 10, goal: 'rewards.badge.incidentGoal', value: (p) => p.incident_reports, Icon: IncidentIcon },
 ]
 
 /* ── History row meta ────────────────────────────────── */
 
 function historyMeta(entry: PointsHistoryEntry): { label: string; Icon: typeof Bus } {
-  if (entry.points < 0) return { label: entry.reason || 'Coins adjusted', Icon: Minus }
+  if (entry.points < 0) return { label: entry.reason || tr('rewards.hist.adjusted'), Icon: Minus }
   switch (entry.report_type) {
-    case 'fare': return { label: 'Fare report', Icon: Bus }
-    case 'queue': return { label: 'Queue report', Icon: Clock }
-    case 'incident': return { label: 'Problem report', Icon: AlertTriangle }
-    case 'train': return { label: 'Train report', Icon: TrainFront }
-    case 'tale': return { label: 'Pulse post', Icon: Camera }
-    case 'referral': return { label: 'Friend joined', Icon: Gift }
-    case 'streak': return { label: 'Streak bonus', Icon: Flame }
-    default: return { label: entry.reason || 'Coins earned', Icon: Coins }
+    case 'fare': return { label: tr('rewards.hist.fare'), Icon: Bus }
+    case 'queue': return { label: tr('rewards.hist.queue'), Icon: Clock }
+    case 'incident': return { label: tr('rewards.hist.incident'), Icon: AlertTriangle }
+    case 'train': return { label: tr('rewards.hist.train'), Icon: TrainFront }
+    case 'tale': return { label: tr('rewards.hist.tale'), Icon: Camera }
+    case 'referral': return { label: tr('rewards.hist.referral'), Icon: Gift }
+    case 'streak': return { label: tr('rewards.hist.streak'), Icon: Flame }
+    default: return { label: entry.reason || tr('rewards.hist.earned'), Icon: Coins }
   }
 }
 
@@ -112,22 +113,25 @@ function histTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-function plural(n: number, one: string, many = `${one}s`) {
-  return `${n.toLocaleString()} ${n === 1 ? one : many}`
+/* unit = i18n stem: 'rewards.unit.coin' -> '.one' / '.many' ({n} = formatted count) */
+function plural(n: number, unit: string) {
+  const one = getLanguage() === 'fr' ? n < 2 : n === 1
+  return tr(`${unit}.${one ? 'one' : 'many'}`, { n: n.toLocaleString() })
 }
 
 /* ── Simple bottom sheet (core RN Modal) ─────────────── */
 
 function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets()
+  const { t } = useLanguage()
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={s.sheetBackdrop}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel={t('rewards.close')} />
         <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={s.sheetHead}>
             <Text style={s.sheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={s.sheetClose} accessibilityRole="button" accessibilityLabel="Close">
+            <TouchableOpacity onPress={onClose} style={s.sheetClose} accessibilityRole="button" accessibilityLabel={t('rewards.close')}>
               <X size={20} color={ui.text} />
             </TouchableOpacity>
           </View>
@@ -144,6 +148,7 @@ function Sheet({ visible, title, onClose, children }: { visible: boolean; title:
 
 function Ayekoo({ tierName }: { tierName: string }) {
   const v = useRef(new RNAnimated.Value(0)).current
+  const { t } = useLanguage()
   useEffect(() => {
     RNAnimated.sequence([
       RNAnimated.timing(v, { toValue: 1, duration: 320, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
@@ -155,7 +160,7 @@ function Ayekoo({ tierName }: { tierName: string }) {
   return (
     <RNAnimated.View style={[s.ayekoo, { opacity: v, transform: [{ scale }] }]} pointerEvents="none">
       <HeroText size={28} style={{ color: ui.onBrand }}>Ayekoo!</HeroText>
-      <Text style={s.ayekooSub}>{`You reached ${tierName}`}</Text>
+      <Text style={s.ayekooSub}>{t('rewards.reached', { tier: tierName })}</Text>
     </RNAnimated.View>
   )
 }
@@ -166,6 +171,7 @@ export default function RewardsScreen() {
   const insets = useSafeAreaInsets()
   const { width: winW } = useWindowDimensions()
   const { deviceId, refreshProfile } = useApp()
+  const { t } = useLanguage()
 
   const { profile, isLoading, refetch: refetchProfile } = useProfile(deviceId)
   const { entries: history, refetch: refetchHistory } = usePointsHistory(deviceId)
@@ -256,9 +262,9 @@ export default function RewardsScreen() {
     const todayStr = new Date().toDateString()
     const yestStr = new Date(Date.now() - dayMs).toDateString()
     const groups: { title: string; items: PointsHistoryEntry[] }[] = [
-      { title: 'Today', items: [] },
-      { title: 'Yesterday', items: [] },
-      { title: 'Earlier', items: [] },
+      { title: 'activity.today', items: [] },
+      { title: 'activity.yesterday', items: [] },
+      { title: 'rewards.earlier', items: [] },
     ]
     for (const h of history) {
       const ds = new Date(h.created_at).toDateString()
@@ -297,7 +303,7 @@ export default function RewardsScreen() {
     if (!referralCode) return
     try {
       await Share.share({
-        message: `Join me on Troski with my code ${referralCode}. Check trotro fares and queues before you leave. https://www.troski.me`,
+        message: t('rewards.shareMsg', { code: referralCode }),
       })
     } catch {
       // cancelled
@@ -317,12 +323,12 @@ export default function RewardsScreen() {
       <AdinkraBand patternHeight={120} style={s.header}>
         <BackButton />
         <View style={{ flex: 1 }} />
-        <View style={s.headChip} accessible accessibilityLabel={`${coins} coins`}>
+        <View style={s.headChip} accessible accessibilityLabel={plural(coins, 'rewards.unit.coin')}>
           <TroskiCoin size={16} />
-          <Text style={s.headChipText}>{plural(coins, 'coin')}</Text>
+          <Text style={s.headChipText}>{plural(coins, 'rewards.unit.coin')}</Text>
         </View>
         <View style={[s.headChip, { backgroundColor: brand.orangeSoft }]}>
-          <Text style={[s.headChipText, { color: brand.orangeText }]}>{level.name}</Text>
+          <Text style={[s.headChipText, { color: brand.orangeText }]}>{t(`rewards.level.${levelSlug}`)}</Text>
         </View>
       </AdinkraBand>
 
@@ -345,27 +351,27 @@ export default function RewardsScreen() {
               </View>
               {impact ? (
                 <>
-                  <HeroText size={40} style={s.heroBig}>{plural(impact.ridersHelped, 'rider')}</HeroText>
-                  <Text style={s.heroLine}>used your reports this month</Text>
+                  <HeroText size={40} style={s.heroBig}>{plural(impact.ridersHelped, 'rewards.unit.rider')}</HeroText>
+                  <Text style={s.heroLine}>{t('rewards.usedReports')}</Text>
                   <Text style={s.heroMix}>
-                    {`${impact.queueReports} queue · ${impact.fareReports} fare · ${plural(impact.problemReports, 'problem report')}`}
+                    {t('rewards.mix', { q: impact.queueReports, f: impact.fareReports, p: plural(impact.problemReports, 'rewards.unit.problem') })}
                   </Text>
                 </>
               ) : (
                 <>
-                  <Text style={s.heroLine}>Your reports so far</Text>
+                  <Text style={s.heroLine}>{t('rewards.soFar')}</Text>
                   <HeroText size={40} style={s.heroBig}>{totalReports.toLocaleString()}</HeroText>
                   {totalReports > 0 ? (
                     <Text style={s.heroMix}>
-                      {`${profile?.queue_reports ?? 0} queue · ${profile?.fare_reports ?? 0} fare · ${plural(profile?.incident_reports ?? 0, 'problem report')}`}
+                      {t('rewards.mix', { q: profile?.queue_reports ?? 0, f: profile?.fare_reports ?? 0, p: plural(profile?.incident_reports ?? 0, 'rewards.unit.problem') })}
                     </Text>
                   ) : (
-                    <Text style={s.heroMix}>Report a fare or a queue and riders behind you see it.</Text>
+                    <Text style={s.heroMix}>{t('rewards.firstHint')}</Text>
                   )}
                 </>
               )}
               <TouchableOpacity onPress={() => openSheet('count')} style={s.heroLink} accessibilityRole="button" hitSlop={8}>
-                <Text style={s.heroLinkText}>How we count</Text>
+                <Text style={s.heroLinkText}>{t('rewards.howCount')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -375,8 +381,8 @@ export default function RewardsScreen() {
                 {/* Owo foro adobe (perseverance): keep the streak going. */}
                 <AdinkraAccent symbol="owo_foro_adobe" size={72} color={brand.orange} opacity={0.07} position="bottomRight" inset={-16} rotate={-8} />
                 <View style={s.rowBetween}>
-                  <Text style={s.cardTitle}>{`${streak.streakDays}-day streak`}</Text>
-                  <Text style={s.meta}>Weekends never count</Text>
+                  <Text style={s.cardTitle}>{t('rewards.streakDays', { n: streak.streakDays })}</Text>
+                  <Text style={s.meta}>{t('rewards.weekends')}</Text>
                 </View>
                 <View style={[s.rowBetween, { marginTop: 12 }]}>
                   {WEEKDAYS.map((d, i) => {
@@ -385,14 +391,14 @@ export default function RewardsScreen() {
                     return (
                       <View key={i} style={{ alignItems: 'center', gap: 6 }}>
                         <View style={[s.dayDot, done ? s.dayDone : isToday ? s.dayToday : s.dayOpen]}>
-                          {done ? <Check size={20} color={ui.onBrand} strokeWidth={2.6} /> : isToday ? <Text style={s.dayTodayText}>today</Text> : null}
+                          {done ? <Check size={20} color={ui.onBrand} strokeWidth={2.6} /> : isToday ? <Text style={s.dayTodayText}>{t('rewards.todayDot')}</Text> : null}
                         </View>
-                        <Text style={s.dayLabel}>{d}</Text>
+                        <Text style={s.dayLabel}>{t(d)}</Text>
                       </View>
                     )
                   })}
                 </View>
-                <Text style={[s.meta, { marginTop: 10 }]}>Report on your way to work to keep it going.</Text>
+                <Text style={[s.meta, { marginTop: 10 }]}>{t('rewards.keepGoing')}</Text>
               </View>
             )}
 
@@ -400,7 +406,7 @@ export default function RewardsScreen() {
             {stations && stations.length > 0 && (
               <View style={s.block}>
                 <View style={s.titleRow}>
-                  <Text style={s.sectionTitle}>Your stations</Text>
+                  <Text style={s.sectionTitle}>{t('rewards.yourStations')}</Text>
                   <AdinkraAccent symbol="esono_anantam" size={22} color={brand.orange} opacity={0.45} position="inline" />
                 </View>
                 <View style={[s.listCard, { marginTop: 8 }]}>
@@ -417,12 +423,12 @@ export default function RewardsScreen() {
                       )}
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowTitle} numberOfLines={1}>
-                          {st.isLegend ? `${st.stationName} · Station Legend` : st.stationName}
+                          {st.isLegend ? `${st.stationName} · ${t('rewards.stationLegend')}` : st.stationName}
                         </Text>
                         <Text style={s.meta}>
                           {st.isLegend
-                            ? `${plural(st.reports30d, 'report')} in the last 30 days`
-                            : `${plural(st.reports30d, 'report')}. The Legend has ${st.legendReports30d}.`}
+                            ? t('rewards.last30', { reports: plural(st.reports30d, 'rewards.unit.report') })
+                            : t('rewards.legendHas', { reports: plural(st.reports30d, 'rewards.unit.report'), n: st.legendReports30d })}
                         </Text>
                       </View>
                     </View>
@@ -435,11 +441,11 @@ export default function RewardsScreen() {
             {league && league.rows.length > 0 && (
               <View style={s.block}>
                 <View style={s.titleRow}>
-                  <Text style={[s.sectionTitle, { flexShrink: 1 }]} numberOfLines={2}>{`${league.corridorName} riders`}</Text>
+                  <Text style={[s.sectionTitle, { flexShrink: 1 }]} numberOfLines={2}>{t('rewards.corridorRiders', { corridor: league.corridorName })}</Text>
                   <AdinkraAccent symbol="funtunfunefu" size={22} color={brand.orange} opacity={0.45} position="inline" />
                 </View>
                 <Text style={s.meta}>
-                  {`This week · top 5 get a gold star on their posts${league.daysLeft != null ? ` · ${plural(league.daysLeft, 'day')} left` : ''}`}
+                  {`${t('rewards.leagueMeta')}${league.daysLeft != null ? ` · ${t('rewards.daysLeft', { days: plural(league.daysLeft, 'rewards.unit.day') })}` : ''}`}
                 </Text>
                 <View style={[s.listCard, { marginTop: 8 }]}>
                   {league.rows.map((r, i) => (
@@ -449,21 +455,21 @@ export default function RewardsScreen() {
                         <Text style={s.avatarText}>{(r.name.trim()[0] ?? 'R').toUpperCase()}</Text>
                       </View>
                       <Text style={[s.leagueName, r.isMe && { fontFamily: font.extrabold }]} numberOfLines={1}>
-                        {r.isMe ? `You · ${r.name}` : r.name}
+                        {r.isMe ? `${t('rewards.you')} · ${r.name}` : r.name}
                       </Text>
                       {r.rank <= 5 && <Sparkle size={16} color={ui.warning} />}
-                      <Text style={s.meta}>{plural(r.reports, 'report')}</Text>
+                      <Text style={s.meta}>{plural(r.reports, 'rewards.unit.report')}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={[s.meta, { marginTop: 4 }]}>Paid Troski reporters are not ranked.</Text>
+                <Text style={[s.meta, { marginTop: 4 }]}>{t('rewards.paidNotRanked')}</Text>
               </View>
             )}
 
             {/* ═══ RW5 Badges up next ═══ */}
             {upNext.length > 0 && (
               <View style={s.block}>
-                <Text style={s.sectionTitle}>Badges up next</Text>
+                <Text style={s.sectionTitle}>{t('rewards.badgesNext')}</Text>
                 <View style={{ gap: 8, marginTop: 8 }}>
                   {upNext.map(({ b, cur, ratio }) => (
                     <View key={b.key} style={[s.card, s.badgeRow]}>
@@ -472,18 +478,18 @@ export default function RewardsScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={s.rowBetween}>
-                          <Text style={s.rowTitle} numberOfLines={1}>{b.name}</Text>
+                          <Text style={s.rowTitle} numberOfLines={1}>{t(b.name)}</Text>
                           <Text style={s.meta}>{`${cur}/${b.target}`}</Text>
                         </View>
                         <View
                           style={s.track}
                           accessibilityRole="progressbar"
-                          accessibilityLabel={`${b.name} progress`}
+                          accessibilityLabel={t('rewards.badgeProgress', { name: t(b.name) })}
                           accessibilityValue={{ min: 0, max: b.target, now: cur }}
                         >
                           {cur > 0 && <View style={[s.fill, { width: `${Math.max(3, ratio * 100)}%` }]} />}
                         </View>
-                        <Text style={s.meta}>{b.goal}</Text>
+                        <Text style={s.meta}>{t(b.goal)}</Text>
                       </View>
                     </View>
                   ))}
@@ -493,28 +499,28 @@ export default function RewardsScreen() {
 
             {/* ═══ RW6 What your tier unlocks ═══ */}
             <View style={s.block}>
-              <Text style={s.sectionTitle}>What your tier unlocks</Text>
+              <Text style={s.sectionTitle}>{t('rewards.tierUnlocks')}</Text>
               <View style={[s.card, { marginTop: 8 }]}>
                 <View style={s.rowBetween}>
-                  <Text style={s.tierName}>{level.name}</Text>
-                  <Text style={s.hereText}>{"You're here"}</Text>
+                  <Text style={s.tierName}>{t(`rewards.level.${levelSlug}`)}</Text>
+                  <Text style={s.hereText}>{t('rewards.youreHere')}</Text>
                 </View>
-                <Text style={s.tierBody}>{TIER_PRIVILEGES[levelSlug]}</Text>
+                <Text style={s.tierBody}>{t(TIER_PRIVILEGES[levelSlug])}</Text>
                 <View
                   style={[s.track, { marginTop: 10 }]}
                   accessibilityRole="progressbar"
-                  accessibilityLabel="Progress to next tier"
+                  accessibilityLabel={t('rewards.progressNext')}
                   accessibilityValue={{ min: 0, max: 100, now: Math.round(tierRatio * 100) }}
                 >
                   {tierRatio > 0 && <View style={[s.fill, { width: `${Math.max(3, tierRatio * 100)}%` }]} />}
                 </View>
                 <Text style={[s.meta, { marginTop: 4 }]}>
-                  {nextLevel ? `${plural(coinsToNext, 'coin')} to ${nextLevel.name}` : 'Top tier reached'}
+                  {nextLevel ? t('rewards.toTier', { coins: plural(coinsToNext, 'rewards.unit.coin'), tier: t(`rewards.level.${nextLevel.slug}`) }) : t('profile.topTier')}
                 </Text>
                 {LEVEL_ORDER.slice(curIdx + 1).map((slug) => (
                   <View key={slug} style={{ marginTop: 10 }}>
-                    <Text style={s.tierName}>{LEVELS[slug].name}</Text>
-                    <Text style={s.tierBody}>{TIER_PRIVILEGES[slug]}</Text>
+                    <Text style={s.tierName}>{t(`rewards.level.${slug}`)}</Text>
+                    <Text style={s.tierBody}>{t(TIER_PRIVILEGES[slug])}</Text>
                   </View>
                 ))}
               </View>
@@ -523,9 +529,9 @@ export default function RewardsScreen() {
             {/* ═══ Rows ═══ */}
             <View style={[s.listCard, s.block]}>
               {[
-                { k: 'history' as const, label: 'Coin history', Icon: History },
-                { k: 'invite' as const, label: 'Invite friends', Icon: Gift },
-                { k: 'how' as const, label: 'How rewards work', Icon: Info },
+                { k: 'history' as const, label: 'rewards.coinHistory', Icon: History },
+                { k: 'invite' as const, label: 'rewards.invite', Icon: Gift },
+                { k: 'how' as const, label: 'rewards.how', Icon: Info },
               ].map((r, i) => (
                 <TouchableOpacity
                   key={r.k}
@@ -537,7 +543,7 @@ export default function RewardsScreen() {
                   <View style={s.navIcon}>
                     <r.Icon size={20} color={brand.orangeText} />
                   </View>
-                  <Text style={[s.rowTitle, { flex: 1 }]}>{r.label}</Text>
+                  <Text style={[s.rowTitle, { flex: 1 }]}>{t(r.label)}</Text>
                   <ChevronRight size={20} color={ui.textSecondary} />
                 </TouchableOpacity>
               ))}
@@ -547,26 +553,26 @@ export default function RewardsScreen() {
       </ScrollView>
 
       {/* ── How we count ── */}
-      <Sheet visible={sheet === 'count'} title="How we count" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'count'} title={t('rewards.howCount')} onClose={() => setSheet(null)}>
         <Text style={s.sheetBody}>
-          A rider counts when they open a station or line while your report there is still fresh. Each rider counts once a month, however many of your reports they see.
+          {t('rewards.countBody1')}
         </Text>
         <Text style={[s.sheetBody, { marginTop: 10 }]}>
-          Until that count is ready, we show how many reports you have shared.
+          {t('rewards.countBody2')}
         </Text>
       </Sheet>
 
       {/* ── Coin history ── */}
-      <Sheet visible={sheet === 'history'} title="Coin history" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'history'} title={t('rewards.coinHistory')} onClose={() => setSheet(null)}>
         {historyGroups.length === 0 ? (
           <View style={s.emptyHistory}>
             <View style={{ opacity: 0.55 }}><TroskiCoin size={42} /></View>
-            <Text style={s.meta}>No coins yet. Your first report starts the count.</Text>
+            <Text style={s.meta}>{t('rewards.noCoins')}</Text>
           </View>
         ) : (
           historyGroups.map((g) => (
             <View key={g.title} style={{ marginTop: 6 }}>
-              <Text style={s.histGroup}>{g.title}</Text>
+              <Text style={s.histGroup}>{t(g.title)}</Text>
               {g.items.map((h, i) => {
                 const meta = historyMeta(h)
                 const positive = h.points >= 0
@@ -580,7 +586,7 @@ export default function RewardsScreen() {
                       <Text style={s.meta}>{histTime(h.created_at)}</Text>
                     </View>
                     <Text style={[s.histPts, { color: positive ? ui.success : ui.danger }]}>
-                      {`${positive ? '+' : '-'}${Math.abs(h.points)} coins`}
+                      {`${positive ? '+' : '-'}${t('report.coinsN', { n: Math.abs(h.points) })}`}
                     </Text>
                   </View>
                 )
@@ -591,33 +597,33 @@ export default function RewardsScreen() {
       </Sheet>
 
       {/* ── Invite friends ── */}
-      <Sheet visible={sheet === 'invite'} title="Invite friends" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'invite'} title={t('rewards.invite')} onClose={() => setSheet(null)}>
         <Text style={s.sheetBody}>
-          {`When a friend joins with your code, you both get ${REFERRAL_POINTS} coins.`}
+          {t('rewards.inviteBody', { n: REFERRAL_POINTS })}
         </Text>
         <View style={s.codeRow}>
           <View style={s.codeBox}>
-            <Text style={s.meta}>Your code</Text>
+            <Text style={s.meta}>{t('rewards.yourCode')}</Text>
             <Text style={s.codeText}>{referralCode ?? '—'}</Text>
           </View>
-          <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy} accessibilityRole="button" accessibilityLabel="Copy code">
+          <TouchableOpacity onPress={handleCopy} activeOpacity={0.7} style={s.codeCopy} accessibilityRole="button" accessibilityLabel={t('rewards.copyCode')}>
             {copied ? <Check size={18} color={ui.success} /> : <Copy size={18} color={brand.orangeText} />}
           </TouchableOpacity>
           <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={s.codeShare} accessibilityRole="button">
             <Share2 size={16} color={ui.onBrand} />
-            <Text style={s.codeShareText}>Share</Text>
+            <Text style={s.codeShareText}>{t('rewards.share')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.meta}>{`${plural(referralCount, 'friend')} joined with your code`}</Text>
+        <Text style={s.meta}>{t('rewards.friendsJoined', { friends: plural(referralCount, 'rewards.unit.friend') })}</Text>
       </Sheet>
 
       {/* ── How rewards work ── */}
-      <Sheet visible={sheet === 'how'} title="How rewards work" onClose={() => setSheet(null)}>
+      <Sheet visible={sheet === 'how'} title={t('rewards.how')} onClose={() => setSheet(null)}>
         {[
-          { Icon: FareIcon, text: `Fare report: ${REPORT_POINTS.fare} coins` },
-          { Icon: QueueIcon, text: `Queue report: ${REPORT_POINTS.queue} coins` },
-          { Icon: IncidentIcon, text: `Problem report: ${REPORT_POINTS.incident} coins` },
-          { Icon: GiftIcon, text: `Friend joins with your code: ${REFERRAL_POINTS} coins` },
+          { Icon: FareIcon, text: t('rewards.howFare', { n: REPORT_POINTS.fare }) },
+          { Icon: QueueIcon, text: t('rewards.howQueue', { n: REPORT_POINTS.queue }) },
+          { Icon: IncidentIcon, text: t('rewards.howIncident', { n: REPORT_POINTS.incident }) },
+          { Icon: GiftIcon, text: t('rewards.howReferral', { n: REFERRAL_POINTS }) },
         ].map((r) => (
           <View key={r.text} style={s.howRow}>
             <View style={s.navIcon}><r.Icon color={brand.orangeText} size={20} /></View>
@@ -625,14 +631,14 @@ export default function RewardsScreen() {
           </View>
         ))}
         <Text style={[s.sheetBody, { marginTop: 10 }]}>
-          Coins count toward your tier. Tiers show riders you can be trusted: Regular, Local Expert, then Troski Legend. Coins are not money and cannot be cashed out.
+          {t('rewards.howBody')}
         </Text>
       </Sheet>
 
       {/* Tier-up celebration */}
       {celebrating && (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]} pointerEvents="none">
-          <Ayekoo tierName={level.name} />
+          <Ayekoo tierName={t(`rewards.level.${levelSlug}`)} />
           <ConfettiCannon
             count={110}
             origin={{ x: SCREEN_W / 2, y: -10 }}

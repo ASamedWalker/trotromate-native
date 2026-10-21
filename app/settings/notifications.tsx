@@ -15,6 +15,7 @@ import { ChevronLeft } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import { useApp } from '@/lib/contexts/AppContext'
 import { supabase } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/i18n'
 
 interface SocialPreferences {
   follower_tales: boolean
@@ -46,27 +47,27 @@ const DEFAULT_PREFS: SocialPreferences = {
 
 const PREF_SECTIONS = [
   {
-    title: 'Social',
+    title: 'settings.notif.social',
     items: [
-      { key: 'new_followers' as const, label: 'New Followers', desc: 'When someone follows you' },
-      { key: 'follower_tales' as const, label: 'Follower Posts', desc: 'When someone you follow posts to Pulse' },
-      { key: 'tale_likes' as const, label: 'Pulse Likes', desc: 'When someone likes your post' },
-      { key: 'tale_comments' as const, label: 'Pulse Comments', desc: 'When someone comments on your post' },
-      { key: 'like_milestones' as const, label: 'Like Milestones', desc: 'When your post hits 5, 10, 25, 50, 100 likes' },
+      { key: 'new_followers' as const, label: 'settings.notif.newFollowers', desc: 'settings.notif.newFollowersDesc' },
+      { key: 'follower_tales' as const, label: 'settings.notif.followerPosts', desc: 'settings.notif.followerPostsDesc' },
+      { key: 'tale_likes' as const, label: 'settings.notif.likes', desc: 'settings.notif.likesDesc' },
+      { key: 'tale_comments' as const, label: 'settings.notif.comments', desc: 'settings.notif.commentsDesc' },
+      { key: 'like_milestones' as const, label: 'settings.notif.milestones', desc: 'settings.notif.milestonesDesc' },
     ],
   },
   {
-    title: 'Activity',
+    title: 'settings.notif.activity',
     items: [
-      { key: 'route_activity' as const, label: 'Route Activity', desc: 'Activity on your home route' },
-      { key: 'streak_risk' as const, label: 'Streak Alerts', desc: 'When your reporting streak is at risk' },
+      { key: 'route_activity' as const, label: 'settings.notif.routeActivity', desc: 'settings.notif.routeActivityDesc' },
+      { key: 'streak_risk' as const, label: 'settings.notif.streak', desc: 'settings.notif.streakDesc' },
     ],
   },
   {
-    title: 'Digests',
+    title: 'settings.notif.digests',
     items: [
-      { key: 'route_digest' as const, label: 'Daily Route Digest', desc: 'Daily summary of your route activity' },
-      { key: 'weekly_recap' as const, label: 'Weekly Recap', desc: 'Your weekly contribution stats' },
+      { key: 'route_digest' as const, label: 'settings.notif.daily', desc: 'settings.notif.dailyDesc' },
+      { key: 'weekly_recap' as const, label: 'settings.notif.weekly', desc: 'settings.notif.weeklyDesc' },
     ],
   },
 ]
@@ -76,6 +77,7 @@ export default function NotificationSettingsScreen() {
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const { t: tr } = useLanguage()
 
   const { deviceId } = useApp()
   const [prefs, setPrefs] = useState<SocialPreferences>(DEFAULT_PREFS)
@@ -125,7 +127,7 @@ export default function NotificationSettingsScreen() {
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
           <ChevronLeft size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Notification Preferences</Text>
+        <Text style={s.headerTitle}>{tr('settings.notif.title')}</Text>
       </View>
 
       {loading ? (
@@ -136,15 +138,15 @@ export default function NotificationSettingsScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {PREF_SECTIONS.map((section) => (
             <View key={section.title} style={s.section}>
-              <Text style={s.sectionLabel}>{section.title}</Text>
+              <Text style={s.sectionLabel}>{tr(section.title)}</Text>
               <View style={s.card}>
                 {section.items.map((item, i) => (
                   <View key={item.key}>
                     {i > 0 && <View style={s.divider} />}
                     <View style={s.row}>
                       <View style={s.rowInfo}>
-                        <Text style={s.rowLabel}>{item.label}</Text>
-                        <Text style={s.rowDesc}>{item.desc}</Text>
+                        <Text style={s.rowLabel}>{tr(item.label)}</Text>
+                        <Text style={s.rowDesc}>{tr(item.desc)}</Text>
                       </View>
                       <Switch
                         value={prefs[item.key] as boolean}
@@ -161,14 +163,14 @@ export default function NotificationSettingsScreen() {
 
           {/* Quiet Hours */}
           <View style={s.section}>
-            <Text style={s.sectionLabel}>Quiet Hours</Text>
+            <Text style={s.sectionLabel}>{tr('settings.notif.quiet')}</Text>
             <View style={s.card}>
               <View style={s.row}>
                 <View style={s.rowInfo}>
                   <Text style={s.rowLabel}>
                     {prefs.quiet_start} — {prefs.quiet_end}
                   </Text>
-                  <Text style={s.rowDesc}>No notifications during these hours</Text>
+                  <Text style={s.rowDesc}>{tr('settings.notif.quietDesc')}</Text>
                 </View>
               </View>
             </View>

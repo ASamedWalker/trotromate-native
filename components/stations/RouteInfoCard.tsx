@@ -3,10 +3,11 @@ import { View, Text, TouchableOpacity, Animated, StyleSheet, Platform } from 're
 import { X, ArrowRight, Bus, Car } from 'lucide-react-native'
 import { c, themed, font } from '@/lib/theme'
 import type { TransportRoute } from '@/lib/types/transport'
+import { useLanguage } from '@/lib/i18n'
 
 const ROUTE_TYPE_LABELS: Record<string, string> = {
   bus: 'Trotro',
-  share_taxi: 'Shared Taxi',
+  share_taxi: 'stations.sharedTaxi', // i18n key
   minibus: 'Minibus',
 }
 
@@ -24,6 +25,7 @@ interface RouteInfoCardProps {
 
 export function RouteInfoCard({ route, isDark, onClose }: RouteInfoCardProps) {
   const t = themed(isDark)
+  const { t: tr } = useLanguage()
   const opacity = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(20)).current
 
@@ -42,7 +44,7 @@ export function RouteInfoCard({ route, isDark, onClose }: RouteInfoCardProps) {
     ]).start()
   }, [])
 
-  const typeLabel = ROUTE_TYPE_LABELS[route.type] || route.type
+  const typeLabel = route.type === 'share_taxi' ? tr(ROUTE_TYPE_LABELS.share_taxi) : ROUTE_TYPE_LABELS[route.type] || route.type
   const typeColor = ROUTE_TYPE_COLORS[route.type] || c.amber500
   const TypeIcon = route.type === 'share_taxi' ? Car : Bus
 
@@ -94,7 +96,7 @@ export function RouteInfoCard({ route, isDark, onClose }: RouteInfoCardProps) {
         </View>
       ) : (
         <Text style={[styles.routeName, { color: t.text }]} numberOfLines={2}>
-          {route.name || `Route ${route.ref || route.osm_id}`}
+          {route.name || tr('stations.routeRef', { ref: route.ref || route.osm_id })}
         </Text>
       )}
     </Animated.View>

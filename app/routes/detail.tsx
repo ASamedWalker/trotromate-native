@@ -44,6 +44,8 @@ import Reanimated, { useSharedValue, useDerivedValue, useAnimatedStyle, runOnJS 
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
 import { TROTRO_BOOKING_ENABLED } from '@/lib/config/booking'
 import { RELEASE_MODE, FEATURES } from '@/lib/config/release'
+import { useLanguage } from '@/lib/i18n'
+import { ageT } from '@/lib/i18n/home-format'
 
 const BRAND = '#FF4D1C'
 
@@ -79,7 +81,7 @@ function getCoord(name: string) {
 // Compact "x ago" for fare-report freshness — builds trust by showing how recent
 // the crowdsourced fare is, the way Transit/Citymapper timestamp their data.
 // One age wording app-wide (lib/utils/freshness ageLabel).
-const timeAgo = (iso: string): string => ageLabel(iso)
+const timeAgo = (iso: string): string => ageT(ageLabel(iso))
 
 /* ── Transport options ── */
 
@@ -101,6 +103,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function RouteDetailScreen() {
   const router = useRouter()
+  const { t: tr } = useLanguage()
   const insets = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
   const cameraRef = useRef<Mapbox.Camera>(null)
@@ -230,7 +233,7 @@ export default function RouteDetailScreen() {
   const durationText = !hasDuration
     ? '—'
     : duration >= 60
-      ? `${Math.floor(duration / 60)}hr ${duration % 60}min`
+      ? tr('routes.durHM', { h: Math.floor(duration / 60), m: duration % 60 })
       : `${duration} min`
 
   // ── Crowdsourced fare: show an honest avg + range, not a single "fixed" price.
@@ -360,17 +363,17 @@ export default function RouteDetailScreen() {
   const isEstimate = !fareIsOfficial
   // The source chip that sits next to the fare (UX v2 M2).
   const fareSourceLabel = fareIsOfficial
-    ? (stageShown && dropoffResult?.origin === 'station' ? 'station chart' : 'GPRTU fare')
+    ? (stageShown && dropoffResult?.origin === 'station' ? tr('routes.stationChart') : tr('routes.gprtuFare'))
     : !stageShown && corridorSrc?.kind === 'riders'
-      ? `Riders say · ${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`
+      ? tr(reportCount === 1 ? 'routes.ridersSayOne' : 'routes.ridersSayMany', { n: reportCount })
       : reportCount > 0
-      ? `estimate · from ${reportCount} rider ${reportCount === 1 ? 'report' : 'reports'}`
-      : 'estimate · no reports yet'
+      ? tr(reportCount === 1 ? 'routes.estimateFromOne' : 'routes.estimateFromMany', { n: reportCount })
+      : tr('routes.estimateNone')
   // Okada routes carry their own fares; anything else (pragya, okada on a trotro
   // corridor) would just be the trotro fare relabelled, so show no number.
   const fareUnavailable = selectedOption.id !== 'trotro' && !(selectedOption.id === 'okada' && selectedTransport === 'okada')
   const fareText = fareUnavailable
-    ? 'Fare not available yet'
+    ? tr('routes.fareNA')
     : isEstimate
       ? `~${formatGHS(Math.round(Number(displayFare) * 10) / 10)}`
       : formatGHS(Number(displayFare))
@@ -401,9 +404,9 @@ export default function RouteDetailScreen() {
   }
   const shareFare = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    const src = ` (${fareIsOfficial ? (fareSourceLabel === 'GPRTU fare' ? 'official GPRTU' : fareSourceLabel) : !stageShown && corridorSrc?.kind === 'riders' ? 'reported by riders' : 'estimate'})`
+    const src = ` (${fareIsOfficial ? (fareSourceLabel === tr('routes.gprtuFare') ? tr('routes.officialGprtu') : fareSourceLabel) : !stageShown && corridorSrc?.kind === 'riders' ? tr('routes.reportedByRiders') : tr('routes.estimate')})`
     Share.share({
-      message: `Trotro fare ${from} → ${dropoffName || to}: ${fareText}${src}. Check any trotro fare free on Troski: https://troski.me`,
+      message: tr('routes.shareFareMsg', { from, to: dropoffName || to, fare: fareText, src }),
     }).catch(() => {})
   }
   // M8: a queue report at the origin from the last 15 min earns a map callout; older is hidden.
@@ -636,7 +639,7 @@ export default function RouteDetailScreen() {
             activeOpacity={0.7}
             hitSlop={4}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={tr('routes.back')}
             style={mapPinStyles.mapBtn}
           >
             <ChevronLeft size={24} color="#000" />
@@ -652,7 +655,7 @@ export default function RouteDetailScreen() {
             activeOpacity={0.7}
             hitSlop={4}
             accessibilityRole="button"
-            accessibilityLabel="Share fare"
+            accessibilityLabel={tr('routes.shareFare')}
             style={mapPinStyles.mapBtn}
           >
             <ShareIcon size={19} color="#000" />
@@ -665,7 +668,7 @@ export default function RouteDetailScreen() {
         <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 64, alignSelf: 'center', zIndex: 10 }}>
           <View style={mapPinStyles.callout}>
             <Text style={mapPinStyles.calloutText}>
-              {originQueueAge < 1 ? 'Queue reported just now' : `Queue reported ${originQueueAge} min ago`}
+              {originQueueAge < 1 ? tr('routes.queueReportedNow') : tr('routes.queueReportedMin', { n: originQueueAge })}
             </Text>
           </View>
         </View>
@@ -712,7 +715,7 @@ export default function RouteDetailScreen() {
               activeOpacity={0.7}
               onPress={expandSheet}
               accessibilityRole="button"
-              accessibilityLabel={`${from} to ${to}. ${fareLoading ? 'Fare loading' : fareText}. Show route details`}
+              accessibilityLabel={tr('routes.peekA11y', { from, to, fare: fareLoading ? tr('routes.fareLoading') : fareText })}
               style={{ paddingHorizontal: 24, paddingBottom: 12 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -725,11 +728,11 @@ export default function RouteDetailScreen() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
                 <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                  {[selectedOption.label, stopCount > 0 ? `${stopCount} stops` : null, hasStops ? 'tap to choose your stop' : 'tap for details'].filter(Boolean).join(' · ')}
+                  {[selectedOption.label, stopCount > 0 ? tr('routes.stops', { n: stopCount }) : null, hasStops ? tr('routes.tapChooseStop') : tr('routes.tapDetails')].filter(Boolean).join(' · ')}
                 </Text>
                 {!fareUnavailable && !fareLoading && (
                   <View style={[mapPinStyles.srcChip, { backgroundColor: fareIsOfficial ? '#DCFCE7' : '#F3F4F6' }]}>
-                    <Text style={[mapPinStyles.srcChipText, { color: fareIsOfficial ? '#15803D' : '#4B5563' }]}>{fareIsOfficial ? fareSourceLabel : 'estimate'}</Text>
+                    <Text style={[mapPinStyles.srcChipText, { color: fareIsOfficial ? '#15803D' : '#4B5563' }]}>{fareIsOfficial ? fareSourceLabel : tr('routes.estimate')}</Text>
                   </View>
                 )}
               </View>
@@ -759,7 +762,7 @@ export default function RouteDetailScreen() {
               <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#374151' }}>{selectedOption.label}</Text>
             </View>
             {stopCount > 0 && (
-              <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{stopCount} stops</Text></View>
+              <View style={mapPinStyles.metaChip}><Text style={mapPinStyles.metaChipText}>{tr('routes.stops', { n: stopCount })}</Text></View>
             )}
           </View>
 
@@ -767,7 +770,7 @@ export default function RouteDetailScreen() {
               scales to corridors with many drop-off points (no chip wall). */}
           {hasStops && (
             <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#6B7280', marginBottom: 7, letterSpacing: 0.2, textTransform: 'uppercase' }}>Where will you alight?</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: '#6B7280', marginBottom: 7, letterSpacing: 0.2, textTransform: 'uppercase' }}>{tr('routes.whereAlight')}</Text>
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => { Haptics.selectionAsync(); setAlightPickerOpen(true) }}
@@ -780,7 +783,7 @@ export default function RouteDetailScreen() {
                 <ChevronDown size={18} color="#6B7280" />
               </TouchableOpacity>
               {stopsGeojson.features.length > 0 && (
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 7 }}>or tap a stop on the map</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 7 }}>{tr('routes.orTapStop')}</Text>
               )}
             </View>
           )}
@@ -791,14 +794,14 @@ export default function RouteDetailScreen() {
               <View>
                 <Text style={{ fontFamily: font.extrabold, fontSize: 25, color: '#000', letterSpacing: -0.8 }}>{durationText}</Text>
                 {selectedTransport === 'trotro' && (
-                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{'Leaves when full'}</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 2 }}>{tr('routes.leavesWhenFull')}</Text>
                 )}
               </View>
             )}
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               {fareLoading ? (
                 /* M9: skeleton until the official stage fare loads, so an estimate never flashes first */
-                <View style={{ alignItems: 'flex-end', gap: 6 }} accessible accessibilityLabel="Loading fare">
+                <View style={{ alignItems: 'flex-end', gap: 6 }} accessible accessibilityLabel={tr('routes.loadingFare')}>
                   <View style={[mapPinStyles.skel, { width: 110, height: 28 }]} />
                   <View style={[mapPinStyles.skel, { width: 150, height: 14 }]} />
                 </View>
@@ -810,8 +813,8 @@ export default function RouteDetailScreen() {
                   {/* Before a stop is chosen the fare is to the end of the route — say so (UX v2 M5). */}
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#6B7280', marginTop: 2, textAlign: 'right' }} numberOfLines={2}>
                     {dropoffName && dropoffOrder != null && dropoffOrder !== lastOrder
-                      ? `Fare to ${dropoffName}`
-                      : `Fare to ${dropoffName || to} (end of route)`}
+                      ? tr('routes.fareTo', { place: dropoffName })
+                      : tr('routes.fareToEnd', { place: dropoffName || to })}
                   </Text>
                   {/* "official" names its source — a rider can check a GPRTU or station
                       chart. Only an authoritative origin earns the green chip; everything
@@ -838,7 +841,7 @@ export default function RouteDetailScreen() {
                     </Text>
                   ) : !stageShown && hasFareRange ? (
                     <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#6B7280', marginTop: 4, opacity: corridorSrc?.aged ? 0.6 : 1 }}>
-                      Riders paid {formatGHS(minFare!)}–{formatGHS(maxFare!)}{fareFresh ? ` · ${fareFresh}` : ''}
+                      {tr('routes.ridersPaidRange', { range: `${formatGHS(minFare!)}–${formatGHS(maxFare!)}` })}{fareFresh ? ` · ${fareFresh}` : ''}
                     </Text>
                   ) : null}
                 </>
@@ -856,7 +859,7 @@ export default function RouteDetailScreen() {
               }}
               style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 6 }}
             >
-              <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151' }}>Paid a different fare? Report it</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#374151' }}>{tr('routes.paidDifferent')}</Text>
               <ChevronRight size={15} color="#374151" />
             </TouchableOpacity>
           )}
@@ -868,9 +871,9 @@ export default function RouteDetailScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(255,77,28,0.1)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND }} />
                 <Text style={{ fontFamily: font.bold, fontSize: 13, color: BRAND }}>
-                  {activeCount > 0 ? `${activeCount} ${selectedOption.label.toLowerCase()}${activeCount !== 1 ? 's' : ''} live` : `${liveRiders} live`}
-                  {activeCount > 0 && liveRiders > 0 ? ` · ${liveRiders} rider${liveRiders !== 1 ? 's' : ''} en route` : ''}
-                  {activeCount === 0 && liveRiders > 0 ? ' on this route' : ''}
+                  {activeCount > 0 ? tr(activeCount !== 1 ? 'routes.vehiclesMany' : 'routes.vehiclesOne', { n: activeCount }) : tr(liveRiders !== 1 ? 'routes.ridersSharingMany' : 'routes.ridersSharingOne', { n: liveRiders })}
+                  {activeCount > 0 && liveRiders > 0 ? ` · ${tr(liveRiders !== 1 ? 'routes.ridersOnWayMany' : 'routes.ridersOnWayOne', { n: liveRiders })}` : ''}
+                  {activeCount === 0 && liveRiders > 0 ? ` ${tr('routes.onThisRoute')}` : ''}
                 </Text>
               </View>
             </View>
@@ -892,7 +895,7 @@ export default function RouteDetailScreen() {
             >
               <View style={{ height: 52, borderRadius: 16, backgroundColor: '#F3F4F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <Info size={18} color="#374151" />
-                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151' }}>Information</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#374151' }}>{tr('routes.information')}</Text>
               </View>
             </TouchableOpacity>
             )}
@@ -911,7 +914,7 @@ export default function RouteDetailScreen() {
               >
                 <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <Navigation size={18} color="#fff" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Go Now</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{tr('routes.goNow')}</Text>
                 </View>
               </TouchableOpacity>
             ) : selectedTransport === 'trotro' ? (
@@ -919,12 +922,12 @@ export default function RouteDetailScreen() {
                 style={{ flex: 1 }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Share fare"
+                accessibilityLabel={tr('routes.shareFare')}
                 onPress={shareFare}
               >
                 <View style={{ height: 52, borderRadius: 16, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <ShareIcon size={18} color="#fff" />
-                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>Share fare</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: '#fff' }}>{tr('routes.shareFare')}</Text>
                 </View>
               </TouchableOpacity>
             ) : (
@@ -933,15 +936,15 @@ export default function RouteDetailScreen() {
                 accessible
                 accessibilityRole="text"
                 accessibilityState={{ disabled: true }}
-                accessibilityLabel={`${selectedOption.label} rides are coming soon`}
+                accessibilityLabel={tr('routes.ridesSoonA11y', { mode: selectedOption.label })}
               >
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{`${selectedOption.label} rides coming soon`}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#C2410C', textAlign: 'center' }}>{tr('routes.ridesSoon', { mode: selectedOption.label })}</Text>
               </View>
             )}
           </View>
           {selectedTransport === 'trotro' && !TROTRO_BOOKING_ENABLED && !RELEASE_MODE && (
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: -6, marginBottom: 16 }}>
-              Tickets coming soon — pay the mate as usual
+              {tr('routes.ticketsSoon')}
             </Text>
           )}
 
@@ -956,13 +959,13 @@ export default function RouteDetailScreen() {
               {/* Header — no "Live" pill: this card has no realtime channel.
                   Fake busyness ("Not busy 20%", no data source) removed (UX-06). */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#6B7280', letterSpacing: 1.5, textTransform: 'uppercase' }}>Route Conditions</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#6B7280', letterSpacing: 1.5, textTransform: 'uppercase' }}>{tr('routes.routeConditions')}</Text>
               </View>
 
               {/* Traffic Condition — badge pill */}
               <View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Traffic Condition</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>{tr('routes.trafficCondition')}</Text>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
@@ -983,11 +986,11 @@ export default function RouteDetailScreen() {
                         : trafficCondition === 'moderate' ? '#d97706'
                         : trafficCondition === 'heavy' ? '#ea580c' : '#dc2626',
                     }}>
-                      {loadingTraffic ? 'Checking...'
-                        : !trafficCondition ? 'Unavailable'
-                        : trafficCondition === 'light' ? 'Light'
-                        : trafficCondition === 'moderate' ? 'Moderate'
-                        : trafficCondition === 'heavy' ? 'Heavy' : 'Severe'}
+                      {loadingTraffic ? tr('routes.checkingDots')
+                        : !trafficCondition ? tr('routes.unavailable')
+                        : trafficCondition === 'light' ? tr('routes.trafficLight')
+                        : trafficCondition === 'moderate' ? tr('routes.trafficModerate')
+                        : trafficCondition === 'heavy' ? tr('routes.trafficHeavy') : tr('routes.trafficSevere')}
                       {trafficDelay > 0 ? ` +${trafficDelay}m` : ''}
                     </Text>
                   </View>
@@ -1022,10 +1025,10 @@ export default function RouteDetailScreen() {
               {/* Header + back */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <Text style={{ fontFamily: font.bold, fontSize: 20, color: '#000' }}>
-                  Available {selectedTransport === 'trotro' ? 'Buses' : selectedTransport === 'okada' ? 'Okada' : 'Pragya'}
+                  {tr(selectedTransport === 'trotro' ? 'routes.availableBuses' : selectedTransport === 'okada' ? 'routes.availableOkada' : 'routes.availablePragya')}
                 </Text>
                 <TouchableOpacity onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setShowVehicles(false); setVehicleSearch(''); sheetRef.current?.snapToIndex(1) }} hitSlop={8}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>Back</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: BRAND }}>{tr('routes.back')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1039,7 +1042,7 @@ export default function RouteDetailScreen() {
                 <TextInput
                   value={vehicleSearch}
                   onChangeText={setVehicleSearch}
-                  placeholder="Search by bus code..."
+                  placeholder={tr('routes.searchBusCode')}
                   placeholderTextColor="#6B7280"
                   style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: '#000', padding: 0 }}
                 />
@@ -1049,7 +1052,7 @@ export default function RouteDetailScreen() {
               {loadingVehicles ? (
                 <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                   <ActivityIndicator size="small" color={BRAND} />
-                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginTop: 8 }}>Finding buses on route...</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280', marginTop: 8 }}>{tr('routes.findingBuses')}</Text>
                 </View>
               ) : (() => {
                 const filtered = vehicles.filter(v =>
@@ -1069,19 +1072,19 @@ export default function RouteDetailScreen() {
                         {/* ETA headline + Live */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: v.isStale ? '#6B7280' : '#000', letterSpacing: -0.4 }}>
-                            {v.isStale ? `Last seen ${ageMins} min ago` : 'Live'}
+                            {v.isStale ? tr('routes.lastSeen', { n: ageMins }) : tr('routes.recentlySeen')}
                           </Text>
                           {!v.isStale && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
                               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
-                              <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#22c55e' }}>Live</Text>
+                              <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#22c55e' }}>{tr('routes.recent')}</Text>
                             </View>
                           )}
                         </View>
 
                         {/* Friendly status */}
                         <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280', marginTop: 3 }}>
-                          {v.isStale ? 'Offline' : v.speed && v.speed > 0 ? 'On the way' : 'Waiting at a stop'}
+                          {v.isStale ? tr('routes.offline') : v.speed && v.speed > 0 ? tr('routes.onTheWay') : tr('routes.waitingStop')}
                         </Text>
 
                         {/* Divider */}
@@ -1108,9 +1111,9 @@ export default function RouteDetailScreen() {
                   <View style={{ padding: 24, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
                     <Bus size={32} color="#D1D5DB" />
                     <Text style={{ fontFamily: font.medium, fontSize: 16, color: '#6B7280', marginTop: 10 }}>
-                      {vehicleSearch ? `No buses matching "${vehicleSearch}"` : 'No buses currently on this route'}
+                      {vehicleSearch ? tr('routes.noBusesMatch', { q: vehicleSearch }) : tr('routes.noBusesRoute')}
                     </Text>
-                    <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>Check back shortly</Text>
+                    <Text style={{ fontFamily: font.regular, fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>{tr('routes.checkBack')}</Text>
                   </View>
                 )
               })()}
@@ -1123,7 +1126,7 @@ export default function RouteDetailScreen() {
       {hasStops && (
         <StopPickerModal
           visible={alightPickerOpen}
-          title="Where will you alight?"
+          title={tr('routes.whereAlight')}
           stops={stops}
           selectedOrder={effectiveDropoff}
           minOrder={stops[0].stop_order}

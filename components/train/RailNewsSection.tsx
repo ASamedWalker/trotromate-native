@@ -3,10 +3,12 @@ import { View, Text, TouchableOpacity, Linking } from 'react-native'
 import { ExternalLink, ShieldAlert, ChevronRight } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import {
-  MEDIA_REPORT_LABEL, RAIL_LINE_STATUS, RAIL_NEWS_KIND_LABEL, RAIL_SAFETY, latestRailNews, newsDateLabel,
+  MEDIA_REPORT_LABEL, RAIL_LINE_STATUS, RAIL_NEWS_KIND_LABEL, RAIL_SAFETY, latestRailNews,
   type RailNewsItem, type RailNewsKind,
 } from '@/lib/constants/train-news'
 import { RAIL_CONTACTS } from '@/lib/constants/train-schedule'
+import { useLanguage } from '@/lib/i18n'
+import { newsDate, trData } from '@/lib/i18n/screens/train'
 
 /**
  * Rail news + line status + safety notice for the Train tab and line pages.
@@ -33,29 +35,33 @@ function openSource(url: string) {
 }
 
 function NewsRow({ n, first }: { n: RailNewsItem; first: boolean }) {
+  const { t, lang } = useLanguage()
   const k = KIND_COLORS[n.kind]
-  const date = newsDateLabel(n.date, n.datePrecision)
+  const date = newsDate(n.date, lang, n.datePrecision)
   const url = n.url
-  const sourceLabel = n.source ?? MEDIA_REPORT_LABEL
+  const sourceLabel = trData(n.source ?? MEDIA_REPORT_LABEL, lang)
+  const kindLabel = trData(RAIL_NEWS_KIND_LABEL[n.kind], lang)
+  const title = trData(n.title, lang)
+  const summary = trData(n.summary, lang)
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       disabled={!url}
       onPress={() => url && openSource(url)}
       accessibilityRole={url ? 'link' : 'text'}
-      accessibilityLabel={`${RAIL_NEWS_KIND_LABEL[n.kind]}, ${date}. ${n.title}. ${sourceLabel}.${url ? ' Opens in browser.' : ''}`}
+      accessibilityLabel={`${kindLabel}, ${date}. ${title}. ${sourceLabel}.${url ? t('train.opensInBrowser') : ''}`}
       style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: LINE, gap: 4 }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ backgroundColor: k.bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
           <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.6, color: k.fg }}>
-            {RAIL_NEWS_KIND_LABEL[n.kind].toUpperCase()}
+            {kindLabel.toUpperCase()}
           </Text>
         </View>
         <Text style={{ fontFamily: font.medium, fontSize: 13, color: MUTED }}>{date}</Text>
       </View>
-      <Text style={{ fontFamily: font.bold, fontSize: 16, color: INK }}>{n.title}</Text>
-      <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#44403C' }}>{n.summary}</Text>
+      <Text style={{ fontFamily: font.bold, fontSize: 16, color: INK }}>{title}</Text>
+      <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#44403C' }}>{summary}</Text>
       {url ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#C2410C' }}>{sourceLabel}</Text>
@@ -69,14 +75,15 @@ function NewsRow({ n, first }: { n: RailNewsItem; first: boolean }) {
 }
 
 /** Latest rail news (newest first). Pass lineCode for one line's items only. */
-export function RailNewsList({ lineCode, limit = 4, title = 'Rail news' }: { lineCode?: string; limit?: number; title?: string }) {
+export function RailNewsList({ lineCode, limit = 4, title }: { lineCode?: string; limit?: number; title?: string }) {
+  const { t } = useLanguage()
   const items = latestRailNews(limit, lineCode)
   if (!items.length) return null
   return (
     <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: LINE, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
-      <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: '#111111' }}>{title}</Text>
+      <Text style={{ fontFamily: font.extrabold, fontSize: 19, color: '#111111' }}>{title ?? t('train.railNews')}</Text>
       <Text style={{ fontFamily: font.regular, fontSize: 13, color: MUTED, marginTop: 2, marginBottom: 4 }}>
-        In our own words. Official sources open when tapped.
+        {t('train.newsIntro')}
       </Text>
       {items.map((n, i) => <NewsRow key={n.id} n={n} first={i === 0} />)}
     </View>
@@ -91,9 +98,10 @@ const STATE_DOT: Record<string, string> = {
 
 /** Line status on the navy station-board look. Running lines link to their page. */
 export function RailLineStatusCard({ lineIdByCode = {}, onOpenLine }: { lineIdByCode?: Record<string, string>; onOpenLine?: (lineId: string) => void }) {
+  const { t, lang } = useLanguage()
   return (
     <View style={{ backgroundColor: BOARD, borderRadius: 20, padding: 18, gap: 2 }}>
-      <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: 'rgba(255,255,255,0.65)' }}>LINE STATUS</Text>
+      <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 1, color: 'rgba(255,255,255,0.65)' }}>{t('train.lineStatus')}</Text>
       {RAIL_LINE_STATUS.map((l, i) => {
         const id = l.lineCode ? lineIdByCode[l.lineCode] : undefined
         const tappable = !!(id && onOpenLine)
@@ -104,7 +112,7 @@ export function RailLineStatusCard({ lineIdByCode = {}, onOpenLine }: { lineIdBy
             disabled={!tappable}
             onPress={() => id && onOpenLine?.(id)}
             accessibilityRole={tappable ? 'button' : 'text'}
-            accessibilityLabel={`${l.name}: ${l.stateLabel}. ${l.detail}`}
+            accessibilityLabel={`${l.name}${lang === 'fr' ? '\u00a0' : ''}: ${trData(l.stateLabel, lang)}. ${trData(l.detail, lang)}`}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: 'rgba(255,255,255,0.08)' }}
           >
             <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -112,11 +120,11 @@ export function RailLineStatusCard({ lineIdByCode = {}, onOpenLine }: { lineIdBy
                 <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF', flexShrink: 1 }} numberOfLines={1}>{l.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: STATE_DOT[l.state] }} />
-                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{l.stateLabel}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{trData(l.stateLabel, lang)}</Text>
                 </View>
               </View>
               <Text style={{ fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                {l.detail} · {l.source}
+                {trData(l.detail, lang)} · {trData(l.source, lang)}
               </Text>
             </View>
             {tappable ? <ChevronRight size={16} color="rgba(255,255,255,0.4)" /> : null}
@@ -124,7 +132,7 @@ export function RailLineStatusCard({ lineIdByCode = {}, onOpenLine }: { lineIdBy
         )
       })}
       <Text style={{ fontFamily: font.regular, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-        Running = a published timetable exists. Not live tracking.
+        {t('train.runningNote')}
       </Text>
     </View>
   )
@@ -132,16 +140,17 @@ export function RailLineStatusCard({ lineIdByCode = {}, onOpenLine }: { lineIdBy
 
 /** Keep animals and people off the tracks + GRDA/GRCL contacts as plain text. */
 export function RailSafetyCard() {
+  const { lang } = useLanguage()
   return (
     <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1.5, borderColor: '#F5A300', padding: 16, gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <ShieldAlert size={20} color="#B45309" />
-        <Text style={{ fontFamily: font.extrabold, fontSize: 17, color: INK }}>{RAIL_SAFETY.title}</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 17, color: INK }}>{trData(RAIL_SAFETY.title, lang)}</Text>
       </View>
       {RAIL_SAFETY.points.map((p) => (
         <View key={p} style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#B45309', marginTop: 9 }} />
-          <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 15, color: '#44403C' }}>{p}</Text>
+          <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 15, color: '#44403C' }}>{trData(p, lang)}</Text>
         </View>
       ))}
       <View style={{ borderTopWidth: 1, borderTopColor: LINE, paddingTop: 8, gap: 4 }}>

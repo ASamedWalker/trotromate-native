@@ -17,7 +17,7 @@ import { okadaRange } from '@/components/lines/LineRow'
 import { useRouteDetail, useFareTrend } from '@/lib/hooks/useRoutes'
 import { fetchStations } from '@/lib/services/stations'
 import { corridorFor } from '@/lib/constants/corridors'
-import { QUEUE_COLOR, QUEUE_WORD } from '@/lib/constants/queueStatus'
+import { QUEUE_COLOR } from '@/lib/constants/queueStatus'
 import { freshness, ageLabel } from '@/lib/utils/freshness'
 import { fareSource } from '@/lib/utils/fare-source'
 import { useApp } from '@/lib/contexts/AppContext'
@@ -34,6 +34,8 @@ import { timeAgo } from '@/lib/utils/time'
 import { formatGHS, formatGHSRange } from '@/lib/utils/currency'
 import { AdinkraCardPattern } from '@/components/AdinkraAccent'
 import { titleCase } from '@/lib/utils/title-case'
+import { useLanguage } from '@/lib/i18n'
+import { ageT, queueWordT } from '@/lib/i18n/home-format'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.troski.me'
 
@@ -51,6 +53,7 @@ const BAR_H = 76
 export default function RouteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
+  const { t, lang } = useLanguage()
   const insets = useSafeAreaInsets()
   const haptics = useHaptics()
   const { isFavorite, toggleFavorite } = useFavorites()
@@ -116,7 +119,7 @@ export default function RouteDetailScreen() {
     return (
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <LoadErrorState message="Couldn't load this route. Check your connection." onRetry={() => refetch()} />
+          <LoadErrorState message={t('routes.loadError')} onRetry={() => refetch()} />
         </View>
       </SafeAreaView>
     )
@@ -126,7 +129,7 @@ export default function RouteDetailScreen() {
       <SafeAreaView style={s.container} edges={['top', 'bottom']}>
         <View style={s.centered}>
           <MapPin size={48} color={ui.textTertiary} />
-          <Text style={[s.cardTitle, { marginTop: space.md }]}>Route not found</Text>
+          <Text style={[s.cardTitle, { marginTop: space.md }]}>{t('routes.notFound')}</Text>
         </View>
       </SafeAreaView>
     )
@@ -153,23 +156,23 @@ export default function RouteDetailScreen() {
     heroFare = range ? formatGHSRange(range.min, range.max) : null
     heroLabel = range ? 'RIDERS' : null
     basis = range
-      ? `From ${reportCount} reports${lastAt ? ` · ${ageLabel(lastAt)}` : ''} · Agree before you ride`
-      : 'Agree the fare before you ride'
+      ? `${t('routes.fromReports', { n: reportCount })}${lastAt ? ` · ${ageT(ageLabel(lastAt))}` : ''} · ${t('routes.agreeBefore')}`
+      : t('routes.agreeFare')
   } else {
     heroFare = src.amount != null ? `${src.approx ? '~' : ''}${formatGHS(src.amount)}` : null
     heroLabel = src.chip === 'GPRTU' ? 'GPRTU FARE' : src.chip === 'RIDERS' ? 'RIDERS' : null
-    const age = lastAt ? ageLabel(lastAt) : ''
-    const based = reportCount > 0 ? `Based on ${reportCount} ${reportCount === 1 ? 'report' : 'reports'}` : ''
-    if (src.kind === 'agree') basis = [based, 'riders agree', age].filter(Boolean).join(' · ')
+    const age = lastAt ? ageT(ageLabel(lastAt)) : ''
+    const based = reportCount > 0 ? t(reportCount === 1 ? 'routes.basedOne' : 'routes.basedMany', { n: reportCount }) : ''
+    if (src.kind === 'agree') basis = [based, t('routes.ridersAgree'), age].filter(Boolean).join(' · ')
     else if (src.kind === 'differ') {
       const pct = Math.round((avgReported / officialFare - 1) * 100)
-      basis = `Riders paid ${formatGHS(avgReported)} (${pct > 0 ? '+' : ''}${pct}%)${age ? ` · ${age}` : ''}`
+      basis = `${t('routes.ridersPaidPct', { fare: formatGHS(avgReported), pct: `${pct > 0 ? '+' : ''}${pct}` })}${age ? ` · ${age}` : ''}`
       basisWarn = pct > 0
     } else if (src.kind === 'riders') basis = [based, age].filter(Boolean).join(' · ')
     else if (src.kind === 'gprtu') {
-      const when = route.fare_approved_at ? new Date(route.fare_approved_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''
-      basis = when ? `GPRTU fare · ${when} · no rider reports yet` : 'No rider reports yet'
-    } else basis = 'No fare yet. Be the first to report it.'
+      const when = route.fare_approved_at ? new Date(route.fare_approved_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', { month: 'short', year: 'numeric' }) : ''
+      basis = when ? t('routes.gprtuWhen', { when }) : t('routes.noRiderReports')
+    } else basis = t('routes.noFareYet')
   }
 
   // ── R3: stops with stage fares, board stop → that stop (cumulative) ──
@@ -241,11 +244,11 @@ export default function RouteDetailScreen() {
 
   const routeAlerts = isOkada ? [] : alertsForRoute(alertsQ.data, route.from_location, route.to_location).slice(0, 2)
   const asks: { label: string; onPress: () => void }[] = isOkada
-    ? [{ label: reportCount > 0 ? 'Confirm fare' : 'Add fare', onPress: goReportFare }, { label: 'Post update', onPress: () => goPost(route.from_location) }]
+    ? [{ label: reportCount > 0 ? t('routes.confirmFare') : t('routes.addFare'), onPress: goReportFare }, { label: t('routes.postUpdate'), onPress: () => goPost(route.from_location) }]
     : [
-        { label: reportCount > 0 ? 'Confirm fare' : 'Add fare', onPress: goReportFare },
-        { label: 'Share bay', onPress: () => goPost(route.from_location) },
-        { label: 'Post update', onPress: () => goPost(route.from_location) },
+        { label: reportCount > 0 ? t('routes.confirmFare') : t('routes.addFare'), onPress: goReportFare },
+        { label: t('routes.shareBay'), onPress: () => goPost(route.from_location) },
+        { label: t('routes.postUpdate'), onPress: () => goPost(route.from_location) },
       ]
   const barH = BAR_H + insets.bottom
 
@@ -273,23 +276,23 @@ export default function RouteDetailScreen() {
               style={s.saveBtn}
               accessibilityRole="button"
               accessibilityState={{ selected: favorited }}
-              accessibilityLabel={favorited ? 'Saved. Remove from saved lines' : 'Save this line'}
+              accessibilityLabel={favorited ? t('routes.savedA11y') : t('routes.saveA11y')}
             >
               <Animated.View style={{ transform: [{ scale: heartScale }] }}>
                 <Heart size={20} color="#FFFFFF" fill={favorited ? '#FFFFFF' : 'transparent'} />
               </Animated.View>
-              <Text style={s.saveText}>{favorited ? 'Saved' : 'Save'}</Text>
+              <Text style={s.saveText}>{favorited ? t('routes.saved') : t('routes.save')}</Text>
             </TouchableOpacity>
           </View>
           <View style={s.heroBody}>
             <HeroText size={44} style={{ color: '#FFFFFF', letterSpacing: 0.3 }} accessibilityRole="header">{corridor.code}</HeroText>
             <HeroText size={22} style={{ color: '#FFFFFF', marginTop: -6 }}>{isOkada ? 'Okada ' : ''}→ {to}</HeroText>
-            <Text style={s.heroSub}>from {from}{stops.length >= 3 ? ` · ${stops.length} stops` : ''}</Text>
+            <Text style={s.heroSub}>{t('homeX.fromPlace', { place: from })}{stops.length >= 3 ? ` · ${t('routes.stops', { n: stops.length })}` : ''}</Text>
             <View style={s.heroFareRow}>
               {heroFare ? <HeroText size={44} style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{heroFare}</HeroText> : null}
               {heroLabel ? (
                 <View style={[s.heroLabel, heroFare ? { marginBottom: 12 } : null]}>
-                  <Text style={[s.heroLabelText, { color: heroLabel === 'RIDERS' ? '#57534E' : '#047857' }]}>{heroLabel}</Text>
+                  <Text style={[s.heroLabelText, { color: heroLabel === 'RIDERS' ? '#57534E' : '#047857' }]}>{heroLabel === 'RIDERS' ? t('routes.riders') : heroLabel === 'GPRTU FARE' ? t('routes.gprtuFareCaps') : heroLabel}</Text>
                 </View>
               ) : null}
             </View>
@@ -302,38 +305,38 @@ export default function RouteDetailScreen() {
           {favorited && !isOkada ? (
             <View style={[s.card, s.alertsCard]}>
               <Bell size={18} color={ui.text} />
-              <Text style={s.alertsText}>Alerts on · disruptions on this line are pushed to you</Text>
+              <Text style={s.alertsText}>{t('routes.alertsOn')}</Text>
             </View>
           ) : null}
 
           {/* ── Fixed queue slot (R2 without the "Usually" strip, which needs backend) ── */}
           {!isOkada ? (
             <View>
-              <Text style={s.label}>Queue at {boardName}</Text>
-              <View style={[s.card, { padding: 14, marginTop: 6 }]} accessible accessibilityLabel={q && qFresh !== 'stale' ? `${QUEUE_WORD[q.current_status]} at ${boardName}, reported ${ageLabel(q.last_report_at)}` : `No recent queue report at ${boardName}`}>
+              <Text style={s.label}>{t('routes.queueAt', { place: boardName })}</Text>
+              <View style={[s.card, { padding: 14, marginTop: 6 }]} accessible accessibilityLabel={q && qFresh !== 'stale' ? t('routes.queueAtA11y', { status: queueWordT(q.current_status), place: boardName, age: ageT(ageLabel(q.last_report_at)) }) : t('routes.noQueueAtA11y', { place: boardName })}>
                 {q && qFresh !== 'stale' ? (
                   <>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <QueueGlyph status={q.current_status} color={QUEUE_COLOR[q.current_status]} size={24} opacity={qFresh === 'aging' ? 0.8 : 1} />
-                      <HeroText size={28} style={{ color: ui.text, flexShrink: 1 }}>{QUEUE_WORD[q.current_status]}</HeroText>
+                      <HeroText size={28} style={{ color: ui.text, flexShrink: 1 }}>{queueWordT(q.current_status)}</HeroText>
                     </View>
                     <Text style={s.meta}>
-                      {ageLabel(q.last_report_at)}
-                      {q.report_count_last_hour > 0 ? ` · ${q.report_count_last_hour} ${q.report_count_last_hour === 1 ? 'report' : 'reports'} this hour` : ''}
+                      {ageT(ageLabel(q.last_report_at))}
+                      {q.report_count_last_hour > 0 ? ` · ${t(q.report_count_last_hour === 1 ? 'routes.reportsHourOne' : 'routes.reportsHourMany', { n: q.report_count_last_hour })}` : ''}
                     </Text>
                   </>
                 ) : (
                   <>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <QueueGlyph status={null} color={ui.textTertiary} size={24} />
-                      <HeroText size={22} style={{ color: ui.textSecondary, flexShrink: 1 }}>No recent report</HeroText>
+                      <HeroText size={22} style={{ color: ui.textSecondary, flexShrink: 1 }}>{t('homeX.noRecentReport')}</HeroText>
                     </View>
-                    <Text style={s.meta}>At the station? Report the queue below.</Text>
+                    <Text style={s.meta}>{t('routes.atStationReport')}</Text>
                   </>
                 )}
               </View>
               {liveTrips.length > 0 && (
-                <Text style={[s.meta, { marginTop: 6 }]}>{liveTrips.length} rider{liveTrips.length !== 1 ? 's' : ''} sharing this trip live now</Text>
+                <Text style={[s.meta, { marginTop: 6 }]}>{t(liveTrips.length !== 1 ? 'routes.sharingTripMany' : 'routes.sharingTripOne', { n: liveTrips.length })}</Text>
               )}
             </View>
           ) : null}
@@ -341,7 +344,7 @@ export default function RouteDetailScreen() {
           {/* ── R3 stops and fares, in the corridor colour ── */}
           {!isOkada && stops.length >= 3 ? (
             <View>
-              <TicketCard tone="fare" label="Stops and fares" value={`${stops.length} stops`} bodyStyle={{ paddingTop: 4, paddingBottom: 8, paddingHorizontal: 14 }}>
+              <TicketCard tone="fare" label={t('routes.stopsAndFares')} value={t('routes.stops', { n: stops.length })} bodyStyle={{ paddingTop: 4, paddingBottom: 8, paddingHorizontal: 14 }}>
                 {stops.map((st, i) => {
                   const first = i === 0
                   const last = i === stops.length - 1
@@ -352,7 +355,7 @@ export default function RouteDetailScreen() {
                       key={st.id ?? `${st.stop_order}`}
                       style={s.stopRow}
                       accessible
-                      accessibilityLabel={`${titleCase(st.stop_name)}${first ? ', board here' : last ? ', end of line' : ''}${f && f.fare != null ? `, ${formatGHS(f.fare)}${isEst(f.source) ? ' estimated' : ''}` : ''}`}
+                      accessibilityLabel={`${titleCase(st.stop_name)}${first ? t('routes.boardHereA11y') : last ? t('routes.endOfLineA11y') : ''}${f && f.fare != null ? `, ${formatGHS(f.fare)}${isEst(f.source) ? t('routes.estimatedA11y') : ''}` : ''}`}
                     >
                       <View style={s.stopRail}>
                         <View style={[s.railLine, { backgroundColor: corridor.color, top: first ? '50%' : 0, bottom: last ? '50%' : 0 }]} />
@@ -364,13 +367,13 @@ export default function RouteDetailScreen() {
                       </View>
                       <Text style={[s.stopName, terminal && { fontFamily: font.extrabold }]}>{titleCase(st.stop_name)}</Text>
                       {first ? (
-                        <View style={[s.chip, { backgroundColor: '#ECFDF5' }]}><Text style={[s.chipText, { color: '#047857' }]}>Board here</Text></View>
+                        <View style={[s.chip, { backgroundColor: '#ECFDF5' }]}><Text style={[s.chipText, { color: '#047857' }]}>{t('routes.boardHere')}</Text></View>
                       ) : f && f.fare == null ? (
                         <Text style={[s.stopFare, { color: ui.textTertiary }]}>—</Text>
                       ) : f && f.fare != null ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={s.stopFare}>{formatGHS(f.fare)}</Text>
-                          {isEst(f.source) ? <View style={[s.chip, { backgroundColor: '#F5F5F4' }]}><Text style={[s.chipText, { color: '#57534E' }]}>est.</Text></View> : null}
+                          {isEst(f.source) ? <View style={[s.chip, { backgroundColor: '#F5F5F4' }]}><Text style={[s.chipText, { color: '#57534E' }]}>{t('routes.est')}</Text></View> : null}
                         </View>
                       ) : null}
                     </View>
@@ -383,10 +386,10 @@ export default function RouteDetailScreen() {
           {/* ── R4: one "Help the next rider" card, rank chip moved here ── */}
           <View style={s.help}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={s.helpTitle}>Help the next rider</Text>
+              <Text style={s.helpTitle}>{t('routes.helpNext')}</Text>
               {rankQ.data?.rank ? (
-                <View style={s.rankChip} accessible accessibilityLabel={`You are the number ${rankQ.data.rank} reporter on this line this month`}>
-                  <Text style={s.rankText}>You&apos;re #{rankQ.data.rank} here this month</Text>
+                <View style={s.rankChip} accessible accessibilityLabel={t('routes.rankA11y', { n: rankQ.data.rank })}>
+                  <Text style={s.rankText}>{t('routes.rank', { n: rankQ.data.rank })}</Text>
                 </View>
               ) : null}
             </View>
@@ -400,15 +403,15 @@ export default function RouteDetailScreen() {
           </View>
 
           {/* ── R7: map link states its data cost ── */}
-          <TouchableOpacity onPress={goMap} style={s.mapLink} accessibilityRole="link" accessibilityLabel="View on map. Uses about 2 megabytes of data">
+          <TouchableOpacity onPress={goMap} style={s.mapLink} accessibilityRole="link" accessibilityLabel={t('routes.mapA11y')}>
             <MapPin size={15} color={ui.textTertiary} />
-            <Text style={s.meta}>View on map · uses about 2 MB</Text>
+            <Text style={s.meta}>{t('routes.mapLink')}</Text>
           </TouchableOpacity>
 
           {/* ── Data-backed history: shown only when there is something to show ── */}
           {!isOkada && trend.length > 0 ? (
             <View>
-              <Text style={s.label}>Fares over time</Text>
+              <Text style={s.label}>{t('routes.faresOverTime')}</Text>
               <View style={[s.card, { padding: space.md, marginTop: 6 }]}>
                 <FareTrendChart
                   data={trend}
@@ -423,11 +426,11 @@ export default function RouteDetailScreen() {
           ) : null}
           {recentReports.length > 0 ? (
             <View>
-              <TicketCard tone="fare" label="Latest fare reports" value="Riders paid" bodyStyle={{ paddingTop: 2, paddingBottom: 4, paddingHorizontal: 14 }}>
+              <TicketCard tone="fare" label={t('routes.latestFareReports')} value={t('routes.ridersPaid')} bodyStyle={{ paddingTop: 2, paddingBottom: 4, paddingHorizontal: 14 }}>
                 {recentReports.slice(0, 4).map((r, i) => (
                   <View key={r.id} style={[s.reportRow, i > 0 && s.divider]}>
                     <Text style={[s.stopFare, { flex: 1 }]}>{formatGHS(r.reported_fare)}</Text>
-                    <Text style={s.meta}>{timeAgo(r.reported_at)}</Text>
+                    <Text style={s.meta}>{ageT(timeAgo(r.reported_at))}</Text>
                   </View>
                 ))}
               </TicketCard>
@@ -436,9 +439,9 @@ export default function RouteDetailScreen() {
           {activity.length > 0 ? (
             <View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={s.label}>On Pulse</Text>
-                <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={12} accessibilityRole="link" accessibilityLabel="See all Pulse posts">
-                  <Text style={s.linkText}>See all</Text>
+                <Text style={s.label}>{t('routes.onPulse')}</Text>
+                <TouchableOpacity onPress={() => router.push('/tales' as Href)} hitSlop={12} accessibilityRole="link" accessibilityLabel={t('routes.seeAllPulseA11y')}>
+                  <Text style={s.linkText}>{t('routes.seeAll')}</Text>
                 </TouchableOpacity>
               </View>
               <View style={[s.card, { paddingHorizontal: 14, marginTop: 6 }]}>
@@ -447,12 +450,12 @@ export default function RouteDetailScreen() {
                     <View style={s.postMeta}>
                       {p.kind === 'fare' ? <Receipt size={13} color={ui.success} /> : <MapPin size={13} color={brand.orangeText} />}
                       <Text style={[s.postMetaText, { color: p.kind === 'fare' ? '#15803D' : brand.orangeText }]}>
-                        {p.kind === 'fare' ? 'Fare reported' : p.location_name}
+                        {p.kind === 'fare' ? t('routes.fareReported') : p.location_name}
                       </Text>
-                      <Text style={s.meta}>· {timeAgo(p.created_at)}</Text>
+                      <Text style={s.meta}>· {ageT(timeAgo(p.created_at))}</Text>
                     </View>
                     <Text style={s.postText} numberOfLines={2}>
-                      {p.kind === 'fare' ? `A rider paid ${formatGHS(p.fare)} on this route.` : p.caption || 'Shared a photo'}
+                      {p.kind === 'fare' ? t('routes.riderPaid', { fare: formatGHS(p.fare) }) : p.caption || t('routes.sharedPhoto')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -466,15 +469,15 @@ export default function RouteDetailScreen() {
       <View style={[s.bar, { height: barH, paddingBottom: 12 + insets.bottom }]}>
         {isOkada ? (
           <TouchableOpacity onPress={goReportFare} style={[s.barBtn, s.barPri]} accessibilityRole="button">
-            <Text style={[s.barText, { color: '#FFFFFF' }]}>Report what you paid</Text>
+            <Text style={[s.barText, { color: '#FFFFFF' }]}>{t('routes.reportWhatYouPaid')}</Text>
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity onPress={goReportQueue} style={[s.barBtn, s.barPri]} accessibilityRole="button" accessibilityLabel={`Report the queue at ${boardName}`}>
-              <Text style={[s.barText, { color: '#FFFFFF' }]}>Report queue</Text>
+            <TouchableOpacity onPress={goReportQueue} style={[s.barBtn, s.barPri]} accessibilityRole="button" accessibilityLabel={t('homeX.reportQueueAt', { place: boardName })}>
+              <Text style={[s.barText, { color: '#FFFFFF' }]}>{t('homeX.reportQueue')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={goReportFare} style={[s.barBtn, s.barOut]} accessibilityRole="button" accessibilityLabel="Report the fare you paid">
-              <Text style={s.barText}>Report fare</Text>
+            <TouchableOpacity onPress={goReportFare} style={[s.barBtn, s.barOut]} accessibilityRole="button" accessibilityLabel={t('routes.reportFareA11y')}>
+              <Text style={s.barText}>{t('homeX.reportFare')}</Text>
             </TouchableOpacity>
           </>
         )}

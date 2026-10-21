@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics'
 import { c, themed, font } from '@/lib/theme'
 import { FALLBACK_STATION_COORDS } from '@/lib/utils/station-coords'
 import { MAPBOX_TOKEN } from '@/lib/config/mapbox'
+import { useLanguage } from '@/lib/i18n'
 
 // Public Mapbox token — same one used in app/_layout.tsx
 // token now centralized (UX-38)
@@ -63,6 +64,7 @@ export default function PickLocationScreen() {
   const target: PickTarget = params.target === 'to' ? 'to' : 'from'
   const isDark = useColorScheme() === 'dark'
   const t = themed(isDark)
+  const { t: tr } = useLanguage()
   const s = useMemo(() => getStyles(isDark), [isDark])
 
   const cameraRef = useRef<Mapbox.Camera>(null)
@@ -186,6 +188,12 @@ export default function PickLocationScreen() {
     })
   }, [currentCoord, placeLabel, router, target])
 
+  // placeLabel stays English (it is sent on as picked_label); only its display is translated.
+  const placeLabelText = placeLabel === 'Move the map to pick a spot' ? tr('routes.moveMap')
+    : placeLabel === 'Unknown area' ? tr('routes.unknownArea')
+    : placeLabel.startsWith('Near ') ? tr('routes.nearPlace', { place: placeLabel.slice(5) })
+    : placeLabel
+
   if (!hasInitialized) {
     return (
       <SafeAreaView style={s.container}>
@@ -234,7 +242,7 @@ export default function PickLocationScreen() {
           </TouchableOpacity>
           <View style={s.titlePill}>
             <Text style={s.titleText}>
-              Pick {target === 'from' ? 'start' : 'destination'}
+              {target === 'from' ? tr('routes.pickStart') : tr('routes.pickDest')}
             </Text>
           </View>
         </View>
@@ -255,7 +263,7 @@ export default function PickLocationScreen() {
           <View style={s.labelRow}>
             <MapPin size={16} color={c.amber500} />
             <Text style={s.labelText} numberOfLines={2}>
-              {isGeocoding ? 'Finding location…' : placeLabel}
+              {isGeocoding ? tr('routes.findingLocation') : placeLabelText}
             </Text>
           </View>
           <TouchableOpacity
@@ -269,7 +277,7 @@ export default function PickLocationScreen() {
           >
             <Check size={18} color="#fff" strokeWidth={2.75} />
             <Text style={s.confirmText}>
-              Set as {target === 'from' ? 'start' : 'destination'}
+              {target === 'from' ? tr('routes.setStart') : tr('routes.setDest')}
             </Text>
           </TouchableOpacity>
         </View>

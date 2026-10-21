@@ -18,6 +18,7 @@ import { usePullToRefresh } from '@/lib/hooks/usePullToRefresh'
 import { freshness } from '@/lib/utils/freshness'
 import type { StationWithQueue } from '@/lib/services/stations'
 import { CARD, ORANGE, TEXT, TEXT2 } from '@/components/home/tokens'
+import { useLanguage } from '@/lib/i18n'
 
 type Sort = 'nearby' | 'busiest' | 'az'
 
@@ -39,6 +40,7 @@ const fmtKm = (d: number) => (d < 1 ? `${Math.round((d * 1000) / 50) * 50} m` : 
  */
 export default function StationsTab() {
   const router = useRouter()
+  const { t } = useLanguage()
   const lineCount = useStationLineCounts()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
@@ -86,8 +88,8 @@ export default function StationsTab() {
         <AdinkraWallpaper width={width} height={insets.top + 220} size={26} color="rgba(232,70,26,0.10)" />
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extrabold, fontSize: 30, lineHeight: 40, color: TEXT }}>Stations</Text>
-            <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>Queues at trotro stations</Text>
+            <Text style={{ fontFamily: font.extrabold, fontSize: 30, lineHeight: 40, color: TEXT }}>{t('nav.stations')}</Text>
+            <Text style={{ fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>{t('stations.subtitle')}</Text>
           </View>
           {/* Map hidden for now (owner 2026-10-09): the old map screen doesn't fit the redesign. */}
         </View>
@@ -96,9 +98,9 @@ export default function StationsTab() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search a station"
+            placeholder={t('stations.searchPh')}
             placeholderTextColor="#6B7280"
-            accessibilityLabel="Search stations"
+            accessibilityLabel={t('stations.searchA11y')}
             style={{ flex: 1, fontFamily: font.regular, fontSize: 15, color: TEXT }}
           />
         </View>
@@ -119,7 +121,7 @@ export default function StationsTab() {
           ) : null}
           {(['nearby', 'busiest', 'az'] as Sort[]).map((k) => {
             const on = sort === k
-            const label = k === 'nearby' ? 'Nearby' : k === 'busiest' ? 'Busiest' : 'A–Z'
+            const label = k === 'nearby' ? t('home.nearby') : k === 'busiest' ? t('stations.sortBusiest') : 'A–Z'
             // Pressable, not TouchableOpacity: no fade on press, so the label never goes grey/blurry.
             return (
               <Pressable
@@ -127,7 +129,7 @@ export default function StationsTab() {
                 onPress={() => { if (!on) { Haptics.selectionAsync(); setSort(k) } }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={`Sort stations: ${label}`}
+                accessibilityLabel={t('stations.sortA11y', { label })}
                 style={{
                   flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: segW > 0 ? 'transparent' : on ? '#FFFFFF' : 'transparent',
@@ -140,7 +142,7 @@ export default function StationsTab() {
         </View>
         {sort === 'nearby' && !inGhana ? (
           <Text style={{ marginHorizontal: 20, marginTop: 8, fontFamily: font.regular, fontSize: 12, color: TEXT2 }}>
-            Turn on location to sort by distance. Showing busiest instead.
+            {t('stations.locHint')}
           </Text>
         ) : null}
       </View>
@@ -161,7 +163,7 @@ export default function StationsTab() {
         removeClippedSubviews
         ListEmptyComponent={
           <Text style={{ margin: 20, fontFamily: font.regular, fontSize: 14, color: TEXT2 }}>
-            {isLoading ? 'Loading stations…' : 'No station matches that name.'}
+            {isLoading ? t('stations.loading') : t('stations.noMatch')}
           </Text>
         }
         renderItem={({ item: { s, d }, index }) => {
@@ -170,7 +172,7 @@ export default function StationsTab() {
             <PressableScale
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/stations/[id]', params: { id: s.id } } as any) }}
               accessibilityRole="button"
-              accessibilityLabel={`${s.name}${d != null ? `, ${fmtKm(d)} away` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
+              accessibilityLabel={`${s.name}${d != null ? `, ${t('stations.away', { dist: fmtKm(d) })}` : ''}, ${queueA11y(stat?.current_status, stat?.last_report_at)}`}
               style={{
                 marginHorizontal: 20, backgroundColor: CARD.bg, paddingHorizontal: 16, paddingVertical: 12,
                 flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -193,7 +195,7 @@ export default function StationsTab() {
                   <QueueStatusLine status={stat?.current_status} reportedAt={stat?.last_report_at} size={13} />
                 </FlashOnChange>
               </View>
-              {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{lineCount(s)} {lineCount(s) === 1 ? 'line' : 'lines'}</Text> : null}
+              {lineCount(s) ? <Text style={{ fontFamily: font.bold, fontSize: 12, color: TEXT2 }}>{t(lineCount(s) === 1 ? 'homeX.line' : 'homeX.lines', { n: lineCount(s) ?? 0 })}</Text> : null}
               <ChevronRight size={18} color="#9CA3AF" />
             </PressableScale>
           )
@@ -205,7 +207,7 @@ export default function StationsTab() {
         activeOpacity={0.85}
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/report/queue' as any) }}
         accessibilityRole="button"
-        accessibilityLabel="Report a queue"
+        accessibilityLabel={t('stations.reportQueueA11y')}
         style={{
           position: 'absolute', right: 20, bottom: TAB_BAR_CLEARANCE + insets.bottom + 8, height: 52, paddingHorizontal: 18, borderRadius: 26,
           backgroundColor: ORANGE, flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -213,7 +215,7 @@ export default function StationsTab() {
         }}
       >
         <Plus size={18} color="#FFFFFF" />
-        <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>Report queue</Text>
+        <Text style={{ fontFamily: font.extrabold, fontSize: 15, color: '#FFFFFF' }}>{t('homeX.reportQueue')}</Text>
       </TouchableOpacity>
     </View>
   )

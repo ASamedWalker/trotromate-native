@@ -2,6 +2,7 @@ import { TouchableOpacity, Text, StyleSheet, useColorScheme } from 'react-native
 import { UserPlus, UserCheck } from 'lucide-react-native'
 import { useFollow } from '@/lib/hooks/useFollow'
 import { c, font } from '@/lib/theme'
+import { useLanguage } from '@/lib/i18n'
 
 interface FollowButtonProps {
   myDeviceId: string | null
@@ -17,6 +18,7 @@ export default function FollowButton({
   size = 'sm',
 }: FollowButtonProps) {
   const isDark = useColorScheme() === 'dark'
+  const { t } = useLanguage()
   const { isFollowing, toggle, isLoading } = useFollow(
     myDeviceId,
     targetDeviceId,
@@ -59,7 +61,7 @@ export default function FollowButton({
           },
         ]}
       >
-        {isFollowing ? 'Following' : 'Follow'}
+        {isFollowing ? t('profile.followingBtn') : t('profile.follow')}
       </Text>
     </TouchableOpacity>
   )

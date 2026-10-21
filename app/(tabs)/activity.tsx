@@ -43,6 +43,7 @@ import type { ActivityItem } from '@/lib/services/activity'
 import type { NotificationType } from '@/lib/services/notifications'
 import { SkeletonActivityItem } from '@/components/Skeleton'
 import { useRefreshOnFocus } from '@/lib/hooks/useRefreshOnFocus'
+import { useLanguage } from '@/lib/i18n'
 
 // ─── Config ─────────────────────────────────────────────
 
@@ -84,14 +85,14 @@ function getDateBucket(timestamp: string): string {
   const weekAgo = new Date(today)
   weekAgo.setDate(weekAgo.getDate() - 7)
 
-  if (date >= today) return 'Today'
-  if (date >= yesterday) return 'Yesterday'
-  if (date >= weekAgo) return 'This Week'
-  return 'Older'
+  if (date >= today) return 'activity.today'
+  if (date >= yesterday) return 'activity.yesterday'
+  if (date >= weekAgo) return 'activity.thisWeek'
+  return 'activity.older'
 }
 
 function groupByDate(items: ActivityItem[]): { title: string; data: ActivityItem[] }[] {
-  const bucketOrder = ['Today', 'Yesterday', 'This Week', 'Older']
+  const bucketOrder = ['activity.today', 'activity.yesterday', 'activity.thisWeek', 'activity.older']
   const groups: Record<string, ActivityItem[]> = {}
 
   for (const item of items) {
@@ -118,6 +119,7 @@ function SwipeableRow({
 }) {
   const swipeableRef = useRef<Swipeable>(null)
   const rs = getRowStyles(isDark)
+  const { t } = useLanguage()
 
   const handleDelete = useCallback(() => {
     swipeableRef.current?.close()
@@ -140,12 +142,12 @@ function SwipeableRow({
         >
           <Animated.View style={[rs.deleteContent, { transform: [{ scale }] }]}>
             <Trash2 size={20} color={ui.onBrand} />
-            <Text style={rs.deleteText}>Delete</Text>
+            <Text style={rs.deleteText}>{t('activity.delete')}</Text>
           </Animated.View>
         </TouchableOpacity>
       )
     },
-    [handleDelete, rs]
+    [handleDelete, rs, t]
   )
 
   const config = ACTIVITY_TYPE_CONFIG[item.type] ?? ACTIVITY_TYPE_CONFIG.fare
@@ -188,6 +190,7 @@ export default function UpdatesScreen() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
   const s = useMemo(() => getStyles(isDark), [isDark])
+  const { t } = useLanguage()
 
   const [segment, setSegment] = useState<Segment>('notifications')
 
@@ -241,22 +244,22 @@ export default function UpdatesScreen() {
   const renderSectionHeader = useCallback(
     ({ section }: { section: { title: string } }) => (
       <View style={s.sectionHeader}>
-        <Text style={s.sectionTitle}>{section.title}</Text>
+        <Text style={s.sectionTitle}>{t(section.title)}</Text>
       </View>
     ),
-    [s]
+    [s, t]
   )
 
   const renderActivityFooter = useCallback(() => {
     if (!hasMore && activityItems.length > 0) {
       return (
         <View style={s.footer}>
-          <Text style={s.footerText}>No more activity</Text>
+          <Text style={s.footerText}>{t('activity.noMore')}</Text>
         </View>
       )
     }
     return null
-  }, [hasMore, activityItems.length, s])
+  }, [hasMore, activityItems.length, s, t])
 
   const renderNotifItem = useCallback(
     ({ item }: { item: (typeof notifications)[0] }) => {
@@ -293,14 +296,14 @@ export default function UpdatesScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <ReanimatedAnimated.View entering={FadeInDown.duration(300)} style={s.header}>
-        <Text style={s.headerTitle}>Activity</Text>
+        <Text style={s.headerTitle}>{t('activity.title')}</Text>
         {isNotifSegment && unreadCount > 0 ? (
           <TouchableOpacity activeOpacity={0.7} onPress={markAllRead}>
-            <Text style={s.markRead}>Mark all read</Text>
+            <Text style={s.markRead}>{t('activity.markAllRead')}</Text>
           </TouchableOpacity>
         ) : !isNotifSegment && activityItems.length > 0 ? (
           <TouchableOpacity activeOpacity={0.7} onPress={dismissAll}>
-            <Text style={s.markRead}>Clear all</Text>
+            <Text style={s.markRead}>{t('activity.clearAll')}</Text>
           </TouchableOpacity>
         ) : null}
       </ReanimatedAnimated.View>
@@ -314,7 +317,7 @@ export default function UpdatesScreen() {
             style={[s.segmentBtn, isNotifSegment && s.segmentBtnActive]}
           >
             <Text style={[s.segmentLabel, isNotifSegment && s.segmentLabelActive]}>
-              Notifications
+              {t('activity.notifications')}
             </Text>
             {unreadCount > 0 && (
               <View style={s.badge}>
@@ -328,7 +331,7 @@ export default function UpdatesScreen() {
             style={[s.segmentBtn, !isNotifSegment && s.segmentBtnActive]}
           >
             <Text style={[s.segmentLabel, !isNotifSegment && s.segmentLabelActive]}>
-              Activity
+              {t('activity.title')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -349,9 +352,9 @@ export default function UpdatesScreen() {
             <View style={s.emptyIconBox}>
               <Bell size={28} color={isDark ? '#fbbf24' : brand.orange} />
             </View>
-            <Text style={s.emptyTitle}>All caught up</Text>
+            <Text style={s.emptyTitle}>{t('activity.caughtUp')}</Text>
             <Text style={s.emptySub}>
-              Favorite some routes to get fare alerts and queue updates.
+              {t('activity.caughtUpSub')}
             </Text>
           </View>
         ) : (
@@ -388,9 +391,9 @@ export default function UpdatesScreen() {
             <View style={s.emptyIconBox}>
               <Bell size={28} color={isDark ? '#fbbf24' : brand.orange} />
             </View>
-            <Text style={s.emptyTitle}>Keep the pulse.</Text>
+            <Text style={s.emptyTitle}>{t('activity.emptyTitle')}</Text>
             <Text style={s.emptySub}>
-              You're all caught up with the transit heartbeat of Accra.
+              {t('activity.emptySub')}
             </Text>
           </View>
         ) : (

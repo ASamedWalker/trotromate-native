@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test:i18n": "node --experimental-strip-types --no-warnings --import ./tests/register.mjs --test tests/i18n-fr.test.ts",
     "verify": "tsc --noEmit",
     "e2e": "JAVA_HOME=/opt/homebrew/opt/openjdk@17 PATH=$HOME/.maestro/bin:$PATH maestro test .maestro/"
   },

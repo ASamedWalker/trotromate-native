@@ -8,9 +8,11 @@ import { AdinkraWallpaper } from '@/components/AdinkraWallpaper'
 import { AdinkraAccent } from '@/components/AdinkraAccent'
 import { LINE_META, toMinutes } from '@/lib/utils/train-stations'
 import { useDepartureReminders } from '@/lib/hooks/useDepartureReminders'
+import { useLanguage } from '@/lib/i18n'
+import { deName, weekdayName } from '@/lib/i18n/screens/train'
 import { REMINDER_LEAD_MINUTES, showReminderFailureAlert } from '@/lib/services/trainReminders'
 import {
-  BOARD_NAVY, BigCountdown, TimetableChips, WEEKDAY_NAMES, departuresBoard, type DepartureRow,
+  BOARD_NAVY, BigCountdown, TimetableChips, departuresBoard, type DepartureRow,
 } from '@/components/train/trainTime'
 
 /** Seconds from this instant to a row's departure (recomputed at tap time). */
@@ -30,6 +32,7 @@ function secondsUntil(row: DepartureRow, dayOffset: number): number {
 export function ReleaseTrainTop({ now }: { now: Date }) {
   const { width } = useWindowDimensions()
   const { isSet, toggle } = useDepartureReminders()
+  const { t, lang } = useLanguage()
 
   const board = departuresBoard(now)
   const upcoming = board.rows.filter((r) => !r.departed)
@@ -64,11 +67,12 @@ export function ReleaseTrainTop({ now }: { now: Date }) {
 
   const lineName = (LINE_META[next.lineCode]?.name ?? next.lineCode).replace(/ – /g, '–')
   const today = board.offset === 0
-  const dayWord = board.offset === 1 ? 'Tomorrow' : WEEKDAY_NAMES[(now.getUTCDay() + board.offset) % 7]
-  const remindSuffix = remindRow && !sameRoute(remindRow) ? ` to ${remindRow.destination}` : ''
+  const dayWord = board.offset === 1 ? t('train.tomorrowMid') : weekdayName(now.getUTCDay() + board.offset, lang)
   const remindLabel = armed
-    ? `Reminder set · ${lead} min before the ${remindRow!.depart}`
-    : `Remind me before the ${remindRow?.depart ?? ''}${remindSuffix}`
+    ? t('train.reminderSetBefore', { n: lead, time: remindRow!.depart })
+    : remindRow && !sameRoute(remindRow)
+      ? t('train.remindBeforeTo', { time: remindRow.depart, dest: remindRow.destination })
+      : t('train.remindBefore', { time: remindRow?.depart ?? '' })
 
   return (
     <View style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: BOARD_NAVY, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 16, overflow: 'hidden' }}>
@@ -76,7 +80,7 @@ export function ReleaseTrainTop({ now }: { now: Date }) {
       {/* One larger Adinkrahene (greatness) rising off the top-right corner, above the faint pattern. */}
       <AdinkraAccent symbol="adinkrahene" size={120} color="#FFFFFF" opacity={0.08} position="topRight" inset={-34} />
       <Text style={{ fontFamily: font.extrabold, fontSize: 12, letterSpacing: 0.7, color: 'rgba(255,255,255,0.75)' }} numberOfLines={1}>
-        {today ? `NEXT TRAIN · ${lineName.toUpperCase()} LINE` : `${lineName.toUpperCase()} LINE`}
+        {today ? t('train.nextTrainLine', { line: lineName.toUpperCase() }) : t('train.lineUpper', { line: lineName.toUpperCase() })}
       </Text>
 
       {today ? (
@@ -90,10 +94,10 @@ export function ReleaseTrainTop({ now }: { now: Date }) {
         <>
           {/* Sunday / after the last train: name the next service day honestly. */}
           <HeroText size={20} style={{ color: '#FFFFFF', marginTop: 2 }}>
-            {board.noServiceToday ? `No trains on ${WEEKDAY_NAMES[now.getUTCDay()]}` : 'No more trains today'}
+            {board.noServiceToday ? t('train.noTrainsOn', { day: weekdayName(now.getUTCDay(), lang) }) : t('train.noMoreToday')}
           </HeroText>
           <Text style={{ fontFamily: font.medium, fontSize: 15, color: 'rgba(255,255,255,0.8)' }}>
-            Next: {dayWord} {next.depart} from {next.origin}
+            {t('train.nextFrom', { day: dayWord, time: next.depart, origin: deName(next.origin, lang) })}
           </Text>
         </>
       )}
@@ -108,8 +112,8 @@ export function ReleaseTrainTop({ now }: { now: Date }) {
           accessibilityState={{ selected: armed }}
           accessibilityLabel={
             armed
-              ? `Reminder set for the ${remindRow.depart} from ${remindRow.origin}. Tap to cancel`
-              : `Remind me ${lead} minutes before the ${remindRow.depart} from ${remindRow.origin} to ${remindRow.destination}`
+              ? t('train.a11yReminderSetFor', { time: remindRow.depart, origin: deName(remindRow.origin, lang) })
+              : t('train.a11yRemindFull', { n: lead, time: remindRow.depart, origin: deName(remindRow.origin, lang), dest: remindRow.destination })
           }
           style={{ marginTop: 14, height: 48, borderRadius: 12, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 }}
         >

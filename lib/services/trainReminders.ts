@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Notifications from 'expo-notifications'
 import { Alert, Linking, Platform } from 'react-native'
+import { t } from '@/lib/i18n'
 
 // Persisted set of active departure reminders, keyed by schedule id.
 // One reminder per schedule (a given train run) — re-arming replaces it.
@@ -107,8 +108,8 @@ export async function setDepartureReminder(params: {
 
   const notifId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${params.lineCode} departs in ${REMINDER_LEAD_MINUTES} min`,
-      body: `${params.origin} → ${params.destination} · leaves ${params.departTime}. Head to the platform.`,
+      title: t('train.notifTitle', { line: params.lineCode, n: REMINDER_LEAD_MINUTES }),
+      body: t('train.notifBody', { origin: params.origin, dest: params.destination, time: params.departTime }),
       data: { screen: 'train', lineCode: params.lineCode },
       sound: true,
     },
@@ -145,17 +146,17 @@ export async function setDepartureReminder(params: {
 export function showReminderFailureAlert(failure: ReminderFailure): void {
   if (failure === 'too-soon') {
     Alert.alert(
-      'Departure too close',
-      `This train leaves within ${REMINDER_LEAD_MINUTES} minutes — too late for a ${REMINDER_LEAD_MINUTES}-minute heads-up. Pick a later departure.`,
+      t('train.alertTooCloseTitle'),
+      t('train.alertTooCloseBody', { n: REMINDER_LEAD_MINUTES }),
     )
     return
   }
   Alert.alert(
-    'Notifications are off',
-    'Troski needs notification permission from your phone to remind you. Turn it on in system Settings.',
+    t('train.alertNotifOffTitle'),
+    t('train.alertNotifOffBody'),
     [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      { text: t('train.alertNotNow'), style: 'cancel' },
+      { text: t('train.alertOpenSettings'), onPress: () => Linking.openSettings() },
     ],
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Text, type TextStyle } from 'react-native'
 import { useIsFetching, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { font } from '@/lib/theme'
+import { useLanguage, t } from '@/lib/i18n'
 
 /** Newest successful fetch time across the given query keys (prefix match), 0 if none yet. */
 export function useLastUpdated(keys: QueryKey[]): number {
@@ -24,16 +25,17 @@ export function useLastUpdated(keys: QueryKey[]): number {
 
 export function updatedLabel(at: number, now: number = Date.now()): string {
   const mins = Math.max(0, Math.floor((now - at) / 60000))
-  if (mins < 1) return 'Updated just now'
-  if (mins < 60) return `Updated ${mins} min ago`
+  if (mins < 1) return t('homeX.updatedNow')
+  if (mins < 60) return t('homeX.updatedMin', { n: mins })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `Updated ${hours} h ago`
-  return 'Updated over a day ago'
+  if (hours < 24) return t('homeX.updatedH', { n: hours })
+  return t('homeX.updatedDay')
 }
 
 /** "Updated 2 min ago" — from the last successful refresh of Home's data (UX v2 H4). */
 export function UpdatedStamp({ keys, style }: { keys: QueryKey[]; style?: TextStyle }) {
   const at = useLastUpdated(keys)
+  useLanguage() // re-render on language change
   if (!at) return null
   return (
     <Text style={[{ fontFamily: font.medium, fontSize: 12 }, style]} numberOfLines={1}>

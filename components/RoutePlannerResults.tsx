@@ -3,6 +3,7 @@ import { Clock, Footprints, ChevronRight } from 'lucide-react-native'
 import { font } from '@/lib/theme'
 import { formatGHS } from '@/lib/utils/currency'
 import type { TransferPlan } from '@/lib/services/route-planner'
+import { useLanguage } from '@/lib/i18n'
 
 const BRAND = '#FF4D1C'
 
@@ -43,11 +44,12 @@ export function RoutePlannerResults({
   selectedPlanIndex?: number | null
   onSelectPlan?: (index: number) => void
 }) {
+  const { t } = useLanguage()
   if (isLoading) {
     return (
       <View style={{ alignItems: 'center', paddingVertical: 32, gap: 10 }}>
         <ActivityIndicator size="small" color={BRAND} />
-        <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>Finding routes...</Text>
+        <Text style={{ fontFamily: font.medium, fontSize: 14, color: '#6B7280' }}>{t('routes.findingRoutes')}</Text>
       </View>
     )
   }
@@ -55,9 +57,9 @@ export function RoutePlannerResults({
   if (plans.length === 0 && !walkingEstimate) {
     return (
       <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
-        <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 4 }}>No routes found</Text>
+        <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 4 }}>{t('routes.noRoutes')}</Text>
         <Text style={{ fontFamily: font.regular, fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
-          Try different locations or check your spelling
+          {t('routes.tryDifferentLoc')}
         </Text>
       </View>
     )
@@ -66,7 +68,7 @@ export function RoutePlannerResults({
   return (
     <View style={{ paddingHorizontal: 24, marginTop: 16, gap: 10 }}>
       <Text style={{ fontFamily: font.bold, fontSize: 20, color: '#000', marginBottom: 4 }}>
-        Available Routes
+        {t('routes.availableRoutes')}
       </Text>
 
       {plans.map((plan, i) => {
@@ -103,11 +105,11 @@ export function RoutePlannerResults({
                 <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000' }}>{config.label}</Text>
                 {plan.type === 'direct' ? (
                   <View style={{ backgroundColor: '#FFF0EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: BRAND }}>Direct</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: BRAND }}>{t('routes.direct')}</Text>
                   </View>
                 ) : (
                   <View style={{ backgroundColor: '#F0F9FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#0EA5E9' }}>Transfer</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#0EA5E9' }}>{t('routes.transfer')}</Text>
                   </View>
                 )}
               </View>
@@ -123,14 +125,14 @@ export function RoutePlannerResults({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Clock size={12} color="#6B7280" />
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
-                  {plan.total_duration_mins ? `~${plan.total_duration_mins} min ride` : 'Ride time not known yet'}
+                  {plan.total_duration_mins ? t('routes.rideMin', { n: plan.total_duration_mins }) : t('routes.rideUnknown')}
                 </Text>
               </View>
               {/* A transfer means changing vehicle somewhere — say where, or the
                   rider can't weigh it against a direct option. */}
               {plan.type === 'transfer' && plan.transfer_hub ? (
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#0EA5E9' }}>
-                  change at {plan.transfer_hub}
+                  {t('routes.changeAt', { place: plan.transfer_hub })}
                 </Text>
               ) : null}
             </View>
@@ -158,7 +160,7 @@ export function RoutePlannerResults({
             <Footprints size={24} color="#16a34a" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 3 }}>Walk</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 16, color: '#000', marginBottom: 3 }}>{t('routes.walk')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Clock size={12} color="#6B7280" />
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#6B7280' }}>
@@ -166,7 +168,7 @@ export function RoutePlannerResults({
               </Text>
             </View>
           </View>
-          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#16a34a' }}>Free</Text>
+          <Text style={{ fontFamily: font.extrabold, fontSize: 18, color: '#16a34a' }}>{t('routes.free')}</Text>
           <ChevronRight size={18} color="#D1D5DB" />
         </TouchableOpacity>
       )}
